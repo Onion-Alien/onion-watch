@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/art/hoot.png" width="150" alt="Hoot, the Onion Watch owl"></p>
+
 # Onion Watch
 
 **Plays a sound when something shows up in a game — even while you're alt-tabbed
@@ -55,7 +57,7 @@ Everything happens on your PC. What it captures is never saved or sent anywhere
   - a wait before playing, and a cooldown before it can play again;
   - how close a match must be, with the live match shown next to it.
 - **Keeps watching from the tray** when you close the window.
-- The same themes as [Onion Board](https://github.com/Onion-Alien/onionboard).
+- The same themes as [Onion Board](https://github.com/Onion-Alien/onion-board).
   Onion Watch started as Onion Board's Triggers tab.
 
 ## How it works
@@ -87,7 +89,8 @@ python -m venv .venv
 Checks: `.venv\Scripts\ruff check .` and `.venv\Scripts\python -m pytest`. The
 tests run Qt offscreen with stand-in captures and a silent audio stream, so they
 never read your screen or make a sound. `scripts\screenshots.py` renders the
-screenshots above from made-up data.
+screenshots above from made-up data, and `scripts\make_art.py` renders Hoot, the
+avatar and the social preview into `docsrt\`.
 
 Settings, the log, your pictures and your sound files live in
 `%APPDATA%\OnionWatch`.
@@ -107,6 +110,7 @@ Settings, the log, your pictures and your sound files live in
 | `onionwatch/ui/snip.py` | cutting a picture out of a capture |
 | `onionwatch/ui/mainwindow.py` | the window, the alarm bar, the tray icon, notifications |
 | `onionwatch/ui/settingsdialog.py` | output device, volume, notifications, tray, theme |
+| `onionwatch/owl.py` | Hoot, the mascot owl, drawn in code (Onion Board's Bun's style) |
 | `onionwatch/theme.py`, `ui/icons.py`, `ui/panel.py` | themes, the logo, painted icons and layout helpers, shared with Onion Board |
 | `tests/` | pytest: the matcher, the watcher on stand-in screens and windows (several copies of a game, not open yet, closed and reopened, minimized, resized), the sounds and player, the UI offscreen |
 
