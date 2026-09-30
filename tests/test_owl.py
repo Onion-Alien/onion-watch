@@ -66,3 +66,14 @@ def test_click_cheers(qapp):
 def test_owl_image_still_plain(qapp):
     img = owl.owl_image(120)
     assert img.height() == 120 and not img.isNull()
+
+
+def test_room_beside_him_gives_way(qapp):
+    w = owl.OwlWidget(100, left=0, right=80)
+    assert w.minimumSizeHint().width() < w.sizeHint().width() - 60
+    w.resize(w.minimumSizeHint())
+    w.start("plead")
+    w.step(1.0, mouse=None)
+    r = w._owl_rect()
+    assert r.left() >= 0 and r.right() <= w.width()
+    paint(w)
