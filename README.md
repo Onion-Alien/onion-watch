@@ -16,8 +16,8 @@ moment the thing appears.
 **[⬇ Download Onion Watch for Windows](https://github.com/Onion-Alien/onion-watch/releases/latest/download/OnionWatchSetup.exe)**
 (free, Windows 10 and 11, no account) · [website](https://onion-alien.github.io/onion-watch/) ·
 [all versions](https://github.com/Onion-Alien/onion-watch/releases) ·
-[VirusTotal scan of 0.4.0](https://www.virustotal.com/gui/file/674fbb8c436c76b9558f6e7b40d2a02d0139f8eccf695eea4d1d747da37afc59):
-56 of 56 engines clean
+[VirusTotal scan of 0.5.0](https://www.virustotal.com/gui/file/eb304c5dce5e3a0b102d069fac462e23382f747b35240f09a1eb501902b77416):
+65 of 65 engines clean
 
 Windows or your browser may warn you about the download, because the installer isn't
 code-signed. Click **More info → Run anyway**. It installs for your user only, without
@@ -85,6 +85,9 @@ Everything happens on your PC. What it captures is never saved or sent anywhere
   - staying quiet while the window it went off in is the one you're playing.
 - **Duplicate** a trigger, and **save triggers to a file** (pictures and all) to
   move them to another PC or share them; sounds go by name.
+- **Nothing is lost to a misclick.** Deleting a trigger asks first, and a deleted
+  trigger stays in **Recently deleted** for 30 days, pictures and all, so it can be
+  brought back.
 - **Keeps watching from the tray** when you close the window.
 - The same themes as [Onion Board](https://github.com/Onion-Alien/onion-board),
   plus its own teal **Hoot** theme. Onion Watch started as Onion Board's Triggers

@@ -70,3 +70,8 @@ def test_the_board_is_told_what_it_may_squeeze(tab):
     tab.panel.set_watching(False)
     assert tab.panel.btn_watch.text() == ""
     assert tab.panel.btn_watch.property("full_text") == "Start watching"
+
+
+def test_the_board_can_reach_the_more_menu(tab):
+    """Onion Board puts "Remove Onion Watch…" last in the add-on's More menu."""
+    assert tab.btn_more is tab.panel.btn_more and tab.btn_more.menu() is not None

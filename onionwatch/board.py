@@ -56,6 +56,7 @@ class BoardPanel(QWidget):
         v.setContentsMargins(0, 8, 0, 0)
         v.setSpacing(8)
         self.panel = TriggersTab(host)
+        self.btn_more = self.panel.btn_more   # the board adds "Remove Onion Watch…" to it
         self.alarm = AlarmBar(self.panel)
         v.addWidget(self.alarm)
         v.addWidget(self.panel, 1)
