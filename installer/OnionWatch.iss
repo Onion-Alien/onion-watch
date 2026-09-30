@@ -36,7 +36,9 @@ PrivilegesRequired=lowest
 DisableDirPage=yes
 DisableProgramGroupPage=yes
 DisableReadyPage=yes
+DisableWelcomePage=no
 WizardStyle=modern
+WizardSizePercent=110
 SetupIconFile=..\build\onionwatch.ico
 ; Hoot, drawn by scripts\make_installer_art.py
 WizardImageFile=wizard-1x.bmp,wizard-2x.bmp
@@ -47,6 +49,7 @@ OutputBaseFilename=OnionWatchSetup
 Compression=lzma2/ultra64
 SolidCompression=yes
 LZMAUseSeparateProcess=yes
+LZMANumFastBytes=273
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 CloseApplications=yes

@@ -19,11 +19,14 @@ if (-not (Test-Path $py)) { throw "No .venv - see README.md, Running from source
 # the icon and the setup wizard's pictures are drawn in code, like the rest of the art
 & $py scripts\make_installer_art.py
 if ($LASTEXITCODE -ne 0) { throw "make_installer_art.py failed" }
+# the exe's Properties -> Details (an exe without them looks suspicious to virus scanners)
+& $py scripts\make_version_info.py
+if ($LASTEXITCODE -ne 0) { throw "make_version_info.py failed" }
 
 $cleanArg = @()
 if ($Clean) { $cleanArg = @("--clean") }
 & $py -m PyInstaller --noconfirm @cleanArg --windowed `
-    --name OnionWatch --icon build\onionwatch.ico `
+    --name OnionWatch --icon build\onionwatch.ico --version-file build\version_info.txt `
     --paths . `
     main.py
 if ($LASTEXITCODE -ne 0) { throw "PyInstaller failed" }
