@@ -226,18 +226,22 @@ class OwlWidget(QWidget):
     peeks, dozes off and jolts awake. Bring the mouse near and he perks up and
     follows it with his eyes; click him and he hops for joy.
 
-    `lines` are what he says when he begs, `joy` what he shouts when clicked. There
-    is room around him for the speech bubble and the zzz. The timer only runs while
-    he's on screen."""
+    `lines` are what he says when he begs, `joy` what he shouts when clicked.
+    `left` / `right` are the room beside him, px (default: plenty both sides, for
+    the speech bubble up to his right and the zzz). The timer only runs while he's
+    on screen."""
 
     clicked = Signal()
 
-    def __init__(self, height: int = 96, lines=WAIT_LINES, joy=JOY_LINES, parent=None):
+    def __init__(self, height: int = 96, lines=WAIT_LINES, joy=JOY_LINES, parent=None, *,
+                 left: int | None = None, right: int | None = None):
         super().__init__(parent)
         self.owl_h = height
         self.lines = tuple(lines)
         self.joy_lines = tuple(joy)
-        self.side = round(height * 1.45)   # room either side for the bubble
+        side = round(height * 1.45)
+        self.left = side if left is None else left
+        self.right = side if right is None else right
         self.top = round(height * 0.34)    # room above for "?" and z's
         self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         self.setCursor(Qt.PointingHandCursor)
@@ -261,7 +265,8 @@ class OwlWidget(QWidget):
         self._timer.timeout.connect(self._tick)
 
     def sizeHint(self) -> QSize:
-        return QSize(round(self.owl_h * W / H) + 2 * self.side, self.owl_h + self.top + 8)
+        return QSize(round(self.owl_h * W / H) + self.left + self.right,
+                     self.owl_h + self.top + 8)
 
     minimumSizeHint = sizeHint
 
@@ -289,7 +294,8 @@ class OwlWidget(QWidget):
     # ------------------------------------------------------------------ time
     def _owl_rect(self) -> QRectF:
         w = self.owl_h * W / H
-        return QRectF((self.width() - w) / 2, self.height() - self.owl_h - 4, w, self.owl_h)
+        x = self.left + (self.width() - self.left - self.right - w) / 2
+        return QRectF(x, self.height() - self.owl_h - 4, w, self.owl_h)
 
     def _tick(self):
         now = time.monotonic()
@@ -490,10 +496,10 @@ class OwlWidget(QWidget):
         f.setBold(True)
         p.setFont(f)
         fm = p.fontMetrics()
-        tw = min(fm.horizontalAdvance(text), self.side - 16)
+        tw = min(fm.horizontalAdvance(text), self.width() - 20)
         pad = 7
         bw, bh = tw + 2 * pad, fm.height() + 2 * pad - 4
-        x = min(body.right() + 2, self.width() - bw - 2)
+        x = max(2.0, min(body.right() + 2, self.width() - bw - 2))
         y = max(2.0, body.top() - bh * 0.35)
         box = QRectF(x, y, bw, bh)
         tail = QPainterPath(QPointF(box.left() + 10, box.bottom() - 2))
