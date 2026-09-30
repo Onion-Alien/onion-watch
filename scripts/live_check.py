@@ -12,7 +12,10 @@ covers the second copy. Then:
   2. shows the banner in copy 1 only: the trigger must stay quiet;
   3. shows it in copy 2, while it's covered: the trigger must play its sound
      through the host;
-  4. closes copy 2: the card must say it's waiting for the window to open.
+  4. makes one trigger for every copy, looking only around the banner: it must go
+     off in both copies and say which;
+  5. hides the banner in copy 1: a "goes away" trigger on copy 1 must go off;
+  6. closes copy 2: the card must say it's waiting for the window to open.
 
 The windows appear for a few seconds at the top left of the main screen and never
 take the keyboard focus. Nothing is saved outside a temp folder.
@@ -207,7 +210,30 @@ def main() -> int:
               f"match {panel.watcher.scores.get(t.id, 0):.0%}")
         assert host.played == [("s1", False, t.id)]
 
-        # 4. copy 2 closes: the card says it's waiting for it
+        # 4. one trigger for every copy, looking only around the banner: the banner
+        # shows in both copies, so it goes off in each, and says which
+        every = WindowRef(wins[0].exe, TITLE, 0, True)
+        e = panel._new(piece, "Every copy")
+        e.sources, e.sounds = [every], ["s2"]
+        ph, pw = px.shape[:2]       # the window's real size (Windows may scale it up)
+        e.region = ((bx - 30) / pw, (by - 30) / ph, (bw + 60) / pw, (bh + 60) / ph)
+        # 5. and one that goes off when the banner goes away from copy 1
+        g = panel._new(piece, "Gone")
+        g.sources, g.sounds, g.mode = [WindowRef(wins[0].exe, TITLE, 0)], ["s2"], "vanish"
+        panel._store()
+
+        def went_off(name):
+            return sorted(a.place for a in panel.history if a.name == name)
+        both = sorted([TITLE, f"{TITLE} (copy 2)"])
+        assert spin(lambda: went_off("Every copy") == both, 8.0), went_off("Every copy")
+        print(f"every copy, in an area -> went off in {went_off('Every copy')}")
+        assert spin(lambda: g.id in panel.watcher.scores and
+                    panel.watcher.scores[g.id] > g.threshold, 5.0), "copy 1's banner seen"
+        ctrl1.write_text("none")
+        assert spin(lambda: went_off("Gone") == [TITLE], 8.0), went_off("Gone")
+        print(f"banner gone from copy 1 -> '{panel.alert_text(g)}'")
+
+        # 6. copy 2 closes: the card says it's waiting for it
         copy2.kill()
         row = panel.rows[t.id]
         assert spin(lambda: row.state.text().startswith("Waiting for"), 10.0), row.state.text()

@@ -44,10 +44,13 @@ import sounddevice  # noqa: E402
 sounddevice.OutputStream = _Mute
 
 
+HP_BAR = QRectF(78, 32, 190, 14)     # the player's health bar in game_scene
+
+
 def game_scene(w: int, h: int, seed: int = 0, plate: str = "", banner: str = "",
-               whisper: str = "") -> QImage:
-    """A made-up fantasy MMO frame: sky, hills, a health bar, maybe a rare's name
-    plate, a "queue ready" banner or a whisper in the chat."""
+               whisper: str = "", hp: float = 1.0) -> QImage:
+    """A made-up fantasy MMO frame: sky, hills, a health bar (`hp` full), maybe a
+    rare's name plate, a "queue ready" banner or a whisper in the chat."""
     rng = np.random.default_rng(seed)
     img = QImage(w, h, QImage.Format_ARGB32)
     p = QPainter(img)
@@ -72,8 +75,11 @@ def game_scene(w: int, h: int, seed: int = 0, plate: str = "", banner: str = "",
     p.setPen(Qt.NoPen)
     p.setBrush(QColor(0, 0, 0, 150))
     p.drawRoundedRect(QRectF(20, 20, 260, 58), 8, 8)
+    p.setBrush(QColor("#3a1414"))
+    p.drawRoundedRect(HP_BAR, 4, 4)
     p.setBrush(QColor("#c62828"))
-    p.drawRoundedRect(QRectF(78, 32, 190, 14), 4, 4)
+    p.drawRoundedRect(QRectF(HP_BAR.x(), HP_BAR.y(), HP_BAR.width() * hp, HP_BAR.height()),
+                      4, 4)
     p.setBrush(QColor("#1565c0"))
     p.drawRoundedRect(QRectF(78, 52, 150, 12), 4, 4)
     p.setBrush(QColor("#d7b377"))
@@ -145,21 +151,29 @@ def main(out: Path):
     cfg.screen = {"on": False, "interval_ms": 100, "window": acct1.to_raw(), "triggers": []}
     pics = settings.APP_DIR / "triggers"
     pics.mkdir(parents=True, exist_ok=True)
+    every = WindowRef(acct1.exe, acct1.title, 0, True)
+    bar = (HP_BAR.x() / w, HP_BAR.y() / h, HP_BAR.width() / w, HP_BAR.height() / h)
     demo = [
         ("Rare spawn: Gorehowl", cut(rare, QRect(int(w * 0.36), int(h * 0.36), 300, 34)),
-         acct2, ["builtin:alarm"], True, 0.85, 0.93),
+         [every], ["builtin:alarm"], True, 0.85, 0.93, {}),
+        ("Health low", None, [acct1], ["builtin:bell"], True, 0.30, 0.64,
+         {"mode": "colour", "colour": "#c62828", "region": bar, "hold": 1.0}),
         ("Dungeon queue", cut(queue, QRect(w // 2 - 230, int(h * 0.16), 460, 64)),
-         None, ["builtin:rising", "builtin:chime"], False, 0.80, 0.41),
-        ("Whisper", cut(queue, QRect(20, h - 150, 230, 34)), acct1, ["builtin:ping"], False,
-         0.80, 0.22),
+         [], ["builtin:rising", "builtin:chime"], False, 0.80, 0.41, {}),
+        ("Whisper", cut(queue, QRect(20, h - 150, 230, 34)), [acct1, acct2], ["builtin:ping"],
+         False, 0.80, 0.22, {}),
     ]
     triggers = []
-    for i, (name, img, where, sounds, ring, thr, _score) in enumerate(demo):
-        t = Trigger(id=f"demo{i}", name=name, sounds=sounds, ring=ring, threshold=thr,
-                    window=where, cooldown=30.0 if ring else 5.0, pick="random")
-        path = pics / f"{t.id}.png"
-        img.save(str(path))
-        t.images = [str(path)]
+    for i, (name, img, where, sounds, ring, thr, _score, extra) in enumerate(demo):
+        t = Trigger(id=f"demo{i}", name=name, sounds=sounds, ring=ring, sources=where,
+                    cooldown=30.0 if ring else 5.0, pick="random", **extra)
+        if t.uses_pictures:
+            t.threshold = thr
+            path = pics / f"{t.id}.png"
+            img.save(str(path))
+            t.images = [str(path)]
+        else:
+            t.level = thr
         triggers.append(t.to_raw())
     cfg.screen["triggers"] = triggers
 
@@ -171,7 +185,7 @@ def main(out: Path):
     tab.btn_watch.setChecked(True)
     tab.btn_watch.blockSignals(False)
     tab._label_watch()
-    for (_n, _i, _w, _s, _r, _t, score), row in zip(demo, tab.rows.values()):
+    for (*_x, score, _e), row in zip(demo, tab.rows.values()):
         row.show_score(score)
     first = next(iter(tab.rows.values()))
     # ringing, as the player would say: the bar asks the host what's ringing
@@ -201,8 +215,11 @@ def main(out: Path):
     windows.list_windows = lambda: list(wins)
     windows.snapshot = fake_snapshot
     from onionwatch.ui.windowpicker import WindowPicker
-    dlg = WindowPicker(win, acct2)
-    dlg.resize(760, 520)
+    from onionwatch import screenwatch
+    screenwatch.monitors = lambda: [Monitor(0, 0, 1920, 1080, True)]   # not this PC's
+    dlg = WindowPicker(win, [every], multi=True)
+    dlg.list.setCurrentRow(1)
+    dlg.resize(760, 560)
     dlg.show()
     while dlg._pending:
         dlg._next_thumb()
@@ -220,6 +237,16 @@ def main(out: Path):
     app.processEvents()
     snip.grab().save(str(out / "cut-picture.png"))
     snip.close()
+
+    # the health bar a colour trigger measures
+    from onionwatch.ui.snip import AreaDialog
+    hurt = game_scene(w, h, 3, hp=0.55)
+    area = AreaDialog(hurt, "Realm Online", bar, "#c62828", win)
+    area.resize(900, 640)
+    area.show()
+    app.processEvents()
+    area.grab().save(str(out / "health-bar.png"))
+    area.close()
 
     # the icon
     theme.logo_pixmap(256).save(str(out / "icon.png"))

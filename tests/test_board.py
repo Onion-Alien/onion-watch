@@ -56,7 +56,7 @@ def test_a_ringing_trigger_notifies_and_stop_all_stops_it(tab, qapp):
     assert process_events(qapp, lambda: row.t.id in panel.watcher.scores)
     FakeGrabber.frames.append(showing(scene(1), banner()))
     assert process_events(qapp, lambda: host.ringing() == [row.t.id])
-    assert host.notes == [("Rare", "Ringing until you stop it.")]
+    assert host.notes == [("Rare", "It just showed up. Ringing until you stop it.")]
     assert tab.alarm.ringing
     tab.cancel_pending()                    # the board's Stop all
     assert host.ringing() == [] and not tab.alarm.ringing

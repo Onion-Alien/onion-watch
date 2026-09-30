@@ -64,6 +64,21 @@ MAX_SCREENS = 64        # a trigger's saved screen index beyond this is nonsense
 MAX_PICTURES = 100      # pictures one trigger can look for (extras in a config are dropped)
 MAX_SOUNDS = 100        # ...and sounds it can play
 PICKS = ("random", "order", "all")   # Trigger.pick: which of its sounds play when it fires
+MAX_SOURCES = 16        # windows and screens one trigger can look in
+# Trigger.mode: what counts as the trigger going off
+#   appear  one of its pictures shows up (the first kind there was)
+#   vanish  its picture goes away, having been seen
+#   change  something changes in its area
+#   still   nothing changes in its area for `hold` seconds (a game stuck or idle)
+#   colour  the share of its area in one colour goes below (or above) `level`: a
+#           health bar running low
+MODES = ("appear", "vanish", "change", "still", "colour")
+PICTURE_MODES = ("appear", "vanish")
+DIFF_LEVEL = 10 / 255   # a pixel that moved more than this counts as changed
+CHANGE_GAP = 0.5        # "change" / "still" compare the area with how it was this long ago
+COLOUR_TOL = 0.12       # a pixel this close (each of R, G, B, 0..1) counts as the colour
+LEVEL_MARGIN = 0.03     # a level must move back this far past its line to count as over
+MAX_HOLD = 3600.0       # seconds: the longest "must last" / "still for"
 
 
 class CaptureLost(OSError):
@@ -93,10 +108,15 @@ class WindowRef:
     exe: str = ""
     title: str = ""
     nth: int = 0
+    # every copy that fits instead of one (all of a multi-boxer's game windows,
+    # also ones started later): the watcher looks in each of them
+    every: bool = False
 
     @property
     def label(self) -> str:
         name = self.title or self.exe or "Window"
+        if self.every:
+            return f"{name} (every copy)"
         return name + (f" (copy {self.nth + 1})" if self.nth else "")
 
     @classmethod
@@ -108,10 +128,14 @@ class WindowRef:
             return None
         if not isinstance(nth, int) or isinstance(nth, bool) or not 0 <= nth < 64:
             nth = 0
-        return cls(exe[:260].lower(), title[:260], nth)
+        every = d.get("every") is True
+        return cls(exe[:260].lower(), title[:260], 0 if every else nth, every)
 
     def to_raw(self) -> dict:
-        return {"exe": self.exe, "title": self.title, "nth": self.nth}
+        d = {"exe": self.exe, "title": self.title, "nth": self.nth}
+        if self.every:
+            d["every"] = True      # older versions don't know it: they watch the first copy
+        return d
 
 
 @dataclass
@@ -134,18 +158,75 @@ class Trigger:
     # a sound file picked here that's still being added to the board: its fingerprint,
     # so the trigger takes the new sound's id once the import finishes
     pending: str = ""
-    # the screen to look for it on (an index into monitors()); None: the default
-    # picked at the bottom of the window. One that isn't plugged in falls back to it.
-    monitor: int | None = None
-    # a window to look for it in instead (wins over `monitor`)
-    window: WindowRef | None = None
+    # where to look: screens (indexes into monitors()) and windows (WindowRef), each
+    # watched on its own, any of them counting. Empty: the default picked at the
+    # bottom of the window. A screen that isn't plugged in falls back to the default.
+    sources: list = field(default_factory=list)
     # keep playing its sound over and over until it's stopped (an alarm), not just once
     ring: bool = False
+    # what counts as it going off (MODES), and for the modes without pictures how
+    # much: "change" / "still" the share of the area that moved, "colour" the share
+    # in `colour` ("#rrggbb"), going `below` it (or above)
+    mode: str = "appear"
+    level: float = 0.05
+    below: bool = True
+    colour: str = ""
+    # the part of each window / screen to look in, as fractions of it (x, y, w, h):
+    # it follows the window when it's resized. None: all of it
+    region: tuple[float, float, float, float] | None = None
+    # it must go on this long before it counts (a flicker doesn't); "still": how
+    # long nothing may change
+    hold: float = 0.0
+    # stay quiet while its window is the one in front (you're playing it)
+    unfocused: bool = False
 
     @property
     def source(self) -> int | WindowRef | None:
-        """Where it's looked for: its window, its screen, or None for the default."""
-        return self.window if self.window is not None else self.monitor
+        """The first place it's looked in, or None for the default."""
+        return self.sources[0] if self.sources else None
+
+    @property
+    def windows(self) -> list[WindowRef]:
+        return [s for s in self.sources if isinstance(s, WindowRef)]
+
+    @property
+    def screens(self) -> list[int]:
+        return [s for s in self.sources if not isinstance(s, WindowRef)]
+
+    @property
+    def window(self) -> WindowRef | None:
+        """Its first window (what older versions knew: one window a trigger)."""
+        return next(iter(self.windows), None)
+
+    @window.setter
+    def window(self, ref: WindowRef | None):
+        """Look in just this window (None: in no window, keeping its screens)."""
+        self.sources = [ref] if ref is not None else self.screens
+
+    @property
+    def monitor(self) -> int | None:
+        return next(iter(self.screens), None)
+
+    @monitor.setter
+    def monitor(self, m: int | None):
+        """Look on just this screen, unless it has windows (they win, as they did)."""
+        if m is None:
+            self.sources = self.windows
+        elif not self.windows:
+            self.sources = [m]
+
+    @property
+    def uses_pictures(self) -> bool:
+        return self.mode in PICTURE_MODES
+
+    @property
+    def number(self) -> float:
+        """The number it's judged by: `threshold` for a picture, else `level`."""
+        return self.threshold if self.uses_pictures else self.level
+
+    @property
+    def rgb(self) -> tuple[float, float, float] | None:
+        return hex_rgb(self.colour)
 
     @property
     def image(self) -> str:
@@ -170,16 +251,18 @@ class Trigger:
         if not isinstance(d, dict) or not isinstance(d.get("id"), str) or not d["id"]:
             return None
         t = cls(id=d["id"])
-        m = d.get("monitor")
-        if isinstance(m, int) and not isinstance(m, bool) and 0 <= m < MAX_SCREENS:
-            t.monitor = m
-        t.window = WindowRef.from_raw(d.get("window"))
+        t.sources = _sources(d)
         t.images = _ids(d.get("image"), d.get("images"), limit=MAX_PICTURES)
         t.sounds = _ids(d.get("sound"), d.get("sounds"), limit=MAX_SOUNDS)
         if d.get("pick") in PICKS:
             t.pick = d["pick"]
+        if d.get("mode") in MODES:
+            t.mode = d["mode"]
+        t.region = _region(d.get("region"))
+        if hex_rgb(d.get("colour")) is not None:
+            t.colour = d["colour"].lower()
         for k, default in list(vars(t).items()):
-            if k in ("monitor", "window", "images", "sounds", "pick"):
+            if k in ("sources", "images", "sounds", "pick", "mode", "region", "colour"):
                 continue
             v = d.get(k, default)
             if isinstance(default, bool):
@@ -193,15 +276,76 @@ class Trigger:
         t.delay = min(max(t.delay, 0.0), 60.0)
         t.cooldown = min(max(t.cooldown, 0.0), 600.0)
         t.threshold = min(max(t.threshold, 0.3), 0.99)
+        t.level = min(max(t.level, 0.01), 0.99)
+        t.hold = min(max(t.hold, 0.0), MAX_HOLD)
         return t
 
     def to_raw(self) -> dict:
         """What's saved: the fields, plus the first picture and sound under the old
-        names so an older version of the app still shows something for it."""
+        names so an older version of the app still shows something for it, and the
+        places looked in as `screens` and `windows`, with the first of each under
+        the old `monitor` and `window` (an older version watches just that one)."""
         d = asdict(self)
+        del d["sources"]
+        d["screens"] = self.screens
+        d["windows"] = [w.to_raw() for w in self.windows]
+        d["monitor"] = self.monitor
         d["window"] = self.window.to_raw() if self.window is not None else None
+        d["region"] = list(self.region) if self.region is not None else None
         d["image"], d["sound"] = self.image, self.sound
         return d
+
+    def copy(self, new_id: str) -> Trigger:
+        """The same trigger under another id (its pictures still to be copied)."""
+        t = Trigger.from_raw({**self.to_raw(), "id": new_id})
+        assert t is not None
+        return t
+
+
+def _screen(m) -> int | None:
+    return m if isinstance(m, int) and not isinstance(m, bool) and 0 <= m < MAX_SCREENS \
+        else None
+
+
+def _sources(d: dict) -> list:
+    """Where a saved trigger looks: `screens` and `windows` as this version saves
+    them, else an older version's one `window` (which won over its `monitor`)."""
+    out: list = []
+    screens, wins = d.get("screens"), d.get("windows")
+    if isinstance(screens, list) or isinstance(wins, list):
+        cand = [_screen(m) for m in (screens if isinstance(screens, list) else [])]
+        cand += [WindowRef.from_raw(w) for w in (wins if isinstance(wins, list) else [])]
+    else:
+        ref = WindowRef.from_raw(d.get("window"))
+        cand = [ref if ref is not None else _screen(d.get("monitor"))]
+    for c in cand:
+        if c is not None and c not in out and len(out) < MAX_SOURCES:
+            out.append(c)
+    return out
+
+
+def _region(r) -> tuple[float, float, float, float] | None:
+    """A saved area (x, y, w, h as fractions), kept inside the window, or None."""
+    if not isinstance(r, (list, tuple)) or len(r) != 4 or not all(
+            isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
+            for v in r):
+        return None
+    x, y = min(max(float(r[0]), 0.0), 1.0), min(max(float(r[1]), 0.0), 1.0)
+    w, h = min(float(r[2]), 1.0 - x), min(float(r[3]), 1.0 - y)
+    if w < 0.002 or h < 0.002:
+        return None
+    if x == 0 and y == 0 and w >= 1 and h >= 1:
+        return None                     # all of it
+    return (round(x, 5), round(y, 5), round(w, 5), round(h, 5))
+
+
+def hex_rgb(text) -> tuple[float, float, float] | None:
+    """"#rrggbb" -> (r, g, b) in 0..1, or None."""
+    if not isinstance(text, str) or len(text) != 7 or text[0] != "#" or not all(
+            c in "0123456789abcdefABCDEF" for c in text[1:]):
+        return None
+    v = int(text[1:], 16)
+    return ((v >> 16) & 255) / 255, ((v >> 8) & 255) / 255, (v & 255) / 255
 
 
 # --------------------------------------------------------------------------- matching
@@ -335,20 +479,113 @@ def shrink(gray: np.ndarray, scale: float) -> np.ndarray:
 
 @dataclass
 class Gate:
-    """Turns a stream of match scores into "it just appeared" moments."""
+    """Turns a stream of yes / no / in-between answers ("is it showing?") into "it
+    just happened" moments: it fires once when the answer turns yes (and has stayed
+    yes for `hold` seconds), then waits for a clear no before it can fire again,
+    and never sooner than the cooldown. A yes during the cooldown is used up
+    without firing, so something that stays up isn't played the moment the
+    cooldown ends. `mode` is the Trigger.mode it was made for."""
     armed: bool = True
     last: float = -math.inf
+    since: float | None = None      # when the current yes began
+    mode: str = "appear"
 
-    def update(self, score: float, now: float, threshold: float, cooldown: float) -> bool:
-        if score >= threshold:
-            fire = self.armed and now - self.last >= cooldown
-            self.armed = False      # showing: wait for it to go away first
-            if fire:
-                self.last = now
-            return fire
-        if score < threshold - REARM_MARGIN:
+    def step(self, state: bool | None, now: float, cooldown: float, hold: float = 0.0) -> bool:
+        if state:
+            if not self.armed:
+                return False
+            if self.since is None:
+                self.since = now
+            if now - self.since < hold:
+                return False
+            self.armed, self.since = False, None
+            if now - self.last < cooldown:
+                return False
+            self.last = now
+            return True
+        self.since = None
+        if state is False:
             self.armed = True
         return False
+
+    def update(self, score: float, now: float, threshold: float, cooldown: float) -> bool:
+        """step() for a picture's match score ("appear")."""
+        return self.step(verdict("appear", score, threshold), now, cooldown)
+
+
+def new_gate(mode: str) -> Gate:
+    """A gate for `mode`. "vanish" starts disarmed: it has to be seen before it can
+    go away."""
+    return Gate(armed=mode != "vanish", mode=mode)
+
+
+def verdict(mode: str, score: float, level: float, below: bool = True) -> bool | None:
+    """Whether a trigger's condition holds for `score` (True), clearly doesn't
+    (False) or is in between (None: a score wobbling around the line doesn't fire
+    it again and again)."""
+    if mode == "appear":
+        return True if score >= level else False if score < level - REARM_MARGIN else None
+    if mode == "vanish":
+        return True if score < level - REARM_MARGIN else False if score >= level else None
+    if mode == "change":
+        return True if score >= level else False if score < level / 2 else None
+    if mode == "still":
+        return score < level
+    if below:                   # "colour"
+        return True if score < level else False if score >= level + LEVEL_MARGIN else None
+    return True if score >= level else False if score < level - LEVEL_MARGIN else None
+
+
+def region_box(region, shape: tuple[int, int],
+               least: tuple[int, int] = (2, 2)) -> tuple[int, int, int, int]:
+    """The pixels (y0, y1, x0, x1) of an area (fractions x, y, w, h; None: all) in a
+    frame of `shape`, grown to at least `least` (h, w) around its middle so a
+    picture always fits, and kept inside the frame."""
+    h, w = shape
+    if region is None:
+        return 0, h, 0, w
+    x, y, rw, rh = region
+    x0, x1 = math.floor(x * w), math.ceil((x + rw) * w)
+    y0, y1 = math.floor(y * h), math.ceil((y + rh) * h)
+
+    def grow(a: int, b: int, need: int, size: int) -> tuple[int, int]:
+        need = min(max(need, 2), size)
+        if b - a < need:
+            a -= (need - (b - a)) // 2
+            a = min(max(a, 0), size - need)
+            b = a + need
+        return max(a, 0), min(b, size)
+    y0, y1 = grow(y0, y1, least[0], h)
+    x0, x1 = grow(x0, x1, least[1], w)
+    return y0, y1, x0, x1
+
+
+def changed_share(now: np.ndarray, before: np.ndarray) -> float:
+    """How much of an area moved between two grey copies of it (0..1)."""
+    if now.shape != before.shape or not now.size:
+        return 0.0
+    return float(np.count_nonzero(np.abs(now - before) > DIFF_LEVEL)) / now.size
+
+
+def colour_share(rgb: np.ndarray, colour: tuple[float, float, float]) -> float:
+    """How much of an (h, w, 3) RGB area is `colour`, give or take COLOUR_TOL (0..1)."""
+    if not rgb.size:
+        return 0.0
+    near = (np.abs(rgb - np.asarray(colour, np.float32)) <= COLOUR_TOL).all(-1)
+    return float(np.count_nonzero(near)) / near.size
+
+
+@dataclass(frozen=True)
+class Hit:
+    """A trigger going off: where (the screen or window, one copy of it), the box
+    it was seen in (fractions of that window / screen: the picture, or the area),
+    and the score."""
+    source: int | WindowRef
+    box: tuple[float, float, float, float]
+    score: float
+    # the check's own small copy of the window then: (h, w) grey or (h, w, 3) RGB
+    # uint8, for the history (kept in memory only, never saved)
+    frame: np.ndarray | None = field(default=None, compare=False, repr=False)
 
 
 # --------------------------------------------------------------------------- capture
@@ -469,6 +706,24 @@ def frame_gray(sample: np.ndarray, fmt: int, factor: int = 1) -> np.ndarray:
     return y.astype(np.float32)
 
 
+def frame_rgb(sample: np.ndarray, fmt: int = FMT_BGRA8, factor: int = 1) -> np.ndarray:
+    """frame_gray() in colour: (h, w, 3) float32 RGB in 0..1, sRGB like a screenshot.
+    Only made for a capture with a "colour" trigger on it (Grabber.want_color)."""
+    if fmt in (FMT_BGRA8, FMT_BGRX8):
+        rgb = sample[..., 2::-1].astype(np.float32) * (1 / 255)
+    elif fmt == FMT_RGBA16F:
+        rgb = np.clip(sample[..., :3].astype(np.float32), 0.0, 1.0) ** (1 / 2.2)
+    elif fmt == FMT_RGB10A2:
+        u = sample.astype(np.uint32)
+        rgb = np.stack([(u >> sh) & 1023 for sh in (0, 10, 20)], -1).astype(np.float32) / 1023
+    else:
+        raise OSError(f"unsupported duplication format {fmt}")
+    if factor == 2:
+        h, w = rgb.shape[0] // 2, rgb.shape[1] // 2
+        rgb = rgb[:2 * h, :2 * w].reshape(h, 2, w, 2, 3).mean((1, 3), dtype=np.float32)
+    return rgb.astype(np.float32)
+
+
 class Grabber:
     """Copies one monitor, shrunk to (w, h), as grey (float32 0..1). The copy is
     taken at twice that size with GDI's plain pixel-dropping shrink (COLORONCOLOR:
@@ -480,6 +735,8 @@ class Grabber:
     SRCCOPY = 0x00CC0020
     COLORONCOLOR = 3
     lost = False
+    want_color = False      # also keep `color`, the same picture in RGB (frame_rgb)
+    color: np.ndarray | None = None
 
     def __init__(self, src: Monitor, w: int, h: int):
         self.src, self.w, self.h = src, w, h
@@ -528,6 +785,7 @@ class Grabber:
         if not self._g.StretchBlt(self.dc, 0, 0, self.cw, self.ch, self.screen_dc,
                                   s.left, s.top, s.width, s.height, self.SRCCOPY):
             return None
+        self.color = frame_rgb(self.pixels, FMT_BGRA8, self.factor) if self.want_color else None
         return gray_2x(self.pixels) if self.factor == 2 else to_gray(self.pixels)
 
     def resize(self, w: int, h: int):
@@ -675,6 +933,8 @@ class DupGrabber:
     CTX_MAP, CTX_UNMAP, CTX_COPY_RESOURCE = 14, 15, 47
     USAGE_STAGING, CPU_ACCESS_READ, MAP_READ = 3, 0x20000, 1
     turns = 0                       # FRAME_TURNS for the output's rotation
+    want_color = False              # as Grabber's
+    color: np.ndarray | None = None
 
     def __init__(self, src: Monitor, w: int, h: int):
         self.src, self.w, self.h = src, w, h
@@ -890,6 +1150,8 @@ class DupGrabber:
             self.ctx.call(self.CTX_UNMAP, self.staging.p, 0, restype=None,
                           argtypes=(ctypes.c_void_p, ctypes.c_uint))
         self.last = upright(frame_gray(sample, fmt, self.factor), self.turns)
+        self.color = (upright(frame_rgb(sample, fmt, self.factor), self.turns)
+                      if self.want_color else None)
         return self.last
 
     def close(self):
@@ -924,23 +1186,67 @@ Picture = tuple[np.ndarray, "np.ndarray | None"]   # grey 0..1, opaque mask (Non
 @dataclass
 class Watched:
     """A trigger as the watcher thread sees it: its pictures (full size, grey, each
-    with the mask of its opaque part) and the numbers it's judged by."""
+    with the mask of its opaque part), where it's looked for, and what it's judged
+    by. `threshold` is its mode's one number (Trigger.number); `sources` are its
+    screens and windows (empty: the default), `source` the one place older code
+    gives. Each place has its own Gate, so two game windows showing the same thing
+    each go off once."""
     id: str
     pictures: list[Picture]
     threshold: float
     cooldown: float
-    gate: Gate = field(default_factory=Gate)
-    source: int | WindowRef | None = None   # Trigger.source: its screen / window, or None
+    source: int | WindowRef | None = None
+    sources: list = field(default_factory=list)
+    mode: str = "appear"
+    below: bool = True
+    colour: tuple[float, float, float] | None = None
+    region: tuple[float, float, float, float] | None = None
+    hold: float = 0.0
+    unfocused: bool = False
+    gates: dict = field(default_factory=dict)       # place -> its Gate
+
+    def __post_init__(self):
+        if not self.sources and self.source is not None:
+            self.sources = [self.source]
+
+    def gate_for(self, place) -> Gate:
+        g = self.gates.get(place)
+        if g is None or g.mode != self.mode:
+            g = self.gates[place] = new_gate(self.mode)
+        return g
+
+    @property
+    def uses_pictures(self) -> bool:
+        return self.mode in PICTURE_MODES
 
     @property
     def sides(self) -> list[int]:
         """Each picture's short side, for work_scale."""
-        return [min(g.shape) for g, _m in self.pictures]
+        return [min(g.shape) for g, _m in self.pictures] if self.uses_pictures else []
+
+    @property
+    def most_is_worst(self) -> bool:
+        """Its score going up means closer to going off (so over several places the
+        highest is the one to show): not for "vanish", "still" or "colour" below."""
+        return self.mode in ("appear", "change") or (self.mode == "colour" and not self.below)
 
 
 def is_black(gray: np.ndarray) -> bool:
     """A whole frame too dark to be a game: the capture can't see it."""
     return float(gray.max()) < BLACK_LEVEL
+
+
+def expand(src, wins) -> list:
+    """The places `src` stands for: a WindowRef for every copy is each copy open
+    now (`wins`, from onionwatch.windows.list_windows), or its first while none is
+    (so it's waited for); anything else is itself."""
+    if not isinstance(src, WindowRef) or not src.every:
+        return [src]
+    n = 0
+    if wins:
+        from onionwatch.windows import copies
+        n = len(copies(src, wins))
+    return [WindowRef(src.exe, src.title, i) for i in range(max(n, 1))]
 
 
 class _Capture:
@@ -955,6 +1261,7 @@ class _Capture:
         self.scaled: dict[str, list[Picture]] = {}   # each trigger's pictures, shrunk
         self.fitted = (0, 0)        # the source size the pictures are scaled for
         self.scores: dict[str, float] = {}
+        self.refs: dict[str, tuple[float, np.ndarray]] = {}   # "change" / "still": (when, area)
         self.reopen_since = 0.0     # > 0: the capture was lost (or never opened); trying again
         self.next_try = 0.0         # ...not before this time
         self.opened = False         # it has captured at some point
@@ -968,6 +1275,13 @@ class _Capture:
     def is_window(self) -> bool:
         return isinstance(self.source, WindowRef)
 
+    def in_front(self) -> bool:
+        f = getattr(self.grab, "in_front", None)
+        try:
+            return bool(f()) if f is not None else False
+        except OSError:
+            return False
+
     def close(self):
         if self.grab is not None:
             self.grab.close()
@@ -976,20 +1290,26 @@ class _Capture:
 
 class Watcher:
     """The watching thread. `on_fire(trigger_id)` is called from that thread when a
-    picture appears; `scores` holds each trigger's latest match for the UI to show.
+    trigger goes off (`on_fire(trigger_id, hit)` with a Hit when made with
+    hits=True); `scores` holds each trigger's latest score for the UI to show.
 
-    Each trigger is looked for in its own screen or window (`Watched.source`), or in
-    `default` when it hasn't one: one capture per screen / window in use, each grabbed
-    every tick. A window that isn't open is looked for again every WINDOW_RETRY_S
-    (its triggers wait meanwhile); the other captures carry on.
+    Each trigger is looked for in its own screens and windows (`Watched.sources`),
+    or in `default` when it has none: one capture per screen / window in use, each
+    grabbed every tick. A window for every copy of a game stands for each copy
+    open, listed again every WINDOW_RETRY_S so a copy started later is picked up. A
+    window that isn't open is looked for again every WINDOW_RETRY_S (its triggers
+    wait there meanwhile); the other captures carry on.
 
-    `grabber(mon, w, h)` and `window_grabber(ref, w, h)` stand in for the real
-    captures (tests)."""
+    `grabber(mon, w, h)`, `window_grabber(ref, w, h)` and `lister()` (the open
+    windows) stand in for the real ones (tests)."""
 
-    def __init__(self, on_fire, grabber=None, window_grabber=None):
+    def __init__(self, on_fire, grabber=None, window_grabber=None, lister=None,
+                 hits: bool = False):
         self._on_fire = on_fire
+        self._hits = hits
         self._grabber = grabber
         self._window_grabber = window_grabber
+        self._lister = lister
         self._lock = threading.Lock()
         self._items: dict[str, Watched] = {}
         self._changed = True              # pictures / default changed: rescale
@@ -1010,15 +1330,16 @@ class Watcher:
         self.failed: dict = {}
         self.minimized: frozenset = frozenset()   # windows that are minimized
         self.blacked: frozenset = frozenset()     # sources that only come out black
-        self.where: dict[str, int | WindowRef] = {}   # trigger id -> the source it's on
+        self.where: dict[str, tuple] = {}         # trigger id -> the places it's looked in
+        self.detail: dict[str, dict] = {}         # trigger id -> {place: its score there}
 
     # set from the UI thread
     def set_items(self, items: list[Watched]):
         with self._lock:
             old = self._items
-            for it in items:              # keep a trigger's gate across edits
+            for it in items:              # keep a trigger's gates across edits
                 if it.id in old:
-                    it.gate = old[it.id].gate
+                    it.gates = old[it.id].gates
             self._items = {it.id: it for it in items}
             self._changed = True
             # the thread replaces `scores` whole rather than changing it, so a copy is safe
@@ -1059,16 +1380,30 @@ class Watcher:
         if t is not None and not t.is_alive():
             self._thread = None
         self.scores = {}
+        self.detail = {}
         self.fell_back, self.failed = frozenset(), {}
         self.minimized = self.blacked = frozenset()
         self.where = {}
         self.black = self.lost = False
 
     # the thread
+    def _windows(self) -> list:
+        """The open windows, for the triggers watching every copy of a game."""
+        try:
+            if self._lister is not None:
+                return list(self._lister())
+            from onionwatch.windows import list_windows
+            return list_windows()
+        except OSError:
+            log.debug("listing windows failed", exc_info=True)
+            return []
+
     def _run(self, stop: threading.Event | None = None):
         stop = stop or self._stop
         caps: dict = {}                          # source -> _Capture: only those in use
         groups: dict = {}                        # source -> the triggers looked for there
+        wins: list | None = None                 # the open windows, when "every copy" is used
+        listed = -math.inf
         try:
             while not stop.is_set():
                 t0 = time.perf_counter()
@@ -1076,21 +1411,29 @@ class Watcher:
                     items = list(self._items.values())
                     changed, self._changed = self._changed, False
                     default = self.default
-                if changed or (items and not caps) or any(c.grab is None for c in caps.values()):
+                now = time.monotonic()
+                every = any(isinstance(s, WindowRef) and s.every
+                            for s in [default, *(s for it in items for s in it.sources)])
+                relist = every and now - listed >= WINDOW_RETRY_S
+                if relist:
+                    wins, listed = self._windows(), now
+                if (changed or relist or (items and not caps)
+                        or any(c.grab is None for c in caps.values())):
                     mons = monitors()
-                    groups, fell_back = self._assign(items, default, len(mons))
+                    old_groups = groups
+                    groups, fell_back, where = self._assign(items, default, len(mons),
+                                                            wins if every else None)
                     screens_needed = any(not isinstance(k, WindowRef) for k in groups)
                     if screens_needed and not mons:
                         # right after a loss the screen may be gone for a moment
                         # (a cable, a dock, a mode switch): wait for it like a reopen
-                        now = time.monotonic()
                         if not any(c.reopen_since and now - c.reopen_since <= GIVE_UP_S
                                    for c in caps.values() if not c.is_window):
                             raise OSError("no monitor found")
                         stop.wait(RETRY_S)
                         continue
                     self.fell_back = frozenset(fell_back)
-                    self.where = {it.id: k for k, group in groups.items() for it in group}
+                    self.where = where
                     for k in list(caps):        # sources no trigger needs, or screens that changed
                         if k not in groups or (not caps[k].is_window and caps[k].mon != mons[k]):
                             caps.pop(k).close()
@@ -1098,7 +1441,9 @@ class Watcher:
                         cap = caps.get(k)
                         if cap is None:
                             caps[k] = _Capture(k, None if isinstance(k, WindowRef) else mons[k])
-                        elif cap.grab is not None and changed:
+                        elif cap.grab is not None and (
+                                changed or [i.id for i in group]
+                                != [i.id for i in old_groups.get(k, [])]):
                             cap.fitted, cap.scaled = self._fit(cap.grab, cap.mon, group)
                 now = time.monotonic()
                 for k, cap in caps.items():
@@ -1121,11 +1466,8 @@ class Watcher:
                 self.blacked = frozenset(c.source for c in live if c.black)
                 self.black = bool(self.blacked)
                 self.minimized = frozenset(c.source for c in live if c.minimized)
-                ids = {it.id for it in items}
-                scores = {k: v for c in caps.values() if c.grab is not None
-                          for k, v in c.scores.items() if k in ids}
                 if not stop.is_set():           # stop() has cleared them already
-                    self.scores = scores
+                    self.detail, self.scores = self._gather(items, caps)
                 self.check_ms = (time.perf_counter() - t0) * 1000
                 stop.wait(max(0.001, self.interval - (time.perf_counter() - t0)))
         except Exception as e:  # noqa: BLE001 - say so in the window instead of dying quietly
@@ -1137,24 +1479,49 @@ class Watcher:
                 cap.close()
 
     @staticmethod
-    def _assign(items: list[Watched], default: int | WindowRef,
-                n: int) -> tuple[dict, set[str]]:
-        """Where each trigger is looked for: its own window or screen, or `default`
-        when it hasn't one or its screen isn't among the `n` there are. Returns
-        ({source: its triggers}, the ids that fell back to the default)."""
+    def _gather(items: list[Watched], caps: dict) -> tuple[dict, dict]:
+        """Each trigger's score in each place, and the one to show: the place
+        closest to setting it off. New dicts (the UI reads them meanwhile)."""
+        detail: dict[str, dict] = {}
+        for c in caps.values():
+            if c.grab is None:
+                continue
+            for k, v in c.scores.items():
+                detail.setdefault(k, {})[c.source] = v
+        scores = {}
+        for it in items:
+            got = detail.get(it.id)
+            if got:
+                scores[it.id] = (max if it.most_is_worst else min)(got.values())
+        return {k: v for k, v in detail.items() if k in scores}, scores
+
+    @staticmethod
+    def _assign(items: list[Watched], default: int | WindowRef, n: int,
+                wins: list | None = None) -> tuple[dict, set[str], dict]:
+        """Where each trigger is looked for: its own windows and screens, or
+        `default` when it has none or for a screen that isn't among the `n` there
+        are; a window for every copy is each copy in `wins`. Returns ({place: its
+        triggers}, the ids that fell back to the default, {id: its places})."""
         if not isinstance(default, WindowRef):
             default = default if 0 <= default < n else 0
         groups: dict = {}
         fell_back: set[str] = set()
+        where: dict[str, tuple] = {}
         for it in items:
-            src = it.source
-            if src is None:
-                src = default
-            elif not isinstance(src, WindowRef) and not 0 <= src < n:
-                fell_back.add(it.id)
-                src = default
-            groups.setdefault(src, []).append(it)
-        return groups, fell_back
+            places: list = []
+            for src in it.sources or [None]:
+                if src is None:
+                    src = default
+                elif not isinstance(src, WindowRef) and not 0 <= src < n:
+                    fell_back.add(it.id)
+                    src = default
+                for k in expand(src, wins):
+                    if k not in places:
+                        places.append(k)
+            for k in places:
+                groups.setdefault(k, []).append(it)
+            where[it.id] = tuple(places)
+        return groups, fell_back, where
 
     def _open(self, cap: _Capture, items: list[Watched]) -> bool:
         """Open the capture (a fresh start after a loss gives duplication a few goes).
@@ -1197,7 +1564,7 @@ class Watcher:
         return True
 
     def _tick(self, cap: _Capture, items: list[Watched]):
-        """Grab the screen / window once and match its triggers against it."""
+        """Grab the screen / window once and check its triggers against it."""
         try:
             gray = cap.grab.grab()
         except OSError as e:
@@ -1213,6 +1580,7 @@ class Watcher:
             cap.lost = not cap.is_window
             cap.error = str(e) or type(e).__name__
             cap.scores = {}
+            cap.refs = {}
             return
         cap.failing = False
         cap.lost = bool(getattr(cap.grab, "lost", False))
@@ -1224,40 +1592,103 @@ class Watcher:
             return
         if gray is not None:
             cap.black = is_black(gray)
-            cap.scores = self._check(gray, items, cap.scaled)
+            cap.scores = self._check(cap, gray, items)
 
     @staticmethod
     def _fit(grab, mon: Monitor | None, items: list[Watched]) -> tuple[tuple[int, int], dict]:
         """Shrink the pictures for the size the grabber really copies (`source`; the
-        monitor's when it doesn't say), and have it give out pictures that size too.
-        Done once per change, not per tick: a trigger with a hundred pictures keeps
-        them all shrunk. Returns (source size, {id: [(picture, mask)]})."""
+        monitor's when it doesn't say), and have it give out pictures that size too
+        (in colour as well when a "colour" trigger needs it). Done once per change,
+        not per tick: a trigger with a hundred pictures keeps them all shrunk.
+        Returns (source size, {id: [(picture, mask)]})."""
         sw, sh = getattr(grab, "source", None) or (mon.width, mon.height)
         scale = work_scale(sw, [s for i in items for s in i.sides])
         w, h = max(1, round(sw * scale)), max(1, round(sh * scale))
         if (w, h) != (getattr(grab, "w", w), getattr(grab, "h", h)):
             grab.resize(w, h)
+        try:
+            grab.want_color = any(i.mode == "colour" for i in items)
+        except AttributeError:
+            pass
         scaled = {i.id: [(shrink(g, scale), None if m is None else shrink_mask(m, scale))
                          for g, m in i.pictures]
-                  for i in items}
+                  for i in items if i.uses_pictures}
         return (sw, sh), scaled
 
-    def _check(self, gray: np.ndarray, items: list[Watched],
-               scaled: dict[str, list[Picture]]) -> dict[str, float]:
-        """Match every trigger's pictures against one frame; a trigger's score is its
-        best picture's. Returns the scores (a new dict: the UI thread reads `scores`
-        while this runs, so it's only ever swapped whole)."""
-        frame = None if is_black(gray) else Frame(gray)
+    def _check(self, cap: _Capture, gray: np.ndarray, items: list[Watched]) -> dict[str, float]:
+        """Check every trigger against one frame of `cap` and fire the ones that go
+        off. Returns the scores (a new dict: the UI thread reads `scores` while this
+        runs, so it's only ever swapped whole)."""
+        black = is_black(gray)
         now = time.monotonic()
+        fh, fw = gray.shape
+        frames: dict = {}                # an area -> its Frame, shared by its pictures
         scores = {}
         for it in items:
-            pics = scaled.get(it.id) or []
-            score = 0.0 if frame is None else max((match(frame, g, m)[0] for g, m in pics),
-                                                  default=0.0)
-            scores[it.id] = score
-            if it.gate.update(score, now, it.threshold, it.cooldown):
-                try:
+            gate = it.gate_for(cap.source)
+            if black:
+                scores[it.id] = 0.0
+                if it.mode == "appear":
+                    gate.step(False, now, it.cooldown)
+                continue
+            score, box = self._score(cap, gray, it, now, frames)
+            scores[it.id] = 0.0 if score is None else score
+            if score is None:
+                continue
+            state = verdict(it.mode, score, it.threshold, it.below)
+            if not gate.step(state, now, it.cooldown, it.hold):
+                continue
+            if it.unfocused and cap.is_window and cap.in_front():
+                log.debug("trigger %s went off in the window in front: kept quiet", it.id)
+                continue
+            y0, y1, x0, x1 = box
+            rgb = getattr(cap.grab, "color", None)
+            pic = rgb if rgb is not None and rgb.shape[:2] == gray.shape else gray
+            hit = Hit(cap.source, (x0 / fw, y0 / fh, (x1 - x0) / fw, (y1 - y0) / fh), score,
+                      (np.clip(pic, 0, 1) * 255).astype(np.uint8))
+            try:
+                if self._hits:
+                    self._on_fire(it.id, hit)
+                else:
                     self._on_fire(it.id)
-                except Exception:  # noqa: BLE001
-                    log.exception("trigger callback failed")
+            except Exception:  # noqa: BLE001
+                log.exception("trigger callback failed")
         return scores
+
+    @staticmethod
+    def _score(cap: _Capture, gray: np.ndarray, it: Watched, now: float,
+               frames: dict) -> tuple[float | None, tuple[int, int, int, int]]:
+        """A trigger's score in one frame (None: nothing to judge yet) and the box
+        (y0, y1, x0, x1) it's about: where its best picture is, or its area."""
+        if it.uses_pictures:
+            pics = cap.scaled.get(it.id) or []
+            least = (max((g.shape[0] for g, _m in pics), default=2),
+                     max((g.shape[1] for g, _m in pics), default=2))
+            box = region_box(it.region, gray.shape, least)
+            y0, y1, x0, x1 = box
+            f = frames.get(box)
+            if f is None:
+                f = frames[box] = Frame(gray[y0:y1, x0:x1])
+            best, at = 0.0, box
+            for g, m in pics:
+                sc, (mx, my) = match(f, g, m)
+                if sc > best:
+                    best = sc
+                    at = (y0 + my, y0 + my + g.shape[0], x0 + mx, x0 + mx + g.shape[1])
+            return best, (at if it.mode == "appear" else box)
+        box = region_box(it.region, gray.shape)
+        y0, y1, x0, x1 = box
+        if it.mode == "colour":
+            rgb = getattr(cap.grab, "color", None)
+            if rgb is None or it.colour is None or rgb.shape[:2] != gray.shape:
+                return None, box
+            return colour_share(rgb[y0:y1, x0:x1], it.colour), box
+        area = gray[y0:y1, x0:x1]            # "change" / "still"
+        ref = cap.refs.get(it.id)
+        if ref is None or ref[1].shape != area.shape:
+            cap.refs[it.id] = (now, area.copy())
+            return None, box
+        score = changed_share(area, ref[1])
+        if now - ref[0] >= CHANGE_GAP:
+            cap.refs[it.id] = (now, area.copy())
+        return score, box

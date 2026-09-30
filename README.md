@@ -26,11 +26,15 @@ admin rights.
 <details>
 <summary><b>More screenshots</b></summary>
 
-Picking the window to watch (two copies of the same game are told apart):
+Picking the windows to watch (two copies of the same game are told apart, or
+watch every copy):
 ![The window picker](docs/screenshots/window-picker.png)
 
 Cutting the picture to watch for straight out of the game window:
 ![Cutting a picture from a window](docs/screenshots/cut-picture.png)
+
+Pointing a trigger at a health bar:
+![Picking a health bar and its colour](docs/screenshots/health-bar.png)
 
 </details>
 
@@ -50,22 +54,37 @@ Everything happens on your PC. What it captures is never saved or sent anywhere
 - **Watches a window, not just a screen.** Windows are captured on their own, so
   a game is still watched while other windows cover it. It can't see a
   **minimized** window, because Windows stops drawing those.
-- **Handles several accounts at once.** Each trigger picks its own window. Two
-  copies of the same game are told apart by the order they were started, so
-  "copy 2" stays your second account's window.
+- **Handles several accounts at once.** A trigger watches one window, several
+  windows and screens, or **every copy of a game** (also copies started later), and
+  the alert says which one it was. Two copies of the same game are told apart by
+  the order they were started, so "copy 2" stays your second account's window.
+- **More than "it shows up".** A trigger can go off when its picture **appears**,
+  when it **goes away** (a buff running out, a fishing bobber), when anything
+  **changes** in an area (a new chat line), when nothing has **moved for a while**
+  (a stuck or disconnected game), or when a **bar runs low**: point it at a health
+  bar, check its colour, and pick the level.
+- **Only part of a window.** Drag the area to look in, so other things on screen
+  can't set it off (it follows the window when it's resized).
 - **Cut from window…** grabs the watched window (even from behind other
   windows) so you can drag a box around the thing to watch for. You can also add
   a picture file or paste one from Win+Shift+S.
 - **Ring until stopped.** An alarm keeps playing until you click Stop, the tray
   icon or the Windows notification. Otherwise a sound plays once each time the
   thing appears.
+- **What went off** (More → What went off…) lists the latest alerts, each with the
+  window as it was checked and a box round what set it off: for "what woke me up?"
+  and for setting the numbers. Kept only until the app closes.
 - **Built-in alert sounds** (Chime, Ping, Ready, Bell, Alarm), or any sound file of
   yours. Sounds play on the speakers or headphones you pick in Settings.
 - Per trigger:
   - several pictures (any of them counts) and several sounds (at random, in
     turn, or all at once);
   - a wait before playing, and a cooldown before it can play again;
-  - how close a match must be, with the live match shown next to it.
+  - how long it must last before it counts, so a flicker doesn't set it off;
+  - how close a match must be, with the live match shown next to it;
+  - staying quiet while the window it went off in is the one you're playing.
+- **Duplicate** a trigger, and **save triggers to a file** (pictures and all) to
+  move them to another PC or share them; sounds go by name.
 - **Keeps watching from the tray** when you close the window.
 - The same themes as [Onion Board](https://github.com/Onion-Alien/onion-board),
   plus its own teal **Hoot** theme. Onion Watch started as Onion Board's Triggers
@@ -144,7 +163,7 @@ then installs that file instead of downloading.
 
 | Path | What |
 |---|---|
-| `onionwatch/screenwatch.py` | the engine: screen capture (DXGI Desktop Duplication, GDI fallback), the matcher, the fire-once `Gate`, the watcher thread (one capture per screen or window in use), `Trigger` and `WindowRef` |
+| `onionwatch/screenwatch.py` | the engine: screen capture (DXGI Desktop Duplication, GDI fallback, grey and when needed colour), the matcher, the kinds of trigger (appears, goes away, area changes / stops changing, colour level) and their areas, the fire-once `Gate`, the watcher thread (one capture per screen or window in use, every copy of a game expanded), `Trigger`, `WindowRef` and `Hit` |
 | `onionwatch/windows.py` | listing windows, finding a remembered one again (and the right copy), `PrintWindow` capture of a covered window, full-size snapshots for cutting |
 | `onionwatch/sounds.py` | the built-in alert sounds (made in code) and the added sound files |
 | `onionwatch/player.py` | the output stream that mixes and rings the alerts |
@@ -155,8 +174,10 @@ then installs that file instead of downloading.
 | `onionwatch/board.py` | the Onion Board add-on's entry point: `create(host)` gives the board its Triggers tab (alarm bar + triggers page) |
 | `onionwatch/ui/triggerspanel.py` | the triggers page: one card per trigger, "Look in", Watching, Cut picture. Talks only to its host |
 | `onionwatch/ui/alarmbar.py` | the red bar shown while a trigger rings, with Stop |
-| `onionwatch/ui/windowpicker.py` | the window list with live thumbnails |
-| `onionwatch/ui/snip.py` | cutting a picture out of a capture |
+| `onionwatch/ui/windowpicker.py` | the window list with live thumbnails; ticking several windows and screens, or every copy of a game |
+| `onionwatch/ui/snip.py` | cutting a picture out of a capture; picking a trigger's area and a bar's colour |
+| `onionwatch/ui/history.py` | "What went off": the latest alerts with a picture of each moment (in memory only) |
+| `onionwatch/packs.py` | saving triggers to a .zip with their pictures and loading them back |
 | `onionwatch/ui/mainwindow.py` | the window, the tray icon, notifications |
 | `onionwatch/ui/settingsdialog.py` | output device, volume, notifications, tray, theme |
 | `onionwatch/owl.py` | Hoot, the mascot owl, drawn in code (Onion Board's Bun's style) |
@@ -169,9 +190,9 @@ then installs that file instead of downloading.
 | `scripts/build_bootloader.ps1`, `scripts/vt_scan.py` | PyInstaller with a bootloader compiled on your PC (virus scanners distrust the stock one); the VirusTotal check for a release |
 | `docs/index.html` | the website, [onion-alien.github.io/onion-watch](https://onion-alien.github.io/onion-watch/) (GitHub Pages, from `docs/`) |
 | `scripts/check_sensitive.py` | scans files, commits and history for secrets and personal data; the pre-commit hook |
-| `scripts/live_check.py` | the real thing on this PC: two copies of a stand-in game (real windows, one covered), real `PrintWindow` capture, the triggers page as Onion Board loads it; prints PASS. Opens windows for a few seconds (never takes the focus) |
+| `scripts/live_check.py` | the real thing on this PC: two copies of a stand-in game (real windows, one covered), real `PrintWindow` capture, the triggers page as Onion Board loads it, one trigger for every copy in an area, one for a picture going away; prints PASS. Opens windows for a few seconds (never takes the focus) |
 | `scripts/build_module.py` | builds `OnionWatch-module.zip` for Onion Board: `module.json` and only the modules the board's tab needs, checked against what Onion Board ships |
-| `tests/` | pytest: the matcher, the watcher on stand-in screens and windows (several copies of a game, not open yet, closed and reopened, minimized, resized), the sounds and player, the UI offscreen |
+| `tests/` | pytest: the matcher, the watcher on stand-in screens and windows (several copies of a game, every copy, not open yet, closed and reopened, minimized, resized), each kind of trigger and its area, the sounds and player, the UI offscreen |
 
 ## Licence
 

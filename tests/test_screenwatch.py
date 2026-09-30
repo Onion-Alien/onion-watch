@@ -3,7 +3,6 @@ brightness and after shrinking, the gate fires once per appearance (and respects
 the cooldown), and the watcher thread runs on a fake capture (the real screen is
 never read). Ported from Onion Board's Triggers tests."""
 import time
-from dataclasses import asdict
 
 import numpy as np
 import pytest
@@ -431,12 +430,19 @@ def test_stop_then_start_during_a_slow_check_leaves_one_thread(monkeypatch):
     assert run_until(lambda: not any(t.name == "screenwatch" for t in sw.threading.enumerate()))
 
 
+def capture(scaled) -> sw._Capture:
+    """A screen capture as _check sees it, its pictures already shrunk."""
+    cap = sw._Capture(0)
+    cap.scaled = scaled
+    return cap
+
+
 def test_scores_are_replaced_whole_not_changed_in_place(fake_screen):
     """The UI thread reads and prunes `scores` while the watcher writes it."""
     w = sw.Watcher(lambda _t: None)
     items = [sw.Watched("t1", pics(banner()), 0.8, 0.0)]
     old = w.scores = {"gone": 0.5}
-    new = w._check(with_banner(scene()), items, {"t1": [(banner(), None)]})
+    new = w._check(capture({"t1": [(banner(), None)]}), with_banner(scene()), items)
     assert old == {"gone": 0.5} and new["t1"] > 0.99
     w.scores = {"t1": 0.9, "gone": 0.5}
     w.set_items(items)
@@ -567,7 +573,7 @@ def test_a_trigger_screen_is_remembered_and_checked_when_loaded():
     for bad in (None, "1", True, -1, 1.5, sw.MAX_SCREENS):
         assert Trigger.from_raw({"id": "a", "monitor": bad}).monitor is None
     assert Trigger.from_raw({"id": "a"}).monitor is None          # an older config
-    raw = asdict(Trigger(id="a", monitor=1))
+    raw = Trigger(id="a", sources=[1]).to_raw()
     assert raw["monitor"] == 1 and Trigger.from_raw(raw).monitor == 1
 
 
@@ -644,9 +650,9 @@ def test_the_live_score_is_the_best_of_the_pictures():
     scaled = {"both": [(banner(), None), (badge(), None)], "one": [(banner(), None)]}
     items = [sw.Watched("both", pics(banner(), badge()), 0.8, 0.0),
              sw.Watched("one", pics(banner()), 0.8, 0.0)]
-    scores = w._check(frame, items, scaled)
+    scores = w._check(capture(scaled), frame, items)
     assert scores["both"] > 0.99 and scores["one"] < 0.6
-    assert w._check(frame, items, {})["both"] == 0.0     # no pictures fitted yet
+    assert w._check(capture({}), frame, items)["both"] == 0.0     # no pictures fitted yet
 
 
 def test_a_hundred_pictures_are_shrunk_once_not_every_tick(fake_screen, monkeypatch):

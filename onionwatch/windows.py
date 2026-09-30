@@ -31,8 +31,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from onionwatch.screenwatch import (_BITMAPINFOHEADER, CaptureLost, WindowRef, gray_2x,
-                                    to_gray)
+from onionwatch.screenwatch import (_BITMAPINFOHEADER, CaptureLost, WindowRef, frame_rgb,
+                                    gray_2x, to_gray)
 
 log = logging.getLogger(__name__)
 
@@ -97,6 +97,7 @@ def _win():
     u.GetWindowLongW.argtypes = [H, ctypes.c_int]
     u.GetWindow.argtypes = [H, wintypes.UINT]
     u.GetWindow.restype = H
+    u.GetForegroundWindow.restype = H
     u.PrintWindow.argtypes = [H, wintypes.HDC, wintypes.UINT]
     u.GetDC.argtypes = [H]
     u.GetDC.restype = wintypes.HDC
@@ -342,6 +343,8 @@ class WindowGrabber:
     resized. While it's minimized grab() gives None and `minimized` is set."""
 
     lost = False
+    want_color = False      # also keep `color` (screenwatch.Grabber's)
+    color: np.ndarray | None = None
 
     def __init__(self, ref: WindowRef, w: int, h: int, info: WindowInfo | None = None):
         self.ref = ref
@@ -407,7 +410,13 @@ class WindowGrabber:
             return self.last
         sample = self._bm.pixels[self.ys[:, None], self.xs[None, :]]
         self.last = gray_2x(sample) if self.factor == 2 else to_gray(sample)
+        self.color = frame_rgb(sample, factor=self.factor) if self.want_color else None
         return self.last
+
+    def in_front(self) -> bool:
+        """It's the window you're using now (the foreground one)."""
+        u = _win()[0]
+        return int(u.GetForegroundWindow() or 0) == self.hwnd
 
     def close(self):
         if self._bm is not None:

@@ -152,8 +152,8 @@ class MainWindow(QMainWindow):
 
     # ------------------------------------------------------------------ alarms
     def _on_fired(self, t):
-        self._notify(t.name, "Ringing until you stop it — click here to stop." if t.ring
-                     else "It just showed up.")
+        text = self.triggers.alert_text(t)
+        self._notify(t.name, text + (" Click here to stop." if t.ring else ""))
         QApplication.alert(self, 0 if t.ring else 3000)   # flash the taskbar button
 
     def _notify(self, title: str, body: str):

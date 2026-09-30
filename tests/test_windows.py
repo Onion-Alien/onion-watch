@@ -62,7 +62,7 @@ def test_two_copies_of_a_game_are_told_apart_by_when_they_started():
 
 
 def test_a_window_ref_is_saved_and_checked_when_loaded():
-    t = Trigger(id="a", window=WindowRef("game.exe", "Game", 1))
+    t = Trigger(id="a", sources=[WindowRef("game.exe", "Game", 1)])
     raw = t.to_raw()
     assert raw["window"] == {"exe": "game.exe", "title": "Game", "nth": 1}
     back = Trigger.from_raw(raw)
@@ -147,7 +147,7 @@ def test_a_trigger_fires_from_its_window(fake):
         assert not fired
         fake.open[GAME1] = showing(scene(1), banner())
         assert run_until(lambda: fired == ["t"])
-        assert w.where["t"] == GAME1
+        assert w.where["t"] == (GAME1,)
     finally:
         w.stop()
 
@@ -242,7 +242,7 @@ def test_triggers_without_their_own_follow_a_default_window(fake):
     w.start()
     try:
         assert run_until(lambda: fired == ["t"])
-        assert w.where["t"] == GAME1
+        assert w.where["t"] == (GAME1,)
     finally:
         w.stop()
 

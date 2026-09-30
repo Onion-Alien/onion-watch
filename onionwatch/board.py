@@ -63,8 +63,7 @@ class BoardPanel(QWidget):
         self.panel.fired.connect(self._on_fired)
 
     def _on_fired(self, t):
-        self.host.notify(t.name, "Ringing until you stop it." if t.ring
-                         else "It just showed up.")
+        self.host.notify(t.name, self.panel.alert_text(t))
         win = self.window()
         if win is not None:
             QApplication.alert(win, 0 if t.ring else 3000)   # flash the taskbar button

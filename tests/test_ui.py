@@ -130,7 +130,7 @@ def test_a_card_can_be_pointed_at_a_window(tab, monkeypatch):
     tab._new(as_qimage(banner()), "Rare")
     row = next(iter(tab.rows.values()))
     ref = WindowRef("game.exe", "Game", 1)
-    monkeypatch.setattr(tab, "pick_window", lambda current=None: ref)
+    monkeypatch.setattr(tab, "pick_places", lambda current: [ref])
     i = row.where.findData(PICK_WINDOW)
     row.where.setCurrentIndex(i)
     row.where.activated.emit(i)
