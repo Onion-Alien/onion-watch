@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Onion Watch: a sound when your game needs you (free, Windows)</title>
+<meta name="description" content="Free Windows app that plays a sound when something shows up in your game: a rare spawn, a queue pop, a whisper, YOU DIED. It watches the game's own window, even while you're alt-tabbed away, and never touches the game.">
+<meta property="og:title" content="Onion Watch: a sound when your game needs you">
+<meta property="og:description" content="Plays a sound when a rare spawn, a queue pop or a whisper shows up in your game, even while you're alt-tabbed. Free, Windows, it only looks.">
+<meta property="og:image" content="https://onion-alien.github.io/onion-watch/art/social-preview.png">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="canonical" href="https://onion-alien.github.io/onion-watch/">
+<link rel="icon" type="image/png" href="screenshots/icon.png">
+<style>
+  :root {
+    --bg: #0e1418; --card: #16202a; --edge: #243240; --text: #eaf2f3; --muted: #9fb3b8;
+    --accent: #1fb6a6; --accent2: #2a6fdb; --gold: #ffc53d;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 17px/1.55 "Segoe UI", system-ui, -apple-system, sans-serif; }
+  a { color: #5fd8cb; }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 0 16px; }
+  header { text-align: center; padding: 48px 0 24px; }
+  .logo { width: 96px; height: 96px; }
+  h1 { font-size: clamp(34px, 6vw, 56px); margin: 8px 0 8px; letter-spacing: 0.02em; }
+  h1 span { background: linear-gradient(90deg, var(--accent), var(--accent2));
+            -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .tag { color: var(--muted); font-size: clamp(18px, 2.6vw, 22px); max-width: 720px; margin: 0 auto 28px; }
+  .tag b { color: var(--gold); }
+  .dl { display: inline-block; background: var(--accent); color: #fff; text-decoration: none;
+        font-weight: 700; font-size: 20px; padding: 16px 30px; border-radius: 14px;
+        box-shadow: 0 8px 30px rgba(31, 182, 166, 0.35); }
+  .dl:hover { background: #29c9b8; }
+  .small { color: var(--muted); font-size: 14px; margin-top: 12px; }
+  .hero { margin: 32px auto 8px; border-radius: 14px; border: 1px solid var(--edge);
+          max-width: 100%; height: auto; display: block; }
+  h2 { font-size: 28px; margin: 56px 0 16px; text-align: center; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+  .card { background: var(--card); border: 1px solid var(--edge); border-radius: 14px; padding: 18px 20px; }
+  .card h3 { margin: 0 0 6px; font-size: 19px; }
+  .card p { margin: 0; color: var(--muted); }
+  .shots img { width: 100%; border-radius: 12px; border: 1px solid var(--edge); display: block; }
+  .shots figure { margin: 0; }
+  .shots figcaption { color: var(--muted); font-size: 15px; margin-top: 6px; }
+  ol.steps { max-width: 720px; margin: 0 auto; padding-left: 22px; }
+  ol.steps li { margin: 8px 0; }
+  .note { max-width: 720px; margin: 20px auto 0; background: var(--card); border: 1px solid var(--edge);
+          border-radius: 12px; padding: 14px 18px; color: var(--muted); font-size: 15px; }
+  .hoot { display: block; margin: 48px auto 0; width: 120px; height: auto; }
+  footer { text-align: center; color: var(--muted); font-size: 14px; padding: 16px 0 40px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <img class="logo" src="screenshots/icon.png" alt="" width="96" height="96">
+    <h1><span>Onion Watch</span></h1>
+    <p class="tag">Plays a sound when <b>your game needs you</b>: a rare spawn, a queue pop, a
+      whisper, YOU DIED. It keeps watching the game's window while you're alt-tabbed into
+      something else.</p>
+    <a class="dl" href="https://github.com/Onion-Alien/onion-watch/releases/latest/download/OnionWatchSetup.exe">⬇ Download for Windows</a>
+    <p class="small">Free · Windows 10 and 11 · no account, no ads, no tracking, no internet needed</p>
+    <p class="small"><a id="ver" href="https://github.com/Onion-Alien/onion-watch/releases/latest">Latest version · what's new</a></p>
+    <img class="hero" src="screenshots/main.png" width="900" height="820"
+         alt="Onion Watch with three triggers, one of them ringing for a rare spawn">
+  </header>
+
+  <h2>What it does</h2>
+  <div class="grid">
+    <div class="card"><h3>Watches behind other windows</h3><p>Pick the game's window and it's
+      watched even while your browser, a video or another game covers it. (Not while it's
+      minimized: Windows stops drawing those.)</p></div>
+    <div class="card"><h3>Several accounts at once</h3><p>Each trigger watches its own window, and
+      two copies of the same game are told apart, so "copy 2" stays your second account.</p></div>
+    <div class="card"><h3>Cut it straight from the game</h3><p>Drag a box around the thing to watch
+      for, right out of the game's window: a name plate, a banner, a chat line.</p></div>
+    <div class="card"><h3>Rings until you stop it</h3><p>For the things you can't miss: an alarm
+      that keeps going until you click Stop. Or a sound that plays once, each time it shows up.</p></div>
+    <div class="card"><h3>Your sounds or its own</h3><p>Built-in alerts (Chime, Ping, Ready, Bell,
+      Alarm) or any sound file, on the speakers or headphones you pick.</p></div>
+    <div class="card"><h3>It only looks</h3><p>It never presses keys, clicks, reads or changes a
+      game's memory: it sees what you'd see, like OBS or a Discord screen share. Some games ban
+      every third-party tool, so check your game's rules.</p></div>
+  </div>
+
+  <h2>Screenshots</h2>
+  <div class="grid shots">
+    <figure><img src="screenshots/window-picker.png" alt="Picking the window to watch" loading="lazy"><figcaption>Pick the window, even the second copy of a game</figcaption></figure>
+    <figure><img src="screenshots/cut-picture.png" alt="Cutting a picture out of the game" loading="lazy"><figcaption>Cut out the thing to watch for</figcaption></figure>
+  </div>
+
+  <h2>Get started</h2>
+  <ol class="steps">
+    <li><a href="https://github.com/Onion-Alien/onion-watch/releases/latest/download/OnionWatchSetup.exe">Download <code>OnionWatchSetup.exe</code></a> and run it.</li>
+    <li>Pick your game's window at the bottom, then <b>Cut picture…</b> and drag a box around the thing to watch for.</li>
+    <li>Choose a sound, click <b>Start watching</b>, and go do something else.</li>
+  </ol>
+  <p class="note">Windows or your browser may warn you about the download. That's normal for a free
+    app from a small developer: the installer isn't "code-signed", which costs hundreds a year.
+    Click <b>More info → Run anyway</b> (or <b>⋯ → Keep</b> in Edge / Chrome). The full source code is
+    <a href="https://github.com/Onion-Alien/onion-watch">on GitHub</a> if you'd like to check it.</p>
+  <p class="note">Use <a href="https://onion-alien.github.io/onion-board/">Onion Board</a>, the
+    free soundboard? Onion Watch is also its Triggers tab: click <b>Get Onion Watch</b> there and your
+    triggers play the board's sounds.</p>
+
+  <img class="hoot" src="art/hoot.png" alt="Hoot, the Onion Watch owl" width="300" height="360">
+  <footer>
+    <a href="https://github.com/Onion-Alien/onion-watch">Source code</a> ·
+    <a href="https://github.com/Onion-Alien/onion-watch/releases">All versions</a> ·
+    <a href="https://github.com/Onion-Alien/onion-watch/issues">Report a problem</a><br>
+    Onion Watch is free to use. Nothing is collected about you.
+  </footer>
+</div>
+<script>
+  // The newest version's number, straight from GitHub (the link works without it too).
+  fetch("https://api.github.com/repos/Onion-Alien/onion-watch/releases/latest")
+    .then(r => r.ok ? r.json() : null)
+    .then(r => {
+      const v = r && /^v?(\d+\.\d+\.\d+)$/.exec(r.tag_name || "");
+      if (v) document.getElementById("ver").textContent = `Latest version ${v[1]} · what's new`;
+    })
+    .catch(() => {});
+</script>
+</body>
+</html>

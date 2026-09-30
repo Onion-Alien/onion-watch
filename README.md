@@ -13,6 +13,14 @@ moment the thing appears.
 
 ![Onion Watch watching two copies of a game, one trigger ringing](docs/screenshots/main.png)
 
+**[⬇ Download Onion Watch for Windows](https://github.com/Onion-Alien/onion-watch/releases/latest/download/OnionWatchSetup.exe)**
+(free, Windows 10 and 11, no account) · [website](https://onion-alien.github.io/onion-watch/) ·
+[all versions](https://github.com/Onion-Alien/onion-watch/releases)
+
+Windows or your browser may warn you about the download, because the installer isn't
+code-signed. Click **More info → Run anyway**. It installs for your user only, without
+admin rights.
+
 <details>
 <summary><b>More screenshots</b></summary>
 
@@ -113,11 +121,13 @@ To release a new version:
    in a way an older Onion Board can't follow, also bump `API_VERSION` in
    `onionwatch/host.py` (Onion Board refuses a module whose version it doesn't
    know, with a message, instead of crashing).
-2. `.venv\Scripts\python scripts\build_module.py` builds
-   `dist\OnionWatch-module.zip` and prints its SHA-256. It fails if the page
-   imports anything Onion Board doesn't ship (it has no pip).
-3. `gh release create vX.Y.Z dist\OnionWatch-module.zip --title "Onion Watch X.Y.Z"`.
-   Keep the file name: it's what Onion Board looks for.
+2. `powershell -ExecutionPolicy Bypass -File build.ps1 -Clean` builds the app
+   (`dist\OnionWatch\OnionWatch.exe`, self-tested), the installer
+   (`dist\OnionWatchSetup.exe`, needs [Inno Setup 6](https://jrsoftware.org/isinfo.php))
+   and the add-on (`dist\OnionWatch-module.zip`, via `scripts\build_module.py`, which
+   fails if the page imports anything Onion Board doesn't ship: it has no pip).
+3. `gh release create vX.Y.Z dist\OnionWatchSetup.exe dist\OnionWatch-module.zip --target main --title "Onion Watch X.Y.Z"`.
+   Keep both file names: the website links to the setup, Onion Board looks for the zip.
 
 To try a zip in Onion Board before releasing it, start Onion Board with
 `ONIONBOARD_ONION_WATCH_ZIP` set to the zip's path: its *Get Onion Watch* button
@@ -147,6 +157,9 @@ then installs that file instead of downloading.
 | `onionwatch/singleinstance.py` | one copy at a time: a second launch brings the running one to the front |
 | `onionwatch/shuffle.py`, `wheelguard.py` | picking sounds "at random" without repeats; the mouse wheel scrolls the page instead of changing a box |
 | `scripts/screenshots.py`, `scripts/make_art.py` | the README screenshots and `docs/art`, rendered offscreen from made-up data |
+| `build.ps1`, `installer/OnionWatch.iss` | the Windows build (PyInstaller) and its installer (Inno Setup) |
+| `scripts/prune_build.py`, `make_notices.py`, `make_installer_art.py` | the build's helpers: drop the Qt parts the app never loads, the third-party licence notices, the icon and the setup wizard's pictures |
+| `docs/index.html` | the website, [onion-alien.github.io/onion-watch](https://onion-alien.github.io/onion-watch/) (GitHub Pages, from `docs/`) |
 | `scripts/check_sensitive.py` | scans files, commits and history for secrets and personal data; the pre-commit hook |
 | `scripts/live_check.py` | the real thing on this PC: two copies of a stand-in game (real windows, one covered), real `PrintWindow` capture, the triggers page as Onion Board loads it; prints PASS. Opens windows for a few seconds (never takes the focus) |
 | `scripts/build_module.py` | builds `OnionWatch-module.zip` for Onion Board: `module.json` and only the modules the board's tab needs, checked against what Onion Board ships |
