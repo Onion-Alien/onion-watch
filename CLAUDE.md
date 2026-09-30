@@ -2,10 +2,9 @@
 
 Guidance for AI coding agents working in this repo.
 
-## This repo will be public
+## This repo is public
 
-It's private while the first version is being finished and signed off, then it
-goes public like Onion Board. Write everything as if it were public already:
+Like Onion Board, everything here is published, history included:
 
 - **Never write personal or machine-specific data** into the repo: user names,
   real names, e-mails, `C:\Users\<name>\…` paths, host names, IPs (other than

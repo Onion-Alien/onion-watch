@@ -164,8 +164,16 @@ def main() -> int:
         assert px is not None, "copy 2 could be copied"
         from onionwatch.ui.windowpicker import bgra_image
         bx, by, bw, bh = BANNER
+        import numpy as np
         piece = bgra_image(px).copy(bx - 6, by - 6, bw + 12, bh + 12)
         ctrl2.write_text("none")
+
+        def banner_gone():   # copy 2 has really redrawn without it (slow on a busy PC)
+            now = windows.snapshot(info2.hwnd)
+            plate = np.s_[by:by + bh, bx:bx + bw]
+            return now is not None and (now[plate] != px[plate]).any()
+
+        assert spin(banner_gone, 5.0), "copy 2 should hide the banner again"
         panel._new(piece, "Rare spawn")
         t = panel.triggers[0]
         t.window, t.sounds = ref, ["s1"]
@@ -178,7 +186,9 @@ def main() -> int:
         assert spin(lambda: t.id in panel.watcher.scores), "watching copy 2"
         time.sleep(0.5)
         quiet = panel.watcher.scores.get(t.id, 0)
-        print(f"match with nothing showing: {quiet:.0%}")
+        app.processEvents()
+        print(f"match with nothing showing: {quiet:.0%}, played: {host.played}")
+        assert host.played == [], "nothing showing anywhere: must stay quiet"
 
         # 2. the banner in copy 1 only: must stay quiet
         ctrl1.write_text("banner")
