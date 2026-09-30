@@ -22,7 +22,7 @@ CONFIG = "config.json"
 
 @dataclass
 class Config:
-    theme: str = "Dark"
+    theme: str = "Hoot"
     # the triggers and how they're watched: on, interval_ms, monitor / window (the
     # default for triggers that don't pick their own), triggers (screenwatch.Trigger)
     screen: dict = field(default_factory=dict)

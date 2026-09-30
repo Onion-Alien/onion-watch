@@ -29,7 +29,7 @@ from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDoubleSpinBo
                                QFrame, QHBoxLayout, QLabel, QLineEdit, QMessageBox, QPushButton,
                                QScrollArea, QSizePolicy, QSpinBox, QVBoxLayout, QWidget)
 
-from onionwatch import screenwatch, theme, windows
+from onionwatch import owl, screenwatch, theme, windows
 from onionwatch.screenwatch import (INTERVALS_MS, MAX_PICTURES, MAX_SOUNDS, Monitor, Picture,
                                     Trigger, Watched, WindowRef)
 from onionwatch.shuffle import ShuffleBag
@@ -139,6 +139,8 @@ class WideCombo(QComboBox):
 def labelled(text: str, w: QWidget) -> QWidget:
     """`text` and its control kept together on one line of a wrapping row."""
     box = QWidget()
+    box.setObjectName("labelled")   # see-through, whichever program's stylesheet is in use
+    box.setStyleSheet("QWidget#labelled { background: transparent; }")
     h = QHBoxLayout(box)
     h.setContentsMargins(0, 0, 0, 0)
     h.setSpacing(6)
@@ -742,9 +744,22 @@ class TriggersTab(QWidget):
         self.list_layout = QVBoxLayout(self.list)
         self.list_layout.setContentsMargins(0, 0, 0, 0)
         self.list_layout.setSpacing(6)
-        self.empty = hint_label("No triggers yet. Pick your game window below, then click "
-                                "Cut picture… and drag a box around the thing to watch for.")
-        self.empty.setAlignment(Qt.AlignCenter)
+        self.empty = QWidget()
+        ev = QVBoxLayout(self.empty)
+        ev.setContentsMargins(0, 24, 0, 0)
+        ev.setSpacing(10)
+        hoot = QLabel()
+        hoot.setObjectName("iconlabel")
+        hoot.setAlignment(Qt.AlignCenter)
+        ratio = self.devicePixelRatioF() or 1.0
+        pm = QPixmap.fromImage(owl.owl_image(round(96 * ratio), look=0.6))
+        pm.setDevicePixelRatio(ratio)
+        hoot.setPixmap(pm)
+        ev.addWidget(hoot)
+        hint = hint_label("No triggers yet. Pick your game window below, then click "
+                          "Cut picture… and drag a box around the thing to watch for.")
+        hint.setAlignment(Qt.AlignCenter)
+        ev.addWidget(hint)
         self.list_layout.addWidget(self.empty)
         self.list_layout.addStretch(1)
         self.scroll.setWidget(self.list)

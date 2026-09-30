@@ -28,6 +28,15 @@ _LIGHT_STATUS = dict(
 )
 
 THEMES: dict[str, dict[str, str]] = {
+    "Hoot": dict(   # Onion Watch's own: Dark's greys with Hoot's teal and the logo's gold eye
+        bg="#12181d", panel="#182128", card="#1e2931", card_hi="#25323b",
+        btn="#22303a", btn_hover="#2a3a45", btn_press="#324552",
+        border="#2e3f4b", border_hi="#4f6b7c", groove="#2b3b46", inset="#151d23",
+        text="#e3eef0", text_hi="#f1f8f9", muted="#84a0a8", faint="#647d86", section="#86b3b5",
+        accent="#1fb6a6", accent_hi="#3cc8b8", accent2="#ffc93c", on_accent="#04201d",
+        off="#435a66", badge="#2b3b46", badge_text="#d3e6e8",
+        **_DARK_STATUS,
+    ),
     "Dark": dict(
         bg="#15171f", panel="#1c1f2a", card="#232633", card_hi="#2b2f3f",
         btn="#2a2e3d", btn_hover="#333849", btn_press="#3c4257",
@@ -330,10 +339,11 @@ THEMES: dict[str, dict[str, str]] = {
         texture="grid",
     ),
 }
-DEFAULT = "Dark"
+DEFAULT = "Dark"   # the fallback, and what a host's missing colours come from
+APP_DEFAULT = "Hoot"   # what the Onion Watch app starts in
 # How the Settings window groups the theme cards. Every theme is in exactly one group.
 GROUPS: list[tuple[str, list[str]]] = [
-    ("Classic", ["Dark", "Light", "Midnight", "Carbon", "Slate", "Arctic", "Paper",
+    ("Classic", ["Hoot", "Dark", "Light", "Midnight", "Carbon", "Slate", "Arctic", "Paper",
                  "High Contrast"]),
     ("Colourful", ["Ocean", "Toxic", "Vampire", "Forest", "Mocha", "Sunset", "Royal", "Onion",
                    "Mint", "Cherry Blossom"]),
@@ -480,6 +490,7 @@ QComboBox QAbstractItemView { background:$card; color:$text; border:1px solid $b
 QComboBox QAbstractItemView::item { min-height:28px; padding:0 10px; border-radius:6px; }
 QComboBox QAbstractItemView::item:hover { background:$btn_hover; color:$text_hi; }
 QComboBox QAbstractItemView::item:selected { background:$accent; color:$on_accent; }
+QListWidget::item:selected { background:$accent; color:$on_accent; border-radius:8px; }
 QComboBox QAbstractItemView::item:disabled { color:$faint; }
 QPushButton::menu-indicator { image:url("$down"); width:9px; height:9px;
     subcontrol-origin:padding; subcontrol-position:center right; right:2px; }
@@ -712,9 +723,10 @@ def apply(app, name: str) -> str:
 
 # --------------------------------------------------------------------------- logo
 
-def paint_logo(p: QPainter, rect: QRectF, c1: str, c2: str):
-    """The Onion Watch mark: Onion Board's gradient squircle and onion, with an eye
-    in the bulb where Onion Board draws its sound-wave layers."""
+def paint_logo(p: QPainter, rect: QRectF, c1: str, c2: str, awake: bool = True):
+    """The Onion Watch mark: Onion Alien's onion (the family look it shares with Onion
+    Board) in Hoot's teal, with one big gold eye in the bulb. `awake=False` closes the
+    eye: the tray shows that while nothing is being watched."""
     s = rect.width()
     x0, y0 = rect.left(), rect.top()
     p.save()
@@ -735,6 +747,7 @@ def paint_logo(p: QPainter, rect: QRectF, c1: str, c2: str):
     a, b = QColor(c1), QColor(c2)
     lum = sum((0.299 * q.red() + 0.587 * q.green() + 0.114 * q.blue()) / 2 for q in (a, b))
     fg = QColor("#0b1a10") if lum > 165 else QColor("white")
+    ink = QColor("#123a4a") if fg == QColor("white") else QColor("white")
     cx = x0 + s * 0.5
 
     def pt(dx, dy):   # offsets in units of s, from the top-centre of the icon
@@ -760,21 +773,28 @@ def paint_logo(p: QPainter, rect: QRectF, c1: str, c2: str):
     p.drawPath(leaf)
     # bulb
     p.setPen(Qt.NoPen)
-    p.fillPath(bulb(0.29), fg)
-    # the eye: an almond in the brand gradient, a pupil and a glint
-    ey, ew, eh = 0.60, 0.21, 0.115      # centre height, half-width, half-height
-    eye = QPainterPath(pt(-ew, ey))
-    eye.cubicTo(pt(-ew * 0.45, ey - eh * 1.45), pt(ew * 0.45, ey - eh * 1.45), pt(ew, ey))
-    eye.cubicTo(pt(ew * 0.45, ey + eh * 1.45), pt(-ew * 0.45, ey + eh * 1.45), pt(-ew, ey))
-    p.fillPath(eye, g)
-    r = s * 0.075
-    p.setBrush(fg)
-    p.drawEllipse(pt(0, ey), r, r)
-    if s >= 24:
-        p.setBrush(QColor(c2) if fg != QColor("white") else QColor(c1))
-        p.drawEllipse(pt(0, ey), r * 0.5, r * 0.5)
-        p.setBrush(fg)
-        p.drawEllipse(pt(0.03, ey - 0.03), r * 0.28, r * 0.28)
+    p.fillPath(bulb(0.31), fg)
+    ey = 0.60
+    if awake:   # a gold iris, a pupil and a glint
+        r = s * 0.155
+        p.setBrush(QColor("#ffc93c"))
+        p.drawEllipse(pt(0, ey), r, r)
+        p.setBrush(ink)
+        p.drawEllipse(pt(0, ey), r * 0.55, r * 0.55)
+        if s >= 24:
+            p.setBrush(fg)
+            p.drawEllipse(pt(0.045, ey - 0.045), r * 0.22, r * 0.22)
+    else:       # asleep: a lid and three lashes
+        lp = QPen(ink, max(1.2, s * 0.045))
+        lp.setCapStyle(Qt.RoundCap)
+        p.setPen(lp)
+        p.setBrush(Qt.NoBrush)
+        lid = QPainterPath(pt(-0.15, ey - 0.03))
+        lid.quadTo(pt(0, ey + 0.09), pt(0.15, ey - 0.03))
+        p.drawPath(lid)
+        if s >= 24:
+            for dx, dy in ((-0.08, 0.055), (0.0, 0.075), (0.08, 0.055)):
+                p.drawLine(pt(dx * 0.9, ey + dy - 0.035), pt(dx * 1.1, ey + dy + 0.02))
     # roots
     if s >= 32:
         rp = QPen(fg, max(1.0, s * 0.03))
@@ -785,22 +805,23 @@ def paint_logo(p: QPainter, rect: QRectF, c1: str, c2: str):
     p.restore()
 
 
-BRAND = ("#7c5cff", "#ff4d8d")   # the app icon keeps its own colours in every theme
+BRAND = ("#1fb6a6", "#2a6fdb")   # Hoot's teal to blue: the app icon keeps it in every theme
 
 
-def logo_pixmap(size: int, c1: str | None = None, c2: str | None = None) -> QPixmap:
+def logo_pixmap(size: int, c1: str | None = None, c2: str | None = None,
+                awake: bool = True) -> QPixmap:
     pm = QPixmap(size, size)
     pm.fill(Qt.transparent)
     p = QPainter(pm)
-    paint_logo(p, QRectF(0, 0, size, size), c1 or BRAND[0], c2 or BRAND[1])
+    paint_logo(p, QRectF(0, 0, size, size), c1 or BRAND[0], c2 or BRAND[1], awake)
     p.end()
     return pm
 
 
-def app_icon(c1: str | None = None, c2: str | None = None) -> QIcon:
+def app_icon(c1: str | None = None, c2: str | None = None, awake: bool = True) -> QIcon:
     icon = QIcon()
     for sz in (16, 24, 32, 48, 64, 128, 256):
-        icon.addPixmap(logo_pixmap(sz, c1, c2))
+        icon.addPixmap(logo_pixmap(sz, c1, c2, awake))
     return icon
 
 

@@ -90,7 +90,7 @@ Checks: `.venv\Scripts\ruff check .` and `.venv\Scripts\python -m pytest`. The
 tests run Qt offscreen with stand-in captures and a silent audio stream, so they
 never read your screen or make a sound. `scripts\screenshots.py` renders the
 screenshots above from made-up data, and `scripts\make_art.py` renders Hoot, the
-avatar and the social preview into `docsrt\`.
+avatar and the social preview into `docs\art\`.
 
 Settings, the log, your pictures and your sound files live in
 `%APPDATA%\OnionWatch`.

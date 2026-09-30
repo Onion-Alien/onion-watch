@@ -44,9 +44,10 @@ import sounddevice  # noqa: E402
 sounddevice.OutputStream = _Mute
 
 
-def game_scene(w: int, h: int, seed: int = 0, plate: str = "", banner: str = "") -> QImage:
+def game_scene(w: int, h: int, seed: int = 0, plate: str = "", banner: str = "",
+               whisper: str = "") -> QImage:
     """A made-up fantasy MMO frame: sky, hills, a health bar, maybe a rare's name
-    plate or a "queue ready" banner."""
+    plate, a "queue ready" banner or a whisper in the chat."""
     rng = np.random.default_rng(seed)
     img = QImage(w, h, QImage.Format_ARGB32)
     p = QPainter(img)
@@ -107,6 +108,14 @@ def game_scene(w: int, h: int, seed: int = 0, plate: str = "", banner: str = "")
         p.drawRoundedRect(r, 10, 10)
         p.setPen(QColor("#f5e6b0"))
         p.drawText(r, Qt.AlignCenter, banner)
+    if whisper:
+        f = QFont("Segoe UI", 12, QFont.Bold)
+        p.setFont(f)
+        p.setPen(Qt.NoPen)
+        p.setBrush(QColor(0, 0, 0, 140))
+        p.drawRoundedRect(QRectF(20, h - 150, 420, 34), 6, 6)
+        p.setPen(QColor("#ff8ad8"))
+        p.drawText(QRectF(30, h - 150, 400, 34), Qt.AlignVCenter | Qt.AlignLeft, whisper)
     p.end()
     return img
 
@@ -129,7 +138,8 @@ def main(out: Path):
     acct2 = WindowRef("realmonline.exe", "Realm Online", 1)
     w, h = 1280, 720
     rare = game_scene(w, h, 3, plate="Gorehowl the Ancient")
-    queue = game_scene(w, h, 5, banner="Dungeon queue ready!")
+    queue = game_scene(w, h, 5, banner="Dungeon queue ready!",
+                       whisper="[Mira] whispers: you there?")
 
     cfg = Config()
     cfg.screen = {"on": False, "interval_ms": 100, "window": acct1.to_raw(), "triggers": []}
@@ -140,7 +150,7 @@ def main(out: Path):
          acct2, ["builtin:alarm"], True, 0.85, 0.93),
         ("Dungeon queue", cut(queue, QRect(w // 2 - 230, int(h * 0.16), 460, 64)),
          None, ["builtin:rising", "builtin:chime"], False, 0.80, 0.41),
-        ("Whisper", cut(queue, QRect(20, 20, 260, 58)), acct1, ["builtin:ping"], False, 0.80, 0.22),
+        ("Whisper", cut(queue, QRect(20, h - 150, 230, 34)), acct1, ["builtin:ping"], False, 0.80, 0.22),
     ]
     triggers = []
     for i, (name, img, where, sounds, ring, thr, _score) in enumerate(demo):

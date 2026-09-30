@@ -148,6 +148,7 @@ class MainWindow(QMainWindow):
         self.act_watch.setChecked(on)
         self.act_watch.blockSignals(False)
         self.tray.setToolTip("Onion Watch — watching" if on else "Onion Watch — not watching")
+        self.tray.setIcon(theme.app_icon(awake=on))   # the eye shuts while it isn't watching
 
     # ------------------------------------------------------------------ alarms
     def _on_fired(self, t):
