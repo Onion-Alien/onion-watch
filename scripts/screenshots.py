@@ -150,7 +150,8 @@ def main(out: Path):
          acct2, ["builtin:alarm"], True, 0.85, 0.93),
         ("Dungeon queue", cut(queue, QRect(w // 2 - 230, int(h * 0.16), 460, 64)),
          None, ["builtin:rising", "builtin:chime"], False, 0.80, 0.41),
-        ("Whisper", cut(queue, QRect(20, h - 150, 230, 34)), acct1, ["builtin:ping"], False, 0.80, 0.22),
+        ("Whisper", cut(queue, QRect(20, h - 150, 230, 34)), acct1, ["builtin:ping"], False,
+         0.80, 0.22),
     ]
     triggers = []
     for i, (name, img, where, sounds, ring, thr, _score) in enumerate(demo):

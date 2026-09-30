@@ -50,6 +50,8 @@ def game(ctrl: str, x: int, y: int, cover: bool = False) -> int:
             self.setWindowTitle("Covering window" if cover else TITLE)
             self.setAttribute(Qt.WA_ShowWithoutActivating)
             self.setWindowFlag(Qt.WindowDoesNotAcceptFocus)
+            if cover:   # a window shown without taking the focus isn't always put on top
+                self.setWindowFlag(Qt.WindowStaysOnTopHint)
             self.setFixedSize(W + 120 if cover else W, H + 120 if cover else H)
             self.move(x, y)
             t = QTimer(self)
