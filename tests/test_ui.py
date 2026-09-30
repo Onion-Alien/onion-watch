@@ -307,3 +307,12 @@ def test_the_recently_deleted_window_brings_triggers_back(tab):
     dlg.bring_back()
     assert [t.name for t in tab.triggers] == ["Gone"]
     assert dlg.list.count() == 1 and not dlg.btn_back.isEnabled()   # "Nothing here"
+
+
+def test_the_recently_deleted_button_shows_while_the_bin_has_triggers(tab):
+    assert tab.btn_bin.isHidden()
+    tab._new(as_qimage(banner()), "Gone")
+    tab._remove(tab.rows[tab.triggers[0].id])
+    assert not tab.btn_bin.isHidden() and tab.btn_bin.text() == "Recently deleted (1)"
+    tab.restore_deleted(tab.deleted()[0][0])
+    assert tab.btn_bin.isHidden()

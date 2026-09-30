@@ -1111,6 +1111,11 @@ class TriggersTab(QWidget):
         menu.aboutToShow.connect(about_to_show)
         self.btn_more.setMenu(menu)
         h.addWidget(self.btn_more)
+        self.btn_bin = QPushButton()
+        self.btn_bin.setToolTip("Triggers you deleted: bring them back, pictures and all")
+        icons.set_icon(self.btn_bin, "trash")
+        self.btn_bin.clicked.connect(self.show_deleted)
+        h.addWidget(self.btn_bin)
         self.cb_where = WideCombo(min_width=140)
         self.cb_where.setToolTip("Where triggers that say “Same as below” look: your game's "
                                  "window, or a whole screen")
@@ -1145,6 +1150,7 @@ class TriggersTab(QWidget):
         for t in self.triggers:
             self._add_row(t)
         self._prune_bin()
+        self._label_bin()
         self.poll = QTimer(self)
         self.poll.timeout.connect(self._poll)
         self._label_watch()
@@ -1838,7 +1844,8 @@ class TriggersTab(QWidget):
         self.ringing_changed.emit()
         if not self.triggers and self.is_active():
             self.set_watching(False)
-        self.undo_bar.show_for(f"Deleted “{t.name}”",
+        self._label_bin()
+        self.undo_bar.show_for(f"Deleted “{t.name}” (kept in Recently deleted)",
                                lambda: self.restore_deleted(entry["id"]))
 
     # ------------------------------------------------------------------ recently deleted
@@ -1847,6 +1854,12 @@ class TriggersTab(QWidget):
         raw = self.host.screen.get("deleted")
         return [d for d in raw if isinstance(d, dict) and isinstance(d.get("trigger"), dict)
                 and isinstance(d.get("id"), str)] if isinstance(raw, list) else []
+
+    def _label_bin(self):
+        """The "Recently deleted (n)" button: there while the bin has triggers in it."""
+        n = len(self._bin())
+        self.btn_bin.setText(f"Recently deleted ({n})")
+        self.btn_bin.setVisible(n > 0)
 
     def _picture_used(self, path: str, but: dict | None = None) -> bool:
         """Whether a live trigger, or one in the bin (other than `but`), has this file."""
@@ -1909,6 +1922,7 @@ class TriggersTab(QWidget):
         self.triggers.insert(index, t)
         row = self._add_row(t, at=index)
         self._store()
+        self._label_bin()
         QTimer.singleShot(0, row, lambda: self.scroll.ensureWidgetVisible(row))
         return True
 
@@ -1921,11 +1935,13 @@ class TriggersTab(QWidget):
         self.host.screen["deleted"] = [d for d in all_ if d is not entry]
         self._drop_pictures(entry)
         self.host.save()
+        self._label_bin()
 
     def show_deleted(self):
         from onionwatch.ui.deleted import DeletedDialog
         self.undo_bar.finish()
         DeletedDialog(self, KEEP_DAYS, self).exec()
+        self._label_bin()
 
     # ------------------------------------------------------------------ areas, copies
     def _pick_area(self, row: TriggerRow):
