@@ -46,10 +46,12 @@ WizardSmallImageFile=wizard-small-1x.bmp,wizard-small-2x.bmp
 UninstallDisplayIcon={app}\{#AppExeName}.exe
 OutputDir=..\dist
 OutputBaseFilename=OnionWatchSetup
-Compression=lzma2/ultra64
-SolidCompression=yes
-LZMAUseSeparateProcess=yes
-LZMANumFastBytes=273
+; zip, not solid: DON'T go back to lzma. With Compression=lzma2 + SolidCompression=yes
+; Microsoft's machine-learning scanner on VirusTotal called nearly every build of this
+; installer Trojan:Win32/Wacatac.B!ml, whatever was inside it (even with no
+; OnionWatch.exe); the same files zipped scan clean. Costs about 30 MB. See README.
+Compression=zip
+SolidCompression=no
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 CloseApplications=yes

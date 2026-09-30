@@ -150,21 +150,25 @@ To release a new version:
    `-Scan` then checks the installer on VirusTotal (`scripts\vt_scan.py`, needs a free
    API key in `VT_API_KEY` or `~/.secrets/virustotal.env`).
 
-   **Microsoft's `Trojan:Win32/Wacatac.B!ml`** (a machine-learning false positive;
-   Windows Defender itself finds nothing) is handled by the build:
+   **Microsoft's `Trojan:Win32/Wacatac.B!ml`** (a machine-learning false positive on
+   VirusTotal; Windows Defender itself finds nothing) is handled by two things in the
+   build. Don't undo either:
+   - the installer is **zip-compressed, not lzma** (`Compression=zip`,
+     `SolidCompression=no` in `installer\OnionWatch.iss`). With solid lzma, 8 of 9
+     test installers were flagged whatever was in them: 0.4.0, 0.3.1's source built
+     again, even one with no `OnionWatch.exe` inside. So it was never the app's code
+     or the bootloader, and 0.3.1's clean scan was luck. The same files zipped scanned
+     clean every time. It costs about 30 MB;
    - every build uses a PyInstaller bootloader compiled on your PC
      (`scripts\build_bootloader.ps1`, needs gcc: `winget install
-     BrechtSanders.WinLibs.POSIX.UCRT`). PyPI's stock bootloader is what got 0.3.0
-     flagged; `build.ps1` compiles one itself if the stock one is installed;
-   - if the scan still flags the installer, `build.ps1` compiles a fresh bootloader
-     (a file no scanner has seen) and builds again from scratch, up to `-Tries`
-     builds (3);
-   - if every build is flagged, **don't release it**: report
-     `dist\OnionWatchSetup.exe` as a false positive at
-     <https://www.microsoft.com/en-us/wdsi/filesubmission> (Software developer →
-     Microsoft Defender Antivirus → Incorrectly detected). Microsoft usually clears it
-     in 1–3 days; then `.venv\Scripts\python scripts\vt_scan.py dist\OnionWatchSetup.exe`
-     scans it again, and it can be released.
+     BrechtSanders.WinLibs.POSIX.UCRT`), because PyPI's stock one is the same file in
+     thousands of programs; `build.ps1` compiles one itself if the stock one is
+     installed.
+
+   If the scan flags the installer anyway, **don't release it**. Find what changed
+   with one change at a time (an installer takes a minute to build with Inno Setup, a
+   new file scans in a few), and scan several samples of a fix before trusting it:
+   one clean scan can be luck.
 3. `gh release create vX.Y.Z dist\OnionWatchSetup.exe dist\OnionWatch-module.zip --target main --title "Onion Watch X.Y.Z"`.
    Keep both file names: the website links to the setup, Onion Board looks for the zip.
 

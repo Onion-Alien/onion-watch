@@ -11,20 +11,17 @@
 #   -NoInstaller  stop after the app folder
 #   -Scan         then scan the installer on VirusTotal (needs VT_API_KEY): fails if any
 #                 engine flags it, else prints the line for the release notes
-#   -Tries N      with -Scan: when a scanner flags the installer, compile a fresh
-#                 bootloader and build again from scratch, up to N builds in all (3)
 #
-# THE MICROSOFT "Trojan:Win32/Wacatac.B!ml" FIX (don't undo it): PyInstaller's stock
-# bootloader is the same file in thousands of programs, some of them malware, so
-# Microsoft's machine-learning scanner on VirusTotal calls installers built with it a
-# Trojan (a false positive: local Defender finds nothing). Onion Watch 0.3.0 was
-# pulled for it; 0.3.1, built with a bootloader compiled on this PC, scanned 68 of 68
-# clean. So every build uses a bootloader compiled here (scripts\build_bootloader.ps1,
-# run automatically when the stock one is installed), and a release build (-Scan)
-# that's still flagged gets a freshly compiled one (a new file the scanner has never
-# seen) and is built again. If every try is flagged, report the installer to Microsoft
-# as a false positive (README -> releasing) instead of releasing it.
-param([switch]$Clean, [switch]$NoInstaller, [switch]$Scan, [int]$Tries = 3, [int]$Try = 1)
+# VIRUS SCANNERS (don't undo either fix; README -> releasing has the evidence):
+# - The installer is zip-compressed, not lzma (installer\OnionWatch.iss). With solid
+#   lzma, Microsoft's machine-learning scanner on VirusTotal called nearly every build
+#   "Trojan:Win32/Wacatac.B!ml", whatever was inside: 0.4.0, 0.3.1's source built again,
+#   even an installer with no OnionWatch.exe in it. The same files zipped scan clean.
+# - Every build uses a PyInstaller bootloader compiled on this PC
+#   (scripts\build_bootloader.ps1, run automatically when the stock one is installed):
+#   the stock one is the same file in thousands of programs, some of them malware.
+# A release build (-Scan) that's flagged anyway isn't released.
+param([switch]$Clean, [switch]$NoInstaller, [switch]$Scan)
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
 
@@ -90,17 +87,6 @@ Write-Host "Built dist\OnionWatchSetup.exe - that's the one file to give people.
 if ($Scan) {
     & $py scripts\vt_scan.py dist\OnionWatchSetup.exe --markdown | Out-Host
     $scanned = $LASTEXITCODE
-    if ($scanned -eq 1 -and $Try -lt $Tries) {
-        # flagged: a freshly compiled bootloader, a clean build, and another scan
-        Write-Host "Flagged (build $Try of $Tries): compiling a fresh bootloader and building again" -ForegroundColor Yellow
-        & powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build_bootloader.ps1
-        if ($LASTEXITCODE -ne 0) { throw "scripts\build_bootloader.ps1 failed (see above)" }
-        & powershell -NoProfile -ExecutionPolicy Bypass -File build.ps1 -Clean -Scan -Tries $Tries -Try ($Try + 1)
-        exit $LASTEXITCODE
-    }
-    if ($scanned -eq 1) {
-        throw ("a virus scanner flagged OnionWatchSetup.exe in all $Tries builds: don't release " +
-               "it; report it to Microsoft as a false positive (README -> releasing)")
-    }
+    if ($scanned -eq 1) { throw "a virus scanner flagged OnionWatchSetup.exe: don't release it (README -> releasing)" }
     if ($scanned -ne 0) { throw "the VirusTotal scan didn't run (see above)" }
 }

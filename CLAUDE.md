@@ -58,9 +58,11 @@ commit times in UTC.
 ## Releasing
 
 Follow README → *Inside Onion Board* → "To release a new version". Build with
-`build.ps1 -Clean -Scan`, never a plain build. It uses a PyInstaller bootloader
-compiled on this PC (that is the fix for Microsoft's false `Trojan:Win32/Wacatac.B!ml`
-on VirusTotal: the stock bootloader got 0.3.0 flagged), and if the installer is still
-flagged it compiles a fresh bootloader and rebuilds by itself. If it fails after every
-try, don't release: the author reports the installer to Microsoft as a false positive
-(README has the steps), then scan again. Never publish a flagged installer.
+`build.ps1 -Clean -Scan`, never a plain build. Two things keep Microsoft's false
+`Trojan:Win32/Wacatac.B!ml` off the installer on VirusTotal, and neither may be undone:
+the installer is zip-compressed, not lzma (`installer\OnionWatch.iss`; with solid lzma
+nearly every build was flagged whatever was inside it, even with no exe), and the
+PyInstaller bootloader is compiled on this PC. If the scan still flags it, don't
+release, and don't retry blindly: a verdict can change with any byte, so test one
+change at a time and scan several samples (README has how). Never publish a flagged
+installer.
