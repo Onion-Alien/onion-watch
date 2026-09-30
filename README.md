@@ -206,6 +206,7 @@ then installs that file instead of downloading.
 | `onionwatch/ui/windowpicker.py` | the window list with live thumbnails; ticking several windows and screens, or every copy of a game |
 | `onionwatch/ui/snip.py` | cutting a picture out of a capture; picking a trigger's area and a bar's colour |
 | `onionwatch/ui/history.py` | "What went off": the latest alerts with a picture of each moment (in memory only) |
+| `onionwatch/ui/deleted.py` | Recently deleted triggers (kept 30 days with their pictures, in the saved settings) |
 | `onionwatch/packs.py` | saving triggers to a .zip with their pictures and loading them back |
 | `onionwatch/ui/mainwindow.py` | the window, the tray icon, notifications |
 | `onionwatch/ui/settingsdialog.py` | output device, volume, notifications, tray, theme |

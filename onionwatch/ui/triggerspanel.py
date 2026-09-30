@@ -39,7 +39,7 @@ from onionwatch.screenwatch import (INTERVALS_MS, MAX_PICTURES, MAX_SOUNDS, Moni
 from onionwatch.shuffle import ShuffleBag
 from onionwatch.ui import icons
 from onionwatch.ui.history import HistoryDialog
-from onionwatch.ui.panel import Flow, card, hint_label
+from onionwatch.ui.panel import Flow, UndoBar, card, hint_label
 from onionwatch.ui.windowpicker import places_label
 from onionwatch.wheelguard import no_wheel
 
@@ -66,6 +66,8 @@ LEVELS = {"change": 0.05, "still": 0.01, "colour": 0.30}   # a new mode's starti
 
 
 HISTORY = 50            # alerts kept in the history (in memory only)
+KEEP_DAYS = 30          # deleted triggers stay in Recently deleted this long
+MAX_DELETED = 50        # ...and at most this many of them
 
 
 @dataclass
@@ -182,6 +184,11 @@ def picture_name(t: Trigger, folder: Path) -> str:
     if not t.images and not (folder / f"{t.id}.png").exists():
         return t.id
     return f"{t.id}-{uuid.uuid4().hex[:6]}"
+
+
+def _num(v) -> float:
+    """A number from the saved settings, whatever was written there (0 if not one)."""
+    return float(v) if isinstance(v, (int, float)) and not isinstance(v, bool) else 0.0
 
 
 def delete_picture(path: str, folder: Path):
@@ -1027,6 +1034,8 @@ class TriggersTab(QWidget):
         self.warn.setVisible(False)
         hv.addWidget(self.warn)
         v.addWidget(head)
+        self.undo_bar = UndoBar()
+        v.addWidget(self.undo_bar)
 
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
@@ -1082,8 +1091,8 @@ class TriggersTab(QWidget):
         self.btn_paste.clicked.connect(self.add_from_clipboard)
         h.addWidget(self.btn_paste)
         self.btn_more = QPushButton("More")
-        self.btn_more.setToolTip("What went off lately, a trigger without a picture, and "
-                                 "saving or loading triggers")
+        self.btn_more.setToolTip("What went off lately, a trigger without a picture, "
+                                 "saving or loading triggers, and recently deleted ones")
         icons.set_icon(self.btn_more, "history")
         menu = QMenu(self.btn_more)
         menu.addAction("What went off…", self.show_history)
@@ -1091,7 +1100,15 @@ class TriggersTab(QWidget):
         menu.addSeparator()
         self.act_export = menu.addAction("Save triggers to a file…", self.export_triggers)
         menu.addAction("Load triggers from a file…", self.import_triggers)
-        menu.aboutToShow.connect(lambda: self.act_export.setEnabled(bool(self.triggers)))
+        menu.addSeparator()
+        self.act_bin = menu.addAction(icons.icon("trash"), "Recently deleted…",
+                                      self.show_deleted)
+
+        def about_to_show():
+            self.act_export.setEnabled(bool(self.triggers))
+            n = len(self._bin())
+            self.act_bin.setText(f"Recently deleted ({n})…" if n else "Recently deleted…")
+        menu.aboutToShow.connect(about_to_show)
         self.btn_more.setMenu(menu)
         h.addWidget(self.btn_more)
         self.cb_where = WideCombo(min_width=140)
@@ -1127,6 +1144,7 @@ class TriggersTab(QWidget):
         self._fill_sources()
         for t in self.triggers:
             self._add_row(t)
+        self._prune_bin()
         self.poll = QTimer(self)
         self.poll.timeout.connect(self._poll)
         self._label_watch()
@@ -1471,7 +1489,7 @@ class TriggersTab(QWidget):
         for row in self.rows.values():
             row.set_sounds(sounds)
 
-    def _add_row(self, t: Trigger) -> TriggerRow:
+    def _add_row(self, t: Trigger, at: int | None = None) -> TriggerRow:
         row = TriggerRow(t, self.host.sounds(), self._mons)
         row.changed.connect(lambda _r: self._store())
         row.pictures_wanted.connect(self._add_picture_files)
@@ -1487,7 +1505,9 @@ class TriggersTab(QWidget):
         row.test.connect(lambda r: self._play_trigger(r.t, test=True))
         row.remove.connect(self._remove)
         self.rows[t.id] = row
-        self.list_layout.insertWidget(self.list_layout.count() - 1, row)
+        # the empty note is the layout's first item and the stretch its last
+        last = self.list_layout.count() - 1
+        self.list_layout.insertWidget(last if at is None else min(at + 1, last), row)
         self.empty.setVisible(False)
         return row
 
@@ -1742,14 +1762,28 @@ class TriggersTab(QWidget):
             self._store()
 
     def _remove_picture(self, row: TriggerRow, index: int):
+        """Take a picture off a trigger. Its file stays until the Undo bar goes."""
         t = row.t
         if not 0 <= index < len(t.images):
             return
         path = t.images.pop(index)
-        delete_picture(path, self.pictures)
-        self._gray.pop(path, None)
         row.refresh_pictures()
         self._store()
+
+        def undo():
+            r = self.rows.get(t.id)
+            if r is None or len(t.images) >= MAX_PICTURES or path in t.images:
+                done()
+                return
+            t.images.insert(min(index, len(t.images)), path)
+            r.refresh_pictures()
+            self._store()
+
+        def done():
+            if not self._picture_used(path):
+                delete_picture(path, self.pictures)
+                self._gray.pop(path, None)
+        self.undo_bar.show_for(f"Removed a picture from “{t.name}”", undo, done)
 
     def _choose_sound_file(self, row: TriggerRow):
         exts = " ".join(f"*{e}" for e in sorted(self.host.audio_exts))
@@ -1781,7 +1815,13 @@ class TriggersTab(QWidget):
             row.flash("That sound couldn't be added", 4000, "warn")
 
     def _remove(self, row: TriggerRow):
+        """Delete a trigger: it goes to Recently deleted (pictures and all), with an
+        Undo bar for the next few seconds."""
         t = row.t
+        index = next((i for i, x in enumerate(self.triggers) if x.id == t.id), 0)
+        entry = {"id": uuid.uuid4().hex[:12], "when": time.time(), "index": index,
+                 "trigger": t.to_raw()}
+        self.host.screen["deleted"] = self._bin() + [entry]
         self.triggers = [x for x in self.triggers if x.id != t.id]
         self.rows.pop(t.id, None)
         self._bag.forget(t.id)
@@ -1791,13 +1831,101 @@ class TriggersTab(QWidget):
         row.setParent(None)   # gone from the list now, not when the event loop gets to it
         row.deleteLater()
         for path in t.images:
-            delete_picture(path, self.pictures)
-            self._gray.pop(path, None)
+            self._gray.pop(path, None)   # the file stays, in the bin
         self.empty.setVisible(not self.triggers)
+        self._prune_bin()
         self._store()
         self.ringing_changed.emit()
         if not self.triggers and self.is_active():
             self.set_watching(False)
+        self.undo_bar.show_for(f"Deleted “{t.name}”",
+                               lambda: self.restore_deleted(entry["id"]))
+
+    # ------------------------------------------------------------------ recently deleted
+    def _bin(self) -> list[dict]:
+        """host.screen["deleted"], oldest first: {id, when, index, trigger (to_raw)}."""
+        raw = self.host.screen.get("deleted")
+        return [d for d in raw if isinstance(d, dict) and isinstance(d.get("trigger"), dict)
+                and isinstance(d.get("id"), str)] if isinstance(raw, list) else []
+
+    def _picture_used(self, path: str, but: dict | None = None) -> bool:
+        """Whether a live trigger, or one in the bin (other than `but`), has this file."""
+        if any(path in x.images for x in self.triggers):
+            return True
+        for d in self._bin():
+            if d is not but and d["id"] != (but or {}).get("id"):
+                t = Trigger.from_raw(d["trigger"])
+                if t is not None and path in t.images:
+                    return True
+        return False
+
+    def _prune_bin(self):
+        """Let go of deleted triggers older than KEEP_DAYS or past MAX_DELETED, and
+        their pictures."""
+        all_ = self._bin()
+        cutoff = time.time() - KEEP_DAYS * 86400
+        kept = [d for d in all_ if _num(d.get("when")) >= cutoff][-MAX_DELETED:]
+        if len(kept) == len(all_):
+            return
+        self.host.screen["deleted"] = kept
+        for d in all_:
+            if d not in kept:
+                self._drop_pictures(d)
+        self.host.save()
+
+    def _drop_pictures(self, entry: dict):
+        """Delete a binned trigger's picture files (it's gone from the bin already, or
+        about to be)."""
+        t = Trigger.from_raw(entry.get("trigger", {}))
+        for path in t.images if t is not None else []:
+            if not self._picture_used(path, but=entry):
+                delete_picture(path, self.pictures)
+
+    def deleted(self) -> list[tuple[str, str, float]]:
+        """The bin for the Recently deleted window: (id, name, when), newest first."""
+        return [(d["id"], str(d["trigger"].get("name") or "Trigger"), _num(d.get("when")))
+                for d in reversed(self._bin())]
+
+    def restore_deleted(self, entry_id: str) -> bool:
+        """Bring a deleted trigger back where it was, as it was."""
+        all_ = self._bin()
+        entry = next((d for d in all_ if d["id"] == entry_id), None)
+        if entry is None:
+            return False
+        if len(self.triggers) >= MAX_TRIGGERS:
+            QMessageBox.information(self, "Too many triggers",
+                                    f"You can have up to {MAX_TRIGGERS} triggers. Delete "
+                                    "one to bring this one back.")
+            return False
+        t = Trigger.from_raw(entry["trigger"])
+        if t is None:
+            return False
+        if any(x.id == t.id for x in self.triggers):
+            t = t.copy(uuid.uuid4().hex[:12])   # its id was taken meanwhile (a loaded pack)
+        t.images = [p for p in t.images if Path(p).exists()]
+        t.pending = ""
+        self.host.screen["deleted"] = [d for d in all_ if d is not entry]
+        index = min(max(int(_num(entry.get("index"))), 0), len(self.triggers))
+        self.triggers.insert(index, t)
+        row = self._add_row(t, at=index)
+        self._store()
+        QTimer.singleShot(0, row, lambda: self.scroll.ensureWidgetVisible(row))
+        return True
+
+    def forget_deleted(self, entry_id: str):
+        """Delete one from the bin for good."""
+        all_ = self._bin()
+        entry = next((d for d in all_ if d["id"] == entry_id), None)
+        if entry is None:
+            return
+        self.host.screen["deleted"] = [d for d in all_ if d is not entry]
+        self._drop_pictures(entry)
+        self.host.save()
+
+    def show_deleted(self):
+        from onionwatch.ui.deleted import DeletedDialog
+        self.undo_bar.finish()
+        DeletedDialog(self, KEEP_DAYS, self).exec()
 
     # ------------------------------------------------------------------ areas, copies
     def _pick_area(self, row: TriggerRow):

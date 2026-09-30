@@ -9,7 +9,7 @@ import time
 from PySide6.QtCore import QSize, Qt
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (QDialog, QDialogButtonBox, QLabel, QListWidget, QListWidgetItem,
-                               QPushButton, QVBoxLayout)
+                               QMessageBox, QPushButton, QVBoxLayout)
 
 from onionwatch.ui.panel import hint_label
 from onionwatch.ui.windowpicker import thumbnail
@@ -65,6 +65,11 @@ class HistoryDialog(QDialog):
         self.btn_clear.setEnabled(bool(self.panel.history))
 
     def _clear(self):
+        n = len(self.panel.history)
+        if n > 1 and QMessageBox.question(
+                self, "Clear the list",
+                f"Clear all {n} alerts from the list? This can't be undone.") != QMessageBox.Yes:
+            return
         self.panel.history.clear()
         self.refresh()
 

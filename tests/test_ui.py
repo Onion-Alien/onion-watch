@@ -241,3 +241,69 @@ def test_settings_change_the_theme_and_volume_live(qapp, app_dir, fake_screen):
         assert Config.load().theme == "Midnight"
     finally:
         win.quit()
+
+
+def test_a_deleted_trigger_can_be_undone_or_brought_back_later(tab, monkeypatch):
+    from pathlib import Path
+    tab._new(as_qimage(banner()), "First")
+    tab._new(as_qimage(scene(3)[:40, :60]), "Second")
+    first, second = tab.triggers
+    pic = Path(first.images[0])
+    tab._remove(tab.rows[first.id])
+    assert [t.id for t in tab.triggers] == [second.id]
+    assert pic.exists()                       # kept, in the bin
+    assert not tab.undo_bar.isHidden() and "First" in tab.undo_bar.label.text()
+    tab.undo_bar.btn_undo.click()             # back in its old place, as it was
+    assert [t.id for t in tab.triggers] == [first.id, second.id]
+    assert tab.list_layout.indexOf(tab.rows[first.id]) < tab.list_layout.indexOf(
+        tab.rows[second.id])
+    assert tab.host.screen["deleted"] == [] and tab.triggers[0].images == [str(pic)]
+    # after the Undo bar has gone, it's still in Recently deleted
+    tab._remove(tab.rows[first.id])
+    tab.undo_bar.finish()
+    [(iid, name, _when)] = tab.deleted()
+    assert name == "First"
+    assert tab.restore_deleted(iid)
+    assert tab.triggers[0].name == "First" and tab.deleted() == []
+    # deleted for good: its picture goes too
+    tab._remove(tab.rows[first.id])
+    tab.forget_deleted(tab.deleted()[0][0])
+    assert not pic.exists() and tab.deleted() == []
+
+
+def test_old_deleted_triggers_are_let_go(tab):
+    import time
+    from pathlib import Path
+    tab._new(as_qimage(banner()), "Old")
+    t = tab.triggers[0]
+    pic = Path(t.images[0])
+    tab._remove(tab.rows[t.id])
+    tab.undo_bar.finish()
+    tab.host.screen["deleted"][0]["when"] = time.time() - (triggerspanel.KEEP_DAYS + 1) * 86400
+    tab._prune_bin()
+    assert tab.deleted() == [] and not pic.exists()
+
+
+def test_a_removed_picture_can_be_undone(tab):
+    from pathlib import Path
+    tab._new([as_qimage(banner()), as_qimage(scene(3)[:40, :60])], "Two")
+    t = tab.triggers[0]
+    a, b = t.images
+    tab._remove_picture(tab.rows[t.id], 0)
+    assert t.images == [b] and Path(a).exists()
+    tab.undo_bar.btn_undo.click()
+    assert t.images == [a, b]
+    tab._remove_picture(tab.rows[t.id], 0)
+    tab.undo_bar.finish()                     # the bar went: now the file goes
+    assert t.images == [b] and not Path(a).exists()
+
+
+def test_the_recently_deleted_window_brings_triggers_back(tab):
+    from onionwatch.ui.deleted import DeletedDialog
+    tab._new(as_qimage(banner()), "Gone")
+    tab._remove(tab.rows[tab.triggers[0].id])
+    dlg = DeletedDialog(tab, triggerspanel.KEEP_DAYS)
+    assert dlg.list.count() == 1 and "Gone" in dlg.list.item(0).text()
+    dlg.bring_back()
+    assert [t.name for t in tab.triggers] == ["Gone"]
+    assert dlg.list.count() == 1 and not dlg.btn_back.isEnabled()   # "Nothing here"
