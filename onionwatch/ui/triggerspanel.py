@@ -1040,14 +1040,8 @@ class TriggersTab(QWidget):
         ev = QVBoxLayout(self.empty)
         ev.setContentsMargins(0, 24, 0, 0)
         ev.setSpacing(10)
-        hoot = QLabel()
-        hoot.setObjectName("iconlabel")
-        hoot.setAlignment(Qt.AlignCenter)
-        ratio = self.devicePixelRatioF() or 1.0
-        pm = QPixmap.fromImage(owl.owl_image(round(96 * ratio), look=0.6))
-        pm.setDevicePixelRatio(ratio)
-        hoot.setPixmap(pm)
-        ev.addWidget(hoot)
+        self.hoot = owl.OwlWidget(96)   # waiting (sadly) for something to watch
+        ev.addWidget(self.hoot, 0, Qt.AlignHCenter)
         hint = hint_label("No triggers yet. Pick your game window below, then click "
                           "Cut picture… and drag a box around the thing to watch for.")
         hint.setAlignment(Qt.AlignCenter)
@@ -1074,6 +1068,7 @@ class TriggersTab(QWidget):
                                 "picked on the right")
         icons.set_icon(self.btn_cut, "crop", "on_accent")
         self.btn_cut.clicked.connect(self.add_from_cut)
+        self.hoot.clicked.connect(lambda: self.btn_cut.setFocus(Qt.OtherFocusReason))
         h.addWidget(self.btn_cut)
         self.btn_add = QPushButton("Add picture…")
         self.btn_add.setToolTip("A new trigger from a picture file (PNG, JPG…)")
