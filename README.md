@@ -121,11 +121,16 @@ To release a new version:
    in a way an older Onion Board can't follow, also bump `API_VERSION` in
    `onionwatch/host.py` (Onion Board refuses a module whose version it doesn't
    know, with a message, instead of crashing).
-2. `powershell -ExecutionPolicy Bypass -File build.ps1 -Clean` builds the app
+2. `powershell -ExecutionPolicy Bypass -File build.ps1 -Clean -Scan` builds the app
    (`dist\OnionWatch\OnionWatch.exe`, self-tested), the installer
    (`dist\OnionWatchSetup.exe`, needs [Inno Setup 6](https://jrsoftware.org/isinfo.php))
    and the add-on (`dist\OnionWatch-module.zip`, via `scripts\build_module.py`, which
    fails if the page imports anything Onion Board doesn't ship: it has no pip).
+   `-Scan` then checks the installer on VirusTotal (`scripts\vt_scan.py`, needs a free
+   API key in `VT_API_KEY` or `~/.secrets/virustotal.env`) and stops if any engine
+   flags it. The build needs PyInstaller with a bootloader compiled on your PC
+   (`scripts\build_bootloader.ps1`, once): PyPI's stock one gets a false "Trojan"
+   verdict from Microsoft's scanner.
 3. `gh release create vX.Y.Z dist\OnionWatchSetup.exe dist\OnionWatch-module.zip --target main --title "Onion Watch X.Y.Z"`.
    Keep both file names: the website links to the setup, Onion Board looks for the zip.
 
@@ -158,7 +163,8 @@ then installs that file instead of downloading.
 | `onionwatch/shuffle.py`, `wheelguard.py` | picking sounds "at random" without repeats; the mouse wheel scrolls the page instead of changing a box |
 | `scripts/screenshots.py`, `scripts/make_art.py` | the README screenshots and `docs/art`, rendered offscreen from made-up data |
 | `build.ps1`, `installer/OnionWatch.iss` | the Windows build (PyInstaller) and its installer (Inno Setup) |
-| `scripts/prune_build.py`, `make_notices.py`, `make_installer_art.py` | the build's helpers: drop the Qt parts the app never loads, the third-party licence notices, the icon and the setup wizard's pictures |
+| `scripts/prune_build.py`, `make_notices.py`, `make_installer_art.py`, `make_version_info.py` | the build's helpers: drop the Qt parts the app never loads, the third-party licence notices, the icon and the setup wizard's pictures, the exe's version details |
+| `scripts/build_bootloader.ps1`, `scripts/vt_scan.py` | PyInstaller with a bootloader compiled on your PC (virus scanners distrust the stock one); the VirusTotal check for a release |
 | `docs/index.html` | the website, [onion-alien.github.io/onion-watch](https://onion-alien.github.io/onion-watch/) (GitHub Pages, from `docs/`) |
 | `scripts/check_sensitive.py` | scans files, commits and history for secrets and personal data; the pre-commit hook |
 | `scripts/live_check.py` | the real thing on this PC: two copies of a stand-in game (real windows, one covered), real `PrintWindow` capture, the triggers page as Onion Board loads it; prints PASS. Opens windows for a few seconds (never takes the focus) |
