@@ -41,6 +41,17 @@ commit times in UTC.
 - The audio callback (`player.Player._callback`) never blocks or takes a lock.
 - `theme.py`, `ui/icons.py`, `ui/panel.py`, `wheelguard.py`, `shuffle.py` and
   the capture / matching half of `screenwatch.py` came from Onion Board. Keep
-  them close to it: the plan is for Onion Watch to plug back into Onion Board as
-  an add-on module, replacing its built-in Triggers tab.
+  them close to it.
+- Onion Watch is also Onion Board's Triggers tab, as an add-on module
+  (`onionwatch/board.py`, zipped by `scripts/build_module.py`). So:
+  - The triggers page (`ui/triggerspanel.py`) and what it imports never touch the
+    app's settings, sounds, player or tray: everything goes through the host
+    (`onionwatch/host.py`). The engine (`screenwatch.py`, `windows.py`) doesn't know
+    about hosts at all.
+  - The module may only import what Onion Board ships: the standard library,
+    numpy, scipy, PySide6's QtCore / QtGui / QtWidgets. `build_module.py` and its
+    test refuse anything else.
+  - Changing `Host` in a way the other side can't follow means bumping
+    `API_VERSION` and a matching change in Onion Board.
+  - Keep `Config.screen`'s format readable by both: add fields, don't rename them.
 - Keep the README's code layout table current when adding modules.

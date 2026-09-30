@@ -17,6 +17,12 @@ private reporting instead: go to the repository's **Security** tab and choose
 | Network | **none** | |
 | A local socket (`OnionWatch.App`) | this PC only | a second launch asks the running copy to come to the front |
 
+Inside Onion Board (as its Triggers tab) the pictures are kept in
+`%APPDATA%\OnionBoard\triggers` and the settings in Onion Board's own settings file,
+and the sounds are the board's. Onion Board downloads the add-on only when you click
+*Get Onion Watch* (or *Update*), from this project's GitHub releases, checked against
+the SHA-256 GitHub lists; see its SECURITY.md.
+
 Onion Watch never sends input to other programs, never reads or writes their
 memory and never injects code into them. A change that does any of these is
 out of scope for the project, not just a security concern.

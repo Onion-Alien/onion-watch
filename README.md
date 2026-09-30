@@ -95,6 +95,33 @@ avatar and the social preview into `docsrt\`.
 Settings, the log, your pictures and your sound files live in
 `%APPDATA%\OnionWatch`.
 
+## Inside Onion Board
+
+Onion Watch is also [Onion Board](https://github.com/Onion-Alien/onion-board)'s
+Triggers tab, as an add-on. When you click **Get Onion Watch** on that tab, Onion
+Board downloads `OnionWatch-module.zip` from this project's latest release,
+checks it against the SHA-256 GitHub lists for it, and runs it right there: the
+same triggers page, playing the board's sounds into your mic mix, in the board's
+theme. Triggers made in the old built-in tab carry on as they were. It's one
+codebase: the page talks to whichever program it runs in through a small host
+interface (`onionwatch/host.py`).
+
+To release a new version:
+
+1. Bump `__version__` in `onionwatch/__init__.py`. If the host interface changed
+   in a way an older Onion Board can't follow, also bump `API_VERSION` in
+   `onionwatch/host.py` (Onion Board refuses a module whose version it doesn't
+   know, with a message, instead of crashing).
+2. `.venv\Scripts\python scripts\build_module.py` builds
+   `dist\OnionWatch-module.zip` and prints its SHA-256. It fails if the page
+   imports anything Onion Board doesn't ship (it has no pip).
+3. `gh release create vX.Y.Z dist\OnionWatch-module.zip --title "Onion Watch X.Y.Z"`.
+   Keep the file name: it's what Onion Board looks for.
+
+To try a zip in Onion Board before releasing it, start Onion Board with
+`ONIONBOARD_ONION_WATCH_ZIP` set to the zip's path: its *Get Onion Watch* button
+then installs that file instead of downloading.
+
 ## Code layout
 
 | Path | What |
@@ -107,6 +134,7 @@ Settings, the log, your pictures and your sound files live in
 | `onionwatch/app.py` | start-up: logging, one copy at a time, the window, `--selftest` |
 | `onionwatch/host.py` | what the triggers page needs from the program it runs in (settings, sounds, playing, theme): the Onion Watch app or Onion Board |
 | `onionwatch/apphost.py` | the Onion Watch app as that host |
+| `onionwatch/board.py` | the Onion Board add-on's entry point: `create(host)` gives the board its Triggers tab (alarm bar + triggers page) |
 | `onionwatch/ui/triggerspanel.py` | the triggers page: one card per trigger, "Look in", Watching, Cut picture. Talks only to its host |
 | `onionwatch/ui/alarmbar.py` | the red bar shown while a trigger rings, with Stop |
 | `onionwatch/ui/windowpicker.py` | the window list with live thumbnails |
@@ -115,6 +143,7 @@ Settings, the log, your pictures and your sound files live in
 | `onionwatch/ui/settingsdialog.py` | output device, volume, notifications, tray, theme |
 | `onionwatch/owl.py` | Hoot, the mascot owl, drawn in code (Onion Board's Bun's style) |
 | `onionwatch/theme.py`, `ui/icons.py`, `ui/panel.py` | themes, the logo, painted icons and layout helpers, shared with Onion Board |
+| `scripts/build_module.py` | builds `OnionWatch-module.zip` for Onion Board: `module.json` and only the modules the board's tab needs, checked against what Onion Board ships |
 | `tests/` | pytest: the matcher, the watcher on stand-in screens and windows (several copies of a game, not open yet, closed and reopened, minimized, resized), the sounds and player, the UI offscreen |
 
 ## Licence
