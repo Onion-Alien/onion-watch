@@ -1509,7 +1509,7 @@ class TriggersTab(QWidget):
         row.duplicate.connect(self._duplicate)
         row.hear.connect(lambda sid: self.host.play(sid))
         row.test.connect(lambda r: self._play_trigger(r.t, test=True))
-        row.remove.connect(self._remove)
+        row.remove.connect(self.ask_remove)
         self.rows[t.id] = row
         # the empty note is the layout's first item and the stretch its last
         last = self.list_layout.count() - 1
@@ -1819,6 +1819,17 @@ class TriggersTab(QWidget):
             self._store()
         elif row is not None and not sid:
             row.flash("That sound couldn't be added", 4000, "warn")
+
+    def ask_remove(self, row: TriggerRow):
+        """The card's delete button: ask first, then delete (to Recently deleted)."""
+        box = QMessageBox(QMessageBox.Question, "Delete trigger",
+                          f"Delete the trigger “{row.t.name}”?\n\nIt goes to Recently "
+                          f"deleted, where you can bring it back for {KEEP_DAYS} days.",
+                          QMessageBox.Yes | QMessageBox.Cancel, self)
+        box.button(QMessageBox.Yes).setText("Delete")
+        box.setDefaultButton(QMessageBox.Cancel)
+        if box.exec() == QMessageBox.Yes:
+            self._remove(row)
 
     def _remove(self, row: TriggerRow):
         """Delete a trigger: it goes to Recently deleted (pictures and all), with an

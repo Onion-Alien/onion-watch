@@ -316,3 +316,15 @@ def test_the_recently_deleted_button_shows_while_the_bin_has_triggers(tab):
     assert not tab.btn_bin.isHidden() and tab.btn_bin.text() == "Recently deleted (1)"
     tab.restore_deleted(tab.deleted()[0][0])
     assert tab.btn_bin.isHidden()
+
+
+def test_the_delete_button_asks_first(tab, monkeypatch):
+    box = triggerspanel.QMessageBox
+    monkeypatch.setattr(box, "exec", lambda self: box.Cancel)
+    tab._new(as_qimage(banner()), "Keep me")
+    row = tab.rows[tab.triggers[0].id]
+    row.btn_del.click()
+    assert [t.name for t in tab.triggers] == ["Keep me"]
+    monkeypatch.setattr(box, "exec", lambda self: box.Yes)
+    row.btn_del.click()
+    assert tab.triggers == [] and tab.deleted()[0][1] == "Keep me"
