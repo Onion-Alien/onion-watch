@@ -143,6 +143,7 @@ then installs that file instead of downloading.
 | `onionwatch/ui/settingsdialog.py` | output device, volume, notifications, tray, theme |
 | `onionwatch/owl.py` | Hoot, the mascot owl, drawn in code (Onion Board's Bun's style) |
 | `onionwatch/theme.py`, `ui/icons.py`, `ui/panel.py` | themes, the logo, painted icons and layout helpers, shared with Onion Board |
+| `scripts/live_check.py` | the real thing on this PC: two copies of a stand-in game (real windows, one covered), real `PrintWindow` capture, the triggers page as Onion Board loads it; prints PASS. Opens windows for a few seconds (never takes the focus) |
 | `scripts/build_module.py` | builds `OnionWatch-module.zip` for Onion Board: `module.json` and only the modules the board's tab needs, checked against what Onion Board ships |
 | `tests/` | pytest: the matcher, the watcher on stand-in screens and windows (several copies of a game, not open yet, closed and reopened, minimized, resized), the sounds and player, the UI offscreen |
 
