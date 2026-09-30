@@ -54,3 +54,13 @@ commit times in UTC.
     `API_VERSION` and a matching change in Onion Board.
   - Keep `Config.screen`'s format readable by both: add fields, don't rename them.
 - Keep the README's code layout table current when adding modules.
+
+## Releasing
+
+Follow README → *Inside Onion Board* → "To release a new version". Build with
+`build.ps1 -Clean -Scan`, never a plain build. It uses a PyInstaller bootloader
+compiled on this PC (that is the fix for Microsoft's false `Trojan:Win32/Wacatac.B!ml`
+on VirusTotal: the stock bootloader got 0.3.0 flagged), and if the installer is still
+flagged it compiles a fresh bootloader and rebuilds by itself. If it fails after every
+try, don't release: the author reports the installer to Microsoft as a false positive
+(README has the steps), then scan again. Never publish a flagged installer.

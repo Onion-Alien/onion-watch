@@ -11,19 +11,33 @@
 #   -NoInstaller  stop after the app folder
 #   -Scan         then scan the installer on VirusTotal (needs VT_API_KEY): fails if any
 #                 engine flags it, else prints the line for the release notes
-param([switch]$Clean, [switch]$NoInstaller, [switch]$Scan)
+#   -Tries N      with -Scan: when a scanner flags the installer, compile a fresh
+#                 bootloader and build again from scratch, up to N builds in all (3)
+#
+# THE MICROSOFT "Trojan:Win32/Wacatac.B!ml" FIX (don't undo it): PyInstaller's stock
+# bootloader is the same file in thousands of programs, some of them malware, so
+# Microsoft's machine-learning scanner on VirusTotal calls installers built with it a
+# Trojan (a false positive: local Defender finds nothing). Onion Watch 0.3.0 was
+# pulled for it; 0.3.1, built with a bootloader compiled on this PC, scanned 68 of 68
+# clean. So every build uses a bootloader compiled here (scripts\build_bootloader.ps1,
+# run automatically when the stock one is installed), and a release build (-Scan)
+# that's still flagged gets a freshly compiled one (a new file the scanner has never
+# seen) and is built again. If every try is flagged, report the installer to Microsoft
+# as a false positive (README -> releasing) instead of releasing it.
+param([switch]$Clean, [switch]$NoInstaller, [switch]$Scan, [int]$Tries = 3, [int]$Try = 1)
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
 
 $py = ".venv\Scripts\python.exe"
 if (-not (Test-Path $py)) { throw "No .venv - see README.md, Running from source." }
 
-# PyPI's stock bootloader gets a machine-learning "Trojan" verdict from Microsoft on
-# VirusTotal; one compiled here doesn't (scripts\build_bootloader.ps1)
 $stock = "2291f269c3a3804fde1079462239e09a8b32fffbeeaa8f628a531faf5be77d41"   # 6.22.3's runw.exe
 $runw = & $py -c "import PyInstaller, os; print(os.path.join(os.path.dirname(PyInstaller.__file__), 'bootloader', 'Windows-64bit-intel', 'runw.exe'))"
 if ((Get-FileHash $runw -Algorithm SHA256).Hash.ToLower() -eq $stock) {
-    throw "PyInstaller's stock bootloader: run scripts\build_bootloader.ps1 once first"
+    Write-Host "PyInstaller's stock bootloader: compiling one here first" -ForegroundColor Yellow
+    & powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build_bootloader.ps1
+    if ($LASTEXITCODE -ne 0) { throw "scripts\build_bootloader.ps1 failed (see above)" }
+    $Clean = $true
 }
 
 # the icon and the setup wizard's pictures are drawn in code, like the rest of the art
@@ -75,6 +89,18 @@ Write-Host "Built dist\OnionWatchSetup.exe - that's the one file to give people.
 # -Scan: VirusTotal (scripts\vt_scan.py, needs VT_API_KEY); the line for the release notes
 if ($Scan) {
     & $py scripts\vt_scan.py dist\OnionWatchSetup.exe --markdown | Out-Host
-    if ($LASTEXITCODE -eq 1) { throw "a virus scanner flagged OnionWatchSetup.exe: don't release it (see above)" }
-    if ($LASTEXITCODE -ne 0) { throw "the VirusTotal scan didn't run (see above)" }
+    $scanned = $LASTEXITCODE
+    if ($scanned -eq 1 -and $Try -lt $Tries) {
+        # flagged: a freshly compiled bootloader, a clean build, and another scan
+        Write-Host "Flagged (build $Try of $Tries): compiling a fresh bootloader and building again" -ForegroundColor Yellow
+        & powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build_bootloader.ps1
+        if ($LASTEXITCODE -ne 0) { throw "scripts\build_bootloader.ps1 failed (see above)" }
+        & powershell -NoProfile -ExecutionPolicy Bypass -File build.ps1 -Clean -Scan -Tries $Tries -Try ($Try + 1)
+        exit $LASTEXITCODE
+    }
+    if ($scanned -eq 1) {
+        throw ("a virus scanner flagged OnionWatchSetup.exe in all $Tries builds: don't release " +
+               "it; report it to Microsoft as a false positive (README -> releasing)")
+    }
+    if ($scanned -ne 0) { throw "the VirusTotal scan didn't run (see above)" }
 }

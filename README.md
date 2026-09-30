@@ -148,10 +148,23 @@ To release a new version:
    and the add-on (`dist\OnionWatch-module.zip`, via `scripts\build_module.py`, which
    fails if the page imports anything Onion Board doesn't ship: it has no pip).
    `-Scan` then checks the installer on VirusTotal (`scripts\vt_scan.py`, needs a free
-   API key in `VT_API_KEY` or `~/.secrets/virustotal.env`) and stops if any engine
-   flags it. The build needs PyInstaller with a bootloader compiled on your PC
-   (`scripts\build_bootloader.ps1`, once): PyPI's stock one gets a false "Trojan"
-   verdict from Microsoft's scanner.
+   API key in `VT_API_KEY` or `~/.secrets/virustotal.env`).
+
+   **Microsoft's `Trojan:Win32/Wacatac.B!ml`** (a machine-learning false positive;
+   Windows Defender itself finds nothing) is handled by the build:
+   - every build uses a PyInstaller bootloader compiled on your PC
+     (`scripts\build_bootloader.ps1`, needs gcc: `winget install
+     BrechtSanders.WinLibs.POSIX.UCRT`). PyPI's stock bootloader is what got 0.3.0
+     flagged; `build.ps1` compiles one itself if the stock one is installed;
+   - if the scan still flags the installer, `build.ps1` compiles a fresh bootloader
+     (a file no scanner has seen) and builds again from scratch, up to `-Tries`
+     builds (3);
+   - if every build is flagged, **don't release it**: report
+     `dist\OnionWatchSetup.exe` as a false positive at
+     <https://www.microsoft.com/en-us/wdsi/filesubmission> (Software developer →
+     Microsoft Defender Antivirus → Incorrectly detected). Microsoft usually clears it
+     in 1–3 days; then `.venv\Scripts\python scripts\vt_scan.py dist\OnionWatchSetup.exe`
+     scans it again, and it can be released.
 3. `gh release create vX.Y.Z dist\OnionWatchSetup.exe dist\OnionWatch-module.zip --target main --title "Onion Watch X.Y.Z"`.
    Keep both file names: the website links to the setup, Onion Board looks for the zip.
 
