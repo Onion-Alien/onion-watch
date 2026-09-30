@@ -1,0 +1,243 @@
+"""The Onion Watch window: the header, the alarm bar that appears while a trigger
+is ringing, the triggers page, and the tray icon that keeps watching when the
+window is closed."""
+from __future__ import annotations
+
+import logging
+
+from PySide6.QtCore import QByteArray, Qt, QTimer
+from PySide6.QtGui import QAction, QCloseEvent
+from PySide6.QtWidgets import (QApplication, QFrame, QHBoxLayout, QLabel, QMainWindow, QMenu,
+                               QPushButton, QSystemTrayIcon, QVBoxLayout, QWidget)
+
+from onionwatch import __version__, theme
+from onionwatch.player import Player
+from onionwatch.settings import Config
+from onionwatch.sounds import Library
+from onionwatch.ui import icons
+from onionwatch.ui.triggerspanel import TriggersTab
+
+log = logging.getLogger(__name__)
+
+SAVE_DELAY_MS = 400
+
+
+class MainWindow(QMainWindow):
+    def __init__(self, cfg: Config | None = None, player: Player | None = None):
+        super().__init__()
+        self.cfg = cfg if cfg is not None else Config.load()
+        self._quitting = False
+        self._told_tray = False
+        self._saver = QTimer(self)
+        self._saver.setSingleShot(True)
+        self._saver.timeout.connect(self.save_now)
+        app = QApplication.instance()
+        self.cfg.theme = theme.apply(app, self.cfg.theme)
+        self.setWindowTitle("Onion Watch")
+        self.setWindowIcon(theme.app_icon())
+        self.library = Library(self.cfg.sounds, self.save_later)
+        self.player = player or Player(self.cfg.device, self.cfg.volume)
+
+        root = QWidget()
+        self.setCentralWidget(root)
+        rv = QVBoxLayout(root)
+        rv.setContentsMargins(14, 10, 14, 10)
+        rv.setSpacing(8)
+
+        head = QHBoxLayout()
+        head.setSpacing(10)
+        self.logo = QLabel()
+        self.logo.setPixmap(theme.logo_pixmap(34 * 2))
+        self.logo.setFixedSize(34, 34)
+        self.logo.setScaledContents(True)
+        head.addWidget(self.logo)
+        names = QVBoxLayout()
+        names.setSpacing(0)
+        self.wordmark = QLabel("ONION WATCH")
+        self.wordmark.setObjectName("wordmark")
+        self.tagline = QLabel("an app by Onion Alien")
+        self.tagline.setObjectName("tagline")
+        names.addWidget(self.wordmark)
+        names.addWidget(self.tagline)
+        head.addLayout(names)
+        head.addStretch(1)
+        self.btn_settings = QPushButton()
+        self.btn_settings.setToolTip("Settings: sound output, volume, notifications, theme")
+        icons.set_icon(self.btn_settings, "settings")
+        self.btn_settings.clicked.connect(self.open_settings)
+        head.addWidget(self.btn_settings)
+        rv.addLayout(head)
+
+        # the alarm bar: shown while a trigger rings, with the one button that matters
+        self.alarm = QFrame()
+        self.alarm.setObjectName("alarm")
+        self.alarm.setStyleSheet("QFrame#alarm { background:#e53935; border-radius:12px; }"
+                                 "QFrame#alarm QLabel { color:white; font-weight:700; "
+                                 "background:transparent; }"
+                                 "QFrame#alarm QPushButton { background:white; color:#b71c1c; "
+                                 "border:none; font-weight:800; padding:6px 18px; "
+                                 "border-radius:8px; }")
+        ah = QHBoxLayout(self.alarm)
+        ah.setContentsMargins(14, 8, 10, 8)
+        self.alarm_icon = QLabel()
+        self.alarm_icon.setPixmap(icons.pixmap("bell", 22, "#ffffff"))
+        ah.addWidget(self.alarm_icon)
+        self.alarm_text = QLabel()
+        ah.addWidget(self.alarm_text, 1)
+        self.btn_stop = QPushButton("Stop")
+        self.btn_stop.setToolTip("Stop the ringing")
+        self.btn_stop.clicked.connect(self.stop_ringing)
+        ah.addWidget(self.btn_stop)
+        self.alarm.hide()
+        rv.addWidget(self.alarm)
+
+        self.triggers = TriggersTab(self.cfg, self.save_later, self.library, self.player)
+        self.triggers.fired.connect(self._on_fired)
+        self.triggers.ringing_changed.connect(self._update_alarm)
+        self.triggers.active_changed.connect(self._on_active)
+        rv.addWidget(self.triggers, 1)
+        self._ringing_names: dict[str, str] = {}
+
+        self._make_tray()
+        self._alarm_check = QTimer(self)      # a ring can end by itself (its trigger deleted)
+        self._alarm_check.timeout.connect(self._update_alarm)
+        self._alarm_check.start(500)
+        if self.cfg.geometry:
+            try:
+                self.restoreGeometry(QByteArray.fromHex(self.cfg.geometry.encode()))
+            except (ValueError, TypeError):
+                pass
+        else:
+            self.resize(860, 720)
+        self._on_active(self.triggers.is_active())
+
+    # ------------------------------------------------------------------ settings file
+    def save_later(self):
+        self._saver.start(SAVE_DELAY_MS)
+
+    def save_now(self):
+        self._saver.stop()
+        try:
+            self.cfg.save()
+        except OSError:
+            log.warning("saving the settings failed", exc_info=True)
+
+    # ------------------------------------------------------------------ tray
+    def _make_tray(self):
+        self.tray = QSystemTrayIcon(theme.app_icon(), self)
+        menu = QMenu(self)
+        act_show = QAction("Show Onion Watch", self)
+        act_show.triggered.connect(self.bring_up)
+        menu.addAction(act_show)
+        self.act_watch = QAction("Watching", self)
+        self.act_watch.setCheckable(True)
+        self.act_watch.toggled.connect(lambda on: self.triggers.set_watching(on))
+        menu.addAction(self.act_watch)
+        self.act_stop = QAction("Stop ringing", self)
+        self.act_stop.triggered.connect(self.stop_ringing)
+        self.act_stop.setEnabled(False)
+        menu.addAction(self.act_stop)
+        menu.addSeparator()
+        act_quit = QAction("Quit", self)
+        act_quit.triggered.connect(self.quit)
+        menu.addAction(act_quit)
+        self.tray.setContextMenu(menu)
+        self.tray.activated.connect(self._on_tray)
+        self.tray.messageClicked.connect(self._on_message)
+        if QSystemTrayIcon.isSystemTrayAvailable():
+            self.tray.show()
+
+    def _on_tray(self, reason):
+        if reason in (QSystemTrayIcon.Trigger, QSystemTrayIcon.DoubleClick):
+            if self.player.ringing:
+                self.stop_ringing()
+            self.bring_up()
+
+    def _on_message(self):
+        self.stop_ringing()
+        self.bring_up()
+
+    def bring_up(self):
+        self.setWindowState((self.windowState() & ~Qt.WindowMinimized) | Qt.WindowActive)
+        self.show()
+        self.raise_()
+        self.activateWindow()
+
+    def _on_active(self, on: bool):
+        self.act_watch.blockSignals(True)
+        self.act_watch.setChecked(on)
+        self.act_watch.blockSignals(False)
+        self.tray.setToolTip("Onion Watch — watching" if on else "Onion Watch — not watching")
+
+    # ------------------------------------------------------------------ alarms
+    def _on_fired(self, t):
+        if t.ring:
+            self._ringing_names[t.id] = t.name
+        self._update_alarm()
+        if self.cfg.notify and self.tray.isVisible():
+            body = ("Ringing until you stop it — click here to stop." if t.ring
+                    else "It just showed up.")
+            self.tray.showMessage(t.name, body, theme.app_icon(), 8000)
+        QApplication.alert(self, 0 if t.ring else 3000)   # flash the taskbar button
+
+    def _update_alarm(self):
+        tags = self.player.ringing
+        names = [self._ringing_names.get(tag, "A trigger") for tag in dict.fromkeys(tags)]
+        for tag in list(self._ringing_names):
+            if tag not in tags:
+                del self._ringing_names[tag]
+        if names:
+            text = names[0] if len(names) == 1 else f"{', '.join(names[:-1])} and {names[-1]}"
+            self.alarm_text.setText(f"{text} — ringing")
+        self.alarm.setVisible(bool(names))
+        self.act_stop.setEnabled(bool(names))
+
+    def stop_ringing(self):
+        self.player.stop_all()
+        self._ringing_names.clear()
+        self._update_alarm()
+
+    # ------------------------------------------------------------------ settings
+    def open_settings(self):
+        from onionwatch.ui.settingsdialog import SettingsDialog
+        dlg = SettingsDialog(self)
+        dlg.exec()
+
+    def set_theme(self, name: str):
+        self.cfg.theme = theme.apply(QApplication.instance(), name)
+        icons.retheme()
+        self.save_later()
+
+    # ------------------------------------------------------------------ closing
+    def closeEvent(self, ev: QCloseEvent):
+        if not self._quitting and self.cfg.tray and self.tray.isVisible():
+            ev.ignore()
+            self.hide()
+            if not self._told_tray:
+                self._told_tray = True
+                self.tray.showMessage("Onion Watch is still watching",
+                                      "It's in the tray by the clock. Right-click it to quit.",
+                                      theme.app_icon(), 5000)
+            self.cfg.geometry = bytes(self.saveGeometry().toHex()).decode()
+            self.save_later()
+            return
+        self.shutdown()
+        ev.accept()
+        QApplication.instance().quit()
+
+    def quit(self):
+        self._quitting = True
+        self.close()
+
+    def shutdown(self):
+        if getattr(self, "_shut", False):
+            return
+        self._shut = True
+        self.triggers.shutdown()
+        self.player.close()
+        self.cfg.geometry = bytes(self.saveGeometry().toHex()).decode()
+        self.save_now()
+        self.tray.hide()
+
+    def about(self) -> str:
+        return f"Onion Watch {__version__}"
