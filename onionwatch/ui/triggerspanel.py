@@ -9,8 +9,10 @@ look: a window (watched even while other windows cover it) or a screen — "Same
 below" being the one picked at the bottom of the page.
 
 The watching itself (capture and matching on a worker thread) is
-onionwatch.screenwatch, windows are onionwatch.windows. Triggers are kept in
-Config.screen and their pictures in %APPDATA%\\OnionWatch\\triggers.
+onionwatch.screenwatch, windows are onionwatch.windows. Everything else comes from
+the host (onionwatch.host: the Onion Watch app, or Onion Board): the saved triggers
+(host.screen), the sounds and playing them, and the folder the pictures are kept
+in (host.data_dir / "triggers").
 """
 from __future__ import annotations
 
@@ -27,11 +29,10 @@ from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDoubleSpinBo
                                QFrame, QHBoxLayout, QLabel, QLineEdit, QMessageBox, QPushButton,
                                QScrollArea, QSizePolicy, QSpinBox, QVBoxLayout, QWidget)
 
-from onionwatch import screenwatch, settings, theme, windows
+from onionwatch import screenwatch, theme, windows
 from onionwatch.screenwatch import (INTERVALS_MS, MAX_PICTURES, MAX_SOUNDS, Monitor, Picture,
                                     Trigger, Watched, WindowRef)
 from onionwatch.shuffle import ShuffleBag
-from onionwatch.sounds import AUDIO_EXTS, DEFAULT_SOUND
 from onionwatch.ui import icons
 from onionwatch.ui.panel import Flow, card, hint_label
 from onionwatch.wheelguard import no_wheel
@@ -52,8 +53,9 @@ CHIP_CHARS = 24         # a sound chip's name is cut to this many characters
 PICKS = (("random", "Random"), ("order", "In order"), ("all", "All at once"))
 
 
-def pictures_dir() -> Path:
-    return settings.APP_DIR / "triggers"
+def pictures_dir(host) -> Path:
+    """Where a host's trigger pictures are kept."""
+    return Path(host.data_dir) / "triggers"
 
 
 def load_picture(path: str) -> Picture | None:
@@ -74,11 +76,10 @@ def picture_of(img: QImage) -> Picture | None:
     return screenwatch.to_gray(bgra), (None if mask.all() else mask)
 
 
-def save_picture(img: QImage, name: str) -> str:
-    """Keep a copy of the picture as <name>.png; returns its path. It's kept pixel for
-    pixel: resized, it would no longer match the screen it was cut from. Written
-    beside it first, so a failed save leaves the old picture as it was."""
-    folder = pictures_dir()
+def save_picture(img: QImage, name: str, folder: Path) -> str:
+    """Keep a copy of the picture as <folder>/<name>.png; returns its path. It's kept
+    pixel for pixel: resized, it would no longer match the screen it was cut from.
+    Written beside it first, so a failed save leaves the old picture as it was."""
     folder.mkdir(parents=True, exist_ok=True)
     path = folder / f"{name}.png"
     tmp = folder / f"{name}.saving"
@@ -89,18 +90,18 @@ def save_picture(img: QImage, name: str) -> str:
     return str(path)
 
 
-def picture_name(t: Trigger) -> str:
+def picture_name(t: Trigger, folder: Path) -> str:
     """A file name (without .png) for a picture being added to `t`: <id> for the
     first, as older versions saved it, then <id>-<random> so removing and adding
     pictures never reuses a name."""
-    if not t.images and not (pictures_dir() / f"{t.id}.png").exists():
+    if not t.images and not (folder / f"{t.id}.png").exists():
         return t.id
     return f"{t.id}-{uuid.uuid4().hex[:6]}"
 
 
-def delete_picture(path: str):
-    """Remove a picture file this tab keeps (never one the user pointed at)."""
-    if path and Path(path).parent == pictures_dir():
+def delete_picture(path: str, folder: Path):
+    """Remove a picture file this tab keeps in `folder` (never one the user pointed at)."""
+    if path and Path(path).parent == folder:
         try:
             Path(path).unlink(missing_ok=True)
         except OSError:
@@ -407,8 +408,8 @@ class TriggerRow(QFrame):
         self.pick.currentIndexChanged.connect(self._on_pick)
         self.chk_ring = QCheckBox("Ring until stopped")
         self.chk_ring.setToolTip("Keep playing the sound over and over until you stop it "
-                                 "(in this window, from the tray icon or the notification) — "
-                                 "for when you're away from the keyboard")
+                                 "(the Stop button on the red bar that shows up) — for when "
+                                 "you're away from the keyboard")
         self.chk_ring.setChecked(t.ring)
         self.chk_ring.toggled.connect(self._on_ring)
         self.btn_test = QPushButton()
@@ -684,22 +685,21 @@ class TriggerRow(QFrame):
 
 class TriggersTab(QWidget):
     """The list of triggers, the on / off switch and the watcher behind them.
-    `library` is the sounds.Library on offer, `player` the player.Player they go to."""
+    `host` (onionwatch.host.Host) keeps the settings and has the sounds."""
     active_changed = Signal(bool)       # watching or not
     fired = Signal(object)              # a Trigger just went off (its sound started)
     ringing_changed = Signal()          # a sound started or stopped ringing
     _fired = Signal(str)                # from the watcher thread
 
-    def __init__(self, cfg, save_cb, library, player):
+    def __init__(self, host):
         super().__init__()
-        self.cfg, self._save, self.library, self.player = cfg, save_cb, library, player
-        if not isinstance(cfg.screen, dict):
-            cfg.screen = {}
-        s = cfg.screen
+        self.host = host
+        s = host.screen
         self.triggers: list[Trigger] = []
         for d in s.get("triggers", []) if isinstance(s.get("triggers"), list) else []:
             t = Trigger.from_raw(d)
             if t is not None and len(self.triggers) < MAX_TRIGGERS:
+                t.pending = ""      # an older Onion Board's sound import, long over
                 self.triggers.append(t)
         self.rows: dict[str, TriggerRow] = {}
         self._mons: list[Monitor] = []      # the screens as last listed
@@ -817,7 +817,7 @@ class TriggersTab(QWidget):
 
     # ------------------------------------------------------------------ the default
     def _saved_default(self) -> int | WindowRef:
-        s = self.cfg.screen
+        s = self.host.screen
         ref = WindowRef.from_raw(s.get("window"))
         if ref is not None:
             return ref
@@ -828,11 +828,11 @@ class TriggersTab(QWidget):
         """Where triggers without their own window / screen look."""
         self.watcher.set_default(src)
         if isinstance(src, WindowRef):
-            self.cfg.screen["window"] = src.to_raw()
+            self.host.screen["window"] = src.to_raw()
         else:
-            self.cfg.screen["window"] = None
-            self.cfg.screen["monitor"] = src
-        self._save()
+            self.host.screen["window"] = None
+            self.host.screen["monitor"] = src
+        self.host.save()
         self._fill_sources()
 
     def _on_where(self, i: int):
@@ -860,9 +860,15 @@ class TriggersTab(QWidget):
             self._store()
 
     # ------------------------------------------------------------------ watching
+    @property
+    def pictures(self) -> Path:
+        """The folder the trigger pictures are kept in."""
+        return pictures_dir(self.host)
+
     def showEvent(self, ev):
         super().showEvent(ev)
-        self._fill_sources()      # screens may have been plugged in or out
+        self.sounds_changed()     # the host's sounds may have been renamed meanwhile
+        self._fill_sources()      # ...and screens plugged in or out
 
     def is_active(self) -> bool:
         return self.btn_watch.isChecked()
@@ -887,22 +893,42 @@ class TriggersTab(QWidget):
                 row.show_score(None)
                 row.set_note(None)
         if remember:
-            self.cfg.screen["on"] = on
-            self._save()
+            self.host.screen["on"] = on
+            self.host.save()
         self._label_watch()
         self._show_warning()
         self.active_changed.emit(on)
 
     def _label_watch(self):
-        self.btn_watch.setText("Watching" if self.is_active() else "Start watching")
+        text = "Watching" if self.is_active() else "Start watching"
+        self.btn_watch.setProperty("full_text", text)   # a host that shows it icon only
+        if not self.btn_watch.property("compact"):       # reads it back when there's room
+            self.btn_watch.setText(text)
+
+    def fit_parts(self) -> dict[str, QWidget]:
+        """What a host may hide, or show as an icon only, when its window gets small:
+        "hint" (the explanation at the top), the buttons "watch", "cut", "add" and
+        "paste" (icon only), "interval_label" ("Check every")."""
+        return {"hint": self.hint, "watch": self.btn_watch, "cut": self.btn_cut,
+                "add": self.btn_add, "paste": self.btn_paste,
+                "interval_label": self.lbl_interval}
 
     def cancel_pending(self):
-        """Drop sounds that are still waiting out their delay (switched off)."""
+        """Drop sounds that are still waiting out their delay (switched off, Stop all)."""
         self._gen += 1
 
     def stop_ringing(self):
-        self.player.stop_all()
+        for tag in self.host.ringing():
+            self.host.stop_tag(tag)
         self.ringing_changed.emit()
+
+    def retheme(self):
+        """The theme changed (onionwatch.theme.T has the new colours): redraw what
+        was coloured by hand."""
+        icons.retheme()
+        self.sounds_changed()          # the chips of sounds that are gone
+        for row in self.rows.values():
+            row.show_score(self.watcher.scores.get(row.t.id) if self.is_active() else None)
 
     def shutdown(self):
         self.poll.stop()
@@ -935,7 +961,7 @@ class TriggersTab(QWidget):
 
     def _playable(self, t: Trigger) -> list[str]:
         """The trigger's sounds that are still in the library, in its order."""
-        have = self.library.ids()
+        have = {sid for sid, _name in self.host.sounds()}
         return [sid for sid in t.sounds if sid in have]
 
     def _on_fired(self, tid: str):
@@ -985,9 +1011,9 @@ class TriggersTab(QWidget):
             chosen = [self._bag.next(t.id, pool)]
         ring = t.ring and not test
         if ring:
-            self.player.stop_tag(t.id)      # one ring per trigger, not a pile of them
+            self.host.stop_tag(t.id)        # one ring per trigger, not a pile of them
         played = [sid for sid in chosen
-                  if self.player.play(self.library.load(sid), loop=ring, tag=t.id)]
+                  if self.host.play(sid, loop=ring, tag=t.id)]
         if ring and played:
             self.ringing_changed.emit()
         return played
@@ -1050,8 +1076,8 @@ class TriggersTab(QWidget):
     def _on_interval(self, _i: int):
         ms = self.cb_interval.currentData()
         self.watcher.interval = ms / 1000
-        self.cfg.screen["interval_ms"] = ms
-        self._save()
+        self.host.screen["interval_ms"] = ms
+        self.host.save()
 
     def _fill_sources(self):
         """List the screens again: the "Look in" at the bottom (the default) and each
@@ -1068,12 +1094,12 @@ class TriggersTab(QWidget):
 
     # ------------------------------------------------------------------ the list
     def sounds_changed(self):
-        sounds = self.library.listing()
+        sounds = self.host.sounds()
         for row in self.rows.values():
             row.set_sounds(sounds)
 
     def _add_row(self, t: Trigger) -> TriggerRow:
-        row = TriggerRow(t, self.library.listing(), self._mons)
+        row = TriggerRow(t, self.host.sounds(), self._mons)
         row.changed.connect(lambda _r: self._store())
         row.pictures_wanted.connect(self._add_picture_files)
         row.paste_wanted.connect(self._paste_picture)
@@ -1082,7 +1108,7 @@ class TriggersTab(QWidget):
         row.picture_removed.connect(self._remove_picture)
         row.sound_file_wanted.connect(self._choose_sound_file)
         row.window_wanted.connect(self._pick_for)
-        row.hear.connect(lambda sid: self.player.play(self.library.load(sid)))
+        row.hear.connect(lambda sid: self.host.play(sid))
         row.test.connect(lambda r: self._play_trigger(r.t, test=True))
         row.remove.connect(self._remove)
         self.rows[t.id] = row
@@ -1091,8 +1117,8 @@ class TriggersTab(QWidget):
         return row
 
     def _store(self):
-        self.cfg.screen["triggers"] = [t.to_raw() for t in self.triggers]
-        self._save()
+        self.host.screen["triggers"] = [t.to_raw() for t in self.triggers]
+        self.host.save()
         if self.is_active():
             self._sync()
         self._show_warning()
@@ -1105,7 +1131,7 @@ class TriggersTab(QWidget):
                                     f"You can have up to {MAX_TRIGGERS} triggers.")
             return None
         t = Trigger(id=uuid.uuid4().hex[:12], name=name[:60] or "Trigger",
-                    sounds=[DEFAULT_SOUND])
+                    sounds=[self.host.default_sound] if self.host.default_sound else [])
         if not self._add_pictures(t, [img] if isinstance(img, QImage) else list(img)):
             return None
         self.triggers.append(t)
@@ -1153,13 +1179,13 @@ class TriggersTab(QWidget):
                 refused.append((name, *why))
                 continue
             try:
-                path = save_picture(img, picture_name(t))
+                path = save_picture(img, picture_name(t, self.pictures), self.pictures)
             except OSError as e:
                 refused.append((name, "Couldn't keep the picture", str(e)))
                 continue
             if at is not None and 0 <= at < len(t.images):
                 old, t.images[at] = t.images[at], path
-                delete_picture(old)
+                delete_picture(old, self.pictures)
                 self._gray.pop(old, None)
                 at = None                   # a second picture would only be added
             else:
@@ -1335,26 +1361,39 @@ class TriggersTab(QWidget):
         if not 0 <= index < len(t.images):
             return
         path = t.images.pop(index)
-        delete_picture(path)
+        delete_picture(path, self.pictures)
         self._gray.pop(path, None)
         row.refresh_pictures()
         self._store()
 
     def _choose_sound_file(self, row: TriggerRow):
-        exts = " ".join(f"*{e}" for e in sorted(AUDIO_EXTS))
+        exts = " ".join(f"*{e}" for e in sorted(self.host.audio_exts))
         path, _ = QFileDialog.getOpenFileName(self, "Sound to play", str(Path.home()),
                                               f"Audio ({exts});;All files (*)")
         if not path:
             return
+        tid = row.t.id
+        row.flash("Adding the sound…", 60_000)
         try:
-            sid = self.library.add_file(path)
+            self.host.add_sound(path, lambda sid: self._sound_added(tid, sid))
         except OSError as e:
+            row.flash("", 0)
             QMessageBox.warning(self, "Can't use that sound", str(e))
-            return
-        if sid not in row.t.sounds and len(row.t.sounds) < MAX_SOUNDS:
-            row.t.sounds.append(sid)
+
+    def _sound_added(self, tid: str, sid: str | None):
+        """A sound file picked on a card has been added to the host (sid), or couldn't
+        be (None): put it on that trigger, if it's still there."""
+        t = next((t for t in self.triggers if t.id == tid), None)
+        row = self.rows.get(tid)
+        if row is not None:
+            row.flash("", 0)
+        if t is not None and sid and sid not in t.sounds and len(t.sounds) < MAX_SOUNDS:
+            t.sounds.append(sid)
         self.sounds_changed()
-        self._store()
+        if t is not None and sid:
+            self._store()
+        elif row is not None and not sid:
+            row.flash("That sound couldn't be added", 4000, "warn")
 
     def _remove(self, row: TriggerRow):
         t = row.t
@@ -1362,12 +1401,12 @@ class TriggersTab(QWidget):
         self.rows.pop(t.id, None)
         self._bag.forget(t.id)
         self._order.pop(t.id, None)
-        self.player.stop_tag(t.id)
+        self.host.stop_tag(t.id)
         self.list_layout.removeWidget(row)
         row.setParent(None)   # gone from the list now, not when the event loop gets to it
         row.deleteLater()
         for path in t.images:
-            delete_picture(path)
+            delete_picture(path, self.pictures)
             self._gray.pop(path, None)
         self.empty.setVisible(not self.triggers)
         self._store()

@@ -371,6 +371,15 @@ def set_current(name: str) -> str:
     return name
 
 
+def use_palette(colours: dict[str, str]) -> None:
+    """Take a host's theme colours as the current ones, without restyling the app
+    (inside Onion Board the board has already styled it). A colour the host doesn't
+    have (it's older) stays the default theme's."""
+    T.clear()
+    T.update(THEMES[DEFAULT])
+    T.update({k: v for k, v in colours.items() if isinstance(k, str) and isinstance(v, str)})
+
+
 STYLE = Template("""
 QWidget { background:$bg; color:$text; font-family:'$font'; font-size:10pt; }
 QDialog { background:$bg; }

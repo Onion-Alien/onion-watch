@@ -119,10 +119,9 @@ def main(out: Path):
     out.mkdir(parents=True, exist_ok=True)
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
-    from onionwatch import screenwatch, theme, windows
+    from onionwatch import screenwatch, settings, theme, windows
     from onionwatch.screenwatch import Monitor, Trigger, WindowRef
     from onionwatch.settings import Config
-    from onionwatch.ui import triggerspanel
     from onionwatch.ui.mainwindow import MainWindow
 
     screenwatch.monitors = lambda: [Monitor(0, 0, 2560, 1440, True)]
@@ -134,7 +133,7 @@ def main(out: Path):
 
     cfg = Config()
     cfg.screen = {"on": False, "interval_ms": 100, "window": acct1.to_raw(), "triggers": []}
-    pics = triggerspanel.pictures_dir()
+    pics = settings.APP_DIR / "triggers"
     pics.mkdir(parents=True, exist_ok=True)
     demo = [
         ("Rare spawn: Gorehowl", cut(rare, QRect(int(w * 0.36), int(h * 0.36), 300, 34)),
@@ -164,9 +163,9 @@ def main(out: Path):
     for (_n, _i, _w, _s, _r, _t, score), row in zip(demo, tab.rows.values()):
         row.show_score(score)
     first = next(iter(tab.rows.values()))
-    win._ringing_names[first.t.id] = first.t.name
-    win.alarm_text.setText(f"{first.t.name} — ringing")
-    win.alarm.setVisible(True)
+    # ringing, as the player would say: the bar asks the host what's ringing
+    win.host.ringing = lambda: [first.t.id]
+    win.alarm._on_fired(first.t)
     win.show()
     app.processEvents()
     win.grab().save(str(out / "main.png"))

@@ -7,14 +7,16 @@ import logging
 
 from PySide6.QtCore import QByteArray, Qt, QTimer
 from PySide6.QtGui import QAction, QCloseEvent
-from PySide6.QtWidgets import (QApplication, QFrame, QHBoxLayout, QLabel, QMainWindow, QMenu,
+from PySide6.QtWidgets import (QApplication, QHBoxLayout, QLabel, QMainWindow, QMenu,
                                QPushButton, QSystemTrayIcon, QVBoxLayout, QWidget)
 
 from onionwatch import __version__, theme
+from onionwatch.apphost import AppHost
 from onionwatch.player import Player
 from onionwatch.settings import Config
 from onionwatch.sounds import Library
 from onionwatch.ui import icons
+from onionwatch.ui.alarmbar import AlarmBar
 from onionwatch.ui.triggerspanel import TriggersTab
 
 log = logging.getLogger(__name__)
@@ -68,40 +70,18 @@ class MainWindow(QMainWindow):
         head.addWidget(self.btn_settings)
         rv.addLayout(head)
 
-        # the alarm bar: shown while a trigger rings, with the one button that matters
-        self.alarm = QFrame()
-        self.alarm.setObjectName("alarm")
-        self.alarm.setStyleSheet("QFrame#alarm { background:#e53935; border-radius:12px; }"
-                                 "QFrame#alarm QLabel { color:white; font-weight:700; "
-                                 "background:transparent; }"
-                                 "QFrame#alarm QPushButton { background:white; color:#b71c1c; "
-                                 "border:none; font-weight:800; padding:6px 18px; "
-                                 "border-radius:8px; }")
-        ah = QHBoxLayout(self.alarm)
-        ah.setContentsMargins(14, 8, 10, 8)
-        self.alarm_icon = QLabel()
-        self.alarm_icon.setPixmap(icons.pixmap("bell", 22, "#ffffff"))
-        ah.addWidget(self.alarm_icon)
-        self.alarm_text = QLabel()
-        ah.addWidget(self.alarm_text, 1)
-        self.btn_stop = QPushButton("Stop")
-        self.btn_stop.setToolTip("Stop the ringing")
-        self.btn_stop.clicked.connect(self.stop_ringing)
-        ah.addWidget(self.btn_stop)
-        self.alarm.hide()
-        rv.addWidget(self.alarm)
-
-        self.triggers = TriggersTab(self.cfg, self.save_later, self.library, self.player)
+        self.host = AppHost(self.cfg, self.save_later, self.library, self.player,
+                            notify=self._notify)
+        self.triggers = TriggersTab(self.host)
         self.triggers.fired.connect(self._on_fired)
-        self.triggers.ringing_changed.connect(self._update_alarm)
         self.triggers.active_changed.connect(self._on_active)
+        # the alarm bar: shown while a trigger rings, with the one button that matters
+        self.alarm = AlarmBar(self.triggers)
+        rv.addWidget(self.alarm)
         rv.addWidget(self.triggers, 1)
-        self._ringing_names: dict[str, str] = {}
 
         self._make_tray()
-        self._alarm_check = QTimer(self)      # a ring can end by itself (its trigger deleted)
-        self._alarm_check.timeout.connect(self._update_alarm)
-        self._alarm_check.start(500)
+        self.alarm.changed.connect(self.act_stop.setEnabled)
         if self.cfg.geometry:
             try:
                 self.restoreGeometry(QByteArray.fromHex(self.cfg.geometry.encode()))
@@ -171,31 +151,16 @@ class MainWindow(QMainWindow):
 
     # ------------------------------------------------------------------ alarms
     def _on_fired(self, t):
-        if t.ring:
-            self._ringing_names[t.id] = t.name
-        self._update_alarm()
-        if self.cfg.notify and self.tray.isVisible():
-            body = ("Ringing until you stop it — click here to stop." if t.ring
-                    else "It just showed up.")
-            self.tray.showMessage(t.name, body, theme.app_icon(), 8000)
+        self._notify(t.name, "Ringing until you stop it — click here to stop." if t.ring
+                     else "It just showed up.")
         QApplication.alert(self, 0 if t.ring else 3000)   # flash the taskbar button
 
-    def _update_alarm(self):
-        tags = self.player.ringing
-        names = [self._ringing_names.get(tag, "A trigger") for tag in dict.fromkeys(tags)]
-        for tag in list(self._ringing_names):
-            if tag not in tags:
-                del self._ringing_names[tag]
-        if names:
-            text = names[0] if len(names) == 1 else f"{', '.join(names[:-1])} and {names[-1]}"
-            self.alarm_text.setText(f"{text} — ringing")
-        self.alarm.setVisible(bool(names))
-        self.act_stop.setEnabled(bool(names))
+    def _notify(self, title: str, body: str):
+        if self.cfg.notify and self.tray.isVisible():
+            self.tray.showMessage(title, body, theme.app_icon(), 8000)
 
     def stop_ringing(self):
-        self.player.stop_all()
-        self._ringing_names.clear()
-        self._update_alarm()
+        self.alarm.stop()
 
     # ------------------------------------------------------------------ settings
     def open_settings(self):

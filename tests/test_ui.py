@@ -11,6 +11,7 @@ from PySide6.QtGui import QImage, QMouseEvent
 
 from onionwatch import screenwatch as sw
 from onionwatch import windows
+from onionwatch.apphost import AppHost
 from onionwatch.player import Player
 from onionwatch.screenwatch import Monitor, WindowRef
 from onionwatch.settings import Config
@@ -76,11 +77,11 @@ def tab(qapp, app_dir, fake_screen, monkeypatch):
     monkeypatch.setattr(triggerspanel.QMessageBox, "information", lambda *a, **k: None)
     cfg = Config()
     lib = Library(cfg.sounds)
-    tab = TriggersTab(cfg, lambda: None, lib, Player())
+    tab = TriggersTab(AppHost(cfg, lambda: None, lib, Player()))
     tab.resize(800, 600)
     yield tab
     tab.shutdown()
-    tab.player.close()
+    tab.host.player.close()
 
 
 def test_a_pasted_picture_becomes_a_trigger_that_plays_the_default_alert(tab, qapp):
@@ -99,7 +100,7 @@ def test_a_pasted_picture_becomes_a_trigger_that_plays_the_default_alert(tab, qa
     assert process_events(qapp, lambda: fired == [t])
     assert process_events(qapp, lambda: SilentOutputStream.opened
                           and SilentOutputStream.opened[-1].peak > 0.1)
-    assert tab.cfg.screen["on"] is True and tab.cfg.screen["triggers"][0]["id"] == t.id
+    assert tab.host.screen["on"] is True and tab.host.screen["triggers"][0]["id"] == t.id
 
 
 def test_a_ringing_trigger_raises_the_alarm_bar_until_stopped(qapp, app_dir, fake_screen):
@@ -115,8 +116,8 @@ def test_a_ringing_trigger_raises_the_alarm_bar_until_stopped(qapp, app_dir, fak
         assert row.state.text().startswith("Rings until stopped")
         win.triggers._fire(row.t.id, win.triggers._gen)
         assert win.player.ringing == [row.t.id]
-        assert not win.alarm.isHidden() and row.t.name in win.alarm_text.text()
-        win.btn_stop.click()
+        assert not win.alarm.isHidden() and row.t.name in win.alarm.text.text()
+        win.alarm.btn_stop.click()
         assert win.player.ringing == [] and win.alarm.isHidden()
         # the test button never rings
         row.btn_test.click()
@@ -135,7 +136,7 @@ def test_a_card_can_be_pointed_at_a_window(tab, monkeypatch):
     row.where.activated.emit(i)
     assert row.t.window == ref and row.t.source == ref
     assert row.where.currentText() == "Game (copy 2)"
-    assert tab.cfg.screen["triggers"][0]["window"] == {"exe": "game.exe", "title": "Game",
+    assert tab.host.screen["triggers"][0]["window"] == {"exe": "game.exe", "title": "Game",
                                                        "nth": 1}
     # back to the default
     row.where.setCurrentIndex(0)
@@ -149,10 +150,10 @@ def test_the_default_can_be_a_window(tab, monkeypatch):
     i = tab.cb_where.findData(PICK_WINDOW)
     tab.cb_where.activated.emit(i)
     assert tab.watcher.default == ref
-    assert tab.cfg.screen["window"] == ref.to_raw()
+    assert tab.host.screen["window"] == ref.to_raw()
     assert tab.cb_where.currentText() == "Game"
     tab.cb_where.activated.emit(0)                  # screen 1
-    assert tab.watcher.default == 0 and tab.cfg.screen["window"] is None
+    assert tab.watcher.default == 0 and tab.host.screen["window"] is None
 
 
 def test_a_card_says_when_its_window_is_not_open(tab, qapp, monkeypatch):

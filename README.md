@@ -105,10 +105,13 @@ Settings, the log, your pictures and your sound files live in
 | `onionwatch/player.py` | the output stream that mixes and rings the alerts |
 | `onionwatch/settings.py` | `%APPDATA%\OnionWatch` and `config.json` |
 | `onionwatch/app.py` | start-up: logging, one copy at a time, the window, `--selftest` |
-| `onionwatch/ui/triggerspanel.py` | the triggers page: one card per trigger, "Look in", Watching, Cut picture |
+| `onionwatch/host.py` | what the triggers page needs from the program it runs in (settings, sounds, playing, theme): the Onion Watch app or Onion Board |
+| `onionwatch/apphost.py` | the Onion Watch app as that host |
+| `onionwatch/ui/triggerspanel.py` | the triggers page: one card per trigger, "Look in", Watching, Cut picture. Talks only to its host |
+| `onionwatch/ui/alarmbar.py` | the red bar shown while a trigger rings, with Stop |
 | `onionwatch/ui/windowpicker.py` | the window list with live thumbnails |
 | `onionwatch/ui/snip.py` | cutting a picture out of a capture |
-| `onionwatch/ui/mainwindow.py` | the window, the alarm bar, the tray icon, notifications |
+| `onionwatch/ui/mainwindow.py` | the window, the tray icon, notifications |
 | `onionwatch/ui/settingsdialog.py` | output device, volume, notifications, tray, theme |
 | `onionwatch/owl.py` | Hoot, the mascot owl, drawn in code (Onion Board's Bun's style) |
 | `onionwatch/theme.py`, `ui/icons.py`, `ui/panel.py` | themes, the logo, painted icons and layout helpers, shared with Onion Board |
