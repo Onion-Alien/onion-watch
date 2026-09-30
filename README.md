@@ -96,7 +96,19 @@ Each check copies the watched window's inside with `PrintWindow`
 (`PW_RENDERFULLCONTENT`). For a screen it uses Desktop Duplication, falling back
 to GDI. The copy is shrunk to a few hundred pixels and turned grey. Each picture
 is then found with normalised cross-correlation (an FFT), so a match scores the
-same however bright the game is. Transparent parts of a picture are left out.
+same however bright the game is. Transparent parts of a picture are left out. A
+place that matches in grey also has its colours compared with the picture's, so
+a red potion isn't taken for a blue one.
+
+With **Any size** (on by default) a picture is found even when the game shows it
+bigger or smaller than when it was cut: cut in fullscreen and played in a window,
+at another resolution, or with another UI scale. Each picture remembers the size
+of the window it was cut from, so a resized game is matched at once; other sizes
+are searched for a couple at a time and kept once found.
+
+Watching keeps to about 1 % of your processor so games keep their frame rate. On
+a slow computer, or with a lot of pictures, it looks less often than the "Check
+every" setting rather than use more.
 
 A trigger fires once each time its picture appears, then waits for it to go away
 before it can fire again. A window that isn't open yet is looked for every two

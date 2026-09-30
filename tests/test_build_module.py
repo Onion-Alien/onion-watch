@@ -43,8 +43,8 @@ def test_its_module_json_says_what_the_board_checks(built):
     assert m["id"] == "onion-watch" and m["kind"] == "triggers"
     assert m["version"] == __version__ and m["api_version"] == API_VERSION
     assert (m["package"], m["entry"]) == ("onionwatch", "onionwatch.board")
-    assert set(m["imports"]) == {"numpy", "scipy.signal", "PySide6.QtCore", "PySide6.QtGui",
-                                 "PySide6.QtWidgets"}
+    assert set(m["imports"]) == {"numpy", "scipy.fft", "scipy.ndimage", "PySide6.QtCore",
+                                 "PySide6.QtGui", "PySide6.QtWidgets"}
 
 
 def test_it_imports_only_what_onion_board_ships():

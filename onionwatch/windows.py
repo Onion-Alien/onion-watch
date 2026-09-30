@@ -31,8 +31,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from onionwatch.screenwatch import (_BITMAPINFOHEADER, CaptureLost, WindowRef, frame_rgb,
-                                    gray_2x, to_gray)
+from onionwatch.screenwatch import (_BITMAPINFOHEADER, FMT_BGRA8, CaptureLost, WindowRef,
+                                    frame_rgb, gray_2x, pick, to_gray)
 
 log = logging.getLogger(__name__)
 
@@ -345,6 +345,7 @@ class WindowGrabber:
     lost = False
     want_color = False      # also keep `color` (screenwatch.Grabber's)
     color: np.ndarray | None = None
+    raw: tuple | None = None    # the last grab's pixels as sampled: (pixels, format, factor)
 
     def __init__(self, ref: WindowRef, w: int, h: int, info: WindowInfo | None = None):
         self.ref = ref
@@ -408,9 +409,10 @@ class WindowGrabber:
             return None
         if not u.PrintWindow(self.hwnd, self._bm.dc, PW_CLIENTONLY | PW_RENDERFULLCONTENT):
             return self.last
-        sample = self._bm.pixels[self.ys[:, None], self.xs[None, :]]
+        sample = pick(self._bm.pixels, self.ys, self.xs)
         self.last = gray_2x(sample) if self.factor == 2 else to_gray(sample)
         self.color = frame_rgb(sample, factor=self.factor) if self.want_color else None
+        self.raw = (sample, FMT_BGRA8, self.factor)
         return self.last
 
     def in_front(self) -> bool:

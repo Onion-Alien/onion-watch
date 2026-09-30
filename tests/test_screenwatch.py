@@ -433,7 +433,7 @@ def test_stop_then_start_during_a_slow_check_leaves_one_thread(monkeypatch):
 def capture(scaled) -> sw._Capture:
     """A screen capture as _check sees it, its pictures already shrunk."""
     cap = sw._Capture(0)
-    cap.scaled = scaled
+    cap.scaled = {k: [sw.Look(g, m, 1.0, [1.0], False) for g, m in v] for k, v in scaled.items()}
     return cap
 
 
@@ -660,7 +660,7 @@ def test_a_hundred_pictures_are_shrunk_once_not_every_tick(fake_screen, monkeypa
     fits = []
     real_fit = sw.Watcher._fit
     monkeypatch.setattr(sw.Watcher, "_fit", staticmethod(
-        lambda grab, mon, items: (fits.append(1), real_fit(grab, mon, items))[1]))
+        lambda *a: (fits.append(1), real_fit(*a))[1]))
     fake_screen.frames = [scene()]
     w = sw.Watcher(lambda _t: None)
     w.interval = 0.001

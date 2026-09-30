@@ -54,6 +54,7 @@ PLACES = "__places__"             # ...the trigger's own windows and screens
 POLL_MS = 150           # how often the live match numbers refresh
 MAX_TRIGGERS = 50
 MAX_SIDE = 8192         # bigger pictures are refused (kept pixel for pixel, never resized)
+CUT_KEY = "OnionWatch cut from"   # a picture's PNG text: the size of what it was cut from
 THUMB = QSize(80, 45)
 STRIP_THUMBS = 3        # thumbnails a card's strip shows before it scrolls
 CHIP_CHARS = 24         # a sound chip's name is cut to this many characters
@@ -114,6 +115,38 @@ def load_picture(path: str) -> Picture | None:
     """A picture file as grey float32 0..1, plus which pixels count: the opaque ones
     (None when it has no transparency). Transparent parts are left out of matching."""
     return picture_of(QImage(path))
+
+
+def picture_tint(img: QImage) -> np.ndarray | None:
+    """The picture's colours in brief (screenwatch.tint), so a place matching it in
+    grey but not in colour doesn't count."""
+    if img.isNull():
+        return None
+    img = img.convertToFormat(QImage.Format_ARGB32)
+    h, w = img.height(), img.width()
+    buf = np.frombuffer(img.constBits(), np.uint8, count=img.bytesPerLine() * h)
+    bgra = buf.reshape(h, img.bytesPerLine())[:, :w * 4].reshape(h, w, 4)
+    rgb = bgra[..., 2::-1].astype(np.float32) * (1 / 255)
+    mask = bgra[..., 3] >= 128
+    return screenwatch.tint(rgb, None if mask.all() else mask)
+
+
+def cut_size(img: QImage) -> tuple[int, int] | None:
+    """The (w, h) of the window or screen a picture was cut from, kept in its PNG
+    (see set_cut_size); None when it isn't known."""
+    w, _x, h = img.text(CUT_KEY).partition("x")
+    try:
+        size = int(w), int(h)
+    except ValueError:
+        return None
+    return size if 0 < min(size) and max(size) <= 65536 else None
+
+
+def set_cut_size(img: QImage, size: tuple[int, int] | None):
+    """Note in the picture (a text field of its PNG) the size of what it was cut from,
+    so with "any size" it's looked for at the size the game draws it now."""
+    if size and min(size) > 0:
+        img.setText(CUT_KEY, f"{size[0]}x{size[1]}")
 
 
 def picture_of(img: QImage) -> Picture | None:
@@ -495,6 +528,14 @@ class TriggerRow(QFrame):
                                   "the screen) to this trigger")
         self.btn_paste.clicked.connect(lambda: self.paste_wanted.emit(self))
         row.addWidget(self.btn_paste)
+        self.chk_size = QCheckBox("Any size")
+        self.chk_size.setToolTip(
+            "Find the pictures even when the game shows them bigger or smaller than when "
+            "they were cut: cut in fullscreen, played in a window, or another UI scale.\n"
+            "Untick it if a picture only ever shows at one size and it goes off by mistake.")
+        self.chk_size.setChecked(t.any_size)
+        self.chk_size.toggled.connect(self._on_size)
+        row.addWidget(self.chk_size)
         v.addWidget(self.pictures_box)
 
         # "Play", the chips (one per sound), "+ Add sound…", the Play mode, "Ring", the
@@ -829,6 +870,10 @@ class TriggerRow(QFrame):
         self.t.unfocused = on
         self.changed.emit(self)
 
+    def _on_size(self, on: bool):
+        self.t.any_size = on
+        self.changed.emit(self)
+
     def _on_mode(self, i: int):
         key = self.mode.itemData(i)
         t = self.t
@@ -949,6 +994,8 @@ class TriggersTab(QWidget):
         self._mons: list[Monitor] = []      # the screens as last listed
         self._fell_back: frozenset[str] = frozenset()   # watcher.fell_back as last seen
         self._gray: dict[str, tuple[float, Picture]] = {}   # picture path -> (mtime, picture)
+        self._cuts: dict[str, tuple[int, int] | None] = {}  # ...-> the size it was cut from
+        self._tints: dict[str, np.ndarray | None] = {}      # ...-> its colours in brief
         self._gen = 0                   # bumped to drop sounds still waiting to play
         self._bag = ShuffleBag()        # "Random": each trigger's sounds, each once per round
         self._order: dict[str, int] = {}   # "In order": each trigger's next sound
@@ -1065,8 +1112,11 @@ class TriggersTab(QWidget):
             label = f"{ms} ms" + (" (every frame)" if ms == 16 else "")
             self.cb_interval.addItem(label, ms)
         self.cb_interval.setCurrentIndex(self.cb_interval.findData(interval))
-        self.cb_interval.setToolTip("How often to look. Faster reacts sooner but uses more of "
-                                    "your processor; 100 ms is a tenth of a second.")
+        self.cb_interval.setToolTip("How often to look. Faster reacts sooner; 100 ms is a tenth "
+                                    "of a second. Watching never takes more than about 1 % of "
+                                    "your processor, so your games keep their frame rate: on a "
+                                    "slow computer, or with many pictures, it looks less often "
+                                    "than this.")
         self.cb_interval.currentIndexChanged.connect(self._on_interval)
         no_wheel(self.cb_interval)
         every = labelled("Check every", self.cb_interval)
@@ -1219,12 +1269,15 @@ class TriggersTab(QWidget):
         for t in self.triggers:
             if not (t.enabled and self.ready(t) and self._playable(t)):
                 continue
-            pics = ([p for p in map(self._picture, t.images) if p is not None]
-                    if t.uses_pictures else [])
-            if pics or not t.uses_pictures:
-                items.append(Watched(t.id, pics, t.number, t.cooldown, sources=list(t.sources),
-                                     mode=t.mode, below=t.below, colour=t.rgb,
-                                     region=t.region, hold=t.hold, unfocused=t.unfocused))
+            got = [(p, path) for path in (t.images if t.uses_pictures else [])
+                   if (p := self._picture(path)) is not None]
+            if got or not t.uses_pictures:
+                items.append(Watched(t.id, [p for p, _path in got], t.number, t.cooldown,
+                                     sources=list(t.sources), mode=t.mode, below=t.below,
+                                     colour=t.rgb, region=t.region, hold=t.hold,
+                                     unfocused=t.unfocused, any_size=t.any_size,
+                                     cuts=[self._cuts.get(path) for _p, path in got],
+                                     tints=[self._tints.get(path) for _p, path in got]))
         self.watcher.set_items(items)
 
     @staticmethod
@@ -1245,9 +1298,12 @@ class TriggersTab(QWidget):
         got = self._gray.get(path)
         if got is not None and got[0] == mtime:
             return got[1]
-        pic = load_picture(path)
+        img = QImage(path)
+        pic = picture_of(img)
         if pic is not None:
             self._gray[path] = (mtime, pic)
+            self._cuts[path] = cut_size(img)
+            self._tints[path] = picture_tint(img)
         return pic
 
     def _playable(self, t: Trigger) -> list[str]:
@@ -1493,7 +1549,12 @@ class TriggersTab(QWidget):
         refused: list[tuple[str, str, str]] = []      # (name, title, text)
         notes: list[tuple[str, str]] = []             # (name, note)
         added = left_out = 0
+        # a pasted or loaded picture doesn't say what it was cut from: most likely
+        # what the trigger watches, as it is now
+        here = self._source_size(t.source if t.source is not None else self.watcher.default)
         for i, img in enumerate(imgs):
+            if not img.isNull() and cut_size(img) is None:
+                set_cut_size(img, here)
             name = names[i] if i < len(names) else f"Picture {len(t.images) + 1}"
             if at is None and len(t.images) >= MAX_PICTURES:
                 left_out = len(imgs) - i
@@ -1511,6 +1572,7 @@ class TriggersTab(QWidget):
                 old, t.images[at] = t.images[at], path
                 delete_picture(old, self.pictures)
                 self._gray.pop(old, None)
+                self._cuts.pop(old, None)
                 at = None                   # a second picture would only be added
             else:
                 t.images.append(path)
@@ -1559,7 +1621,8 @@ class TriggersTab(QWidget):
         gray, mask = pic
         h, w = gray.shape
         notes = []
-        if w > sw or h > sh:
+        smallest = screenwatch.SIZES[0] if t.any_size else 1.0
+        if w * smallest > sw or h * smallest > sh:
             notes.append(f"It's bigger than the {what} being watched ({sw}×{sh}), so it can't "
                          f"be found there. Cut it from that {what} at the size it's shown.")
             return notes
@@ -1625,7 +1688,10 @@ class TriggersTab(QWidget):
             return None
         from onionwatch.ui.snip import SnipDialog
         dlg = SnipDialog(img, where, self)
-        return dlg.piece if dlg.exec() else None
+        if not dlg.exec() or dlg.piece is None:
+            return None
+        set_cut_size(dlg.piece, (img.width(), img.height()))
+        return dlg.piece
 
     def add_from_cut(self):
         piece = self._cut(self.watcher.default)

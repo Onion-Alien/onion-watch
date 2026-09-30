@@ -9,12 +9,27 @@ window is captured on its own (onionwatch.windows.WindowGrabber), so it's still
 seen while other windows cover it. Either way the picture is sampled at about
 twice a working width of a few hundred pixels, then turned grey and averaged down
 2x2. Each picture is shrunk by the same factor and found with normalised
-cross-correlation (an FFT for the correlation, running sums for each window's
-brightness and contrast), so a match scores the same whatever the game's
-brightness and nothing is downloaded or installed. Transparent parts of a picture
-are left out of the comparison (`match(..., mask)`), so a cut-out icon matches
-whatever is behind it. A 1080p screen at the default size costs a few
-milliseconds per check.
+cross-correlation, all of it done with FFTs: the frame's spectrum is worked out
+once per check and shared by every picture (and every size of it), each picture's
+once per size of the area it's looked in (`Frame`, `Pattern`). A match scores the
+same whatever the game's brightness, and nothing is downloaded or installed.
+Transparent parts of a picture are left out of the comparison (`match(..., mask)`),
+so a cut-out icon matches whatever is behind it.
+
+A match only holds within a few percent of the size a picture was cut at, so with
+"any size" (`Watched.any_size`) each picture is also looked for at the sizes the
+game would draw it at now: scaled from the size of the window or screen it was cut
+from (`Watched.cuts`) to the size being watched, by height and by width, which
+covers a game cut fullscreen and played in a window. Sizes nothing predicts (an
+in-game UI scale, a picture from before sizes were kept) are swept for, a couple of
+sizes a check; one found is kept (`Look`). At any size but its own a picture and
+the frame are both softened a little first (BLUR), as a game drawing something at
+another size doesn't draw a resized copy of it.
+
+Watching is kept to about CPU_SHARE of the computer's processor, so it doesn't cost
+a game frames: when the checks take longer than that allows (a slow computer, a lot
+of pictures, a game using every core) they're spaced out further than `interval`.
+A 1080p screen with one picture costs a few milliseconds per check.
 
 `Gate` decides when a score is a new appearance: it fires once when a picture shows
 up, then waits for it to go away before it can fire again (and never sooner than
@@ -36,6 +51,7 @@ from __future__ import annotations
 import ctypes
 import logging
 import math
+import os
 import sys
 import threading
 import time
@@ -44,7 +60,8 @@ from ctypes import wintypes
 from dataclasses import asdict, dataclass, field
 
 import numpy as np
-from scipy.signal import fftconvolve
+import scipy.fft as sfft
+from scipy.ndimage import binary_erosion, gaussian_filter, zoom
 
 log = logging.getLogger(__name__)
 
@@ -52,6 +69,41 @@ WORK_WIDTH = 480        # the screen is shrunk to about this wide before matchin
 MIN_SIDE = 12           # ...but never so far that a picture's short side drops below this
 MAX_ZOOM = 2            # ...nor ever kept above this many times WORK_WIDTH (small pictures)
 MASK_MIN = 16           # a cut-out with fewer opaque pixels than this once shrunk is unreliable
+# "any size": a picture is looked for from SIZES[0] to SIZES[1] times the size it
+# was cut at. A game drawing a picture at another size doesn't give a resized copy
+# of it (text especially is drawn afresh), so at any size but the one it was cut at
+# the picture and the frame are both softened by BLUR px first, for pictures at
+# least BLUR_MIN_SIDE px each way (at the size they're matched). That keeps a match
+# within SAME of the right size scoring about 0.85-0.95 where it would drop to 0.5,
+# so sizes that close count as one. The sweep steps SWEEP_STEP apart, and a step
+# scoring within PROMISING of the threshold is tried again either side of it.
+SIZES = (0.5, 2.0)
+SAME = 0.025
+SWEEP_STEP = 1.06
+SWEEP_PER_CHECK = 2     # sizes each trigger sweeps per check
+SWEEP_MIN_SIDE = 6      # ...skipping those that shrink a picture below this
+PROMISING = 0.15
+SWEEP_DONE = 0.9        # a match scoring less may be at a size a little off: keep sweeping
+BLUR = 1.5
+BLUR_MIN_SIDE = 16
+MAX_FOUND = 3           # sizes the sweep found kept per picture
+SPECTRA_MB = 48         # at most this much of the pictures' spectra is kept between checks
+CPU_SHARE = 0.01        # watching uses about this share of the whole processor, at most
+# A match is judged on grey, which can't tell a green slime from a red one, or a
+# wooden crate from a metal one once softened. So a place scoring within TINT_NEAR
+# of the threshold (the best PEAKS places of each picture and size) also has its
+# colours compared with the picture's: the hue of each of TINT_GRID x TINT_GRID
+# cells (tint(); brightness doesn't change a hue, so a darker scene still passes,
+# and cells darker than TINT_DARK have too little colour to say). A gap past
+# TINT_OK (a colour grade over a whole scene makes about 0.15) takes the score
+# down, to nothing TINT_SPAN further on.
+TINT_GRID = 4
+TINT_NEAR = 0.2
+PEAKS = 3
+TINT_DARK = 0.06
+TINT_OK = 0.2
+TINT_SPAN = 0.2
+CORES = os.cpu_count() or 1
 REARM_MARGIN = 0.08     # a match must fall this far below the threshold to count as gone
 FLAT_STD = 2 / 255      # screen windows flatter than this never match (blank areas)
 BLACK_LEVEL = 3 / 255   # a whole frame darker than this is a capture that can't see the game
@@ -179,6 +231,8 @@ class Trigger:
     hold: float = 0.0
     # stay quiet while its window is the one in front (you're playing it)
     unfocused: bool = False
+    # find its pictures at other sizes too (cut fullscreen, played in a window)
+    any_size: bool = True
 
     @property
     def source(self) -> int | WindowRef | None:
@@ -357,24 +411,146 @@ def to_gray(bgra: np.ndarray) -> np.ndarray:
 
 
 class Frame:
-    """A grey screen prepared for matching: its running sums (of brightness and of
-    its square) are worked out once and shared by every picture checked against it."""
+    """A grey screen (or part of one) prepared for matching, shared by every picture
+    checked against it: its spectrum, and its square's for each window's brightness
+    and contrast, are worked out once, when first needed. Its mean is taken off
+    first: a match doesn't care, and the sums stay small enough for float32."""
 
     def __init__(self, gray: np.ndarray):
         self.s = gray.astype(np.float32)
-        h, w = gray.shape
-        g = gray.astype(np.float64)
-        self.ii = np.zeros((h + 1, w + 1))
-        self.ii[1:, 1:] = g.cumsum(0).cumsum(1)
-        self.ii2 = np.zeros((h + 1, w + 1))
-        self.ii2[1:, 1:] = (g * g).cumsum(0).cumsum(1)
+        self.s -= np.float32(self.s.mean(dtype=np.float64))
+        h, w = self.s.shape
+        # the FFTs' size: a correlation over the frame's size is enough, as a
+        # picture's valid places never wrap around it
+        self.n = (sfft.next_fast_len(h, True), sfft.next_fast_len(w, True))
+        self._spec: np.ndarray | None = None
+        self._spec2: np.ndarray | None = None
+        self._sums: dict = {}
+        self._soft: Frame | None = None
+
+    def soft(self) -> Frame:
+        """The frame softened by BLUR px and, having lost its finest detail, at half
+        size: a quarter of the work for every picture matched on it (kept: they
+        share it)."""
+        if self._soft is None:
+            self._soft = Frame(gaussian_filter(self.s, BLUR, mode="nearest")[::2, ::2])
+        return self._soft
 
     @property
     def shape(self) -> tuple[int, int]:
         return self.s.shape
 
-    def window_sums(self, ii: np.ndarray, th: int, tw: int) -> np.ndarray:
-        return ii[th:, tw:] - ii[:-th, tw:] - ii[th:, :-tw] + ii[:-th, :-tw]
+    def spectrum(self) -> np.ndarray:
+        if self._spec is None:
+            self._spec = sfft.rfft2(self.s, self.n)
+        return self._spec
+
+    def corr(self, spec: np.ndarray, pspec: np.ndarray, shape: tuple[int, int]) -> np.ndarray:
+        """A correlation over every place a (h, w) picture fits whole."""
+        (sh, sw), (th, tw) = self.s.shape, shape
+        return sfft.irfft2(spec * pspec, self.n)[:sh - th + 1, :sw - tw + 1]
+
+    def sums(self, p: Pattern) -> tuple[np.ndarray, np.ndarray]:
+        """The sum and the sum of squares under the picture's opaque part in each
+        place: kept for the frame, since pictures of one size share their box."""
+        got = self._sums.get(p.key)
+        if got is None:
+            if self._spec2 is None:
+                self._spec2 = sfft.rfft2(self.s * self.s, self.n)
+            m = p.mask_spectrum(self.n)
+            got = self._sums[p.key] = (self.corr(self.spectrum(), m, p.shape),
+                                       self.corr(self._spec2, m, p.shape))
+        return got
+
+
+_boxes: dict = {}               # (FFT size, h, w) -> a box's spectrum, shared by pictures
+
+
+class Pattern:
+    """A picture made ready to be looked for: its mean taken off (under its opaque
+    part), its transparent parts zeroed, and, when `keep` is set, its spectrum kept
+    for the frame size it's matched against (a capture's area keeps its size, so
+    that's worked out once, not every check)."""
+
+    def __init__(self, tmpl: np.ndarray, mask: np.ndarray | None = None, keep: bool = False,
+                 soft: tuple[int, int] | None = None, kept: float = 1.0):
+        th, tw = tmpl.shape
+        # `soft`: made like Frame.soft(), matched there, and this big at full size
+        self.soft = soft is not None
+        self.size = soft or (th, tw)
+        self.flat = FLAT_STD * min(kept, 1.0)   # a window this flat is blank (see Look.pattern)
+        self.shape = (th, tw)
+        self.box = mask is None or bool(mask.all())
+        m = np.ones((th, tw)) if self.box else mask.astype(np.float64)
+        self.count = float(m.sum())
+        t = tmpl.astype(np.float64)
+        t = (t - float((t * m).sum()) / max(self.count, 1.0)) * m
+        self.norm = math.sqrt(float((t * t).sum()))
+        self.ok = th >= 2 and tw >= 2 and self.count >= 4 and self.norm >= 1e-6
+        self.t = t.astype(np.float32)
+        self.m = None if self.box else m.astype(np.float32)
+        self.key = ("box", th, tw) if self.box else self
+        self.keep = keep
+        self._spec: tuple | None = None       # (FFT size, picture's, mask's)
+
+    def spectra(self, n: tuple[int, int]) -> tuple[np.ndarray, np.ndarray | None]:
+        """(the picture's spectrum, its mask's or None for a box) at FFT size `n`,
+        conjugated: multiplied by a frame's, they make a correlation."""
+        if self._spec is not None and self._spec[0] == n:
+            return self._spec[1], self._spec[2]
+        t = np.conj(sfft.rfft2(self.t, n))
+        m = None if self.box else np.conj(sfft.rfft2(self.m, n))
+        if self.keep:
+            self._spec = (n, t, m)
+        return t, m
+
+    def mask_spectrum(self, n: tuple[int, int]) -> np.ndarray:
+        if not self.box:
+            return self.spectra(n)[1]
+        key = (n, *self.shape)
+        got = _boxes.get(key)
+        if got is None:
+            if len(_boxes) > 64:
+                _boxes.clear()
+            got = _boxes[key] = np.conj(sfft.rfft2(np.ones(self.shape, np.float32), n))
+        return got
+
+
+def find(f: Frame, p: Pattern) -> tuple[float, tuple[int, int]]:
+    """match() for a prepared frame and picture (a soft one on the frame's soft
+    copy, its place given at full size)."""
+    return find_peaks(f, p)[0]
+
+
+def find_peaks(f: Frame, p: Pattern, n: int = 1, floor: float = 1.0
+               ) -> list[tuple[float, tuple[int, int]]]:
+    """The best place, then (up to `n` in all) the next best ones scoring at least
+    `floor`, each at least half the picture away from those before it."""
+    k = 2 if p.soft else 1
+    if p.soft:
+        f = f.soft()
+    (th, tw), (sh, sw) = p.shape, f.shape
+    if not p.ok or th > sh or tw > sw:
+        return [(0.0, (0, 0))]
+    num = f.corr(f.spectrum(), p.spectra(f.n)[0], p.shape)
+    s1, s2 = f.sums(p)
+    var = s2 - s1 * s1 * np.float32(1 / p.count)   # count * each window's variance
+    ok = var > np.float32(p.count * p.flat * p.flat)
+    np.sqrt(var, out=var, where=ok)
+    score = np.zeros(num.shape, np.float32)
+    np.divide(num, var, out=score, where=ok)
+    out = []
+    while True:
+        i = int(np.argmax(score))
+        y, x = divmod(i, score.shape[1])
+        sc = float(min(score.flat[i] / p.norm, 1.0))
+        if out and sc < floor:
+            break
+        out.append((sc, (k * x, k * y)))
+        if len(out) >= n or sc < floor:
+            break
+        score[max(0, y - th // 2):y + th // 2 + 1, max(0, x - tw // 2):x + tw // 2 + 1] = 0
+    return out
 
 
 def match(screen: np.ndarray | Frame, tmpl: np.ndarray,
@@ -382,52 +558,9 @@ def match(screen: np.ndarray | Frame, tmpl: np.ndarray,
     """Best normalised cross-correlation of `tmpl` anywhere in `screen` (2-D float
     grey, or a Frame of it): (score in -1..1, (x, y) of its top-left corner). 0 when
     it can't match at all (bigger than the screen, or a flat picture). `mask` (the
-    picture's shape, true = counts) leaves out its transparent parts."""
-    f = screen if isinstance(screen, Frame) else Frame(screen)
-    th, tw = tmpl.shape
-    sh, sw = f.shape
-    if th < 2 or tw < 2 or th > sh or tw > sw:
-        return 0.0, (0, 0)
-    if mask is not None and not mask.all():
-        return _match_masked(f, tmpl, mask)
-    t = tmpl.astype(np.float64) - float(tmpl.mean())
-    tnorm = math.sqrt(float((t * t).sum()))
-    if tnorm < 1e-6:
-        return 0.0, (0, 0)
-    num = fftconvolve(f.s, t[::-1, ::-1].astype(np.float32), mode="valid")
-    n = th * tw
-    s1 = f.window_sums(f.ii, th, tw)
-    var = f.window_sums(f.ii2, th, tw) - s1 * s1 / n     # n * the window's variance
-    ok = var > n * FLAT_STD * FLAT_STD
-    score = np.zeros(num.shape)
-    np.divide(num, np.sqrt(np.where(ok, var, 1.0)) * tnorm, out=score, where=ok)
-    i = int(np.argmax(score))
-    y, x = divmod(i, score.shape[1])
-    return float(min(score.flat[i], 1.0)), (x, y)
-
-
-def _match_masked(f: Frame, tmpl: np.ndarray, mask: np.ndarray) -> tuple[float, tuple[int, int]]:
-    """match() over the mask's pixels only: each window's brightness and contrast
-    are taken under the mask too (two more correlations, as the mask isn't a box)."""
-    m = mask.astype(np.float64)
-    n = float(m.sum())
-    if n < 4:
-        return 0.0, (0, 0)
-    t = (tmpl.astype(np.float64) - float((tmpl * m).sum()) / n) * m
-    tnorm = math.sqrt(float((t * t).sum()))
-    if tnorm < 1e-6:
-        return 0.0, (0, 0)
-    mk = m[::-1, ::-1].astype(np.float32)
-    num = fftconvolve(f.s, t[::-1, ::-1].astype(np.float32), mode="valid")
-    s1 = fftconvolve(f.s, mk, mode="valid").astype(np.float64)
-    s2 = fftconvolve(f.s * f.s, mk, mode="valid").astype(np.float64)
-    var = s2 - s1 * s1 / n
-    ok = var > n * FLAT_STD * FLAT_STD
-    score = np.zeros(num.shape)
-    np.divide(num, np.sqrt(np.where(ok, var, 1.0)) * tnorm, out=score, where=ok)
-    i = int(np.argmax(score))
-    y, x = divmod(i, score.shape[1])
-    return float(min(score.flat[i], 1.0)), (x, y)
+    picture's shape, true = counts) leaves out its transparent parts: each window's
+    brightness and contrast are taken under the mask too."""
+    return find(screen if isinstance(screen, Frame) else Frame(screen), Pattern(tmpl, mask))
 
 
 def work_scale(screen_w: int, tmpl_sides: list[int]) -> float:
@@ -449,7 +582,7 @@ def shrink_mask(mask: np.ndarray, scale: float) -> np.ndarray:
     best (the others blend in whatever is behind the picture), but a thin outline has
     next to none of them: then the cut-off is eased, down to half opaque, until there
     are enough to compare."""
-    m = shrink(mask, scale)
+    m = resize(mask, scale)
     loose = m >= 0.5
     enough = max(MASK_MIN, int(loose.sum()) // 3)
     for cut in (0.99, 0.75):
@@ -475,6 +608,157 @@ def shrink(gray: np.ndarray, scale: float) -> np.ndarray:
         ii[ys[:-1]][:, xs[:-1]]
     area = np.outer(np.diff(ys), np.diff(xs)).clip(min=1)
     return (tot / area).astype(np.float32)
+
+
+def resize(gray: np.ndarray, scale: float) -> np.ndarray:
+    """shrink(), or for `scale` over 1 (a picture looked for bigger than it was cut)
+    a smooth enlargement."""
+    if scale <= 1.001:
+        return shrink(gray, scale)
+    h, w = gray.shape
+    nh, nw = max(1, round(h * scale)), max(1, round(w * scale))
+    return zoom(gray.astype(np.float32), (nh / h, nw / w), order=1, grid_mode=True,
+                mode="nearest")
+
+
+def near(a: float, b: float) -> bool:
+    """Two sizes close enough that a match at one holds at the other."""
+    return abs(math.log(a / b)) < SAME
+
+
+def sizes_for(cut: tuple[int, int] | None, now: tuple[int, int]) -> list[float]:
+    """The sizes (times the size it was cut at) a picture cut from something `cut`
+    (w, h) big is drawn at in something `now` big: the same size (a game that draws
+    it the same whatever its window), and scaled with the height or the width (one
+    that scales it with the window). [1.0] when `cut` isn't known."""
+    out = [1.0]
+    if cut and min(cut) > 0 and min(now) > 0:
+        for f in (now[1] / cut[1], now[0] / cut[0]):
+            if SIZES[0] <= f <= SIZES[1] and not any(near(f, g) for g in out):
+                out.append(f)
+    return out
+
+
+def tint(rgb: np.ndarray, mask: np.ndarray | None = None) -> np.ndarray | None:
+    """A picture's colours in brief: the mean colour (0..1 RGB) of each of TINT_GRID
+    x TINT_GRID cells, (G, G, 3), NaN where a cut-out has nothing. None when it's
+    too small to tell."""
+    h, w = rgb.shape[:2]
+    g = TINT_GRID
+    if h < g or w < g:
+        return None
+    ys = np.linspace(0, h, g + 1).astype(int)[:-1]
+    xs = np.linspace(0, w, g + 1).astype(int)[:-1]
+    wt = np.ones((h, w), np.float32) if mask is None else mask.astype(np.float32)
+    rgb = rgb[..., :3].astype(np.float32) * wt[..., None]
+    sums = np.add.reduceat(np.add.reduceat(rgb, ys, 0), xs, 1)
+    n = np.add.reduceat(np.add.reduceat(wt, ys, 0), xs, 1)
+    area = np.outer(np.diff(np.append(ys, h)), np.diff(np.append(xs, w)))
+    with np.errstate(invalid="ignore", divide="ignore"):
+        return np.where((n >= 0.5 * area)[..., None], sums / n[..., None], np.nan)
+
+
+def tint_gap(want: np.ndarray, got: np.ndarray) -> float:
+    """How far apart two tints' hues are: per cell, the difference of their shares
+    of red, green and blue (0 to 2), over the cells bright enough in both to have a
+    colour; the mean of the worst quarter of them (a picture is often mostly
+    background, which would water a difference down). A dimmer copy is 0 apart."""
+    a, b = want.reshape(-1, 3), got.reshape(-1, 3)
+    lum = np.array([0.299, 0.587, 0.114])
+    with np.errstate(invalid="ignore", divide="ignore"):
+        ok = (np.minimum(a @ lum, b @ lum) >= TINT_DARK)
+        d = np.abs(a / a.sum(1, keepdims=True) - b / b.sum(1, keepdims=True)).sum(1)
+    d = d[ok & ~np.isnan(d)]
+    if not d.size:
+        return 0.0
+    return float(np.sort(d)[-max(1, d.size // 4):].mean())
+
+
+def tint_factor(gap: float) -> float:
+    return min(1.0, max(0.0, 1.0 - (gap - TINT_OK) / TINT_SPAN))
+
+
+# nearest the size it was cut at first: small changes are the likeliest
+SWEEP = sorted((f for f in (SWEEP_STEP ** i for i in range(-40, 41)) if SIZES[0] <= f <= SIZES[1]),
+               key=lambda f: abs(math.log(f)))
+
+
+class Look:
+    """One picture as a capture looks for it: a Pattern for each size it's looked for
+    every check (`pats`: the size it was cut at first, then with "any size" the sizes
+    sizes_for() predicts and ones the sweep found), and with "any size" the sweep's
+    place (`todo`, the sizes left to try, and `next`)."""
+
+    def __init__(self, gray: np.ndarray, mask: np.ndarray | None, scale: float,
+                 sizes: list[float], sweep: bool, found: list[float] = (),
+                 tint: np.ndarray | None = None):
+        self.gray, self.mask, self.scale = gray, mask, scale
+        self.tint = tint                        # its colours (see tint()), if known
+        self.pats: list[tuple[float, Pattern]] = []
+        self.found: list[float] = []
+        for f in sizes:
+            self._add(f)
+        self.todo = SWEEP if sweep else []
+        self.next = 0
+        for f in found:
+            self.keep(f)
+
+    def pattern(self, f: float) -> Pattern:
+        """The picture at `f` times the size it was cut at, shrunk like the frame,
+        and softened at any size but its own (see BLUR)."""
+        s = self.scale * f
+        g = resize(self.gray, s)
+        m = None if self.mask is None else shrink_mask(self.mask, s)
+        if near(f, 1.0) or min(g.shape) < BLUR_MIN_SIDE:
+            return Pattern(g, m)
+        # like Frame.soft(): half size, softened as much (a half-size shrink has
+        # softened it a little already)
+        gray, hm = self.gray, None
+        if self.mask is not None:
+            # a cut-out: its see-through part filled with its own mean so softening
+            # doesn't smear black into its edge, and a pixel less of it compared
+            # (the frame's softened edge has whatever is behind the picture in it)
+            gray = np.where(self.mask, self.gray, np.float32(self.gray[self.mask].mean()))
+            hm = binary_erosion(shrink_mask(self.mask, s / 2))
+            if int(hm.sum()) < MASK_MIN:
+                return Pattern(g, m)
+        soft = gaussian_filter(resize(gray, s / 2), BLUR / 2, mode="nearest")
+        # softening takes contrast away, the frame's as much as the picture's: a window
+        # counts as flat by what it had before
+        was = g if m is None else g[m]
+        now = soft if hm is None else soft[hm]
+        return Pattern(soft, hm, soft=g.shape,
+                       kept=float(now.std()) / max(float(was.std()), 1e-6))
+
+    def _add(self, f: float, p: Pattern | None = None) -> bool:
+        if not SIZES[0] - 1e-9 <= f <= SIZES[1] + 1e-9 or any(near(f, g) for g, _p in self.pats):
+            return False
+        self.pats.append((f, p or self.pattern(f)))
+        return True
+
+    def keep(self, f: float, p: Pattern | None = None):
+        """Look for it at this size every check from now on (the sweep found it
+        there). Only the latest MAX_FOUND found sizes are kept."""
+        if not self._add(f, p):
+            return
+        self.found.append(f)
+        if len(self.found) > MAX_FOUND:
+            old = self.found.pop(0)
+            self.pats = [(g, q) for g, q in self.pats if g != old]
+
+    def sweep_sizes(self, n: int) -> list[float]:
+        """The next `n` sizes to sweep: ones not already looked for every check, and
+        not so small the picture is lost."""
+        out: list[float] = []
+        side = min(self.gray.shape) * self.scale
+        for _ in range(len(self.todo)):
+            if len(out) >= n:
+                break
+            f = self.todo[self.next % len(self.todo)]
+            self.next += 1
+            if side * f >= SWEEP_MIN_SIDE and not any(near(f, g) for g, _p in self.pats):
+                out.append(f)
+        return out
 
 
 @dataclass
@@ -654,10 +938,25 @@ def gray_2x(bgra: np.ndarray) -> np.ndarray:
     average of a 2x2 block. Integer maths: a quarter the cost of float colour."""
     h, w = bgra.shape[0] // 2, bgra.shape[1] // 2
     x = bgra[:2 * h, :2 * w]
-    y = (x[..., 0].astype(np.uint16) * 29 + x[..., 1].astype(np.uint16) * 150
-         + x[..., 2].astype(np.uint16) * 77)                   # luma * 256
-    y = y.reshape(h, 2, w, 2).sum((1, 3), dtype=np.uint32)
-    return y.astype(np.float32) * (1 / (256 * 4 * 255))
+    y = x[..., 0] * np.uint16(29)                              # luma * 256
+    y += x[..., 1] * np.uint16(150)
+    y += x[..., 2] * np.uint16(77)
+    s = y[0::2, 0::2].astype(np.uint32)
+    s += y[1::2, 0::2]
+    s += y[0::2, 1::2]
+    s += y[1::2, 1::2]
+    return s.astype(np.float32) * np.float32(1 / (256 * 4 * 255))
+
+
+def pick(px: np.ndarray, ys: np.ndarray, xs: np.ndarray) -> np.ndarray:
+    """px[ys][:, xs]: the rows, then the columns of those rows (a copy). A pixel of 4
+    or 8 bytes is moved as one number, about three times quicker than channel by
+    channel."""
+    if px.ndim == 3 and px.strides[2] == px.itemsize:
+        word = {4: np.uint32, 8: np.uint64}.get(px.shape[2] * px.itemsize)
+        if word is not None and px.strides[1] == px.shape[2] * px.itemsize:
+            return px.view(word)[ys][:, xs].view(px.dtype)
+    return px[ys][:, xs]
 
 
 # DXGI_FORMAT values a duplicated desktop comes in, and their bytes per pixel.
@@ -737,6 +1036,7 @@ class Grabber:
     lost = False
     want_color = False      # also keep `color`, the same picture in RGB (frame_rgb)
     color: np.ndarray | None = None
+    raw: tuple | None = None    # the last grab's pixels as sampled: (pixels, format, factor)
 
     def __init__(self, src: Monitor, w: int, h: int):
         self.src, self.w, self.h = src, w, h
@@ -786,6 +1086,7 @@ class Grabber:
                                   s.left, s.top, s.width, s.height, self.SRCCOPY):
             return None
         self.color = frame_rgb(self.pixels, FMT_BGRA8, self.factor) if self.want_color else None
+        self.raw = (self.pixels, FMT_BGRA8, self.factor)
         return gray_2x(self.pixels) if self.factor == 2 else to_gray(self.pixels)
 
     def resize(self, w: int, h: int):
@@ -935,6 +1236,7 @@ class DupGrabber:
     turns = 0                       # FRAME_TURNS for the output's rotation
     want_color = False              # as Grabber's
     color: np.ndarray | None = None
+    raw: tuple | None = None    # the last grab's pixels as sampled: (pixels, format, factor)
 
     def __init__(self, src: Monitor, w: int, h: int):
         self.src, self.w, self.h = src, w, h
@@ -1145,11 +1447,12 @@ class DupGrabber:
             buf = (ctypes.c_uint8 * (rows * pitch)).from_address(m.pData)
             img = np.frombuffer(buf, np.uint8).reshape(rows, pitch)
             px = frame_view(img, fmt, sw)
-            sample = px[self.ys[:, None], self.xs[None, :]]      # a copy, taken while mapped
+            sample = pick(px, self.ys, self.xs)      # a copy, taken while mapped
         finally:
             self.ctx.call(self.CTX_UNMAP, self.staging.p, 0, restype=None,
                           argtypes=(ctypes.c_void_p, ctypes.c_uint))
         self.last = upright(frame_gray(sample, fmt, self.factor), self.turns)
+        self.raw = (np.rot90(sample, self.turns) if self.turns % 4 else sample, fmt, self.factor)
         self.color = (upright(frame_rgb(sample, fmt, self.factor), self.turns)
                       if self.want_color else None)
         return self.last
@@ -1190,7 +1493,9 @@ class Watched:
     by. `threshold` is its mode's one number (Trigger.number); `sources` are its
     screens and windows (empty: the default), `source` the one place older code
     gives. Each place has its own Gate, so two game windows showing the same thing
-    each go off once."""
+    each go off once. With `any_size` its pictures are looked for at other sizes too
+    (see Look); `cuts` holds the (w, h) each picture was cut from, or None. `tints`,
+    when given, has a place's colours checked too before it counts (see TINT_OK)."""
     id: str
     pictures: list[Picture]
     threshold: float
@@ -1203,6 +1508,9 @@ class Watched:
     region: tuple[float, float, float, float] | None = None
     hold: float = 0.0
     unfocused: bool = False
+    any_size: bool = False
+    cuts: list = field(default_factory=list)
+    tints: list = field(default_factory=list)       # each picture's tint(), or None
     gates: dict = field(default_factory=dict)       # place -> its Gate
 
     def __post_init__(self):
@@ -1219,10 +1527,20 @@ class Watched:
     def uses_pictures(self) -> bool:
         return self.mode in PICTURE_MODES
 
-    @property
-    def sides(self) -> list[int]:
-        """Each picture's short side, for work_scale."""
-        return [min(g.shape) for g, _m in self.pictures] if self.uses_pictures else []
+    def cut(self, i: int) -> tuple[int, int] | None:
+        return self.cuts[i] if i < len(self.cuts) else None
+
+    def sizes(self, i: int, now: tuple[int, int]) -> list[float]:
+        """The sizes picture `i` is looked for at every check in something `now` big."""
+        return sizes_for(self.cut(i), now) if self.any_size else [1.0]
+
+    def sides_at(self, now: tuple[int, int]) -> list[int]:
+        """Each picture's short side at the smallest size it's looked for at every
+        check in something `now` big, for work_scale."""
+        if not self.uses_pictures:
+            return []
+        return [max(1, round(min(g.shape) * min(self.sizes(i, now))))
+                for i, (g, _m) in enumerate(self.pictures)]
 
     @property
     def most_is_worst(self) -> bool:
@@ -1258,10 +1576,11 @@ class _Capture:
         self.source = source
         self.mon = mon
         self.grab = None
-        self.scaled: dict[str, list[Picture]] = {}   # each trigger's pictures, shrunk
+        self.scaled: dict[str, list[Look]] = {}   # each trigger's pictures, shrunk
         self.fitted = (0, 0)        # the source size the pictures are scaled for
         self.scores: dict[str, float] = {}
         self.refs: dict[str, tuple[float, np.ndarray]] = {}   # "change" / "still": (when, area)
+        self.turns: dict[str, int] = {}   # "any size": which picture each trigger sweeps next
         self.reopen_since = 0.0     # > 0: the capture was lost (or never opened); trying again
         self.next_try = 0.0         # ...not before this time
         self.opened = False         # it has captured at some point
@@ -1322,6 +1641,8 @@ class Watcher:
         self.lost = False                 # a capture dropped out; it's being brought back
         self.error = ""
         self.check_ms = 0.0               # how long the last check took
+        self.gap = self.interval          # the time between checks: `interval`, or more
+                                          # when that would use over CPU_SHARE
         # All replaced whole by the thread, like `scores`:
         # triggers whose own screen isn't there (watched on the default instead)
         self.fell_back: frozenset[str] = frozenset()
@@ -1404,6 +1725,7 @@ class Watcher:
         groups: dict = {}                        # source -> the triggers looked for there
         wins: list | None = None                 # the open windows, when "every copy" is used
         listed = -math.inf
+        cost: float | None = None                # a check's time, averaged
         try:
             while not stop.is_set():
                 t0 = time.perf_counter()
@@ -1444,7 +1766,8 @@ class Watcher:
                         elif cap.grab is not None and (
                                 changed or [i.id for i in group]
                                 != [i.id for i in old_groups.get(k, [])]):
-                            cap.fitted, cap.scaled = self._fit(cap.grab, cap.mon, group)
+                            cap.fitted, cap.scaled = self._fit(cap.grab, cap.mon, group,
+                                                               cap.scaled, cap.fitted)
                 now = time.monotonic()
                 for k, cap in caps.items():
                     if cap.grab is None and now >= cap.next_try:
@@ -1468,8 +1791,13 @@ class Watcher:
                 self.minimized = frozenset(c.source for c in live if c.minimized)
                 if not stop.is_set():           # stop() has cleared them already
                     self.detail, self.scores = self._gather(items, caps)
-                self.check_ms = (time.perf_counter() - t0) * 1000
-                stop.wait(max(0.001, self.interval - (time.perf_counter() - t0)))
+                spent = time.perf_counter() - t0
+                self.check_ms = spent * 1000
+                # keep to CPU_SHARE of the processor: a check's time (on the clock,
+                # so a busy computer counts too) sets how far apart they must be
+                cost = spent if cost is None else cost + (spent - cost) * 0.2
+                self.gap = max(self.interval, cost / (CPU_SHARE * CORES))
+                stop.wait(max(0.001, self.gap - spent))
         except Exception as e:  # noqa: BLE001 - say so in the window instead of dying quietly
             log.exception("screen watching stopped")
             if not stop.is_set():
@@ -1529,7 +1857,8 @@ class Watcher:
         at first, every GIVE_UP_S once it's clearly not coming back; a window every
         WINDOW_RETRY_S (it may be a game that isn't started yet)."""
         now = time.monotonic()
-        sides = [s for i in items for s in i.sides]
+        sides = [s for i in items for s in i.sides_at(
+            (cap.mon.width, cap.mon.height) if cap.mon else (0, 0))]
         try:
             if cap.is_window:
                 opener = self._window_grabber
@@ -1560,7 +1889,8 @@ class Watcher:
             return False
         cap.reopen_since, cap.error = 0.0, ""
         cap.opened, cap.lost = True, False
-        cap.fitted, cap.scaled = self._fit(cap.grab, cap.mon, items)
+        cap.fitted, cap.scaled = self._fit(cap.grab, cap.mon, items, cap.scaled,
+                                              cap.fitted)
         return True
 
     def _tick(self, cap: _Capture, items: list[Watched]):
@@ -1588,21 +1918,26 @@ class Watcher:
         if getattr(cap.grab, "source", cap.fitted) != cap.fitted:
             # the frames changed size (a game switched display mode, a window was
             # resized): scale the pictures for what the capture really sees
-            cap.fitted, cap.scaled = self._fit(cap.grab, cap.mon, items)
+            cap.fitted, cap.scaled = self._fit(cap.grab, cap.mon, items, cap.scaled,
+                                              cap.fitted)
             return
         if gray is not None:
             cap.black = is_black(gray)
             cap.scores = self._check(cap, gray, items)
 
     @staticmethod
-    def _fit(grab, mon: Monitor | None, items: list[Watched]) -> tuple[tuple[int, int], dict]:
+    def _fit(grab, mon: Monitor | None, items: list[Watched], old: dict | None = None,
+             was: tuple[int, int] = (0, 0)) -> tuple[tuple[int, int], dict]:
         """Shrink the pictures for the size the grabber really copies (`source`; the
         monitor's when it doesn't say), and have it give out pictures that size too
-        (in colour as well when a "colour" trigger needs it). Done once per change,
-        not per tick: a trigger with a hundred pictures keeps them all shrunk.
-        Returns (source size, {id: [(picture, mask)]})."""
+        (in colour as well when a "colour" trigger needs it). With "any size" each
+        picture is made ready at the sizes it may be drawn at now as well, and the
+        sizes the sweep found in `old` (the last fit, for something `was` big) carry
+        over, scaled with the height. Done once per change, not per tick: a trigger
+        with a hundred pictures keeps them all shrunk, and the first SPECTRA_MB of
+        their spectra. Returns (source size, {id: [Look]})."""
         sw, sh = getattr(grab, "source", None) or (mon.width, mon.height)
-        scale = work_scale(sw, [s for i in items for s in i.sides])
+        scale = work_scale(sw, [s for i in items for s in i.sides_at((sw, sh))])
         w, h = max(1, round(sw * scale)), max(1, round(sh * scale))
         if (w, h) != (getattr(grab, "w", w), getattr(grab, "h", h)):
             grab.resize(w, h)
@@ -1610,9 +1945,26 @@ class Watcher:
             grab.want_color = any(i.mode == "colour" for i in items)
         except AttributeError:
             pass
-        scaled = {i.id: [(shrink(g, scale), None if m is None else shrink_mask(m, scale))
-                         for g, m in i.pictures]
-                  for i in items if i.uses_pictures}
+        ratio = sh / was[1] if was[1] > 0 else 1.0
+        spectrum = sfft.next_fast_len(h, True) * (sfft.next_fast_len(w, True) // 2 + 1) * 8
+        room = SPECTRA_MB * 2 ** 20
+        scaled = {}
+        for i in items:
+            if not i.uses_pictures:
+                continue
+            before = (old or {}).get(i.id) or []
+            looks = []
+            for k, (g, m) in enumerate(i.pictures):
+                found = ([f * ratio for f in before[k].found]
+                         if i.any_size and k < len(before) and isinstance(before[k], Look) else [])
+                look = Look(g, m, scale, i.sizes(k, (sw, sh)), i.any_size, found,
+                            i.tints[k] if k < len(i.tints) else None)
+                for _f, p in look.pats:
+                    need = spectrum * (1 if p.box else 2)
+                    if room >= need:
+                        p.keep, room = True, room - need
+                looks.append(look)
+            scaled[i.id] = looks
         return (sw, sh), scaled
 
     def _check(self, cap: _Capture, gray: np.ndarray, items: list[Watched]) -> dict[str, float]:
@@ -1661,20 +2013,40 @@ class Watcher:
         """A trigger's score in one frame (None: nothing to judge yet) and the box
         (y0, y1, x0, x1) it's about: where its best picture is, or its area."""
         if it.uses_pictures:
-            pics = cap.scaled.get(it.id) or []
-            least = (max((g.shape[0] for g, _m in pics), default=2),
-                     max((g.shape[1] for g, _m in pics), default=2))
+            looks = cap.scaled.get(it.id) or []
+            least = (max((lk.pats[0][1].shape[0] for lk in looks), default=2),
+                     max((lk.pats[0][1].shape[1] for lk in looks), default=2))
             box = region_box(it.region, gray.shape, least)
             y0, y1, x0, x1 = box
             f = frames.get(box)
             if f is None:
                 f = frames[box] = Frame(gray[y0:y1, x0:x1])
+            raw = getattr(cap.grab, "raw", None)
+            near_ = it.threshold - TINT_NEAR
+
+            def judge(p: Pattern, lk: Look) -> tuple[float, tuple]:
+                """The picture's best place at this size: (score, box), the score
+                taken down when the colours there aren't the picture's."""
+                top: tuple = (0.0, box)
+                check = raw is not None and lk.tint is not None
+                for sc, (mx, my) in find_peaks(f, p, PEAKS if check else 1, near_):
+                    b = (y0 + my, y0 + my + p.size[0], x0 + mx, x0 + mx + p.size[1])
+                    if check and sc >= near_:
+                        sc *= Watcher._tint_factor(raw, b, lk.tint)
+                    if sc > top[0]:
+                        top = (sc, b)
+                return top
+
             best, at = 0.0, box
-            for g, m in pics:
-                sc, (mx, my) = match(f, g, m)
+            for lk in looks:
+                for _s, p in lk.pats:
+                    sc, b = judge(p, lk)
+                    if sc > best:
+                        best, at = sc, b
+            if best < max(it.threshold, SWEEP_DONE) and it.any_size:
+                sc, b = Watcher._sweep(cap, it, looks, judge, f.shape, best)
                 if sc > best:
-                    best = sc
-                    at = (y0 + my, y0 + my + g.shape[0], x0 + mx, x0 + mx + g.shape[1])
+                    best, at = sc, b
             return best, (at if it.mode == "appear" else box)
         box = region_box(it.region, gray.shape)
         y0, y1, x0, x1 = box
@@ -1692,3 +2064,70 @@ class Watcher:
         if now - ref[0] >= CHANGE_GAP:
             cap.refs[it.id] = (now, area.copy())
         return score, box
+
+    @staticmethod
+    def _tint_factor(raw: tuple, box: tuple, want: np.ndarray) -> float:
+        """How much of a score stands, going by the colours of `box` (y0, y1, x0, x1
+        in the frame) in the grab's own pixels `raw` against the picture's tint.
+        The box is also tried a pixel off each way (where a match lands can be a
+        pixel out, and on a small picture that shifts its cells a lot)."""
+        px, fmt, k = raw
+        y0, y1, x0, x1 = box
+        h, w = px.shape[0] // k, px.shape[1] // k
+        try:
+            rgb = frame_rgb(px[max(0, y0 - 1) * k:min(h, y1 + 1) * k,
+                               max(0, x0 - 1) * k:min(w, x1 + 1) * k], fmt, k)
+        except (OSError, ValueError):
+            return 1.0
+        oy, ox = y0 - max(0, y0 - 1), x0 - max(0, x0 - 1)
+        best = None
+        for dy in (-1, 0, 1):
+            for dx in (-1, 0, 1):
+                a, c = oy + dy, ox + dx
+                if a < 0 or c < 0 or a + y1 - y0 > rgb.shape[0] or c + x1 - x0 > rgb.shape[1]:
+                    continue
+                got = tint(rgb[a:a + y1 - y0, c:c + x1 - x0])
+                if got is not None:
+                    gap = tint_gap(want, got)
+                    best = gap if best is None else min(best, gap)
+        return 1.0 if best is None else tint_factor(best)
+
+    @staticmethod
+    def _sweep(cap: _Capture, it: Watched, looks: list[Look], judge,
+               area: tuple[int, int], beat: float = 0.0) -> tuple[float, tuple]:
+        """One step of a trigger's sweep: its next SWEEP_PER_CHECK sizes, one picture
+        at a time in turn, each judged by `judge(pattern, look)` -> (score, box). A
+        size within PROMISING of the threshold is tried again either side of it (the
+        sweep's steps are wider than a match holds), and if one matches the picture
+        is looked for at that size every check from then on, if it did better than
+        `beat` (the best at the sizes already looked for). `area` is the (h, w)
+        looked in. Returns the best (score, box) it tried."""
+        best: tuple = (0.0, None)
+        todo = [lk for lk in looks if lk.todo]
+        if not todo:
+            return best
+        turn = cap.turns.get(it.id, 0)
+        cap.turns[it.id] = turn + 1
+        lk = todo[turn % len(todo)]
+        (gh, gw), (fh, fw) = lk.gray.shape, area
+        kept = None
+        for s in lk.sweep_sizes(SWEEP_PER_CHECK):
+            if gh * lk.scale * s > fh or gw * lk.scale * s > fw:
+                continue                    # bigger than the area at this size
+            p = lk.pattern(s)
+            sc, at = judge(p, lk)
+            if sc > best[0]:
+                best, kept = (sc, at), (s, p)
+            if sc < it.threshold - PROMISING:
+                continue
+            for g in (s / SWEEP_STEP ** 0.5, s * SWEEP_STEP ** 0.5):
+                p = lk.pattern(g)
+                sc, at = judge(p, lk)
+                if sc > best[0]:
+                    best, kept = (sc, at), (g, p)
+        if kept is not None and best[0] >= max(it.threshold, beat + 0.01):
+            kept[1].keep = True
+            lk.keep(*kept)
+            log.info("trigger %s: a picture found at %.0f%% of the size it was cut at",
+                     it.id, kept[0] * 100)
+        return best
