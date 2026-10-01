@@ -17,7 +17,7 @@ moment the thing appears.
 (free, Windows 10 and 11, no account) · [website](https://onion-alien.github.io/onion-watch/) ·
 [all versions](https://github.com/Onion-Alien/onion-watch/releases) ·
 [VirusTotal scan of 0.5.1](https://www.virustotal.com/gui/file/b77e95ceb689a69b52a871e9ed9d085ebd86cff94232ad7fbf1f82091c497c3c):
-65 of 65 engines clean
+66 of 66 engines clean
 
 Windows or your browser may warn you about the download, because the installer isn't
 code-signed. Click **More info → Run anyway**. It installs for your user only, without
