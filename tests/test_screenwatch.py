@@ -690,3 +690,68 @@ def test_old_and_odd_trigger_configs_load_their_pictures_and_sounds():
     assert Trigger.from_raw({"id": "a", "images": None}).images == []
     assert Trigger(id="a").to_raw()["image"] == ""
 
+
+def test_watching_outlasts_a_long_screen_loss(monkeypatch):
+    """A monitor asleep overnight or a dock unplugged: once watching has worked it
+    keeps trying, past GIVE_UP_S, and fires again when the screen is back."""
+    monkeypatch.setattr(sw, "RETRY_S", 0.01)
+    monkeypatch.setattr(sw, "GIVE_UP_S", 0.05)
+    mons = [Monitor(0, 0, W, H, True)]
+    monkeypatch.setattr(sw, "monitors", lambda: list(mons))
+    state = {"gone": False}
+
+    class Flaky:
+        def __init__(self, mon, w, h, tries=1):
+            if state["gone"]:
+                raise OSError("screen gone")
+            self.source = (w, h)
+
+        def grab(self):
+            if state["gone"]:
+                raise OSError("lost")
+            return with_banner(scene())
+
+        def close(self):
+            pass
+
+    fired = []
+    w = sw.Watcher(fired.append, grabber=Flaky)
+    w.interval = 0.001
+    w.set_items([sw.Watched("t", pics(banner()), 0.8, 0.0)])
+    w.start()
+    try:
+        assert run_until(lambda: fired)
+        state["gone"] = True
+        mons.clear()                                  # the monitor went to sleep
+        time.sleep(0.4)                               # many times GIVE_UP_S
+        assert w.running and not w.error
+        n = len(fired)
+        mons.append(Monitor(0, 0, W, H, True))
+        state["gone"] = False
+        assert run_until(lambda: len(fired) > n or (w.scores.get("t", 0) > 0.99))
+        assert w.running and not w.error
+    finally:
+        w.stop()
+
+
+def test_one_bad_check_does_not_end_watching(fake_screen, monkeypatch):
+    fake_screen.frames = [with_banner(scene())]
+    real = sw.Watcher._tick
+    calls = {"n": 0}
+
+    def tick(self, cap, items):
+        calls["n"] += 1
+        if calls["n"] == 2:
+            raise ValueError("an odd frame")
+        return real(self, cap, items)
+
+    monkeypatch.setattr(sw.Watcher, "_tick", tick)
+    w = sw.Watcher(lambda _t: None)
+    w.interval = 0.001
+    w.set_items([sw.Watched("t", pics(banner()), 0.8, 0.0)])
+    w.start()
+    try:
+        assert run_until(lambda: calls["n"] > 5)
+        assert w.running and not w.error
+    finally:
+        w.stop()

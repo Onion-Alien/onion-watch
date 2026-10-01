@@ -86,3 +86,18 @@ def test_the_player_rings_until_stopped():
     p.stop_all()
     assert p.ringing == []
     p.close()
+
+
+def test_the_player_opens_its_output_again_after_the_device_goes():
+    """Headphones unplugged: the stream stops by itself. The next alarm must open a
+    new one, not ring into the dead one."""
+    SilentOutputStream.opened.clear()
+    p = Player()
+    tone = np.full((480, 2), 0.25, np.float32)
+    assert p.play(tone, tag="a")
+    first = SilentOutputStream.opened[-1]
+    assert p.play(tone, tag="b") and SilentOutputStream.opened[-1] is first   # kept
+    first.stop()                                   # the device went away
+    assert p.play(tone, tag="c")
+    assert SilentOutputStream.opened[-1] is not first and SilentOutputStream.opened[-1].active
+    p.close()

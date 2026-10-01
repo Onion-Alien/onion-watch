@@ -92,7 +92,15 @@ class Player:
     # ------------------------------------------------------------------ playing
     def _open(self) -> bool:
         if self._stream is not None:
-            return True
+            try:
+                if self._stream.active:
+                    return True
+            except Exception:  # noqa: BLE001 - a stream whose device is gone
+                pass
+            # the device went away (headphones unplugged, a driver reset): the stream
+            # stopped by itself, so open it again rather than ring into nothing
+            log.info("the output stream stopped; opening it again")
+            self._close()
         import sounddevice as sd
         for dev in ((self._device_index(), None) if self.device else (None,)):
             try:

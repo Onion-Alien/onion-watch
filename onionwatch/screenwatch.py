@@ -1726,6 +1726,8 @@ class Watcher:
         wins: list | None = None                 # the open windows, when "every copy" is used
         listed = -math.inf
         cost: float | None = None                # a check's time, averaged
+        worked = False                           # a screen was captured since Start
+        tick_errors: dict = {}                   # source -> a check that failed, logged once
         try:
             while not stop.is_set():
                 t0 = time.perf_counter()
@@ -1749,9 +1751,13 @@ class Watcher:
                     if screens_needed and not mons:
                         # right after a loss the screen may be gone for a moment
                         # (a cable, a dock, a mode switch): wait for it like a reopen
-                        if not any(c.reopen_since and now - c.reopen_since <= GIVE_UP_S
-                                   for c in caps.values() if not c.is_window):
+                        # Once watching has worked it never gives up: a monitor asleep
+                        # overnight or a dock unplugged comes back, and so must the alarms
+                        if not worked and not any(
+                                c.reopen_since and now - c.reopen_since <= GIVE_UP_S
+                                for c in caps.values() if not c.is_window):
                             raise OSError("no monitor found")
+                        self.lost = True
                         stop.wait(RETRY_S)
                         continue
                     self.fell_back = frozenset(fell_back)
@@ -1780,11 +1786,18 @@ class Watcher:
                 if screens and len(screens) == len(caps) and not live:
                     # nothing can be captured. A first start that fails is an error; a
                     # loss is given GIVE_UP_S of tries (the mode may still be switching)
-                    if all(c.error and (not c.opened or now - c.reopen_since > GIVE_UP_S)
-                           for c in screens):
+                    if not worked and all(
+                            c.error and (not c.opened or now - c.reopen_since > GIVE_UP_S)
+                            for c in screens):
                         raise OSError(next(c.error for c in screens if c.error))
+                worked = worked or any(not c.is_window for c in live)
                 for cap in live:
-                    self._tick(cap, groups.get(cap.source, []))
+                    try:
+                        self._tick(cap, groups.get(cap.source, []))
+                    except Exception:  # noqa: BLE001 - one odd frame mustn't end watching
+                        if cap.source not in tick_errors:
+                            log.exception("checking %r failed; watching goes on", cap.source)
+                        tick_errors[cap.source] = True
                 self.lost = any(c.lost for c in caps.values())
                 self.blacked = frozenset(c.source for c in live if c.black)
                 self.black = bool(self.blacked)

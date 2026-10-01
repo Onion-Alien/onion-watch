@@ -65,6 +65,15 @@ def read_pack(path: str | Path) -> list[tuple[Trigger, list[bytes], list[tuple[s
     each trigger with its saved ids for sounds and a placeholder for pictures (the
     caller gives it a new id and keeps the pictures). PackError if it can't be read."""
     try:
+        return _read_pack(path)
+    except PackError:
+        raise
+    except Exception as e:  # noqa: BLE001 - a damaged zip fails in many ways (CRC, zlib, encrypted, recursion)
+        raise PackError(f"it's damaged ({e or type(e).__name__})") from e
+
+
+def _read_pack(path):
+    try:
         z = zipfile.ZipFile(path)
     except (OSError, zipfile.BadZipFile) as e:
         raise PackError(f"it isn't a trigger pack ({e})") from e

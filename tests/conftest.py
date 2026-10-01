@@ -60,6 +60,10 @@ class SilentOutputStream:
     close = stop
     abort = stop
 
+    @property
+    def active(self) -> bool:
+        return self._thread is not None
+
 
 import sounddevice  # noqa: E402
 

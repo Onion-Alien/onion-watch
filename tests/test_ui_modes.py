@@ -229,3 +229,20 @@ def test_a_card_says_which_window_went_off(tab, qapp, monkeypatch):
     assert process_events(qapp, lambda: fired == [t])
     assert tab.alert_text(t) == "It just showed up in Game (copy 2)."
     assert tab.history[-1].place == "Game (copy 2)"
+
+
+def test_a_damaged_pack_says_so(tmp_path):
+    """A zip whose triggers.json fails its CRC (a truncated or tampered download)
+    is a PackError the window can show, not an exception lost in the log."""
+    import zipfile
+
+    import pytest
+    good = tmp_path / "good.zip"
+    with zipfile.ZipFile(good, "w", zipfile.ZIP_STORED) as z:
+        z.writestr("triggers.json", '{"format": "x", "triggers": []}' * 50)
+    data = bytearray(good.read_bytes())
+    data[60] ^= 0xFF                                  # a byte of the stored JSON
+    bad = tmp_path / "bad.zip"
+    bad.write_bytes(bytes(data))
+    with pytest.raises(packs.PackError):
+        packs.read_pack(bad)
