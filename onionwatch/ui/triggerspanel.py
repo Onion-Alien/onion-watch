@@ -1034,8 +1034,9 @@ class TriggersTab(QWidget):
         self.warn.setVisible(False)
         hv.addWidget(self.warn)
         v.addWidget(head)
-        self.undo_bar = UndoBar()
-        v.addWidget(self.undo_bar)
+        # "Deleted X · Undo" floats over the top of the tab: not in the layout, so
+        # showing it never pushes the list down
+        self.undo_bar = UndoBar(parent=self)
 
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
@@ -1111,8 +1112,7 @@ class TriggersTab(QWidget):
         menu.aboutToShow.connect(about_to_show)
         self.btn_more.setMenu(menu)
         h.addWidget(self.btn_more)
-        self.btn_bin = QPushButton()
-        self.btn_bin.setToolTip("Triggers you deleted: bring them back, pictures and all")
+        self.btn_bin = QPushButton()     # the bin's icon and count (_label_bin)
         icons.set_icon(self.btn_bin, "trash")
         self.btn_bin.clicked.connect(self.show_deleted)
         h.addWidget(self.btn_bin)
@@ -1272,7 +1272,8 @@ class TriggersTab(QWidget):
         """The theme changed (onionwatch.theme.T has the new colours): redraw what
         was coloured by hand."""
         icons.retheme()
-        self.sounds_changed()          # the chips of sounds that are gone
+        self.undo_bar.restyle()
+        self.sounds_changed()         # the chips of sounds that are gone
         for row in self.rows.values():
             row._show_mode()           # the badge of a trigger without pictures
             row.show_score(self.watcher.scores.get(row.t.id) if self.is_active() else None)
@@ -1856,8 +1857,10 @@ class TriggersTab(QWidget):
         if not self.triggers and self.is_active():
             self.set_watching(False)
         self._label_bin()
-        self.undo_bar.show_for(f"Deleted “{t.name}” (kept in Recently deleted)",
-                               lambda: self.restore_deleted(entry["id"]))
+        self.undo_bar.show_for(f"Deleted “{t.name}”",
+                               lambda: self.restore_deleted(entry["id"]),
+                               tip=f"Put it back, exactly as it was. Later: Recently "
+                                   f"deleted (kept {KEEP_DAYS} days)")
 
     # ------------------------------------------------------------------ recently deleted
     def _bin(self) -> list[dict]:
@@ -1869,7 +1872,12 @@ class TriggersTab(QWidget):
     def _label_bin(self):
         """The "Recently deleted (n)" button: there while the bin has triggers in it."""
         n = len(self._bin())
-        self.btn_bin.setText(f"Recently deleted ({n})")
+        # just the bin and how many: a compact button that never makes the bar wrap
+        self.btn_bin.setText(str(n))
+        what = f"Recently deleted ({n})"
+        self.btn_bin.setToolTip(f"{what}…\nTriggers you deleted: bring them back, pictures "
+                                "and all")
+        self.btn_bin.setAccessibleName(what)
         self.btn_bin.setVisible(n > 0)
 
     def _picture_used(self, path: str, but: dict | None = None) -> bool:

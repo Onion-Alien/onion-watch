@@ -122,46 +122,134 @@ def icon_label(name: str, tip: str = "", color: str = "muted") -> QLabel:
     return lbl
 
 
+def _cross_icon(colour: str, size: int = 10):
+    """A thin ✕ for a close button, painted so no font can turn it into a box."""
+    from PySide6.QtCore import QPointF
+    from PySide6.QtGui import QColor, QIcon, QPainter, QPen, QPixmap
+    scale = 2
+    pm = QPixmap(size * scale, size * scale)
+    pm.fill(Qt.transparent)
+    p = QPainter(pm)
+    p.setRenderHint(QPainter.Antialiasing)
+    p.setPen(QPen(QColor(colour), 1.6 * scale, Qt.SolidLine, Qt.RoundCap))
+    a, b = 1.5 * scale, size * scale - 1.5 * scale
+    p.drawLine(QPointF(a, a), QPointF(b, b))
+    p.drawLine(QPointF(a, b), QPointF(b, a))
+    p.end()
+    pm.setDevicePixelRatio(scale)
+    return QIcon(pm)
+
+
 class UndoBar(QFrame):
     """"Deleted X · Undo" for a few seconds after something is thrown away.
     show_for(text, undo, done): Undo calls `undo`; the bar timing out, being
-    dismissed, or showing something else calls `done` (if given) instead."""
-    SECONDS = 10
+    dismissed, or showing something else calls `done` (if given) instead.
 
-    def __init__(self, tip: str = "Put it back, exactly as it was"):
-        super().__init__()
+    Given a `parent` it's a toast: it floats over the top of the parent, centred,
+    and is never part of a layout, so showing it moves nothing. Without one it's a
+    plain row for a layout."""
+    SECONDS = 10
+    MARGIN = 8          # from the parent's edges, as a toast
+    MAX_TEXT = 420      # the longest the message gets before it's cut short (…)
+
+    def __init__(self, tip: str = "Put it back, exactly as it was", parent=None):
+        super().__init__(parent)
         from PySide6.QtCore import QTimer
-        from PySide6.QtWidgets import QPushButton
-        self.setObjectName("chip")
+        from PySide6.QtGui import QColor
+        from PySide6.QtWidgets import QGraphicsDropShadowEffect, QPushButton
+        self.setObjectName("undotoast")
+        self._tip, self._text = tip, ""
         h = QHBoxLayout(self)
-        h.setContentsMargins(10, 4, 4, 4)
+        h.setContentsMargins(12, 5, 5, 5)
+        h.setSpacing(8)
         self.label = QLabel()
         self.label.setTextFormat(Qt.PlainText)   # names are user / web text
         h.addWidget(self.label, 1)
         self.btn_undo = QPushButton("Undo")
-        self.btn_undo.setObjectName("primary")
+        self.btn_undo.setObjectName("undobtn")
         self.btn_undo.setToolTip(tip)
+        self.btn_undo.setCursor(Qt.PointingHandCursor)
         self.btn_undo.clicked.connect(self.undo)
         h.addWidget(self.btn_undo)
-        dismiss = QPushButton()
-        dismiss.setObjectName("chipstop")
-        dismiss.setToolTip("Dismiss")
-        dismiss.setFixedSize(24, 24)
-        icons.set_icon(dismiss, "stop", size=10)
-        dismiss.clicked.connect(self.finish)
-        h.addWidget(dismiss)
+        self.btn_close = QPushButton()            # a painted cross (restyle)
+        self.btn_close.setObjectName("undoclose")
+        self.btn_close.setToolTip("Dismiss")
+        self.btn_close.setFixedSize(22, 22)
+        self.btn_close.setIconSize(QSize(10, 10))
+        self.btn_close.setCursor(Qt.PointingHandCursor)
+        self.btn_close.clicked.connect(self.finish)
+        h.addWidget(self.btn_close)
         self._timer = QTimer(self)
         self._timer.setSingleShot(True)
         self._timer.timeout.connect(self.finish)
         self._undo = self._done = None
+        self.floating = parent is not None
+        if self.floating:
+            shadow = QGraphicsDropShadowEffect(self)
+            shadow.setBlurRadius(18)
+            shadow.setOffset(0, 3)
+            shadow.setColor(QColor(0, 0, 0, 110))
+            self.setGraphicsEffect(shadow)
+            parent.installEventFilter(self)      # follow the parent's size
+        self.restyle()
         self.hide()
 
-    def show_for(self, text: str, undo, done=None):
+    def restyle(self):
+        """Colour it from the current theme (call again when the theme changes). It
+        has its own sheet, so a host's rules for other buttons can't wash Undo out."""
+        from onionwatch import theme
+        base = theme.THEMES[theme.DEFAULT]
+        t = {k: theme.T.get(k, base[k]) for k in (
+            "card_hi", "border_hi", "text_hi", "text", "muted", "accent", "accent_hi",
+            "on_accent", "btn_hover")}
+        self.setStyleSheet(f"""
+QFrame#undotoast {{ background:{t['card_hi']}; border:1px solid {t['border_hi']};
+    border-radius:10px; }}
+QFrame#undotoast QLabel {{ background:transparent; border:none; color:{t['text_hi']}; }}
+QFrame#undotoast QPushButton#undobtn {{ background:{t['accent']}; color:{t['on_accent']};
+    border:none; border-radius:6px; padding:3px 14px; font-weight:600; }}
+QFrame#undotoast QPushButton#undobtn:hover {{ background:{t['accent_hi']}; }}
+QFrame#undotoast QPushButton#undoclose {{ background:transparent; color:{t['muted']};
+    border:none; border-radius:11px; padding:0; font-size:9pt; }}
+QFrame#undotoast QPushButton#undoclose:hover {{ background:{t['btn_hover']};
+    color:{t['text']}; }}
+""")
+        self.btn_close.setIcon(_cross_icon(t["muted"]))
+
+    def show_for(self, text: str, undo, done=None, tip: str | None = None):
         self.finish()
-        self.label.setText(self.label.fontMetrics().elidedText(text, Qt.ElideRight, 320))
+        self._text = text
+        self.btn_undo.setToolTip(tip or self._tip)
+        self.label.setToolTip(text)
         self._undo, self._done = undo, done
         self.show()
+        self._place()
         self._timer.start(self.SECONDS * 1000)
+
+    def _place(self):
+        """Cut the message to fit and, as a toast, centre it along the top."""
+        p = self.parentWidget() if self.floating else None
+        room = self.MAX_TEXT
+        if p is not None:
+            lay = self.layout()
+            m = lay.contentsMargins()
+            fixed = (m.left() + m.right() + 2 * lay.spacing()
+                     + self.btn_undo.sizeHint().width() + self.btn_close.width() + 2)
+            room = max(40, min(room, p.width() - 2 * self.MARGIN - fixed))
+        self.label.setText(self.label.fontMetrics().elidedText(self._text, Qt.ElideRight,
+                                                               room))
+        if p is None:
+            return
+        hint = self.sizeHint()
+        w = max(1, min(hint.width(), p.width() - 2 * self.MARGIN))
+        self.setGeometry((p.width() - w) // 2, self.MARGIN, w, hint.height())
+        self.raise_()
+
+    def eventFilter(self, obj, ev):
+        from PySide6.QtCore import QEvent
+        if obj is self.parentWidget() and ev.type() == QEvent.Resize and not self.isHidden():
+            self._place()
+        return False
 
     def undo(self):
         cb, self._undo, self._done = self._undo, None, None

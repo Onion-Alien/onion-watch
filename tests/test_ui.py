@@ -271,6 +271,47 @@ def test_a_deleted_trigger_can_be_undone_or_brought_back_later(tab, monkeypatch)
     assert not pic.exists() and tab.deleted() == []
 
 
+@pytest.fixture
+def styled(qapp):
+    """The app's real stylesheet (padding decides when the bottom bar wraps)."""
+    from onionwatch import theme
+    old = qapp.styleSheet()
+    theme.apply(qapp, "Dark")
+    yield
+    qapp.setStyleSheet(old)
+    theme.set_current(theme.DEFAULT)
+
+
+def test_the_undo_notice_floats_without_moving_the_list(tab, qapp, styled):
+    tab._new(as_qimage(banner()), "First")
+    tab._new(as_qimage(scene(3)[:40, :60]), "Second")
+    tab.resize(1440, 800)                     # the width the user had
+    tab.show()
+    qapp.processEvents()
+    tools = tab.btn_watch.parentWidget()      # the bottom bar
+    top, tall, bar_h = tab.scroll.y(), tab.scroll.height(), tools.height()
+    assert tab.btn_bin.isHidden()
+    first, second = tab.triggers
+    tab._remove(tab.rows[first.id])
+    qapp.processEvents()
+    bar = tab.undo_bar
+    assert not bar.isHidden() and "First" in bar.label.text()
+    assert tab.layout().indexOf(bar) == -1    # a toast over the tab, not a row in it
+    assert tab.scroll.y() == top              # the list isn't pushed down
+    assert not tab.btn_bin.isHidden()         # ...or squeezed by the bin wrapping the bar
+    assert tools.height() == bar_h and tab.scroll.height() == tall
+    assert bar.parentWidget() is tab and tab.rect().contains(bar.geometry())
+    assert bar.btn_undo.objectName() == "undobtn" and not bar.btn_close.icon().isNull()
+    tab.resize(260, 600)                      # narrow: it shrinks with the tab
+    qapp.processEvents()
+    assert tab.rect().contains(bar.geometry()) and bar.width() <= tab.width() - 2 * bar.MARGIN
+    bar.btn_undo.click()
+    assert bar.isHidden() and [t.id for t in tab.triggers] == [first.id, second.id]
+    tab._remove(tab.rows[first.id])
+    bar.btn_close.click()                     # dismissed: still in Recently deleted
+    assert bar.isHidden() and [name for _i, name, _w in tab.deleted()] == ["First"]
+
+
 def test_old_deleted_triggers_are_let_go(tab):
     import time
     from pathlib import Path
@@ -313,7 +354,9 @@ def test_the_recently_deleted_button_shows_while_the_bin_has_triggers(tab):
     assert tab.btn_bin.isHidden()
     tab._new(as_qimage(banner()), "Gone")
     tab._remove(tab.rows[tab.triggers[0].id])
-    assert not tab.btn_bin.isHidden() and tab.btn_bin.text() == "Recently deleted (1)"
+    assert not tab.btn_bin.isHidden() and tab.btn_bin.text() == "1"
+    assert tab.btn_bin.accessibleName() == "Recently deleted (1)"
+    assert tab.btn_bin.toolTip().startswith("Recently deleted (1)")
     tab.restore_deleted(tab.deleted()[0][0])
     assert tab.btn_bin.isHidden()
 
