@@ -1386,7 +1386,9 @@ class TriggersTab(QWidget):
         """Play the trigger's sound(s) the way its Play setting says: one at random
         (a shuffle bag: each once before any repeats, never twice running), the next
         in turn, or all of them; ringing (over and over) when it's set to, except for a
-        test. Sounds no longer in the library are skipped. Returns what played."""
+        test. Sounds no longer in the library are skipped; when none of the chosen
+        ones will play (a file gone or undecodable), the host's default sound
+        does. Returns what played."""
         pool = self._playable(t)
         if not pool:
             return []
@@ -1408,6 +1410,14 @@ class TriggersTab(QWidget):
             self.host.stop_tag(t.id)        # one ring per trigger, not a pile of them
         played = [sid for sid in chosen
                   if self.host.play(sid, loop=ring, tag=t.id)]
+        fallback = self.host.default_sound
+        if not played and fallback and fallback not in chosen:
+            # its sound file is gone or won't decode: an alarm that makes no sound is
+            # worse than the wrong one, so the default alert plays instead
+            log.warning("trigger %r: its sound couldn't be played, playing the default "
+                        "alert instead", t.name)
+            if self.host.play(fallback, loop=ring, tag=t.id):
+                played = [fallback]
         if ring and played:
             self.ringing_changed.emit()
         return played
@@ -1447,6 +1457,11 @@ class TriggersTab(QWidget):
         if src in w.minimized:
             return (f"{name} is minimized, so it can't be seen — restore it (covering it "
                     "with other windows is fine)"), "warn"
+        if src in w.unseen:
+            if isinstance(src, WindowRef):
+                return (f"{name} can't be captured: nothing comes out of it. Pick its "
+                        "screen under Look in instead."), "warn"
+            return f"Screen {src + 1} gives no picture — waiting for one", "warn"
         if src in w.blacked:
             if isinstance(src, WindowRef):
                 return (f"{name} comes out black. Some games can only be seen on the "

@@ -355,6 +355,7 @@ class WindowGrabber:
         self.hwnd = info.hwnd
         self.w, self.h = w, h
         self.minimized = False
+        self.failures = 0           # PrintWindow calls in a row that failed
         self.last: np.ndarray | None = None
         self._bm: _Bitmap | None = None
         self.source = (0, 0)
@@ -408,7 +409,9 @@ class WindowGrabber:
             self._layout()
             return None
         if not u.PrintWindow(self.hwnd, self._bm.dc, PW_CLIENTONLY | PW_RENDERFULLCONTENT):
+            self.failures += 1      # the watcher says so if it keeps happening
             return self.last
+        self.failures = 0
         sample = pick(self._bm.pixels, self.ys, self.xs)
         self.last = gray_2x(sample) if self.factor == 2 else to_gray(sample)
         self.color = frame_rgb(sample, factor=self.factor) if self.want_color else None

@@ -397,6 +397,49 @@ def test_watcher_waits_for_a_screen_that_is_gone_for_a_moment(monkeypatch):
     assert not w.error
 
 
+def test_a_gdi_fallback_tries_desktop_duplication_again(monkeypatch):
+    """A lock screen longer than GIVE_UP_S leaves the capture on GDI (duplication
+    can't start while it's up), which sees black in a fullscreen game: duplication
+    is tried again every DUP_RETRY_S, and taken once it works."""
+    monkeypatch.setattr(sw, "monitors", lambda: [Monitor(0, 0, W, H, True)])
+    monkeypatch.setattr(sw, "WORK_WIDTH", W)
+    monkeypatch.setattr(sw, "DUP_RETRY_S", 0.05)
+    locked = [True]
+    gdi: list = []
+
+    class Gdi(FakeGrabber):
+        def __init__(self, mon, w, h):
+            super().__init__(mon, w, h)
+            self.w, self.h = w, h
+            gdi.append(self)
+
+        def grab(self):
+            return np.zeros((H, W), np.float32)      # a fullscreen game: black to GDI
+
+    class Dup(FakeGrabber):
+        def __init__(self, mon, w, h):
+            if locked[0]:
+                raise OSError("DuplicateOutput failed (0x887A0004)")
+            super().__init__(mon, w, h)
+            self.w, self.h = w, h
+
+    monkeypatch.setattr(sw, "Grabber", Gdi)
+    monkeypatch.setattr(sw, "DupGrabber", Dup)
+    FakeGrabber.frames, FakeGrabber.made = [with_banner(scene())], []
+    fired = []
+    w = sw.Watcher(fired.append)
+    w.interval = 0.001
+    w.set_items([sw.Watched("t1", pics(banner()), 0.8, 0.0)])
+    w.start()
+    try:
+        assert run_until(lambda: w.black)                # stuck on GDI, seeing black
+        locked[0] = False                                # unlocked: duplication works
+        assert run_until(lambda: fired)
+    finally:
+        w.stop()
+    assert len(gdi) == 1 and gdi[0].closed and not w.error
+
+
 def test_stop_then_start_during_a_slow_check_leaves_one_thread(monkeypatch):
     """stop() gives up waiting after 2 s; the old thread must still end on its own
     rather than carry on beside the new one."""

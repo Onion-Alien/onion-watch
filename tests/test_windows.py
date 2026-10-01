@@ -264,3 +264,19 @@ def test_a_resized_window_has_its_pictures_scaled_again(fake):
         assert run_until(lambda: fired == ["t"])
     finally:
         w.stop()
+
+
+def test_a_window_that_never_comes_out_is_flagged(fake, monkeypatch):
+    """PrintWindow failing every time gives no picture at all: after a while the
+    window is listed in `unseen` (its cards say so) instead of quietly "Watching"."""
+    monkeypatch.setattr(sw, "UNSEEN_S", 0.05)
+    fake.open[GAME1] = None                        # open, but nothing comes out
+    w = watcher(fake, [])
+    w.set_items([Watched("t", [(banner(), None)], 0.8, 0.0, source=GAME1)])
+    w.start()
+    try:
+        assert run_until(lambda: GAME1 in w.unseen)
+        fake.open[GAME1] = scene(1)                # ...and now it does
+        assert run_until(lambda: GAME1 not in w.unseen and "t" in w.scores)
+    finally:
+        w.stop()

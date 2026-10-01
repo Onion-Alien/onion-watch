@@ -112,6 +112,9 @@ DEFAULT_INTERVAL_MS = 100
 RETRY_S = 1.0           # how often a lost capture is tried again
 GIVE_UP_S = 20.0        # ...and how long before the whole capture is set up afresh
 WINDOW_RETRY_S = 2.0    # how often a window that isn't open (or was closed) is looked for
+DUP_RETRY_S = 30.0     # how often a screen on the GDI fallback tries duplication again
+UNSEEN_S = 5.0         # a capture giving nothing this long (and UNSEEN_GRABS grabs) is said
+UNSEEN_GRABS = 3       # ...to be one that can't be seen (`Watcher.unseen`)
 MAX_SCREENS = 64        # a trigger's saved screen index beyond this is nonsense
 MAX_PICTURES = 100      # pictures one trigger can look for (extras in a config are dropped)
 MAX_SOUNDS = 100        # ...and sounds it can play
@@ -1034,6 +1037,7 @@ class Grabber:
     SRCCOPY = 0x00CC0020
     COLORONCOLOR = 3
     lost = False
+    fallback = False        # opened because duplication wasn't there (open_grabber)
     want_color = False      # also keep `color`, the same picture in RGB (frame_rgb)
     color: np.ndarray | None = None
     raw: tuple | None = None    # the last grab's pixels as sampled: (pixels, format, factor)
@@ -1478,7 +1482,9 @@ def open_grabber(src: Monitor, w: int, h: int, tries: int = 1):
         if i + 1 < tries:
             time.sleep(RETRY_S)
     log.info("desktop duplication unavailable (%s): capturing with GDI", err)
-    return Grabber(src, w, h)
+    g = Grabber(src, w, h)
+    g.fallback = True       # the watcher tries duplication again now and then
+    return g
 
 
 # --------------------------------------------------------------------------- watcher
@@ -1589,6 +1595,9 @@ class _Capture:
         self.black = False
         self.lost = False
         self.minimized = False      # a window that's minimized (nothing to see)
+        self.next_dup = 0.0         # on the GDI fallback: when to try duplication again
+        self.misses = 0             # grabs in a row that gave nothing to look at
+        self.miss_since = 0.0       # ...since when
 
     @property
     def is_window(self) -> bool:
@@ -1651,6 +1660,9 @@ class Watcher:
         self.failed: dict = {}
         self.minimized: frozenset = frozenset()   # windows that are minimized
         self.blacked: frozenset = frozenset()     # sources that only come out black
+        # sources that have given nothing to look at for UNSEEN_S (a window
+        # PrintWindow can't copy): watching them can't set anything off
+        self.unseen: frozenset = frozenset()
         self.where: dict[str, tuple] = {}         # trigger id -> the places it's looked in
         self.detail: dict[str, dict] = {}         # trigger id -> {place: its score there}
 
@@ -1703,7 +1715,7 @@ class Watcher:
         self.scores = {}
         self.detail = {}
         self.fell_back, self.failed = frozenset(), {}
-        self.minimized = self.blacked = frozenset()
+        self.minimized = self.blacked = self.unseen = frozenset()
         self.where = {}
         self.black = self.lost = False
 
@@ -1778,6 +1790,8 @@ class Watcher:
                 for k, cap in caps.items():
                     if cap.grab is None and now >= cap.next_try:
                         self._open(cap, groups[k])
+                    elif getattr(cap.grab, "fallback", False) and now >= cap.next_dup:
+                        self._retry_dup(cap, groups[k])
                 live = [c for c in caps.values() if c.grab is not None]
                 self.failed = {c.source: c.error for c in caps.values()
                                if c.grab is None and c.error
@@ -1802,6 +1816,9 @@ class Watcher:
                 self.blacked = frozenset(c.source for c in live if c.black)
                 self.black = bool(self.blacked)
                 self.minimized = frozenset(c.source for c in live if c.minimized)
+                now = time.monotonic()
+                self.unseen = frozenset(c.source for c in live if c.misses >= UNSEEN_GRABS
+                                        and now - c.miss_since >= UNSEEN_S)
                 if not stop.is_set():           # stop() has cleared them already
                     self.detail, self.scores = self._gather(items, caps)
                 spent = time.perf_counter() - t0
@@ -1902,6 +1919,24 @@ class Watcher:
             return False
         cap.reopen_since, cap.error = 0.0, ""
         cap.opened, cap.lost = True, False
+        cap.next_dup, cap.misses = now + DUP_RETRY_S, 0
+        cap.fitted, cap.scaled = self._fit(cap.grab, cap.mon, items, cap.scaled,
+                                              cap.fitted)
+        return True
+
+    def _retry_dup(self, cap: _Capture, items: list[Watched]) -> bool:
+        """A screen on the GDI fallback tries Desktop Duplication again (every
+        DUP_RETRY_S): a lock or UAC screen up for longer than GIVE_UP_S leaves the
+        capture on GDI, which sees black in a fullscreen game. Taken once it works."""
+        cap.next_dup = time.monotonic() + DUP_RETRY_S
+        try:
+            dup = DupGrabber(cap.mon, cap.grab.w, cap.grab.h)
+        except (OSError, AttributeError):
+            return False
+        log.info("desktop duplication works again: screen %d is captured with it",
+                 cap.source + 1)
+        cap.grab.close()
+        cap.grab, cap.misses = dup, 0
         cap.fitted, cap.scaled = self._fit(cap.grab, cap.mon, items, cap.scaled,
                                               cap.fitted)
         return True
@@ -1924,10 +1959,20 @@ class Watcher:
             cap.error = str(e) or type(e).__name__
             cap.scores = {}
             cap.refs = {}
+            cap.misses = 0
             return
         cap.failing = False
         cap.lost = bool(getattr(cap.grab, "lost", False))
         cap.minimized = bool(getattr(cap.grab, "minimized", False))
+        if ((gray is None and not cap.lost and not cap.minimized)
+                or getattr(cap.grab, "failures", 0)):
+            # nothing to look at (PrintWindow can't copy the window, say): counted,
+            # so a capture that never gives anything is said (`unseen`)
+            if not cap.misses:
+                cap.miss_since = time.monotonic()
+            cap.misses += 1
+        else:
+            cap.misses = 0
         if getattr(cap.grab, "source", cap.fitted) != cap.fitted:
             # the frames changed size (a game switched display mode, a window was
             # resized): scale the pictures for what the capture really sees

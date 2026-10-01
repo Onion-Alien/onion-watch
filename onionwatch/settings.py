@@ -20,6 +20,20 @@ APP_DIR = Path(os.environ.get("ONIONWATCH_HOME")
 CONFIG = "config.json"
 
 
+def _keep_aside(path: Path):
+    """A config.json that can't be used is renamed to config.json.bad (replacing an
+    older one) before the defaults are saved over it, so the settings in it can
+    still be got back by hand."""
+    bad = path.with_name(path.name + ".bad")
+    try:
+        os.replace(path, bad)
+    except OSError:
+        log.warning("%s is damaged and couldn't be kept aside: starting from defaults",
+                    path.name, exc_info=True)
+        return
+    log.warning("%s is damaged: kept as %s, starting from defaults", path.name, bad.name)
+
+
 @dataclass
 class Config:
     theme: str = "Hoot"
@@ -40,11 +54,15 @@ class Config:
             raw = json.loads(path.read_text(encoding="utf-8"))
         except FileNotFoundError:
             return cls()
-        except (OSError, ValueError):
+        except ValueError:          # damaged: not JSON, or not UTF-8
+            _keep_aside(path)
+            return cls()
+        except OSError:             # locked or unreadable for now: left where it is
             log.warning("config.json couldn't be read: starting from defaults", exc_info=True)
             return cls()
         cfg = cls()
         if not isinstance(raw, dict):
+            _keep_aside(path)
             return cfg
         for f in fields(cls):
             if f.name not in raw:

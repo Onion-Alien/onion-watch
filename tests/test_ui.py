@@ -171,6 +171,57 @@ def test_a_card_says_when_its_window_is_not_open(tab, qapp, monkeypatch):
     assert not row.state.text().startswith("Waiting")
 
 
+def test_a_card_says_when_its_window_never_comes_out(tab, qapp, monkeypatch):
+    """A window PrintWindow can't copy gives nothing, ever: the card says so instead
+    of showing "Watching" while the trigger can never go off."""
+    ref = WindowRef("game.exe", "Game", 0)
+
+    class Blank:
+        def __init__(self, ref, w, h):
+            self.w, self.h, self.source, self.minimized = w, h, (W, H), False
+
+        def grab(self):
+            return None
+
+        def resize(self, w, h):
+            self.w, self.h = w, h
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(windows, "WindowGrabber", Blank)
+    monkeypatch.setattr(sw, "UNSEEN_S", 0.05)
+    tab._new(as_qimage(banner()), "Rare")
+    row = next(iter(tab.rows.values()))
+    row.t.window = ref
+    tab._store()
+    tab.watcher.interval = 0.01
+    tab.set_watching(True)
+    assert process_events(qapp, lambda: row.state.text().startswith("Game can't be captured"))
+    tab.set_watching(False)
+    assert not row.state.text().startswith("Game can't")
+
+
+def test_a_sound_that_cant_be_played_falls_back_to_the_default(tab, monkeypatch, caplog):
+    """A trigger's sound file that's gone or won't decode still rings the alarm: the
+    default alert plays instead, and the log says why."""
+    tab._new(as_qimage(banner()), "Rare")
+    t = tab.triggers[0]
+    t.sounds = ["broken"]
+    monkeypatch.setattr(tab, "_playable", lambda t: list(t.sounds))
+    played = []
+
+    def play(sid, loop=False, tag=""):
+        played.append(sid)
+        return sid != "broken"
+
+    monkeypatch.setattr(tab.host, "play", play)
+    with caplog.at_level("WARNING"):
+        assert tab._play_trigger(t) == [DEFAULT_SOUND]
+    assert played == ["broken", DEFAULT_SOUND]
+    assert "couldn't be played" in caplog.text
+
+
 def test_a_picture_is_cut_straight_out_of_a_window(tab, monkeypatch):
     ref = WindowRef("game.exe", "Game", 0)
     px = np.zeros((H, W, 4), np.uint8)
