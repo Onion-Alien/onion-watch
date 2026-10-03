@@ -16,8 +16,8 @@ moment the thing appears.
 **[⬇ Download Onion Watch for Windows](https://github.com/Onion-Alien/onion-watch/releases/latest/download/OnionWatchSetup.exe)**
 (free, Windows 10 and 11, no account) · [website](https://onion-alien.github.io/onion-watch/) ·
 [all versions](https://github.com/Onion-Alien/onion-watch/releases) ·
-[VirusTotal scan of 0.5.3](https://www.virustotal.com/gui/file/684c8f1735bc9104c36a7f102286557cda2a875b012f3d13c4e26bd9fb374670):
-68 of 68 engines clean
+[VirusTotal scan of 0.5.4](https://www.virustotal.com/gui/file/d3bc19fe82dbbd7ebf51227ea3774f16dc19057f81b4542945f5bae7725e2aff):
+65 of 65 engines clean
 
 Windows or your browser may warn you about the download, because the installer isn't
 code-signed. Click **More info → Run anyway**. It installs for your user only, without
