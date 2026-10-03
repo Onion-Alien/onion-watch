@@ -1318,7 +1318,15 @@ class TriggersTab(QWidget):
         self.warn = hint_label("")
         theme.set_tone(self.warn, "warn")
         self.warn.setVisible(False)
-        hv.addWidget(self.warn)
+        tab_info = getattr(host, "tab_info", None)
+        if callable(tab_info):
+            # the host shows the explanation its own way (Onion Board: an ⓘ by its
+            # tabs), so no banner here: only the warning, when there is one
+            tab_info(hv.itemAt(0).widget().text(), self.hint.text())
+            v.addWidget(self.warn)
+            head.hide()
+        else:
+            hv.addWidget(self.warn)
         v.addWidget(head)
         # "Deleted X · Undo" floats over the top of the tab: not in the layout, so
         # showing it never pushes the list down
