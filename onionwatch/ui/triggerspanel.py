@@ -26,8 +26,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
-from PySide6.QtCore import QSize, Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QIcon, QImage, QPixmap
+from PySide6.QtCore import QEvent, QSize, Qt, QTimer, Signal
+from PySide6.QtGui import QColor, QFontMetrics, QIcon, QImage, QPixmap
 from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDoubleSpinBox, QFileDialog,
                                QFrame, QHBoxLayout, QLabel, QLineEdit, QMenu, QMessageBox,
                                QPushButton, QScrollArea, QSizePolicy, QSpinBox, QVBoxLayout,
@@ -544,8 +544,8 @@ class TriggerRow(QFrame):
         self._sounds: list[tuple[str, str]] = []   # the sounds as last given
         self._narrow = False            # too narrow for the header's thumbnail
         v = QVBoxLayout(self)
-        v.setContentsMargins(16, 14, 16, 14)
-        v.setSpacing(12)
+        v.setContentsMargins(14, 12, 14, 12)
+        v.setSpacing(10)
 
         # the header, always shown: its pictures, name, what it does (or what's wrong),
         # the live match, on / off, and open / close. Click it to open the rest
@@ -581,7 +581,15 @@ class TriggerRow(QFrame):
         self.name.setCursorPosition(0)          # a long name shows its start, not its end
         self.name.editingFinished.connect(self._on_name)
         self.name.editingFinished.connect(lambda: self.name.setCursorPosition(0))
-        names.addWidget(self.name)
+        # as wide as the name, not the whole card: the hover / editing box hugs it
+        self.name.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)   # up to that
+        self.name.textChanged.connect(self._fit_name)
+        self._fit_name()
+        line = QHBoxLayout()            # the name takes what it needs, the rest is empty
+        line.setSpacing(0)
+        line.addWidget(self.name, 100)
+        line.addStretch(1)
+        names.addLayout(line)
         self.state = QLabel()
         self.state.setObjectName("hint")
         self.state.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
@@ -611,12 +619,13 @@ class TriggerRow(QFrame):
         self.body.setSizePolicy(sp)
         bv = QVBoxLayout(self.body)
         bv.setContentsMargins(0, 0, 0, 0)
-        bv.setSpacing(10)
+        bv.setSpacing(6)
         v.addWidget(self.body)
 
-        # WATCH FOR: what sets it off, where, in which part, and its pictures
+        # WATCH FOR: what sets it off, where, in which part, and its pictures. One
+        # line under the header; the sections below it are set apart by space alone
         bv.addWidget(divider())
-        bv.addSpacing(2)
+        bv.addSpacing(4)
         bv.addWidget(section_title("triggers", "Watch for"))
         watch_col = indented(bv, 10)
         watch = FlowBox(gap=10)
@@ -705,9 +714,7 @@ class TriggerRow(QFrame):
         # THEN: "Play", the chips (one per sound), "+ Add sound…", the Play mode, "Ring"
         # and until, the test button: a wrapping row, rebuilt by _layout_sounds when the
         # chips change
-        bv.addSpacing(6)
-        bv.addWidget(divider())
-        bv.addSpacing(2)
+        bv.addSpacing(8)
         bv.addWidget(section_title("bell", "Then"))
         then_col = indented(bv)
         self.sounds_box = FlowBox(gap=10)
@@ -749,9 +756,7 @@ class TriggerRow(QFrame):
         then_col.addWidget(self.sounds_box)
 
         # FINE-TUNE: the numbers, folded away behind a line saying what they are
-        bv.addSpacing(6)
-        bv.addWidget(divider())
-        bv.addSpacing(2)
+        bv.addSpacing(8)
         tune = QHBoxLayout()
         tune.setSpacing(12)
         self.btn_tune = QPushButton("FINE-TUNE")
@@ -835,6 +840,14 @@ class TriggerRow(QFrame):
         self.btn_open.setChecked(open_)
         self.set_open(open_)
 
+    def _fit_name(self, _text: str = ""):
+        """The name box as wide as its text (or the hint while it's empty), plus room
+        to type, never wider than the card lets it be."""
+        self.name.ensurePolished()      # its style sheet's 11 pt bold, not the default
+        fm = QFontMetrics(self.name.font())
+        text = self.name.text() or self.name.placeholderText()
+        self.name.setMaximumWidth(fm.horizontalAdvance(text) + 32)
+
     # ------------------------------------------------------------------ open / closed
     @property
     def is_open(self) -> bool:
@@ -851,6 +864,15 @@ class TriggerRow(QFrame):
         self.btn_open.setToolTip("Close this trigger" if on else "Open this trigger to change it")
 
     NARROW = 380        # px: below this the header's thumbnail goes, for the rest to fit
+
+    def changeEvent(self, ev):
+        super().changeEvent(ev)
+        if ev.type() in (QEvent.StyleChange, QEvent.FontChange):   # a theme was applied
+            self._fit_name()
+
+    def showEvent(self, ev):
+        super().showEvent(ev)
+        self._fit_name()          # polished by now: the host's fonts are in
 
     def resizeEvent(self, ev):
         super().resizeEvent(ev)
@@ -1373,24 +1395,32 @@ class TriggersTab(QWidget):
         self.btn_cut.clicked.connect(self.add_from_cut)
         self.hoot.clicked.connect(lambda: self.btn_cut.setFocus(Qt.OtherFocusReason))
         h.addWidget(self.btn_cut)
-        self.btn_add = QPushButton("Add picture…")
-        self.btn_add.setToolTip("A new trigger from a picture file (PNG, JPG…)")
+        # the other ways to make a trigger, in one menu next to it: a picture file,
+        # the copied picture, or none at all (a part of the window to watch)
+        self.btn_add = QPushButton("Add")
+        self.btn_add.setToolTip("A new trigger from a picture file, from the picture you "
+                                "copied, or one without a picture")
         icons.set_icon(self.btn_add, "plus")
-        self.btn_add.clicked.connect(self.add_from_file)
+        add_menu = QMenu(self.btn_add)
+        self.act_add_file = add_menu.addAction(icons.icon("plus"), "From a picture file…",
+                                               self.add_from_file)
+        self.act_paste = add_menu.addAction(icons.icon("image"), "Paste the copied picture",
+                                            self.add_from_clipboard)
+        self.act_paste.setToolTip("Win+Shift+S cuts a piece of the screen to paste here")
+        add_menu.addAction("Without a picture…", self.add_area_trigger)
+        add_menu.setToolTipsVisible(True)
+
+        def add_about_to_show():
+            self.act_paste.setEnabled(not QApplication.clipboard().image().isNull())
+        add_menu.aboutToShow.connect(add_about_to_show)
+        self.btn_add.setMenu(add_menu)
         h.addWidget(self.btn_add)
-        self.btn_paste = QPushButton("Paste")
-        self.btn_paste.setToolTip("A new trigger from the picture you copied (Win+Shift+S "
-                                  "cuts a piece of the screen)")
-        icons.set_icon(self.btn_paste, "image")
-        self.btn_paste.clicked.connect(self.add_from_clipboard)
-        h.addWidget(self.btn_paste)
         self.btn_more = QPushButton("More")
-        self.btn_more.setToolTip("What went off lately, a trigger without a picture, "
-                                 "saving or loading triggers, and recently deleted ones")
+        self.btn_more.setToolTip("What went off lately, saving or loading triggers, and "
+                                 "recently deleted ones")
         icons.set_icon(self.btn_more, "history")
         menu = QMenu(self.btn_more)
         menu.addAction("What went off…", self.show_history)
-        menu.addAction("New trigger without a picture…", self.add_area_trigger)
         menu.addSeparator()
         self.act_export = menu.addAction("Save triggers to a file…", self.export_triggers)
         menu.addAction("Load triggers from a file…", self.import_triggers)
@@ -1405,24 +1435,13 @@ class TriggersTab(QWidget):
         menu.aboutToShow.connect(about_to_show)
         self.btn_more.setMenu(menu)
         h.addWidget(self.btn_more)
-        if not callable(getattr(host, "tab_info", None)):
-            self.btn_info = QPushButton("ⓘ")
-            self.btn_info.setObjectName("small")
-            self.btn_info.setCursor(Qt.PointingHandCursor)
-            self.btn_info.setToolTip("What is this?")
-            self.btn_info.clicked.connect(
-                lambda: QMessageBox.information(self, *self.info))
-            h.addWidget(self.btn_info)
-        self.btn_bin = QPushButton()     # the bin's icon and count (_label_bin)
-        icons.set_icon(self.btn_bin, "trash")
-        self.btn_bin.clicked.connect(self.show_deleted)
-        h.addWidget(self.btn_bin)
         self.cb_where = WideCombo(min_width=140)
+        self.cb_where.setMaximumWidth(190)   # a long window title doesn't stretch the bar
         self.cb_where.setToolTip("Where triggers that say “Same as below” look: your game's "
                                  "window, or a whole screen")
         self.cb_where.activated.connect(self._on_where)
         no_wheel(self.cb_where)
-        h.addWidget(labelled("Look in", self.cb_where))
+        look = labelled("Look in", self.cb_where)
         # six characters ("100 ms") when there's room, just enough for them when the
         # window is small
         self.cb_interval = narrow(WideCombo(min_width=110), 6)
@@ -1437,9 +1456,26 @@ class TriggersTab(QWidget):
                                     "than this.")
         self.cb_interval.currentIndexChanged.connect(self._on_interval)
         no_wheel(self.cb_interval)
-        every = labelled("Check every", self.cb_interval)
-        self.lbl_interval = every.layout().itemAt(0).widget()
-        h.addWidget(every)
+        # "Look in [game] every [100 ms]": one group, so a narrow window wraps it onto
+        # a line of its own rather than leaving "every" stranded
+        self.lbl_interval = QLabel("every")
+        look.layout().addSpacing(4)
+        look.layout().addWidget(self.lbl_interval)
+        look.layout().addWidget(self.cb_interval)
+        h.addWidget(look)
+        # last: the bin (only while it holds something) and the ⓘ
+        if not callable(getattr(host, "tab_info", None)):
+            self.btn_info = QPushButton("ⓘ")
+            self.btn_info.setObjectName("small")
+            self.btn_info.setCursor(Qt.PointingHandCursor)
+            self.btn_info.setToolTip("What is this?")
+            self.btn_info.clicked.connect(
+                lambda: QMessageBox.information(self, *self.info))
+            h.addWidget(self.btn_info)
+        self.btn_bin = QPushButton()     # the bin's icon and count (_label_bin)
+        icons.set_icon(self.btn_bin, "trash")
+        self.btn_bin.clicked.connect(self.show_deleted)
+        h.addWidget(self.btn_bin)
         v.addWidget(f)
 
         ok, why = screenwatch.supported()
@@ -1556,11 +1592,11 @@ class TriggersTab(QWidget):
 
     def fit_parts(self) -> dict[str, QWidget]:
         """What a host may hide, or show as an icon only, when its window gets small:
-        "hint" (the explanation at the top), the buttons "watch", "cut", "add" and
-        "paste" (icon only), "interval_label" ("Check every")."""
+        "hint" (the explanation at the top), the buttons "watch", "cut" and "add"
+        (icon only), "interval_label" ("every"). Pasting is in the Add menu now: a
+        host asking for "paste" gets nothing, and leaves it be."""
         return {"hint": self.hint, "watch": self.btn_watch, "cut": self.btn_cut,
-                "add": self.btn_add, "paste": self.btn_paste,
-                "interval_label": self.lbl_interval}
+                "add": self.btn_add, "interval_label": self.lbl_interval}
 
     def cancel_pending(self):
         """Drop sounds that are still waiting out their delay (switched off, Stop all)."""

@@ -66,8 +66,9 @@ Everything happens on your PC. What it captures is never saved or sent anywhere
 - **Only part of a window.** Drag the area to look in, so other things on screen
   can't set it off (it follows the window when it's resized).
 - **Cut from window…** grabs the watched window (even from behind other
-  windows) so you can drag a box around the thing to watch for. You can also add
-  a picture file or paste one from Win+Shift+S.
+  windows) so you can drag a box around the thing to watch for. The **Add** menu
+  next to it makes one from a picture file, from a picture you copied with
+  Win+Shift+S, or without a picture.
 - **Ring until you're back.** An alarm keeps playing until you are: until the
   game moves (it waits for the screen to settle first, so a fade-in doesn't count),
   until you switch to the game, until the thing is gone, until you touch the mouse

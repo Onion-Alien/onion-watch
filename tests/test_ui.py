@@ -422,3 +422,20 @@ def test_the_delete_button_asks_first(tab, monkeypatch):
     monkeypatch.setattr(box, "exec", lambda self: box.Yes)
     row.btn_del.click()
     assert tab.triggers == [] and tab.deleted()[0][1] == "Keep me"
+
+
+def test_one_compact_bar_with_the_other_ways_in_an_add_menu(tab, qapp, styled):
+    """Cut picture stays a button; a picture file, the copied picture and a trigger
+    without a picture are in the Add menu next to it. At the width the user had,
+    the whole bar (Look in and every included) is one line."""
+    texts = [a.text() for a in tab.btn_add.menu().actions()]
+    assert texts == ["From a picture file…", "Paste the copied picture", "Without a picture…"]
+    assert "Without a picture…" not in [a.text() for a in tab.btn_more.menu().actions()]
+    tab.resize(1180, 700)
+    tab.show()
+    qapp.processEvents()
+    bar = tab.btn_watch.parentWidget()
+    tops = {w.mapTo(bar, w.rect().topLeft()).y() for w in
+            (tab.btn_watch, tab.btn_cut, tab.btn_add, tab.btn_more, tab.cb_where,
+             tab.cb_interval)}
+    assert len(tops) <= 2 and max(tops) - min(tops) < tab.btn_watch.height()   # one line
