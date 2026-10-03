@@ -1049,6 +1049,9 @@ class TriggersTab(QWidget):
         self._quieted.connect(self._stop_by_itself)
         # "input" rings: trigger id -> when it started ringing (time.monotonic)
         self._input_waits: dict[str, float] = {}
+        self._played: dict[str, set[str]] = {}       # trigger id -> sounds it played (tagged)
+        self._ring_sounds: dict[str, list[str]] = {}  # ...-> what its ring is playing
+        self._ring_how: dict[str, str] = {}           # ...-> what stops that ring (Trigger.stop)
         self._input_poll = QTimer(self)
         self._input_poll.timeout.connect(self._check_input)
         self._hits: dict[str, screenwatch.Hit] = {}     # each trigger's latest, for alerts
@@ -1278,6 +1281,8 @@ class TriggersTab(QWidget):
             self.watcher.stop()
             self.poll.stop()
             self.cancel_pending()
+            if remember and self.host.ringing():
+                self.stop_ringing()     # you switched it off: you're here
             for row in self.rows.values():
                 row.show_score(None)
                 row.set_note(None)
@@ -1315,6 +1320,7 @@ class TriggersTab(QWidget):
     def _watch_ring(self, t: Trigger):
         """`t` just started ringing: watch for what stops it by itself (Trigger.stop)."""
         self._forget_ring(t.id)
+        self._ring_how[t.id] = t.stop
         hit = self._hits.get(t.id)
         if t.stop == "input":
             self._input_waits[t.id] = time.monotonic()
@@ -1499,17 +1505,27 @@ class TriggersTab(QWidget):
         ring = t.ring and not test
         if ring:
             self.host.stop_tag(t.id)        # one ring per trigger, not a pile of them
-        played = [sid for sid in chosen
-                  if self.host.play(sid, loop=ring, tag=t.id)]
+
+        def play(sid: str) -> bool:
+            if ring:
+                return self.host.play(sid, loop=True, tag=t.id)
+            tag = self._shot_tag(t.id, sid)
+            self.host.stop_tag(tag)         # pressed again: from the start, not twice
+            if not self.host.play(sid, tag=tag):
+                return False
+            self._played.setdefault(t.id, set()).add(sid)
+            return True
+        played = [sid for sid in chosen if play(sid)]
         fallback = self.host.default_sound
         if not played and fallback and fallback not in chosen:
             # its sound file is gone or won't decode: an alarm that makes no sound is
             # worse than the wrong one, so the default alert plays instead
             log.warning("trigger %r: its sound couldn't be played, playing the default "
                         "alert instead", t.name)
-            if self.host.play(fallback, loop=ring, tag=t.id):
+            if play(fallback):
                 played = [fallback]
         if ring and played:
+            self._ring_sounds[t.id] = played
             self.ringing_changed.emit()
         return played
 
@@ -1601,10 +1617,17 @@ class TriggersTab(QWidget):
         sounds = self.host.sounds()
         for row in self.rows.values():
             row.set_sounds(sounds)
+        # a sound taken off the board (or the app) stops wherever a trigger played it
+        have = {sid for sid, _name in sounds}
+        for tid in list(self._played):
+            self._silence(tid, [s for s in self._played[tid] if s not in have])
+        for tid, ringing in list(self._ring_sounds.items()):
+            if tid in self.host.ringing() and not set(ringing) & have:
+                self._silence(tid, [], ring=True)
 
     def _add_row(self, t: Trigger, at: int | None = None) -> TriggerRow:
         row = TriggerRow(t, self.host.sounds(), self._mons)
-        row.changed.connect(lambda _r: self._store())
+        row.changed.connect(self._row_changed)
         row.pictures_wanted.connect(self._add_picture_files)
         row.paste_wanted.connect(self._paste_picture)
         row.cut_wanted.connect(self._cut_picture)
@@ -1614,7 +1637,7 @@ class TriggersTab(QWidget):
         row.window_wanted.connect(self._pick_for)
         row.area_wanted.connect(self._pick_area)
         row.duplicate.connect(self._duplicate)
-        row.hear.connect(lambda sid: self.host.play(sid))
+        row.hear.connect(lambda sid, r=row: self._hear(r.t, sid))
         row.test.connect(lambda r: self._play_trigger(r.t, test=True))
         row.remove.connect(self.ask_remove)
         self.rows[t.id] = row
@@ -1623,6 +1646,57 @@ class TriggersTab(QWidget):
         self.list_layout.insertWidget(last if at is None else min(at + 1, last), row)
         self.empty.setVisible(False)
         return row
+
+    def _row_changed(self, row: TriggerRow):
+        """A card was edited: save, and silence what it no longer plays. A sound
+        taken off it stops (its preview, its test, its ring); a trigger switched off
+        stops all of them; Ring unticked stops the ring; a new "until" applies to
+        the ring going now."""
+        t = row.t
+        self._silence(t.id, [sid for sid in self._played.get(t.id, ()) if sid not in t.sounds])
+        if t.id in self.host.ringing():
+            gone = not set(self._ring_sounds.get(t.id, ())) & set(t.sounds) \
+                and self.host.default_sound not in self._ring_sounds.get(t.id, ())
+            if not (t.enabled and t.ring) or gone:
+                self._silence(t.id, [], ring=True)
+            elif self._ring_how.get(t.id) != t.stop:
+                self._watch_ring(t)
+        if not t.enabled:
+            self._silence(t.id, ring=True)
+        self._store()
+
+    # Every sound a trigger plays is tagged, so it can be stopped again: a ring with
+    # the trigger's id (what the alarm bar asks the host about), anything else with
+    # the trigger and the sound, and a preview of a sound on its card with "hear:"
+    # in front (a host plays that to you alone, not into a call).
+    @staticmethod
+    def _shot_tag(tid: str, sid: str) -> str:
+        return f"{tid}/{sid}"
+
+    @staticmethod
+    def _hear_tag(tid: str, sid: str) -> str:
+        return f"hear:{tid}/{sid}"
+
+    def _hear(self, t: Trigger, sid: str):
+        """A sound on `t`'s card was clicked: play it to check it (again from the
+        start if it's still going)."""
+        tag = self._hear_tag(t.id, sid)
+        self.host.stop_tag(tag)
+        if self.host.play(sid, tag=tag):
+            self._played.setdefault(t.id, set()).add(sid)
+
+    def _silence(self, tid: str, sids=None, ring: bool = False):
+        """Stop what trigger `tid` played: the sounds `sids` (None: all it played,
+        previews and tests too), and with `ring` its ring."""
+        played = self._played.get(tid, set())
+        for sid in list(played if sids is None else sids):
+            self.host.stop_tag(self._shot_tag(tid, sid))
+            self.host.stop_tag(self._hear_tag(tid, sid))
+            played.discard(sid)
+        if ring and tid in self.host.ringing():
+            self.host.stop_tag(tid)
+            self._forget_ring(tid)
+            self.ringing_changed.emit()
 
     def _store(self):
         self.host.screen["triggers"] = [t.to_raw() for t in self.triggers]
@@ -1951,7 +2025,10 @@ class TriggersTab(QWidget):
         self._bag.forget(t.id)
         self._order.pop(t.id, None)
         self.host.stop_tag(t.id)
+        self._silence(t.id, ring=True)
         self._forget_ring(t.id)
+        for d in (self._played, self._ring_sounds, self._ring_how):
+            d.pop(t.id, None)
         self.list_layout.removeWidget(row)
         row.setParent(None)   # gone from the list now, not when the event loop gets to it
         row.deleteLater()
