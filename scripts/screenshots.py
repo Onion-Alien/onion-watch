@@ -188,11 +188,14 @@ def main(out: Path):
     for (*_x, score, _e), row in zip(demo, tab.rows.values()):
         row.show_score(score)
     first = next(iter(tab.rows.values()))
+    queue = list(tab.rows.values())[2]
+    queue.set_open(True)                # one card open, to show what's in one
     # ringing, as the player would say: the bar asks the host what's ringing
     win.host.ringing = lambda: [first.t.id]
     win.alarm._on_fired(first.t)
     win.show()
-    app.processEvents()
+    for _ in range(3):      # rows that wrap settle their height over a few passes
+        app.processEvents()
     win.grab().save(str(out / "main.png"))
 
     # the window picker, with invented windows

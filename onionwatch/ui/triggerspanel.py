@@ -426,8 +426,71 @@ def swatch(colour: str, size: int = 14) -> QIcon:
     return QIcon(pm)
 
 
+class FlowBox(QWidget):
+    """A wrapping row (Flow) that takes the height its lines need at its width. A
+    Flow's height-for-width isn't passed up through the scrolling list of cards,
+    so on its own a row that wraps overlaps what's below it, or runs off the edge."""
+
+    def __init__(self, gap: int = 6, parent=None):
+        super().__init__(parent)
+        self.flow = Flow(self, gap=gap)
+
+    def resizeEvent(self, ev):
+        super().resizeEvent(ev)
+        self._fit()
+
+    def showEvent(self, ev):
+        super().showEvent(ev)
+        self._fit()
+
+    def _fit(self):
+        h = self.flow.heightForWidth(max(self.width(), 1))
+        if h != self.minimumHeight():
+            self.setMinimumHeight(h)
+
+
+class Switch(QCheckBox):
+    """An on / off switch: a checkbox drawn as a sliding pill, in the theme's colours."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setCursor(Qt.PointingHandCursor)
+        self.setFixedSize(40, 22)
+
+    def sizeHint(self):
+        return QSize(40, 22)
+
+    def hitButton(self, pos):
+        return self.rect().contains(pos)
+
+    def paintEvent(self, _e):
+        from PySide6.QtCore import QRectF
+        from PySide6.QtGui import QPainter
+        p = QPainter(self)
+        p.setRenderHint(QPainter.Antialiasing)
+        p.setPen(Qt.NoPen)
+        on = self.isChecked()
+        p.setBrush(QColor(theme.T.get("accent" if on else "off", "#888888")))
+        p.drawRoundedRect(QRectF(0, 0, 40, 22), 11, 11)
+        p.setBrush(QColor(theme.T.get("on_accent", "#ffffff") if on else "#ffffff"))
+        p.drawEllipse(QRectF(21 if on else 3, 3, 16, 16))
+
+
+def section_title(icon: str, text: str) -> QPushButton:
+    """A card section's title: its icon and name in capitals (not clickable)."""
+    b = QPushButton(text.upper())
+    b.setObjectName("fold")
+    b.setFocusPolicy(Qt.NoFocus)
+    b.setAttribute(Qt.WA_TransparentForMouseEvents)
+    b.setStyleSheet("text-align:left; padding-left:0;")
+    icons.set_icon(b, icon, "section", size=13)
+    return b
+
+
 class TriggerRow(QFrame):
-    """One trigger's card."""
+    """One trigger's card: a header (pictures, name, what it does, the live match,
+    on / off) that opens to three parts: what to watch for, what happens then, and
+    the fine-tuning, folded away behind a line summing it up."""
     changed = Signal(object)             # row: a setting changed
     pictures_wanted = Signal(object)     # row: "+ Add pictures…" (files)
     paste_wanted = Signal(object)        # row: "Paste picture"
@@ -443,7 +506,7 @@ class TriggerRow(QFrame):
     remove = Signal(object)
 
     def __init__(self, t: Trigger, sounds: list[tuple[str, str]],
-                 screens: list[Monitor] = ()):
+                 screens: list[Monitor] = (), open_: bool = False):
         super().__init__()
         self.setObjectName("card")
         self.t = t
@@ -453,10 +516,13 @@ class TriggerRow(QFrame):
         self._screens = 0               # how many screens there are
         self._mons: list[Monitor] = []
         self._sounds: list[tuple[str, str]] = []   # the sounds as last given
+        self._narrow = False            # too narrow for the header's thumbnail
         v = QVBoxLayout(self)
-        v.setContentsMargins(12, 8, 12, 10)
-        v.setSpacing(6)
+        v.setContentsMargins(12, 10, 12, 10)
+        v.setSpacing(8)
 
+        # the header, always shown: its pictures, name, what it does (or what's wrong),
+        # the live match, on / off, and open / close. Click it to open the rest
         top = QHBoxLayout()
         top.setSpacing(10)
         self.strip = Strip()
@@ -472,10 +538,22 @@ class TriggerRow(QFrame):
         names = QVBoxLayout()
         names.setSpacing(4)
         self.name = QLineEdit(t.name)
+        # a title until you click it. Styled here, in the palette's colours, rather than
+        # in the theme: the host's theme (Onion Board's) doesn't know about it
+        self.name.setObjectName("cardname")
+        self.name.setStyleSheet(
+            "QLineEdit#cardname { background:transparent; border:1px solid transparent;"
+            " padding:2px 3px; margin-left:-4px; font-size:11pt; font-weight:700; }"
+            "QLineEdit#cardname:hover { border-color:palette(mid); }"
+            "QLineEdit#cardname:focus { background:palette(base);"
+            " border-color:palette(highlight); }")
+        self.name.setToolTip("Click to rename it")
         self.name.setMinimumWidth(50)
         self.name.setPlaceholderText("Name, e.g. Rare spawn")
         self.name.setMaxLength(60)
+        self.name.setCursorPosition(0)          # a long name shows its start, not its end
         self.name.editingFinished.connect(self._on_name)
+        self.name.editingFinished.connect(lambda: self.name.setCursorPosition(0))
         names.addWidget(self.name)
         self.state = QLabel()
         self.state.setObjectName("hint")
@@ -483,21 +561,36 @@ class TriggerRow(QFrame):
         names.addWidget(self.state)
         names.addStretch(1)
         top.addLayout(names, 1)
-        self.chk_on = QCheckBox("On")
-        self.chk_on.setToolTip("Watch for this trigger (untick to keep it but pause it)")
+        self.live = QLabel("—")
+        self.live.setMinimumWidth(48)
+        self.live.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        top.addWidget(self.live, 0, Qt.AlignTop)
+        self.chk_on = Switch()
+        self.chk_on.setToolTip("Watch for this trigger (switch it off to keep it but pause it)")
         self.chk_on.setChecked(t.enabled)
         self.chk_on.toggled.connect(self._on_enabled)
         top.addWidget(self.chk_on, 0, Qt.AlignTop)
-        self.btn_del = QPushButton("✕")
-        self.btn_del.setObjectName("small")
-        self.btn_del.setFixedWidth(26)
-        self.btn_del.setToolTip("Delete this trigger")
-        self.btn_del.clicked.connect(lambda: self.remove.emit(self))
-        top.addWidget(self.btn_del, 0, Qt.AlignTop)
+        self.btn_open = QPushButton()
+        self.btn_open.setObjectName("fold")
+        self.btn_open.setCheckable(True)
+        self.btn_open.setFixedWidth(30)
+        self.btn_open.toggled.connect(self.set_open)
+        top.addWidget(self.btn_open, 0, Qt.AlignTop)
         v.addLayout(top)
 
-        # what sets it off, where in the window, and the odds and ends
-        row = Flow(gap=8)
+        self.body = QWidget()
+        sp = self.body.sizePolicy()
+        sp.setHeightForWidth(True)          # its rows wrap: taller when narrower
+        self.body.setSizePolicy(sp)
+        bv = QVBoxLayout(self.body)
+        bv.setContentsMargins(0, 0, 0, 0)
+        bv.setSpacing(6)
+        v.addWidget(self.body)
+
+        # WATCH FOR: what sets it off, where, in which part, and its pictures
+        bv.addWidget(section_title("triggers", "Watch for"))
+        watch = FlowBox(gap=8)
+        row = watch.flow
         self.mode = WideCombo(min_width=120)
         for key, label in MODES:
             self.mode.addItem(label, key)
@@ -512,28 +605,41 @@ class TriggerRow(QFrame):
             "• a bar runs low: less of its area is one colour (a health bar)")
         no_wheel(self.mode)
         self.mode.activated.connect(self._on_mode)
-        row.addWidget(labelled("Play when", self.mode))
+        row.addWidget(labelled("When", self.mode))
+        self.where = WideCombo(min_width=120)
+        self.where.setToolTip("Where to look: game windows (watched even while other windows "
+                              "cover them, but not while they're minimized) or whole "
+                              "screens. “Pick windows…” can tick several, or every copy of "
+                              "a game. “Same as below” is the choice at the bottom.")
+        no_wheel(self.where)
+        self.where.activated.connect(self._on_where)
+        self.where_box = labelled("in", self.where)
+        row.addWidget(self.where_box)
         self.btn_area = QPushButton()
         self.btn_area.setObjectName("small")
         self.btn_area.clicked.connect(lambda: self.area_wanted.emit(self))
         row.addWidget(self.btn_area)
+        bv.addWidget(watch)
+        self._watch_row = row
         self.chk_quiet = QCheckBox("Not while I'm in that window")
         self.chk_quiet.setToolTip("Stay quiet while the window it went off in is the one "
                                   "you're using: you can see it yourself")
         self.chk_quiet.setChecked(t.unfocused)
         self.chk_quiet.toggled.connect(self._on_quiet)
-        row.addWidget(self.chk_quiet)
         self.btn_dup = QPushButton("Duplicate")
         self.btn_dup.setObjectName("small")
         self.btn_dup.setToolTip("Make a copy of this trigger (pictures, sounds and all)")
         self.btn_dup.clicked.connect(lambda: self.duplicate.emit(self))
-        row.addWidget(self.btn_dup)
-        v.addLayout(row)
+        self.btn_del = QPushButton("Delete")
+        self.btn_del.setObjectName("small")
+        self.btn_del.setToolTip("Delete this trigger (Recently deleted keeps it a while)")
+        icons.set_icon(self.btn_del, "trash", size=13)
+        self.btn_del.clicked.connect(lambda: self.remove.emit(self))
 
-        self.pictures_box = QWidget()
+        self.pictures_box = FlowBox(gap=8)
         self.pictures_box.setObjectName("labelled")
         self.pictures_box.setStyleSheet("QWidget#labelled { background: transparent; }")
-        row = Flow(self.pictures_box, gap=8)
+        row = self.pictures_box.flow
         self.count = QLabel()
         self.count.setObjectName("muted")
         row.addWidget(self.count)
@@ -564,11 +670,14 @@ class TriggerRow(QFrame):
         self.chk_size.setChecked(t.any_size)
         self.chk_size.toggled.connect(self._on_size)
         row.addWidget(self.chk_size)
-        v.addWidget(self.pictures_box)
+        bv.addWidget(self.pictures_box)
 
-        # "Play", the chips (one per sound), "+ Add sound…", the Play mode, "Ring", the
-        # test button: a wrapping row, rebuilt by _layout_sounds when the chips change
-        self.sounds_row = Flow(gap=6)
+        # THEN: "Play", the chips (one per sound), "+ Add sound…", the Play mode, "Ring"
+        # and until, the test button: a wrapping row, rebuilt by _layout_sounds when the
+        # chips change
+        bv.addWidget(section_title("bell", "Then"))
+        self.sounds_box = FlowBox(gap=6)
+        self.sounds_row = self.sounds_box.flow
         self.lbl_play = QLabel("Play")
         self.chips: list[QFrame] = []
         self.sound = QComboBox()
@@ -599,22 +708,31 @@ class TriggerRow(QFrame):
         self.until.setVisible(t.ring)
         no_wheel(self.until)
         self.until.currentIndexChanged.connect(self._on_until)
-        self.btn_test = QPushButton()
+        self.btn_test = QPushButton("Test")
         self.btn_test.setToolTip("Play now, as the trigger would, to check it")
         icons.set_icon(self.btn_test, "play", size=14)
         self.btn_test.clicked.connect(lambda: self.test.emit(self))
-        v.addLayout(self.sounds_row)
+        bv.addWidget(self.sounds_box)
 
-        row = Flow(gap=10)
-        self.where = WideCombo(min_width=120)
-        self.where.setToolTip("Where to look: game windows (watched even while other windows "
-                              "cover them, but not while they're minimized) or whole "
-                              "screens. “Pick windows…” can tick several, or every copy of "
-                              "a game. “Same as below” is the choice at the bottom.")
-        no_wheel(self.where)
-        self.where.activated.connect(self._on_where)
-        self.where_box = labelled("Look in", self.where)
-        row.addWidget(self.where_box)
+        # FINE-TUNE: the numbers, folded away behind a line saying what they are
+        tune = QHBoxLayout()
+        tune.setSpacing(8)
+        self.btn_tune = QPushButton("FINE-TUNE")
+        self.btn_tune.setObjectName("fold")
+        self.btn_tune.setCheckable(True)
+        self.btn_tune.setToolTip("How alike, how long, how often, and when to keep quiet")
+        icons.set_icon(self.btn_tune, "setup", "section", "section", size=13)
+        self.btn_tune.toggled.connect(self._on_tune)
+        tune.addWidget(self.btn_tune)
+        self.tune_text = QLabel()
+        self.tune_text.setObjectName("hint")
+        self.tune_text.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
+        tune.addWidget(self.tune_text, 1)
+        bv.addLayout(tune)
+        self.tune = FlowBox(gap=10)
+        self.tune.setVisible(False)
+        row = self.tune.flow
+        self._tune_row = row
         self.delay = QDoubleSpinBox()
         self.delay.setRange(0.0, 60.0)
         self.delay.setDecimals(1)
@@ -640,7 +758,7 @@ class TriggerRow(QFrame):
         self.hold.setSuffix(" s")
         self.hold.setValue(t.hold)
         self.lbl_hold = QLabel()
-        hold = labelled("", self.hold)
+        self.hold_box = hold = labelled("", self.hold)
         hold.layout().insertWidget(0, self.lbl_hold)
         row.addWidget(hold)
         self.threshold = QSpinBox()
@@ -654,18 +772,24 @@ class TriggerRow(QFrame):
                               "low), or when more of it is")
         no_wheel(self.below)
         self.below.currentIndexChanged.connect(self._on_below)
-        self.live = QLabel("—")
-        self.live.setMinimumWidth(64)
         self.lbl_number = QLabel()
-        match = labelled("", self.threshold)
+        self.match_box = match = labelled("", self.threshold)
         match.layout().insertWidget(0, self.lbl_number)
         match.layout().insertWidget(1, self.below)
-        match.layout().addWidget(self.live)
         row.addWidget(match)
-        v.addLayout(row)
+        self._in: dict = {match: row, hold: row}   # box -> the Flow it's in now
+        row.addWidget(self.chk_quiet)
+        bv.addWidget(self.tune)
         for w in (self.delay, self.cooldown, self.hold, self.threshold):
             no_wheel(w)
             w.valueChanged.connect(self._on_numbers)
+
+        foot = QHBoxLayout()
+        foot.setSpacing(8)
+        foot.addStretch(1)
+        foot.addWidget(self.btn_dup)
+        foot.addWidget(self.btn_del)
+        bv.addLayout(foot)
 
         self._flash = QTimer(self)
         self._flash.setSingleShot(True)
@@ -675,15 +799,89 @@ class TriggerRow(QFrame):
         self.set_screens(list(screens))
         self.refresh_pictures()
         self._update_state()
+        self.btn_open.setChecked(open_)
+        self.set_open(open_)
+
+    # ------------------------------------------------------------------ open / closed
+    @property
+    def is_open(self) -> bool:
+        return not self.body.isHidden()
+
+    def set_open(self, on: bool):
+        """Show the whole card, or just its header."""
+        self.body.setVisible(on)
+        if self.btn_open.isChecked() != on:
+            self.btn_open.blockSignals(True)
+            self.btn_open.setChecked(on)
+            self.btn_open.blockSignals(False)
+        icons.set_icon(self.btn_open, "fold_open" if on else "fold", "muted", "muted", size=16)
+        self.btn_open.setToolTip("Close this trigger" if on else "Open this trigger to change it")
+
+    NARROW = 380        # px: below this the header's thumbnail goes, for the rest to fit
+
+    def resizeEvent(self, ev):
+        super().resizeEvent(ev)
+        narrow = self.width() < self.NARROW
+        if narrow != self._narrow:
+            self._narrow = narrow
+            self._show_thumb()
+
+    def _show_thumb(self):
+        """The header's pictures (or the badge of a trigger without), unless the card
+        is too narrow for them."""
+        pics = self.t.uses_pictures
+        self.strip.setVisible(pics and not self._narrow)
+        self.badge.setVisible(not pics and not self._narrow)
+
+    def mousePressEvent(self, ev):
+        """A click on the header (not on one of its controls) opens or closes the card."""
+        if ev.button() == Qt.LeftButton and (not self.is_open
+                                             or ev.position().y() < self.body.y()):
+            self.set_open(not self.is_open)
+            ev.accept()
+            return
+        super().mousePressEvent(ev)
+
+    def _on_tune(self, on: bool):
+        self.tune.setVisible(on)
+
+    def _tune_summary(self) -> str:
+        """The fine-tuning in a line: "Match 80 % · any size · plays at once · …"."""
+        t = self.t
+        name = {"appear": "Match", "vanish": "Match", "change": "Changes over",
+                "still": "Moves under", "colour": "Colour below" if t.below
+                else "Colour above"}[t.mode]
+        parts = []
+        if t.uses_pictures:     # (otherwise the level is shown under Watch for)
+            parts += [f"{name} {round(t.number * 100)} %",
+                      "any size" if t.any_size else "one size"]
+        if t.hold and t.mode != "still":
+            parts.append(f"must last {t.hold:g} s")
+        parts.append(f"waits {t.delay:g} s" if t.delay else "plays at once")
+        parts.append(f"not again for {t.cooldown:g} s")
+        if t.unfocused:
+            parts.append("quiet while you're in it")
+        return " · ".join(parts)
 
     # ------------------------------------------------------------------ view
+    def _place(self, box: QWidget, main: bool):
+        """Put a setting under Watch for (`main`: it's what the trigger is about, a
+        bar's level) or in Fine-tune."""
+        want = self._watch_row if main else self._tune_row
+        if self._in[box] is not want:
+            self._in[box].removeWidget(box)
+            want.addWidget(box)
+            self._in[box] = want
+            box.show()
+
     def _show_mode(self):
         """Show the controls the trigger's mode uses, labelled for it."""
         t = self.t
         pics = t.uses_pictures
-        self.strip.setVisible(pics)
+        self._place(self.match_box, not pics)          # a bar's level, how much changes
+        self._place(self.hold_box, t.mode == "still")  # how long nothing may move
+        self._show_thumb()
         self.pictures_box.setVisible(pics)
-        self.badge.setVisible(not pics)
         if not pics:
             self.badge.setPixmap(icons.pixmap(
                 {"change": "live", "still": "pause", "colour": "palette"}.get(t.mode, "triggers"),
@@ -772,6 +970,7 @@ class TriggerRow(QFrame):
                   self.until, self.btn_test):
             self.sounds_row.addWidget(w)
         self.sounds_row.invalidate()
+        self.sounds_box._fit()
 
     def _chip(self, text: str, sid: str, warn: bool = False) -> QFrame:
         """A sound the trigger plays: its name (click to hear it) and a ✕."""
@@ -823,7 +1022,7 @@ class TriggerRow(QFrame):
             return
         pct = max(0, round(score * 100))
         hit = screenwatch.verdict(self.t.mode, score, self.t.number, self.t.below) is True
-        self.live.setText(f"now {pct}%")
+        self.live.setText(f"{pct}%")
         self.live.setStyleSheet(f"color:{theme.status('ok')}; font-weight:600;" if hit else "")
 
     def set_note(self, note: tuple[str, str] | None):
@@ -886,6 +1085,7 @@ class TriggerRow(QFrame):
             tone = ""
         self.state.setText(text)
         theme.set_tone(self.state, tone)
+        self.tune_text.setText(self._tune_summary())
 
     # ------------------------------------------------------------------ edits
     def _on_name(self):
@@ -911,10 +1111,12 @@ class TriggerRow(QFrame):
 
     def _on_quiet(self, on: bool):
         self.t.unfocused = on
+        self._update_state()
         self.changed.emit(self)
 
     def _on_size(self, on: bool):
         self.t.any_size = on
+        self._update_state()
         self.changed.emit(self)
 
     def _on_mode(self, i: int):
@@ -1194,7 +1396,7 @@ class TriggersTab(QWidget):
             self.btn_watch.setEnabled(False)
         self._fill_sources()
         for t in self.triggers:
-            self._add_row(t)
+            self._add_row(t, open_=len(self.triggers) == 1)
         self._prune_bin()
         self._label_bin()
         self.poll = QTimer(self)
@@ -1625,8 +1827,10 @@ class TriggersTab(QWidget):
             if tid in self.host.ringing() and not set(ringing) & have:
                 self._silence(tid, [], ring=True)
 
-    def _add_row(self, t: Trigger, at: int | None = None) -> TriggerRow:
-        row = TriggerRow(t, self.host.sounds(), self._mons)
+    def _add_row(self, t: Trigger, at: int | None = None, open_: bool = True) -> TriggerRow:
+        """A card for `t` (at `at` in the list, else at the end), opened unless
+        `open_` is false (the cards there at start, when there's more than one)."""
+        row = TriggerRow(t, self.host.sounds(), self._mons, open_=open_)
         row.changed.connect(self._row_changed)
         row.pictures_wanted.connect(self._add_picture_files)
         row.paste_wanted.connect(self._paste_picture)

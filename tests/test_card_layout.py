@@ -1,0 +1,78 @@
+"""The trigger card: a header that opens to Watch for / Then / Fine-tune. New cards
+open; at start the cards are closed (one alone stays open); a click on the header
+opens and closes it; Fine-tune sums itself up in a line; a bar's level is shown
+under Watch for, a picture's match under Fine-tune; a narrow card drops its
+thumbnail; and a row that wraps takes the height it needs."""
+import test_ui
+from test_ui import as_qimage, banner
+
+from onionwatch.ui.triggerspanel import FlowBox
+
+fake_screen, tab = test_ui.fake_screen, test_ui.tab   # the same stand-ins
+
+
+def new_card(tab):
+    tab._new(as_qimage(banner()), "Rare")
+    return list(tab.rows.values())[-1]
+
+
+def test_a_new_card_opens_and_its_header_closes_it(tab, qapp):
+    row = new_card(tab)
+    assert row.is_open and row.btn_open.isChecked()
+    row.btn_open.click()
+    assert not row.is_open and row.body.isHidden()
+    row.set_open(True)
+    assert row.is_open and row.btn_open.isChecked()
+
+
+def test_fine_tune_is_folded_behind_a_summary(tab):
+    row = new_card(tab)
+    assert row.tune.isHidden()
+    assert row.tune_text.text().startswith("Match 80 % · any size · plays at once")
+    row.delay.setValue(2.0)
+    row.chk_quiet.setChecked(True)
+    row.chk_size.setChecked(False)
+    assert "waits 2 s" in row.tune_text.text()
+    assert "quiet while you're in it" in row.tune_text.text()
+    assert "one size" in row.tune_text.text()
+    row.btn_tune.click()
+    assert not row.tune.isHidden()
+
+
+def test_a_bars_level_is_under_watch_for_a_pictures_match_in_fine_tune(tab, monkeypatch):
+    monkeypatch.setattr(tab, "_pick_area", lambda r: None)   # it asks for the bar
+    row = new_card(tab)
+    assert row._in[row.match_box] is row._tune_row
+    row.mode.setCurrentIndex(row.mode.findData("colour"))
+    row._on_mode(row.mode.currentIndex())
+    assert row._in[row.match_box] is row._watch_row
+    assert not row.tune_text.text().startswith("Colour")     # not said twice
+    row.mode.setCurrentIndex(row.mode.findData("still"))
+    row._on_mode(row.mode.currentIndex())
+    assert row._in[row.hold_box] is row._watch_row           # how long nothing moves
+
+
+def test_a_narrow_card_drops_its_thumbnail(tab, qapp):
+    row = new_card(tab)
+    tab.resize(800, 600)
+    tab.show()
+    qapp.processEvents()
+    assert row.strip.isVisibleTo(row)
+    tab.resize(300, 600)
+    for _ in range(3):
+        qapp.processEvents()
+    assert row.width() < row.NARROW and not row.strip.isVisibleTo(row)
+    tab.hide()
+
+
+def test_a_row_that_wraps_takes_the_height_it_needs(qapp):
+    from PySide6.QtWidgets import QPushButton
+    box = FlowBox(gap=6)
+    for i in range(8):
+        box.flow.addWidget(QPushButton(f"Button number {i}"))
+    box.resize(900, 10)
+    box._fit()
+    one = box.minimumHeight()
+    box.resize(250, 10)
+    box._fit()
+    assert box.minimumHeight() > 2 * one

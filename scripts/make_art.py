@@ -140,7 +140,7 @@ def social_preview(W: int = 2560, H: int = 1280) -> QImage:
     outlined(p, "Plays a sound when your", x, 690, font(80, QFont.DemiBold), QColor("#cdeff0"))
     outlined(p, "game needs you", x, 790, font(84, QFont.Black), YELLOW)
     chips = [("Watches behind other windows", TEAL), ("Several accounts", BLUE),
-             ("Rings until stopped", PINK)]
+             ("Rings until you're back", PINK)]
     f = font(34, QFont.Bold)
     p.setFont(f)
     fm = p.fontMetrics()
