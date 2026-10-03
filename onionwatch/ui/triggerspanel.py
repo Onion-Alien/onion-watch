@@ -765,6 +765,8 @@ class TriggerRow(QFrame):
         self.tune_text.setObjectName("hint")
         self.tune_text.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
         tune.addWidget(self.tune_text, 1)
+        tune.addWidget(self.btn_dup)    # on Fine-tune's line: no row of their own
+        tune.addWidget(self.btn_del)
         bv.addLayout(tune)
         tune_col = indented(bv)
         self.tune = FlowBox(gap=12)
@@ -822,14 +824,6 @@ class TriggerRow(QFrame):
             no_wheel(w)
             w.valueChanged.connect(self._on_numbers)
 
-        foot = QHBoxLayout()
-        foot.setSpacing(8)
-        foot.addStretch(1)
-        foot.addWidget(self.btn_dup)
-        foot.addWidget(self.btn_del)
-        bv.addSpacing(4)
-        bv.addLayout(foot)
-
         self._flash = QTimer(self)
         self._flash.setSingleShot(True)
         self._flash.timeout.connect(self._update_state)
@@ -864,6 +858,11 @@ class TriggerRow(QFrame):
         if narrow != self._narrow:
             self._narrow = narrow
             self._show_thumb()
+        # Duplicate / Delete share Fine-tune's line: shorter a bit before the card is
+        # narrow, or that line would stop it getting any narrower
+        short = self.width() < self.NARROW + 80
+        self.btn_dup.setText("Copy" if short else "Duplicate")
+        self.btn_del.setText("" if short else "Delete")
 
     def _show_thumb(self):
         """The header's pictures (or the badge of a trigger without), unless the card
@@ -1351,7 +1350,7 @@ class TriggersTab(QWidget):
         f = QFrame()
         f.setObjectName("transport")
         h = Flow(f, gap=8)
-        h.setContentsMargins(10, 8, 12, 8)
+        h.setContentsMargins(12, 10, 12, 10)
         self.btn_watch = QPushButton()
         self.btn_watch.setObjectName("live")
         self.btn_watch.setCheckable(True)

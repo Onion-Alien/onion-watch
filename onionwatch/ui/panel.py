@@ -67,11 +67,13 @@ class Flow(QLayout):
         return True
 
     def heightForWidth(self, w):
-        return self._place(QRect(0, 0, w, 0), move=False)
+        m = self.contentsMargins()
+        inner = QRect(0, 0, w - m.left() - m.right(), 0)
+        return self._place(inner, move=False) + m.top() + m.bottom()
 
     def setGeometry(self, rect):
         super().setGeometry(rect)
-        self._place(rect, move=True)
+        self._place(rect.marginsRemoved(self.contentsMargins()), move=True)
 
     def sizeHint(self):
         return self.minimumSize()
@@ -80,7 +82,8 @@ class Flow(QLayout):
         size = QSize()
         for it in self._items:
             size = size.expandedTo(it.minimumSize())
-        return size
+        m = self.contentsMargins()
+        return size + QSize(m.left() + m.right(), m.top() + m.bottom())
 
     def _place(self, rect: QRect, move: bool) -> int:
         x, y, line = rect.x(), rect.y(), 0

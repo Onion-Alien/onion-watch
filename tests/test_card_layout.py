@@ -59,7 +59,7 @@ def test_a_narrow_card_drops_its_thumbnail(tab, qapp):
     qapp.processEvents()
     assert row.strip.isVisibleTo(row)
     tab.resize(300, 600)
-    for _ in range(3):
+    for _ in range(8):     # Duplicate / Delete shorten first, then it narrows
         qapp.processEvents()
     assert row.width() < row.NARROW and not row.strip.isVisibleTo(row)
     tab.hide()
