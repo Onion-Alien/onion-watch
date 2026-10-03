@@ -8,7 +8,7 @@ into a different one.**
 Playing two MMO accounts at once, waiting on a rare spawn, a queue pop or a
 whisper while you do something else? Pick the game's window, cut out the thing to
 watch for, and choose a sound. Onion Watch keeps looking at that window while it's
-behind your other windows and plays the sound, or rings until you stop it, the
+behind your other windows and plays the sound, or rings until you're back, the
 moment the thing appears.
 
 ![Onion Watch watching two copies of a game, one trigger ringing](docs/screenshots/main.png)
@@ -68,9 +68,12 @@ Everything happens on your PC. What it captures is never saved or sent anywhere
 - **Cut from window…** grabs the watched window (even from behind other
   windows) so you can drag a box around the thing to watch for. You can also add
   a picture file or paste one from Win+Shift+S.
-- **Ring until stopped.** An alarm keeps playing until you click Stop, the tray
-  icon or the Windows notification. Otherwise a sound plays once each time the
-  thing appears.
+- **Ring until you're back.** An alarm keeps playing until you are: until the
+  game moves (it waits for the screen to settle first, so a fade-in doesn't count),
+  until you switch to the game, until the thing is gone, until you touch the mouse
+  or keyboard, or only until you click Stop. Stop, the tray icon and the Windows
+  notification always stop it. Otherwise a sound plays once each time the thing
+  appears.
 - **What went off** (More → What went off…) lists the latest alerts, each with the
   window as it was checked and a box round what set it off: for "what woke me up?"
   and for setting the numbers. Kept only until the app closes.

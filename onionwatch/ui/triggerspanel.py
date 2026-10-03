@@ -63,6 +63,27 @@ MODES = (("appear", "it shows up"), ("vanish", "it goes away"),
          ("change", "the area changes"), ("still", "the area stops changing"),
          ("colour", "a bar runs low"))
 LEVELS = {"change": 0.05, "still": 0.01, "colour": 0.30}   # a new mode's starting level
+# what stops a ringing trigger by itself (Trigger.stop): its words on the card, on
+# its state line and in the alert, and a tooltip
+UNTILS = {
+    "moves": ("until the game moves", "Rings until the game moves",
+              "Ringing until the game moves.",
+              "Stops once anything moves where it looks (you're back and playing), or "
+              "when it goes away. It waits for the screen to settle first, so a fade-in "
+              "doesn't stop it."),
+    "focus": ("until I switch to the game", "Rings until you switch to the game",
+              "Ringing until you switch to it.",
+              "Stops when you alt-tab back to its window. Watching a whole screen: when "
+              "you switch to any other window."),
+    "gone": ("until it's gone", "Rings until it's gone", "Ringing until it's gone.",
+             "Stops when the picture goes away (or the bar is back, or the area settles)."),
+    "input": ("until I touch mouse or keys", "Rings until you touch the mouse or keyboard",
+              "Ringing until you touch the mouse or keyboard.",
+              "Stops as soon as you move the mouse or press a key, anywhere."),
+    "manual": ("until I click Stop", "Rings until stopped", "Ringing until you stop it.",
+               "Only the Stop button on the red bar (or the tray icon) stops it."),
+}
+INPUT_POLL_MS = 100     # how often an "input" ring checks for the mouse or keyboard
 
 
 HISTORY = 50            # alerts kept in the history (in memory only)
@@ -563,12 +584,21 @@ class TriggerRow(QFrame):
                              "repeats), take them in turn, or play them all at once")
         no_wheel(self.pick)
         self.pick.currentIndexChanged.connect(self._on_pick)
-        self.chk_ring = QCheckBox("Ring until stopped")
-        self.chk_ring.setToolTip("Keep playing the sound over and over until you stop it "
-                                 "(the Stop button on the red bar that shows up) — for when "
-                                 "you're away from the keyboard")
+        self.chk_ring = QCheckBox("Ring")
+        self.chk_ring.setToolTip("Keep playing the sound over and over — for when you're "
+                                 "away from the keyboard. The Stop button on the red bar "
+                                 "always stops it; pick what else does next to it.")
         self.chk_ring.setChecked(t.ring)
         self.chk_ring.toggled.connect(self._on_ring)
+        self.until = WideCombo()
+        for key, (label, *_rest) in UNTILS.items():
+            self.until.addItem(label, key)
+            self.until.setItemData(self.until.count() - 1, UNTILS[key][3], Qt.ToolTipRole)
+        self.until.setCurrentIndex(max(self.until.findData(t.stop), 0))
+        self.until.setToolTip("What stops the ringing by itself")
+        self.until.setVisible(t.ring)
+        no_wheel(self.until)
+        self.until.currentIndexChanged.connect(self._on_until)
         self.btn_test = QPushButton()
         self.btn_test.setToolTip("Play now, as the trigger would, to check it")
         icons.set_icon(self.btn_test, "play", size=14)
@@ -739,7 +769,7 @@ class TriggerRow(QFrame):
         while self.sounds_row.count():
             self.sounds_row.takeAt(0)
         for w in (self.lbl_play, *self.chips, self.sound, self.pick, self.chk_ring,
-                  self.btn_test):
+                  self.until, self.btn_test):
             self.sounds_row.addWidget(w)
         self.sounds_row.invalidate()
 
@@ -840,7 +870,7 @@ class TriggerRow(QFrame):
         elif self.note is not None:
             text, tone = self.note
         else:
-            how = "Rings until stopped" if t.ring else "Plays"
+            how = UNTILS[t.stop][1] if t.ring else "Plays"
             what = self._what()
             if n > 1:
                 sounds = {"random": f"one of its {n} sounds at random",
@@ -870,6 +900,12 @@ class TriggerRow(QFrame):
 
     def _on_ring(self, on: bool):
         self.t.ring = on
+        self.until.setVisible(on)
+        self._update_state()
+        self.changed.emit(self)
+
+    def _on_until(self, _i: int):
+        self.t.stop = self.until.currentData()
         self._update_state()
         self.changed.emit(self)
 
@@ -986,6 +1022,7 @@ class TriggersTab(QWidget):
     ringing_changed = Signal()          # a sound started or stopped ringing
     history_changed = Signal()          # something went off (TriggersTab.history)
     _fired = Signal(str, object)        # from the watcher thread: trigger id, Hit
+    _quieted = Signal(str)              # ...a ringing trigger's stop happened (Quieter)
 
     def __init__(self, host):
         super().__init__()
@@ -1006,8 +1043,14 @@ class TriggersTab(QWidget):
         self._gen = 0                   # bumped to drop sounds still waiting to play
         self._bag = ShuffleBag()        # "Random": each trigger's sounds, each once per round
         self._order: dict[str, int] = {}   # "In order": each trigger's next sound
-        self.watcher = screenwatch.Watcher(self._fired.emit, hits=True)
+        self.watcher = screenwatch.Watcher(self._fired.emit, hits=True,
+                                           on_quiet=self._quieted.emit)
         self._fired.connect(self._on_fired)
+        self._quieted.connect(self._stop_by_itself)
+        # "input" rings: trigger id -> when it started ringing (time.monotonic)
+        self._input_waits: dict[str, float] = {}
+        self._input_poll = QTimer(self)
+        self._input_poll.timeout.connect(self._check_input)
         self._hits: dict[str, screenwatch.Hit] = {}     # each trigger's latest, for alerts
         # what went off lately, newest last (kept in memory only, never saved)
         self.history: deque[Alert] = deque(maxlen=HISTORY)
@@ -1266,6 +1309,51 @@ class TriggersTab(QWidget):
     def stop_ringing(self):
         for tag in self.host.ringing():
             self.host.stop_tag(tag)
+        self._forget_ring()
+        self.ringing_changed.emit()
+
+    def _watch_ring(self, t: Trigger):
+        """`t` just started ringing: watch for what stops it by itself (Trigger.stop)."""
+        self._forget_ring(t.id)
+        hit = self._hits.get(t.id)
+        if t.stop == "input":
+            self._input_waits[t.id] = time.monotonic()
+            self._input_poll.start(INPUT_POLL_MS)
+        elif hit is not None:
+            self.watcher.quiet_on(t.id, hit.source, t.stop)
+
+    def _forget_ring(self, tid: str | None = None):
+        """Stop watching for what stops trigger `tid`'s ringing (None: every one's)."""
+        self.watcher.quiet_off(tid)
+        if tid is None:
+            self._input_waits.clear()
+        else:
+            self._input_waits.pop(tid, None)
+        if not self._input_waits:
+            self._input_poll.stop()
+
+    def _check_input(self):
+        """The "input" rings: stop each once the mouse or keyboard has been touched
+        since it began (after the first STOP_LEAST seconds, so it's heard)."""
+        idle = windows.idle_seconds()
+        if idle is None:
+            return
+        now = time.monotonic()
+        for tid, since in list(self._input_waits.items()):
+            if idle < now - since - screenwatch.STOP_LEAST:
+                self._stop_by_itself(tid)
+
+    def _stop_by_itself(self, tid: str):
+        """What stops trigger `tid`'s ringing happened: stop it."""
+        self._forget_ring(tid)
+        if tid not in self.host.ringing():
+            return
+        self.host.stop_tag(tid)
+        t = next((t for t in self.triggers if t.id == tid), None)
+        log.info("trigger %r stopped ringing by itself", t.name if t else tid)
+        row = self.rows.get(tid)
+        if row is not None:
+            row.flash("Stopped ringing — you're back", 4000)
         self.ringing_changed.emit()
 
     def retheme(self):
@@ -1279,6 +1367,7 @@ class TriggersTab(QWidget):
             row.show_score(self.watcher.scores.get(row.t.id) if self.is_active() else None)
 
     def shutdown(self):
+        self._input_poll.stop()
         self.poll.stop()
         self.watcher.stop()
         self.cancel_pending()
@@ -1358,6 +1447,8 @@ class TriggersTab(QWidget):
             row = self.rows.get(tid)
             if row is not None:
                 row.flash(("Ringing" if t.ring else "Played") + self._in(tid) + "!", 4000)
+            if t.ring:
+                self._watch_ring(t)
             self.fired.emit(t)
 
     def place_name(self, place) -> str:
@@ -1380,7 +1471,7 @@ class TriggersTab(QWidget):
                 "change": "Something changed", "still": "Nothing has moved for a while",
                 "colour": "The bar ran low" if t.below else "The bar filled up"}[t.mode]
         what += f" {where}." if where else "."
-        return what + (" Ringing until you stop it." if t.ring else "")
+        return what + (" " + UNTILS[t.stop][2] if t.ring else "")
 
     def _play_trigger(self, t: Trigger, test: bool = False) -> list[str]:
         """Play the trigger's sound(s) the way its Play setting says: one at random
@@ -1860,6 +1951,7 @@ class TriggersTab(QWidget):
         self._bag.forget(t.id)
         self._order.pop(t.id, None)
         self.host.stop_tag(t.id)
+        self._forget_ring(t.id)
         self.list_layout.removeWidget(row)
         row.setParent(None)   # gone from the list now, not when the event loop gets to it
         row.deleteLater()

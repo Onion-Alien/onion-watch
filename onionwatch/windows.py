@@ -128,6 +128,32 @@ def supported() -> bool:
     return sys.platform == "win32"
 
 
+class _LASTINPUTINFO(ctypes.Structure):
+    _fields_ = [("cbSize", wintypes.UINT), ("dwTime", wintypes.DWORD)]
+
+
+def foreground() -> int:
+    """The window in front (its handle; 0 for none)."""
+    if not supported():
+        return 0
+    return _win()[0].GetForegroundWindow() or 0
+
+
+def idle_seconds() -> float | None:
+    """How long since the mouse or keyboard was last touched (anywhere in the
+    session), or None when that can't be told. Reads Windows' own count: no hook,
+    nothing sent anywhere."""
+    if not supported():
+        return None
+    u = _win()[0]
+    k = ctypes.WinDLL("kernel32")
+    info = _LASTINPUTINFO(ctypes.sizeof(_LASTINPUTINFO), 0)
+    if not u.GetLastInputInfo(ctypes.byref(info)):
+        return None
+    # both counts wrap every 49.7 days: the difference still comes out right
+    return ((k.GetTickCount() - info.dwTime) & 0xFFFFFFFF) / 1000
+
+
 def _title(u, hwnd) -> str:
     n = u.GetWindowTextLengthW(hwnd)
     if n <= 0:

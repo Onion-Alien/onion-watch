@@ -134,6 +134,18 @@ CHANGE_GAP = 0.5        # "change" / "still" compare the area with how it was th
 COLOUR_TOL = 0.12       # a pixel this close (each of R, G, B, 0..1) counts as the colour
 LEVEL_MARGIN = 0.03     # a level must move back this far past its line to count as over
 MAX_HOLD = 3600.0       # seconds: the longest "must last" / "still for"
+# Trigger.stop: what stops a ringing trigger, besides the Stop button
+#   moves   anything moves in its area once it has settled (you're back and
+#           playing), or it goes away
+#   gone    it goes away: the picture is gone, the bar filled up again...
+#   focus   you switch to its window (alt-tab back to the game); for a screen, to
+#           any other window than the one in front when it started
+#   input   the mouse or keyboard is touched (the UI checks that, not the watcher)
+#   manual  only Stop
+STOPS = ("moves", "gone", "focus", "input", "manual")
+STOP_MOVE = 0.02        # "moves": this share of the area changing stops the ringing
+STOP_SETTLE = 0.5       # ...once it has stood still this long (a fade-in doesn't count)
+STOP_LEAST = 1.0        # seconds a ring always lasts, so it's heard at least once
 
 
 class CaptureLost(OSError):
@@ -219,6 +231,8 @@ class Trigger:
     sources: list = field(default_factory=list)
     # keep playing its sound over and over until it's stopped (an alarm), not just once
     ring: bool = False
+    # ...and what stops the ringing by itself (STOPS)
+    stop: str = "moves"
     # what counts as it going off (MODES), and for the modes without pictures how
     # much: "change" / "still" the share of the area that moved, "colour" the share
     # in `colour` ("#rrggbb"), going `below` it (or above)
@@ -315,11 +329,13 @@ class Trigger:
             t.pick = d["pick"]
         if d.get("mode") in MODES:
             t.mode = d["mode"]
+        if d.get("stop") in STOPS:
+            t.stop = d["stop"]
         t.region = _region(d.get("region"))
         if hex_rgb(d.get("colour")) is not None:
             t.colour = d["colour"].lower()
         for k, default in list(vars(t).items()):
-            if k in ("sources", "images", "sounds", "pick", "mode", "region", "colour"):
+            if k in ("sources", "images", "sounds", "pick", "mode", "stop", "region", "colour"):
                 continue
             v = d.get(k, default)
             if isinstance(default, bool):
@@ -798,6 +814,47 @@ class Gate:
     def update(self, score: float, now: float, threshold: float, cooldown: float) -> bool:
         """step() for a picture's match score ("appear")."""
         return self.step(verdict("appear", score, threshold), now, cooldown)
+
+
+@dataclass
+class Quieter:
+    """A ringing trigger waiting for what stops it by itself (Trigger.stop: "moves",
+    "gone" or "focus"), judged in the place it went off. step() is given each check
+    of that place: the trigger's area, its verdict there and what's in front (for a
+    window: whether it is; for a screen: the window in front), and says when to stop."""
+    how: str
+    source: object
+    since: float                    # when the ringing started
+    ref: np.ndarray | None = None   # "moves": the area once it stood still
+    last: np.ndarray | None = None  # ...the area as this still stretch began
+    still_since: float = 0.0
+    front0: object = None           # "focus" on a screen: the window in front at first
+    seen: bool = False
+
+    def step(self, area: np.ndarray | None, state: bool | None, front, now: float) -> bool:
+        first, self.seen = not self.seen, True
+        if first:
+            self.front0 = front
+        if now - self.since < STOP_LEAST:
+            return False
+        if self.how == "focus":
+            if isinstance(self.source, WindowRef):
+                return front is True
+            return not first and front != self.front0 and bool(front)
+        if state is False:              # it's over: gone, or the bar is back
+            return True
+        if self.how != "moves" or area is None:
+            return False
+        if self.ref is not None:
+            if self.ref.shape == area.shape:
+                return changed_share(area, self.ref) >= STOP_MOVE
+            self.ref = None             # the window was resized: settle again
+        if self.last is None or self.last.shape != area.shape \
+                or changed_share(area, self.last) >= STOP_MOVE:
+            self.last, self.still_since = area.copy(), now
+        elif now - self.still_since >= STOP_SETTLE:
+            self.ref = self.last
+        return False
 
 
 def new_gate(mode: str) -> Gate:
@@ -1628,12 +1685,18 @@ class Watcher:
     window that isn't open is looked for again every WINDOW_RETRY_S (its triggers
     wait there meanwhile); the other captures carry on.
 
-    `grabber(mon, w, h)`, `window_grabber(ref, w, h)` and `lister()` (the open
-    windows) stand in for the real ones (tests)."""
+    A trigger that's ringing can be handed over with quiet_on(): `on_quiet(id)` is
+    then called from the thread once what stops it by itself happens (Quieter).
+
+    `grabber(mon, w, h)`, `window_grabber(ref, w, h)`, `lister()` (the open
+    windows) and `front()` (the window in front) stand in for the real ones (tests)."""
 
     def __init__(self, on_fire, grabber=None, window_grabber=None, lister=None,
-                 hits: bool = False):
+                 hits: bool = False, on_quiet=None, front=None):
         self._on_fire = on_fire
+        self._on_quiet = on_quiet
+        self._front = front
+        self._quiet: dict[str, Quieter] = {}    # ringing trigger id -> what stops it
         self._hits = hits
         self._grabber = grabber
         self._window_grabber = window_grabber
@@ -1677,6 +1740,33 @@ class Watcher:
             self._changed = True
             # the thread replaces `scores` whole rather than changing it, so a copy is safe
             self.scores = {k: v for k, v in self.scores.items() if k in self._items}
+
+    def quiet_on(self, tid: str, source, how: str):
+        """Trigger `tid` started ringing after going off in `source`: watch there for
+        what stops it ("moves", "gone", "focus"; anything else: nothing)."""
+        with self._lock:
+            if how in ("moves", "gone", "focus"):
+                self._quiet[tid] = Quieter(how, source, time.monotonic())
+            else:
+                self._quiet.pop(tid, None)
+
+    def quiet_off(self, tid: str | None = None):
+        """It stopped ringing (None: they all did)."""
+        with self._lock:
+            if tid is None:
+                self._quiet.clear()
+            else:
+                self._quiet.pop(tid, None)
+
+    def _front_window(self) -> int:
+        """The window in front (0: none, or it can't be told)."""
+        try:
+            if self._front is not None:
+                return self._front()
+            from onionwatch.windows import foreground
+            return foreground()
+        except OSError:
+            return 0
 
     def set_default(self, source: int | WindowRef):
         with self._lock:
@@ -2046,6 +2136,9 @@ class Watcher:
             if score is None:
                 continue
             state = verdict(it.mode, score, it.threshold, it.below)
+            q = self._quiet.get(it.id)
+            if q is not None and q.source == cap.source:
+                self._step_quiet(it, q, cap, gray, state, now)
             if not gate.step(state, now, it.cooldown, it.hold):
                 continue
             if it.unfocused and cap.is_window and cap.in_front():
@@ -2064,6 +2157,27 @@ class Watcher:
             except Exception:  # noqa: BLE001
                 log.exception("trigger callback failed")
         return scores
+
+    def _step_quiet(self, it: Watched, q: Quieter, cap: _Capture, gray: np.ndarray,
+                    state: bool | None, now: float):
+        """Check a ringing trigger's Quieter against this frame; once it says so, let
+        it go and call on_quiet."""
+        y0, y1, x0, x1 = region_box(it.region, gray.shape)
+        front = None
+        if q.how == "focus":
+            front = cap.in_front() if cap.is_window else self._front_window()
+        if not q.step(gray[y0:y1, x0:x1], state, front, now):
+            return
+        with self._lock:
+            if self._quiet.get(it.id) is not q:
+                return                  # stopped, or rung again, meanwhile
+            del self._quiet[it.id]
+        log.debug("trigger %s: ringing stopped by itself (%s)", it.id, q.how)
+        if self._on_quiet is not None:
+            try:
+                self._on_quiet(it.id)
+            except Exception:  # noqa: BLE001
+                log.exception("quiet callback failed")
 
     @staticmethod
     def _score(cap: _Capture, gray: np.ndarray, it: Watched, now: float,
