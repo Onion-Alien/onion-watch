@@ -1318,15 +1318,14 @@ class TriggersTab(QWidget):
         self.warn = hint_label("")
         theme.set_tone(self.warn, "warn")
         self.warn.setVisible(False)
+        # no banner: the explanation is behind an ⓘ (the host's own, by Onion Board's
+        # tabs, or one in the button row here); only the warning shows, when there is one
+        self.info = (hv.itemAt(0).widget().text(), self.hint.text())
         tab_info = getattr(host, "tab_info", None)
         if callable(tab_info):
-            # the host shows the explanation its own way (Onion Board: an ⓘ by its
-            # tabs), so no banner here: only the warning, when there is one
-            tab_info(hv.itemAt(0).widget().text(), self.hint.text())
-            v.addWidget(self.warn)
-            head.hide()
-        else:
-            hv.addWidget(self.warn)
+            tab_info(*self.info)
+        v.addWidget(self.warn)
+        head.hide()
         v.addWidget(head)
         # "Deleted X · Undo" floats over the top of the tab: not in the layout, so
         # showing it never pushes the list down
@@ -1406,6 +1405,14 @@ class TriggersTab(QWidget):
         menu.aboutToShow.connect(about_to_show)
         self.btn_more.setMenu(menu)
         h.addWidget(self.btn_more)
+        if not callable(getattr(host, "tab_info", None)):
+            self.btn_info = QPushButton("ⓘ")
+            self.btn_info.setObjectName("small")
+            self.btn_info.setCursor(Qt.PointingHandCursor)
+            self.btn_info.setToolTip("What is this?")
+            self.btn_info.clicked.connect(
+                lambda: QMessageBox.information(self, *self.info))
+            h.addWidget(self.btn_info)
         self.btn_bin = QPushButton()     # the bin's icon and count (_label_bin)
         icons.set_icon(self.btn_bin, "trash")
         self.btn_bin.clicked.connect(self.show_deleted)
