@@ -76,3 +76,43 @@ def test_a_row_that_wraps_takes_the_height_it_needs(qapp):
     box.resize(250, 10)
     box._fit()
     assert box.minimumHeight() > 2 * one
+
+
+def test_a_thumbnail_opens_its_picture_big(tab, monkeypatch):
+    from onionwatch.ui import viewer
+    seen = []
+    monkeypatch.setattr(viewer.PictureViewer, "exec",
+                        lambda self: seen.append((self.index, list(self.paths))) or 0)
+    row = new_card(tab)
+    tab._add_pictures(row.t, [as_qimage(banner()[:, ::-1])])
+    row.strip.thumbs[1].pic.click()
+    assert seen == [(1, row.t.images)]
+
+
+def test_the_viewer_goes_round_and_takes_pictures_off(tab, qapp):
+    from onionwatch.ui.viewer import PictureViewer
+    row = new_card(tab)
+    tab._add_pictures(row.t, [as_qimage(banner()[:, ::-1]), as_qimage(banner()[::-1])])
+    v = PictureViewer("x", lambda: row.t.images, 2,
+                      remove=lambda i: tab._remove_picture(row, i))
+    assert v.index == 2 and len(v.tiles) == 3
+    v.go(3)
+    assert v.index == 0 and v.tiles[0].isChecked()
+    v.go(-1)
+    assert v.index == 2
+    v._remove()
+    assert len(row.t.images) == 2 and len(v.paths) == 2 and v.index == 1
+    v._remove()
+    v._remove()
+    assert not row.t.images and v.result() == v.DialogCode.Accepted   # nothing left: it closes
+    v.deleteLater()
+
+
+def test_a_small_picture_is_shown_in_whole_pixels(qapp):
+    from onionwatch.ui.viewer import MAX_ZOOM, PictureView
+    pv = PictureView()
+    pv.resize(800, 600)
+    pv.set_image(as_qimage(banner()))       # 90 × 30
+    assert pv.zoom() == 8
+    pv.set_image(as_qimage(banner()[:4, :4]))
+    assert pv.zoom() == MAX_ZOOM

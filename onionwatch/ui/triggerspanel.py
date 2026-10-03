@@ -55,7 +55,7 @@ POLL_MS = 150           # how often the live match numbers refresh
 MAX_TRIGGERS = 50
 MAX_SIDE = 8192         # bigger pictures are refused (kept pixel for pixel, never resized)
 CUT_KEY = "OnionWatch cut from"   # a picture's PNG text: the size of what it was cut from
-THUMB = QSize(80, 45)
+THUMB = QSize(96, 54)
 STRIP_THUMBS = 3        # thumbnails a card's strip shows before it scrolls
 CHIP_CHARS = 24         # a sound chip's name is cut to this many characters
 PICKS = (("random", "Random"), ("order", "In order"), ("all", "All at once"))
@@ -274,8 +274,8 @@ def plural(n: int, word: str) -> str:
 
 
 class Thumb(QWidget):
-    """One picture in a card's strip: the thumbnail (click to swap it for another
-    file) with a ✕ in its corner while the mouse is over it."""
+    """One picture in a card's strip: the thumbnail (click to see it big, with the
+    trigger's other pictures) with a ✕ in its corner while the mouse is over it."""
     clicked = Signal(int)
     removed = Signal(int)
 
@@ -291,11 +291,11 @@ class Thumb(QWidget):
         if pm.isNull():
             self.pic.setIcon(icons.icon("image", "muted"))
             self.pic.setToolTip(f"{Path(path).name}: this picture can't be read — click to "
-                                "swap it for another file")
+                                "open it and swap it for another file")
         else:
             self.pic.setIcon(pm.scaled(THUMB, Qt.KeepAspectRatio, Qt.SmoothTransformation))
             self.pic.setToolTip(f"{Path(path).name} ({pm.width()}×{pm.height()})\n"
-                                "Click to swap it for another file")
+                                "Click to see it big")
         self.setFixedSize(self.pic.size())
         self.x = QPushButton("✕", self)
         self.x.setObjectName("danger")
@@ -476,6 +476,31 @@ class Switch(QCheckBox):
         p.drawEllipse(QRectF(21 if on else 3, 3, 16, 16))
 
 
+def divider() -> QFrame:
+    """A thin line between a card's parts, in the palette's colours (the host's theme
+    doesn't know about it)."""
+    f = QFrame()
+    f.setObjectName("carddivider")
+    f.setFixedHeight(1)
+    f.setStyleSheet("QFrame#carddivider { background: palette(mid); border: none; }")
+    return f
+
+
+def indented(parent: QVBoxLayout, spacing: int = 8) -> QVBoxLayout:
+    """A column under a section's title, set in a little so the title stands out."""
+    box = QWidget()
+    box.setObjectName("labelled")
+    box.setStyleSheet("QWidget#labelled { background: transparent; }")
+    col = QVBoxLayout(box)
+    col.setContentsMargins(SECTION_INDENT, 0, 0, 0)
+    col.setSpacing(spacing)
+    parent.addWidget(box)
+    return col
+
+
+SECTION_INDENT = 20     # px: a section's settings, in from its title
+
+
 def section_title(icon: str, text: str) -> QPushButton:
     """A card section's title: its icon and name in capitals (not clickable)."""
     b = QPushButton(text.upper())
@@ -495,6 +520,7 @@ class TriggerRow(QFrame):
     pictures_wanted = Signal(object)     # row: "+ Add pictures…" (files)
     paste_wanted = Signal(object)        # row: "Paste picture"
     cut_wanted = Signal(object)          # row: "Cut from window…"
+    picture_view = Signal(object, int)   # row, index: a thumbnail was clicked: show it big
     picture_swap = Signal(object, int)   # row, index: swap that picture for another file
     picture_removed = Signal(object, int)  # row, index
     sound_file_wanted = Signal(object)   # row: "Choose a sound file…"
@@ -518,16 +544,17 @@ class TriggerRow(QFrame):
         self._sounds: list[tuple[str, str]] = []   # the sounds as last given
         self._narrow = False            # too narrow for the header's thumbnail
         v = QVBoxLayout(self)
-        v.setContentsMargins(12, 10, 12, 10)
-        v.setSpacing(8)
+        v.setContentsMargins(16, 14, 16, 14)
+        v.setSpacing(12)
 
         # the header, always shown: its pictures, name, what it does (or what's wrong),
         # the live match, on / off, and open / close. Click it to open the rest
         top = QHBoxLayout()
-        top.setSpacing(10)
+        top.setSpacing(14)
         self.strip = Strip()
-        self.strip.setToolTip("The pictures to look for: any of them showing up plays the sound")
-        self.strip.picture_clicked.connect(lambda i: self.picture_swap.emit(self, i))
+        self.strip.setToolTip("The pictures to look for: any of them showing up plays the "
+                              "sound. Click one to see it big.")
+        self.strip.picture_clicked.connect(lambda i: self.picture_view.emit(self, i))
         self.strip.picture_removed.connect(lambda i: self.picture_removed.emit(self, i))
         top.addWidget(self.strip, 0, Qt.AlignTop)
         self.badge = QLabel()           # instead of the strip, for a trigger without pictures
@@ -584,12 +611,15 @@ class TriggerRow(QFrame):
         self.body.setSizePolicy(sp)
         bv = QVBoxLayout(self.body)
         bv.setContentsMargins(0, 0, 0, 0)
-        bv.setSpacing(6)
+        bv.setSpacing(10)
         v.addWidget(self.body)
 
         # WATCH FOR: what sets it off, where, in which part, and its pictures
+        bv.addWidget(divider())
+        bv.addSpacing(2)
         bv.addWidget(section_title("triggers", "Watch for"))
-        watch = FlowBox(gap=8)
+        watch_col = indented(bv, 10)
+        watch = FlowBox(gap=10)
         row = watch.flow
         self.mode = WideCombo(min_width=120)
         for key, label in MODES:
@@ -619,7 +649,7 @@ class TriggerRow(QFrame):
         self.btn_area.setObjectName("small")
         self.btn_area.clicked.connect(lambda: self.area_wanted.emit(self))
         row.addWidget(self.btn_area)
-        bv.addWidget(watch)
+        watch_col.addWidget(watch)
         self._watch_row = row
         self.chk_quiet = QCheckBox("Not while I'm in that window")
         self.chk_quiet.setToolTip("Stay quiet while the window it went off in is the one "
@@ -636,7 +666,7 @@ class TriggerRow(QFrame):
         icons.set_icon(self.btn_del, "trash", size=13)
         self.btn_del.clicked.connect(lambda: self.remove.emit(self))
 
-        self.pictures_box = FlowBox(gap=8)
+        self.pictures_box = FlowBox(gap=10)
         self.pictures_box.setObjectName("labelled")
         self.pictures_box.setStyleSheet("QWidget#labelled { background: transparent; }")
         row = self.pictures_box.flow
@@ -670,13 +700,17 @@ class TriggerRow(QFrame):
         self.chk_size.setChecked(t.any_size)
         self.chk_size.toggled.connect(self._on_size)
         row.addWidget(self.chk_size)
-        bv.addWidget(self.pictures_box)
+        watch_col.addWidget(self.pictures_box)
 
         # THEN: "Play", the chips (one per sound), "+ Add sound…", the Play mode, "Ring"
         # and until, the test button: a wrapping row, rebuilt by _layout_sounds when the
         # chips change
+        bv.addSpacing(6)
+        bv.addWidget(divider())
+        bv.addSpacing(2)
         bv.addWidget(section_title("bell", "Then"))
-        self.sounds_box = FlowBox(gap=6)
+        then_col = indented(bv)
+        self.sounds_box = FlowBox(gap=10)
         self.sounds_row = self.sounds_box.flow
         self.lbl_play = QLabel("Play")
         self.chips: list[QFrame] = []
@@ -712,11 +746,14 @@ class TriggerRow(QFrame):
         self.btn_test.setToolTip("Play now, as the trigger would, to check it")
         icons.set_icon(self.btn_test, "play", size=14)
         self.btn_test.clicked.connect(lambda: self.test.emit(self))
-        bv.addWidget(self.sounds_box)
+        then_col.addWidget(self.sounds_box)
 
         # FINE-TUNE: the numbers, folded away behind a line saying what they are
+        bv.addSpacing(6)
+        bv.addWidget(divider())
+        bv.addSpacing(2)
         tune = QHBoxLayout()
-        tune.setSpacing(8)
+        tune.setSpacing(12)
         self.btn_tune = QPushButton("FINE-TUNE")
         self.btn_tune.setObjectName("fold")
         self.btn_tune.setCheckable(True)
@@ -729,7 +766,8 @@ class TriggerRow(QFrame):
         self.tune_text.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
         tune.addWidget(self.tune_text, 1)
         bv.addLayout(tune)
-        self.tune = FlowBox(gap=10)
+        tune_col = indented(bv)
+        self.tune = FlowBox(gap=12)
         self.tune.setVisible(False)
         row = self.tune.flow
         self._tune_row = row
@@ -779,7 +817,7 @@ class TriggerRow(QFrame):
         row.addWidget(match)
         self._in: dict = {match: row, hold: row}   # box -> the Flow it's in now
         row.addWidget(self.chk_quiet)
-        bv.addWidget(self.tune)
+        tune_col.addWidget(self.tune)
         for w in (self.delay, self.cooldown, self.hold, self.threshold):
             no_wheel(w)
             w.valueChanged.connect(self._on_numbers)
@@ -789,6 +827,7 @@ class TriggerRow(QFrame):
         foot.addStretch(1)
         foot.addWidget(self.btn_dup)
         foot.addWidget(self.btn_del)
+        bv.addSpacing(4)
         bv.addLayout(foot)
 
         self._flash = QTimer(self)
@@ -1293,7 +1332,7 @@ class TriggersTab(QWidget):
         self.list = QWidget()
         self.list_layout = QVBoxLayout(self.list)
         self.list_layout.setContentsMargins(0, 0, 0, 0)
-        self.list_layout.setSpacing(6)
+        self.list_layout.setSpacing(14)
         self.empty = QWidget()
         ev = QVBoxLayout(self.empty)
         ev.setContentsMargins(0, 24, 0, 0)
@@ -1835,6 +1874,7 @@ class TriggersTab(QWidget):
         row.pictures_wanted.connect(self._add_picture_files)
         row.paste_wanted.connect(self._paste_picture)
         row.cut_wanted.connect(self._cut_picture)
+        row.picture_view.connect(self._view_picture)
         row.picture_swap.connect(self._change_picture)
         row.picture_removed.connect(self._remove_picture)
         row.sound_file_wanted.connect(self._choose_sound_file)
@@ -2144,6 +2184,28 @@ class TriggersTab(QWidget):
             return
         if self._add_pictures(row.t, [img]):
             self._store()
+
+    def _view_picture(self, row: TriggerRow, index: int = 0):
+        """A thumbnail was clicked: its picture big, with the trigger's others."""
+        from onionwatch.ui.viewer import PictureViewer
+        t = row.t
+
+        def made_from(img: QImage) -> str:
+            size = cut_size(img)
+            return f"cut from a {size[0]}×{size[1]} view" if size else ""
+
+        def swap(i: int):
+            r = self.rows.get(t.id)
+            if r is not None:
+                self._change_picture(r, i)
+
+        def remove(i: int):
+            r = self.rows.get(t.id)
+            if r is not None:
+                self._remove_picture(r, i)
+
+        PictureViewer(f"Pictures of “{t.name}”", lambda: t.images, index, swap, remove,
+                      made_from, self).exec()
 
     def _change_picture(self, row: TriggerRow, index: int = 0):
         """Swap one of the trigger's pictures for a file."""
