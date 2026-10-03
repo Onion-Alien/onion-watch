@@ -70,7 +70,7 @@ UNTILS = {
               "Ringing until the game moves.",
               "Stops once anything moves where it looks (you're back and playing), or "
               "when it goes away. It waits for the screen to settle first, so a fade-in "
-              "doesn't stop it."),
+              "doesn't stop it. A bar: once it's back over its line."),
     "focus": ("until I switch to the game", "Rings until you switch to the game",
               "Ringing until you switch to it.",
               "Stops when you alt-tab back to its window. Watching a whole screen: when "
@@ -1068,7 +1068,7 @@ class TriggersTab(QWidget):
                         "spawn's name, a “queue ready” banner, a message — and choose the "
                         "sound. Onion Watch keeps looking at that window while you're "
                         "alt-tabbed into another game or away from the keyboard, and plays "
-                        "the sound (or rings until you stop it) the moment it appears. It "
+                        "the sound (or rings until you're back) the moment it appears. It "
                         "only looks: it never clicks, types or touches the game.")
         hv.itemAt(0).widget().setWordWrap(True)
         self.hint = hv.itemAt(1).widget()

@@ -112,6 +112,13 @@ at another resolution, or with another UI scale. Each picture remembers the size
 of the window it was cut from, so a resized game is matched at once; other sizes
 are searched for a couple at a time and kept once found.
 
+**Characters and creatures** work best cut out with a transparent background (a
+PNG with the scenery erased): then only the model counts, so it's found over any
+background, in daylight or at night, nearer or further away. A plain rectangle cut
+around a model brings its scenery with it and is mostly found only where it was
+cut. Picture matching can't follow a model that turns or changes pose, or is mostly
+hidden: add a picture of each pose to the same trigger (it holds up to 100).
+
 Watching keeps to about 1 % of your processor so games keep their frame rate. On
 a slow computer, or with a lot of pictures, it looks less often than the "Check
 every" setting rather than use more.

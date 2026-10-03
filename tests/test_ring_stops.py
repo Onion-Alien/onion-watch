@@ -87,6 +87,32 @@ def test_focus_on_a_screen_stops_when_another_window_comes_to_the_front():
     assert q.step(AREA, True, 222, 2.2)               # switched to the game
 
 
+def quiet_steps(mode: str, frames, states) -> list:
+    """Feed a "moves" Quieter for a `mode` trigger through Watcher._step_quiet, one
+    frame (and verdict) a second; the ids it stopped."""
+    stopped = []
+    w = sw.Watcher(lambda _t: None, on_quiet=stopped.append)
+    it = sw.Watched("t", [], 0.5, 0.0, mode=mode, colour=(1.0, 0.0, 0.0))
+    w._quiet["t"] = q = Quieter("moves", 0, since=-10.0)
+    cap = sw._Capture(0)
+    for i, (f, s) in enumerate(zip(frames, states)):
+        if "t" in w._quiet:
+            w._step_quiet(it, q, cap, f, s, float(i))
+    return stopped
+
+
+def test_a_bar_draining_further_doesnt_stop_it_but_coming_back_does():
+    draining = [moved(0.1 * i) for i in range(6)]
+    assert quiet_steps("colour", draining, [True] * 6) == []
+    assert quiet_steps("colour", draining, [True] * 5 + [False]) == ["t"]
+
+
+def test_a_change_trigger_keeps_ringing_until_something_moves_after_it():
+    frames = [AREA] * 5 + [moved(0.5)]
+    assert quiet_steps("change", frames[:5], [False] * 5) == []     # the change is over
+    assert quiet_steps("change", frames, [False] * 6) == ["t"]      # you're back
+
+
 def test_the_watcher_says_when_a_ring_stops_by_itself(fake_screen, monkeypatch):
     """The watcher thread hands the stop over once the picture goes away, in the
     place it went off."""

@@ -39,7 +39,9 @@ BANNER = (200, 150, 240, 56)        # x, y, w, h of the "rare spawn" plate in th
 
 def game(ctrl: str, x: int, y: int, cover: bool = False) -> int:
     """A stand-in game window: a busy, fixed background, and the rare-spawn plate
-    while the control file says "banner". With `cover`, just a plain window on top."""
+    while the control file says "banner". "move" in it shifts the world (a player
+    walking), "front" brings the window to the front. With `cover`, just a plain
+    window on top."""
     from PySide6.QtCore import QRect, Qt, QTimer
     from PySide6.QtGui import QColor, QFont, QPainter
     from PySide6.QtWidgets import QApplication, QWidget
@@ -50,6 +52,8 @@ def game(ctrl: str, x: int, y: int, cover: bool = False) -> int:
         def __init__(self):
             super().__init__()
             self.show_banner = False
+            self.shift = 0
+            self.fronted = False
             self.setWindowTitle("Covering window" if cover else TITLE)
             self.setAttribute(Qt.WA_ShowWithoutActivating)
             self.setWindowFlag(Qt.WindowDoesNotAcceptFocus)
@@ -63,12 +67,21 @@ def game(ctrl: str, x: int, y: int, cover: bool = False) -> int:
 
         def check(self):
             try:
-                want = Path(ctrl).read_text().strip() == "banner"
+                words = Path(ctrl).read_text().split()
             except OSError:
-                want = False
-            if want != self.show_banner:
-                self.show_banner = want
+                words = []
+            want, shift = "banner" in words, 40 if "move" in words else 0
+            if want != self.show_banner or shift != self.shift:
+                self.show_banner, self.shift = want, shift
                 self.update()
+            if "front" in words and not self.fronted:
+                self.fronted = True
+                self.setWindowFlag(Qt.WindowDoesNotAcceptFocus, False)
+                self.show()
+                self.raise_()
+                self.activateWindow()
+                import ctypes
+                ctypes.windll.user32.SetForegroundWindow(int(self.winId()))
 
         def paintEvent(self, _e):
             p = QPainter(self)
@@ -79,7 +92,7 @@ def game(ctrl: str, x: int, y: int, cover: bool = False) -> int:
                 return
             for i in range(0, W, 16):               # a busy, fixed "game world"
                 for j in range(0, H, 16):
-                    v = (i * 7 + j * 13) % 97
+                    v = ((i + self.shift) * 7 + j * 13) % 97
                     p.fillRect(i, j, 16, 16, QColor(20 + v, 60 + v // 2, 40 + (v * 3) % 90))
             if self.show_banner:
                 bx, by, bw, bh = BANNER
@@ -232,6 +245,69 @@ def main() -> int:
         ctrl1.write_text("none")
         assert spin(lambda: went_off("Gone") == [TITLE], 8.0), went_off("Gone")
         print(f"banner gone from copy 1 -> '{panel.alert_text(g)}'")
+
+        # 7. a ringing trigger on copy 1 stops by itself when you're back
+        r = panel._new(piece, "Ring")
+        r.sources, r.sounds, r.ring, r.cooldown = [WindowRef(wins[0].exe, TITLE, 0)], \
+            ["s2"], True, 0.0
+        info1 = windows.find(r.sources[0])
+
+        def hold(s):
+            spin(lambda: False, s)
+
+        def ringing():
+            return host.ringing() == [r.id]
+
+        def ring(stop: str):
+            """Re-arm (banner off), set what stops it, show the banner: it rings."""
+            ctrl1.write_text("none")
+            hold(1.5)
+            r.stop = stop
+            panel._store()
+            ctrl1.write_text("banner")
+            assert spin(ringing, 5.0), f"{stop}: the banner should start the ring"
+
+        ring("moves")
+        hold(2.5)
+        assert ringing(), "moves: a still screen keeps it ringing"
+        t0 = time.monotonic()
+        ctrl1.write_text("banner move")
+        assert spin(lambda: not ringing(), 5.0), "moves: the game moving should stop it"
+        print(f"until the game moves -> stopped {time.monotonic() - t0:.2f} s after it moved")
+        hold(2.0)
+        assert host.ringing() == [], "moves: the banner still up mustn't ring again"
+
+        ring("gone")
+        ctrl1.write_text("banner move")
+        hold(2.5)
+        assert ringing(), "gone: moving doesn't stop it"
+        t0 = time.monotonic()
+        ctrl1.write_text("none")
+        assert spin(lambda: not ringing(), 5.0), "gone: the banner going should stop it"
+        print(f"until it's gone -> stopped {time.monotonic() - t0:.2f} s after it went")
+
+        ring("manual")
+        ctrl1.write_text("none")
+        hold(2.5)
+        assert ringing(), "manual: only Stop stops it"
+        panel.stop_ringing()
+        assert host.ringing() == []
+        print("until I click Stop -> rang on until Stop")
+
+        ring("focus")
+        hold(2.0)
+        assert ringing(), "focus: it's behind other windows, so it rings on"
+        before = windows.foreground()
+        ctrl1.write_text("banner front")
+        fronted = spin(lambda: windows.foreground() == info1.hwnd, 3.0)
+        if fronted:
+            assert spin(lambda: not ringing(), 5.0), "focus: switching to it should stop it"
+            print("until I switch to the game -> stopped when its window came to the front")
+            ctypes.windll.user32.SetForegroundWindow(wintypes.HWND(before))
+        else:
+            print("until I switch to the game -> SKIPPED: Windows wouldn't bring the "
+                  "window to the front from a script")
+        panel.stop_ringing()
 
         # 6. copy 2 closes: the card says it's waiting for it
         copy2.kill()

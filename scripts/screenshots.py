@@ -159,7 +159,7 @@ def main(out: Path):
         ("Health low", None, [acct1], ["builtin:bell"], True, 0.30, 0.64,
          {"mode": "colour", "colour": "#c62828", "region": bar, "hold": 1.0}),
         ("Dungeon queue", cut(queue, QRect(w // 2 - 230, int(h * 0.16), 460, 64)),
-         [], ["builtin:rising", "builtin:chime"], False, 0.80, 0.41, {}),
+         [], ["builtin:rising", "builtin:chime"], True, 0.80, 0.41, {"stop": "focus"}),
         ("Whisper", cut(queue, QRect(20, h - 150, 230, 34)), [acct1, acct2], ["builtin:ping"],
          False, 0.80, 0.22, {}),
     ]

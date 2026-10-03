@@ -69,6 +69,11 @@ WORK_WIDTH = 480        # the screen is shrunk to about this wide before matchin
 MIN_SIDE = 12           # ...but never so far that a picture's short side drops below this
 MAX_ZOOM = 2            # ...nor ever kept above this many times WORK_WIDTH (small pictures)
 MASK_MIN = 16           # a cut-out with fewer opaque pixels than this once shrunk is unreliable
+# ...and softened (see BLUR) it needs this many: a few dozen blurred pixels of a
+# slim figure correlate with almost anything (a cut-out game model scored 0.97 in
+# an empty scene; under a few hundred, 0.75 in many, too high to re-arm). Below it,
+# that size is matched sharp, where the figure keeps several times as many
+SOFT_MASK_MIN = 400
 # "any size": a picture is looked for from SIZES[0] to SIZES[1] times the size it
 # was cut at. A game drawing a picture at another size doesn't give a resized copy
 # of it (text especially is drawn afresh), so at any size but the one it was cut at
@@ -739,7 +744,7 @@ class Look:
             # (the frame's softened edge has whatever is behind the picture in it)
             gray = np.where(self.mask, self.gray, np.float32(self.gray[self.mask].mean()))
             hm = binary_erosion(shrink_mask(self.mask, s / 2))
-            if int(hm.sum()) < MASK_MIN:
+            if int(hm.sum()) < SOFT_MASK_MIN:
                 return Pattern(g, m)
         soft = gaussian_filter(resize(gray, s / 2), BLUR / 2, mode="nearest")
         # softening takes contrast away, the frame's as much as the picture's: a window
@@ -2163,10 +2168,16 @@ class Watcher:
         """Check a ringing trigger's Quieter against this frame; once it says so, let
         it go and call on_quiet."""
         y0, y1, x0, x1 = region_box(it.region, gray.shape)
+        area = gray[y0:y1, x0:x1]
         front = None
         if q.how == "focus":
             front = cap.in_front() if cap.is_window else self._front_window()
-        if not q.step(gray[y0:y1, x0:x1], state, front, now):
+        elif q.how == "moves":
+            if it.mode == "colour":
+                area = None         # a bar draining further isn't you: until it's back
+            elif it.mode == "change":
+                state = None        # a change is over at once: only movement after it
+        if not q.step(area, state, front, now):
             return
         with self._lock:
             if self._quiet.get(it.id) is not q:
@@ -2204,7 +2215,7 @@ class Watcher:
                 for sc, (mx, my) in find_peaks(f, p, PEAKS if check else 1, near_):
                     b = (y0 + my, y0 + my + p.size[0], x0 + mx, x0 + mx + p.size[1])
                     if check and sc >= near_:
-                        sc *= Watcher._tint_factor(raw, b, lk.tint)
+                        sc *= Watcher._tint_factor(raw, b, lk.tint, lk.mask)
                     if sc > top[0]:
                         top = (sc, b)
                 return top
@@ -2238,11 +2249,15 @@ class Watcher:
         return score, box
 
     @staticmethod
-    def _tint_factor(raw: tuple, box: tuple, want: np.ndarray) -> float:
+    def _tint_factor(raw: tuple, box: tuple, want: np.ndarray,
+                     mask: np.ndarray | None = None) -> float:
         """How much of a score stands, going by the colours of `box` (y0, y1, x0, x1
         in the frame) in the grab's own pixels `raw` against the picture's tint.
         The box is also tried a pixel off each way (where a match lands can be a
-        pixel out, and on a small picture that shifts its cells a lot)."""
+        pixel out, and on a small picture that shifts its cells a lot). A cut-out's
+        `mask` (its own size) is laid over the box, so only what's under its opaque
+        part counts, as it did for the picture's tint: the game's background showing
+        through it would otherwise make the colours of the right place disagree."""
         px, fmt, k = raw
         y0, y1, x0, x1 = box
         h, w = px.shape[0] // k, px.shape[1] // k
@@ -2251,6 +2266,11 @@ class Watcher:
                                max(0, x0 - 1) * k:min(w, x1 + 1) * k], fmt, k)
         except (OSError, ValueError):
             return 1.0
+        under = None
+        if mask is not None and not mask.all() and y1 > y0 and x1 > x0:
+            mh, mw = mask.shape
+            under = mask[(np.arange(y1 - y0) * mh // (y1 - y0))[:, None],
+                         np.arange(x1 - x0) * mw // (x1 - x0)]
         oy, ox = y0 - max(0, y0 - 1), x0 - max(0, x0 - 1)
         best = None
         for dy in (-1, 0, 1):
@@ -2258,7 +2278,7 @@ class Watcher:
                 a, c = oy + dy, ox + dx
                 if a < 0 or c < 0 or a + y1 - y0 > rgb.shape[0] or c + x1 - x0 > rgb.shape[1]:
                     continue
-                got = tint(rgb[a:a + y1 - y0, c:c + x1 - x0])
+                got = tint(rgb[a:a + y1 - y0, c:c + x1 - x0], under)
                 if got is not None:
                     gap = tint_gap(want, got)
                     best = gap if best is None else min(best, gap)
