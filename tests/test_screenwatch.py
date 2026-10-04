@@ -127,6 +127,29 @@ def test_a_cut_out_with_thin_lines_is_still_found():
     assert sw.match(sw.shrink(scene(), 1.0), sw.shrink(gray, scale), m)[0] < 0.6
 
 
+def test_a_rectangle_over_smooth_sky_is_not_matched_by_the_sky_alone():
+    # a faint figure cut with a lot of sky around it: the sky's gradient alone matches
+    # the plain way, but not once the light's slow changes are taken off (structure())
+    ys = np.linspace(0.1, 0.9, H, dtype=np.float32)[:, None]
+    sky = np.repeat(ys, W, 1) + np.linspace(0, 0.1, W, dtype=np.float32)[None, :]
+    fig = np.zeros((18, 12), np.float32)
+    fig[2:6, 3:9] = 0.15                    # a face
+    fig[8:16, 1:11:3] = -0.15               # arms and legs
+    shown = sky.copy()
+    shown[80:98, 150:162] += fig
+    pic = shown[40:140, 110:200].copy()
+    p = sw.Pattern(pic)
+    empty = sky * 0.9 + 0.03                # later, a little darker
+    plain, at = sw.match(empty, pic)
+    assert plain >= 0.95
+    assert sw.structure(sw.Frame(empty), p, at) < 0.5
+    back = empty.copy()
+    back[80:98, 150:162] += fig * 0.9
+    plain, at = sw.match(back, pic)
+    assert at == (110, 40)
+    assert sw.structure(sw.Frame(back), p, at) >= 0.9
+
+
 def test_gray_2x_averages_blocks_into_luma():
     px = np.zeros((4, 4, 4), np.uint8)
     px[:2, :2, 2] = 255                              # a red block
@@ -803,14 +826,16 @@ def test_one_bad_check_does_not_end_watching(fake_screen, monkeypatch):
 
 
 def test_processor_use_sets_how_far_apart_checks_are(fake_screen, monkeypatch):
-    """A check costing 4 ms on one core: at 1 % they're 0.4 s apart, at 5 % 80 ms,
-    and with no limit as often as `interval` asks."""
-    monkeypatch.setattr(sw, "CORES", 1)
+    """A check costing 20 ms of the processor, of four cores: at 1 % they're 0.5 s
+    apart, at 5 % 0.1 s, and with no limit as often as `interval` asks."""
+    monkeypatch.setattr(sw, "CORES", 4)
     fake_screen.frames = [scene()]
     real = FakeGrabber.grab
 
     def slow(self):
-        time.sleep(0.004)
+        end = time.thread_time() + 0.02
+        while time.thread_time() < end:
+            pass
         return real(self)
     monkeypatch.setattr(FakeGrabber, "grab", slow)
     gaps = {}

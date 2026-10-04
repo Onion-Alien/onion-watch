@@ -139,10 +139,12 @@ Watching keeps to about 1 % of your processor so games keep their frame rate. On
 a slow computer, or with a lot of pictures, it looks less often than the "Check
 every" setting rather than use more. The ⚙ on the Triggers bar lets it use more
 (2 % or 5 %, or no limit at all) when you'd rather have dozens of pictures noticed
-straight away, and shows how often each trigger is being checked. As a guide, on an 8-thread processor about
-50 pictures on are each checked every half second (a trigger with an Area costs far
-less), so switch off the categories you don't need now; the list warns when checks
-are spaced out past half a second.
+straight away, and shows how often each trigger is being checked. As a guide, measured
+on a 16-thread processor with 50 pictures on across 10 game windows ("any size" on), the
+1 % setting checks each of them about every half second and really uses about 0.6 % of
+the processor (a trigger with an Area costs far less). Fewer pictures are checked more
+often, so switch off the categories you don't need now; the list warns when checks are
+spaced out past half a second.
 
 A trigger fires once each time its picture appears, then waits for it to go away
 before it can fire again. A window that isn't open yet is looked for every two

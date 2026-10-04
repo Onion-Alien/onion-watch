@@ -28,9 +28,10 @@ any size but its own a picture and the frame are both softened a little first
 it.
 
 Watching is kept to about CPU_SHARE of the computer's processor (or what's picked:
-`Watcher.cpu_share`), so it doesn't cost a game frames: when the checks take longer
-than that allows (a slow computer, a lot of pictures, a game using every core)
-they're spaced out further than `interval`.
+`Watcher.cpu_share`), so it doesn't cost a game frames: when the checks take more
+processor time than that allows (a slow computer, a lot of pictures) they're spaced
+out further than `interval`. Time spent waiting (for a window to be copied, say) isn't
+counted, as it costs the game nothing.
 A 1080p screen with one picture costs a few milliseconds per check.
 
 `Gate` decides when a score is a new appearance: it fires once when a picture shows
@@ -58,6 +59,7 @@ import sys
 import threading
 import time
 import uuid
+from collections import deque
 from ctypes import wintypes
 from dataclasses import asdict, dataclass, field
 
@@ -133,6 +135,20 @@ EXACT_NEAR = 0.25
 # more of the scenery than a bigger picture's do)
 EXACT_MASK_MIN = 40
 EXACT_PEAKS = 5
+# A rectangle cut around a thing takes some scenery with it, and a smooth part of it
+# (sky, a gradient) can carry a match by itself: a figure cut over sky scored 0.89 on
+# the sky alone, too high to ever re-arm. So a place scoring within TINT_NEAR of the
+# threshold is matched again with the light's slow changes taken off both (each
+# pixel less the mean of the STRUCT_DIV-th of the picture's short side around it):
+# what's left is the thing's shapes and edges. The real thing keeps most of its score
+# there (0.85-1.0 of it, covered or in other light too), the scenery alone well under
+# STRUCT_RATIO of it, and then that's its score. Cut-outs leave their scenery out already.
+STRUCT_DIV = 4
+STRUCT_RATIO = 0.8
+# A soft picture is scored like that with its sharp one at full size, both softened
+# by STRUCT_BLUR px first: a capture is picked pixels, a picture smoothly resized,
+# and without it their finest detail disagrees (aliasing) even where the thing is.
+STRUCT_BLUR = 1.2
 # A picture too small for the usual working size makes its capture finer (see
 # Watcher._fit), and is matched there; but it's found first at the usual size with
 # a stand-in (a copy shrunk to it, if that's at least PROXY_MIN px each way): its
@@ -151,6 +167,13 @@ CPU_SHARE = 0.01        # watching uses about this share of the whole processor,
 # `interval`, whatever it costs)
 CPU_SHARES = (0.01, 0.02, 0.05, 0.0)
 CPU_MEASURE_S = 2.0     # Watcher.cpu_used is measured over this long
+# A check's cost is the processor time it really takes: the watching thread's own
+# (waits for a window to be copied or for the UI thread don't count) plus what a
+# grabber says its grab costs elsewhere (`cpu_elsewhere`: PrintWindow's work in the
+# game and the desktop compositor). Windows counts a thread's time in 15.6 ms steps,
+# so it's averaged over the last PACE_ROUNDS checks (those of the last PACE_S).
+PACE_ROUNDS = 10
+PACE_S = 3.0
 # A match is judged on grey, which can't tell a green slime from a red one, or a
 # wooden crate from a metal one once softened. So a place scoring within TINT_NEAR
 # of the threshold (the best PEAKS places of each picture and size; a place scoring
@@ -610,6 +633,7 @@ class Pattern:
         # those sharp patterns once made (see SOFT_CONFIRM)
         self.sharp: tuple | None = None
         self._sharps: list[Pattern] | None = None
+        self._struct: Pattern | None = None     # the sharp one at its scale, for structure()
         self.exact = False      # a soft one standing in for the picture at its own size
         self.proxy: Pattern | None = None   # its stand-in at the usual size (find_via)
 
@@ -699,6 +723,56 @@ def _confirm(full: Frame, p: Pattern, at: tuple[int, int], sc: float,
     if p.exact:
         return best
     return sc if best >= SOFT_CONFIRM else min(sc, best)
+
+
+def _box_mean(a: np.ndarray, k: int) -> np.ndarray:
+    """Each pixel's mean over the k x k square around it (k odd; the edges carried out)."""
+    r = k // 2
+    c = np.pad(np.pad(a, r, mode="edge").cumsum(0).cumsum(1), ((1, 0), (1, 0)))
+    return (c[k:, k:] - c[:-k, k:] - c[k:, :-k] + c[:-k, :-k]) * (1.0 / (k * k))
+
+
+def structure(full: Frame, p: Pattern, at: tuple[int, int]) -> float:
+    """A rectangle picture's score at `at` (x, y, at full size) in `full` (the frame it
+    was matched on) with the slow changes of light taken off both (see STRUCT_DIV), at
+    its place or a little off. A soft picture is scored with its sharp one, at full
+    size: on the soft half-size copy its edges are a pixel or two wide, and a part of
+    a pixel off takes most of what's left once the light is taken off."""
+    pad, blur = 1, 0.0
+    if p.soft and p.sharp is not None:
+        if p._struct is None:
+            gray, _mask, sc = p.sharp
+            p._struct = Pattern(resize(gray, sc))
+        p, pad, blur = p._struct, CONFIRM_PAD, STRUCT_BLUR
+    elif p.soft:
+        full, at = full.soft(), (at[0] // 2, at[1] // 2)
+    s = full.s
+    th, tw = p.shape
+    k = max(3, min(th, tw) // STRUCT_DIV) | 1
+    x, y = at
+    fh, fw = s.shape
+    y0, x0 = max(0, y - pad), max(0, x - pad)
+    area = s[max(0, y0 - k):min(fh, y + th + pad + k), max(0, x0 - k):min(fw, x + tw + pad + k)]
+    area = area.astype(np.float64)
+    t = p.t.astype(np.float64)
+    if blur > 0:
+        area, t = gaussian_filter(area, blur), gaussian_filter(t, blur)
+    area = area - _box_mean(area, k)
+    oy, ox = y0 - max(0, y0 - k), x0 - max(0, x0 - k)
+    t = t - _box_mean(t, k)
+    t -= t.mean()
+    nt = math.sqrt(float((t * t).sum()))
+    best = 0.0
+    for dy in range(2 * pad + 1):
+        for dx in range(2 * pad + 1):
+            b = area[oy + dy:oy + dy + th, ox + dx:ox + dx + tw]
+            if b.shape != t.shape:
+                continue
+            b = b - b.mean()
+            nb = math.sqrt(float((b * b).sum()))
+            if nt > 1e-9 and nb > 1e-9:
+                best = max(best, float((t * b).sum()) / (nt * nb))
+    return best
 
 
 def _ncc_near(area: np.ndarray, q: Pattern) -> float:
@@ -2074,14 +2148,15 @@ class Watcher:
         groups: dict = {}                        # source -> the triggers looked for there
         wins: list | None = None                 # the open windows, when "every copy" is used
         listed = -math.inf
-        cost: float | None = None                # a check's time, averaged
+        costs: deque = deque(maxlen=PACE_ROUNDS)    # (when, processor time) of the last checks
         rounds = 0                               # checks made
-        mark = (time.thread_time(), time.perf_counter())    # for cpu_used
+        elsewhere = 0.0                          # grabs' processor time outside the thread
+        mark = (time.thread_time(), time.perf_counter(), 0.0)    # for cpu_used
         worked = False                           # a screen was captured since Start
         tick_errors: dict = {}                   # source -> a check that failed, logged once
         try:
             while not stop.is_set():
-                t0 = time.perf_counter()
+                t0, c0 = time.perf_counter(), time.thread_time()
                 with self._lock:
                     items = list(self._items.values())
                     changed, self._changed = self._changed, False
@@ -2165,18 +2240,24 @@ class Watcher:
                                         and now - c.miss_since >= UNSEEN_S)
                 if not stop.is_set():           # stop() has cleared them already
                     self.detail, self.scores = self._gather(items, caps)
-                spent = time.perf_counter() - t0
+                now_cpu, now_t = time.thread_time(), time.perf_counter()
+                spent = now_t - t0
                 self.check_ms = spent * 1000
-                # keep to cpu_share of the processor: a check's time (on the clock,
-                # so a busy computer counts too) sets how far apart they must be
-                cost = spent if cost is None else cost + (spent - cost) * 0.2
+                # keep to cpu_share of the processor: what the checks really cost it
+                # (PACE_ROUNDS) sets how far apart they must be
+                out = sum(getattr(c.grab, "cpu_elsewhere", 0.0) for c in live)
+                elsewhere += out
+                costs.append((now_t, now_cpu - c0 + out))
+                while len(costs) > 1 and now_t - costs[0][0] > PACE_S:
+                    costs.popleft()
+                cost = sum(c for _t, c in costs) / len(costs)
                 share = self.cpu_share
                 self.gap = (self.interval if share <= 0
                             else max(self.interval, cost / (share * CORES)))
-                now_cpu, now_t = time.thread_time(), time.perf_counter()
                 if now_t - mark[1] >= CPU_MEASURE_S:
-                    self.cpu_used = (now_cpu - mark[0]) / (now_t - mark[1]) / CORES
-                    mark = (now_cpu, now_t)
+                    self.cpu_used = ((now_cpu - mark[0] + elsewhere - mark[2])
+                                     / (now_t - mark[1]) / CORES)
+                    mark = (now_cpu, now_t, elsewhere)
                 stop.wait(max(0.001, self.gap - spent))
         except Exception as e:  # noqa: BLE001 - say so in the window instead of dying quietly
             log.exception("screen watching stopped")
@@ -2533,6 +2614,10 @@ class Watcher:
                     peaks = find_peaks(f, p, PEAKS if check else 1, near_,
                                        it.threshold - EXACT_NEAR)
                 for sc, (mx, my) in peaks:
+                    if p.box and sc >= near_:
+                        st = structure(f, p, (mx, my))
+                        if st < STRUCT_RATIO * sc:
+                            sc = st
                     b = (y0 + my, y0 + my + p.size[0], x0 + mx, x0 + mx + p.size[1])
                     if r < 0.999:
                         b = tuple(round(v / r) for v in b)

@@ -203,17 +203,30 @@ def test_gray_2x_is_the_same_as_before():
 
 
 class SlowGrabber:
-    """A capture that takes 10 ms a grab."""
+    """A capture that takes 10 ms of the processor a grab."""
 
     def __init__(self, mon, w, h):
         self.w, self.h = w, h
 
     def grab(self):
-        time.sleep(0.01)
+        end = time.thread_time() + 0.01
+        while time.thread_time() < end:
+            pass
         return np.full((self.h, self.w), 0.5, np.float32)
 
     def close(self):
         pass
+
+
+class WaitingGrabber(SlowGrabber):
+    """One that waits 10 ms a grab (PrintWindow waiting on the game), using next to no
+    processor time, and says its grab costs 1 ms elsewhere."""
+
+    cpu_elsewhere = 0.001
+
+    def grab(self):
+        time.sleep(0.01)
+        return np.full((self.h, self.w), 0.5, np.float32)
 
 
 def test_checks_are_spaced_out_to_keep_to_the_processor_share(monkeypatch):
@@ -231,6 +244,24 @@ def test_checks_are_spaced_out_to_keep_to_the_processor_share(monkeypatch):
     finally:
         w.stop()
     assert w.gap >= 0.035
+
+
+def test_waiting_for_a_grab_is_not_counted_but_its_cost_elsewhere_is(monkeypatch):
+    """Grabs that wait 10 ms on the clock but cost 1 ms (elsewhere) and a little of
+    the thread, allowed a quarter of one core: checks well under 40 ms apart, and
+    no closer than the 4 ms the 1 ms elsewhere alone asks for."""
+    monkeypatch.setattr(sw, "monitors", lambda: [Monitor(0, 0, 320, 180, True)])
+    monkeypatch.setattr(sw, "CPU_SHARE", 0.25)
+    monkeypatch.setattr(sw, "CORES", 1)
+    w = sw.Watcher(lambda _t: None, grabber=WaitingGrabber)
+    w.interval = 0.001
+    w.set_items([sw.Watched("t", [(np.eye(20, dtype=np.float32), None)], 0.8, 0.0)])
+    w.start()
+    try:
+        time.sleep(3.5)                 # the first check (setting up) falls out of PACE_S
+    finally:
+        w.stop()
+    assert 0.004 <= w.gap < 0.03
 
 
 def test_a_quick_check_keeps_the_interval():

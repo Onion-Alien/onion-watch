@@ -373,6 +373,10 @@ class WindowGrabber:
 
     lost = False
     want_color = False      # also keep `color` (screenwatch.Grabber's)
+    # A grab's processor time outside the watching thread, for the watcher's budget:
+    # PrintWindow with full content measured about 3 ms of the whole processor per
+    # call (a 1000x560 window), well under 1 ms of it in the calling thread.
+    cpu_elsewhere = 0.0025
     color: np.ndarray | None = None
     raw: tuple | None = None    # the last grab's pixels as sampled: (pixels, format, factor)
 
