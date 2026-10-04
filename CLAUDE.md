@@ -48,7 +48,8 @@ commit times in UTC.
     (`onionwatch/host.py`). The engine (`screenwatch.py`, `windows.py`) doesn't know
     about hosts at all.
   - The module may only import what Onion Board ships: the standard library,
-    numpy, scipy, PySide6's QtCore / QtGui / QtWidgets. `build_module.py` and its
+    numpy, PySide6's QtCore / QtGui / QtWidgets (not scipy: the matcher's FFTs
+    and filters are numpy, in `imgops.py`). `build_module.py` and its
     test refuse anything else.
   - Changing `Host` in a way the other side can't follow means bumping
     `API_VERSION` and a matching change in Onion Board.

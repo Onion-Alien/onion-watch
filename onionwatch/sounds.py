@@ -127,9 +127,8 @@ def decode(path: str | Path) -> np.ndarray:
     elif data.shape[1] > 2:
         data = data[:, :2]
     if rate != RATE:
-        from scipy.signal import resample_poly
-        g = math.gcd(int(rate), RATE)
-        data = resample_poly(data, RATE // g, int(rate) // g, axis=0).astype(np.float32)
+        import soxr
+        data = soxr.resample(data, rate, RATE, quality="VHQ")
     return np.ascontiguousarray(data, dtype=np.float32)
 
 

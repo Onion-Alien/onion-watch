@@ -10,7 +10,7 @@
 
 Onion Board unzips it into %APPDATA%\\OnionBoard\\modules\\onion-watch and loads the
 package from there. The built app has no pip, so the module may only import what
-Onion Board ships: the standard library, numpy, scipy and PySide6's QtCore / QtGui /
+Onion Board ships: the standard library, numpy and PySide6's QtCore / QtGui /
 QtWidgets (ALLOWED_*). Anything else fails the build.
 
 The zip is the same byte for byte for the same source (fixed file times, sorted
@@ -38,7 +38,7 @@ MODULE_ID = "onion-watch"
 ZIP_NAME = "OnionWatch-module.zip"
 # what Onion Board's build ships besides the standard library: these packages
 # (any part of them), and these modules
-ALLOWED_PACKAGES = {"numpy", "scipy"}
+ALLOWED_PACKAGES = {"numpy"}
 ALLOWED_MODULES = {"PySide6", "PySide6.QtCore", "PySide6.QtGui", "PySide6.QtWidgets"}
 DESCRIPTION = ("Plays a sound when something shows up in a game — a rare spawn, a queue "
                "pop, YOU DIED — watching the game's own window, even while other windows "

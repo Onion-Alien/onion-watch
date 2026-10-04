@@ -207,6 +207,7 @@ then installs that file instead of downloading.
 | Path | What |
 |---|---|
 | `onionwatch/screenwatch.py` | the engine: screen capture (DXGI Desktop Duplication, GDI fallback, grey and when needed colour), the matcher, the kinds of trigger (appears, goes away, area changes / stops changing, colour level) and their areas, the fire-once `Gate`, the watcher thread (one capture per screen or window in use, every copy of a game expanded), `Trigger`, `WindowRef` and `Hit` |
+| `onionwatch/imgops.py` | the matcher's image operations in numpy alone (FFTs, Gaussian softening, smooth enlarging, mask erosion): Onion Board, which loads the matcher, doesn't ship scipy |
 | `onionwatch/windows.py` | listing windows, finding a remembered one again (and the right copy), `PrintWindow` capture of a covered window, full-size snapshots for cutting |
 | `onionwatch/sounds.py` | the built-in alert sounds (made in code) and the added sound files |
 | `onionwatch/player.py` | the output stream that mixes and rings the alerts |
