@@ -3,17 +3,69 @@ a category's section in the list (a header to fold it, switch it on or off and
 open its menu, over its trigger cards) and the Profiles window."""
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QRect, Qt, Signal
 from PySide6.QtWidgets import (QComboBox, QDialog, QDialogButtonBox, QFrame, QHBoxLayout,
                                QLineEdit, QListWidget, QListWidgetItem, QMenu, QPushButton,
-                               QVBoxLayout, QWidget, QSizePolicy)
+                               QVBoxLayout, QWidget, QWidgetItem, QSizePolicy)
 
 from onionwatch import profiles
 from onionwatch.profiles import Profile
 from onionwatch.ui import icons
-from onionwatch.ui.panel import hint_label, section_label
+from onionwatch.ui.panel import Flow, hint_label, section_label
 
 NAME = Qt.UserRole              # a list item's category name / profile id / exe
+TILE = 260                      # px: the least a closed card (a tile in the grid) is wide
+
+
+def _height(item, w: int) -> int:
+    """How tall `item` is at width `w` (its height there, not at its preferred width)."""
+    h = item.heightForWidth(w) if item.hasHeightForWidth() else -1
+    return max(h if h >= 0 else item.sizeHint().height(), item.minimumSize().height())
+
+
+class CardGrid(Flow):
+    """A category's cards as tiles, as many to a line as fit (like the sound pads):
+    a closed card is a tile, all of a line as tall as its tallest. An open card,
+    and anything else in it (the "empty" note), has a line of its own, the whole
+    width. The cards stay in their order."""
+
+    def insertWidget(self, i: int, w: QWidget):
+        self.addChildWidget(w)
+        self._items.insert(max(0, min(i, len(self._items))), QWidgetItem(w))
+        self.invalidate()
+
+    def columns(self, width: int) -> int:
+        return max(1, (width + self._gap) // (TILE + self._gap))
+
+    def _place(self, rect: QRect, move: bool) -> int:
+        cols = self.columns(rect.width())
+        cw = max(1, (rect.width() - self._gap * (cols - 1)) // cols)
+        y, line = rect.y(), []
+
+        def put(items, w):
+            nonlocal y
+            h = max(_height(it, w) for it in items)
+            if move:
+                for k, it in enumerate(items):
+                    it.setGeometry(QRect(rect.x() + k * (w + self._gap), y, w, h))
+            y += h + self._gap
+
+        for it in self._items:
+            if it.isEmpty():
+                continue
+            if getattr(it.widget(), "is_open", True):     # a line of its own
+                if line:
+                    put(line, cw)
+                    line = []
+                put([it], rect.width())
+            else:
+                line.append(it)
+                if len(line) == cols:
+                    put(line, cw)
+                    line = []
+        if line:
+            put(line, cw)
+        return max(0, y - self._gap - rect.y())
 
 
 class CategorySection(QWidget):
@@ -28,7 +80,7 @@ class CategorySection(QWidget):
 
     def __init__(self, name: str):
         super().__init__()
-        from onionwatch.ui.triggerspanel import Switch   # (that module imports this one)
+        from onionwatch.ui.triggerspanel import FlowBox, Switch   # (it imports this one)
         self.name = name
         self.built = False              # its cards have been made
         v = QVBoxLayout(self)
@@ -71,10 +123,8 @@ class CategorySection(QWidget):
         align_control(self.btn_menu)
         h.addWidget(self.btn_menu)
         v.addWidget(self.header)
-        self.body = QWidget()
-        self.body_layout = QVBoxLayout(self.body)
-        self.body_layout.setContentsMargins(0, 0, 0, 0)
-        self.body_layout.setSpacing(8)
+        self.body = FlowBox(gap=8, flow_type=CardGrid)
+        self.body_layout = self.body.flow
         self.empty = hint_label("No triggers in this category yet. Move one here with "
                                 "Category, under a trigger's Fine-tune.")
         self.body_layout.addWidget(self.empty)

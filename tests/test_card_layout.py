@@ -116,3 +116,21 @@ def test_a_small_picture_is_shown_in_whole_pixels(qapp):
     assert pv.zoom() == 8
     pv.set_image(as_qimage(banner()[:4, :4]))
     assert pv.zoom() == MAX_ZOOM
+
+
+def test_closed_cards_are_tiles_side_by_side_an_open_one_the_whole_width(tab, qapp):
+    rows = [new_card(tab) for _ in range(4)]
+    for r in rows:
+        r.set_open(False)
+    rows[2].set_open(True)
+    tab.resize(1000, 2000)
+    tab.show()
+    for _ in range(8):
+        qapp.processEvents()
+    a, b, c, d = (r.geometry() for r in rows)
+    assert a.y() == b.y() and b.x() > a.right()          # two tiles on a line
+    assert a.width() < c.width() and c.y() > a.bottom()  # the open one under, wider
+    assert d.y() > c.bottom()                            # and the rest after it
+    assert rows[2].names.y() < rows[2].body.y()          # its header on one line
+    assert rows[0].names.y() > rows[0].chk_on.y()        # a tile's name under its switch
+    tab.hide()

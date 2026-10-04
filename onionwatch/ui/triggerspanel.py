@@ -29,9 +29,9 @@ import numpy as np
 from PySide6.QtCore import QEvent, QPoint, QRect, QSize, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QFontMetrics, QIcon, QImage, QKeySequence, QPixmap, QShortcut
 from PySide6.QtWidgets import (QApplication, QBoxLayout, QCheckBox, QComboBox, QDoubleSpinBox,
-                               QFileDialog, QFrame, QHBoxLayout, QLabel, QLineEdit, QMenu,
-                               QMessageBox, QPushButton, QScrollArea, QSizePolicy, QSpinBox,
-                               QVBoxLayout, QWidget)
+                               QFileDialog, QFrame, QGridLayout, QHBoxLayout, QLabel,
+                               QLineEdit, QMenu, QMessageBox, QPushButton, QScrollArea,
+                               QSizePolicy, QSpinBox, QVBoxLayout, QWidget)
 
 from onionwatch import cutout, owl, packs, profiles, screenwatch, theme, windows
 from onionwatch.screenwatch import (INTERVALS_MS, MAX_PICTURES, MAX_SOUNDS, Monitor, Picture,
@@ -673,7 +673,9 @@ def section_title(icon: str, text: str) -> QPushButton:
 class TriggerRow(QFrame):
     """One trigger's card: a header (pictures, name, what it does, the live match,
     on / off) that opens to three parts: what to watch for, what happens then, and
-    the fine-tuning, folded away behind a line summing it up."""
+    the fine-tuning, folded away behind a line summing it up. Closed, it's a tile in
+    its category's grid (pictures over the name, like a sound pad); open, it's the
+    whole width, the header one line."""
     changed = Signal(object)             # row: a setting changed
     pictures_wanted = Signal(object)     # row: "+ Add pictures…" (files)
     paste_wanted = Signal(object)        # row: "Paste picture"
@@ -709,21 +711,26 @@ class TriggerRow(QFrame):
         v.setSpacing(6)
 
         # the header, always shown: its pictures, name, what it does (or what's wrong),
-        # the live match, on / off, and open / close. Click it to open the rest
-        top = QHBoxLayout()
-        top.setSpacing(14)
+        # the live match, on / off, and open / close. Click it to open the rest.
+        # Laid out by _arrange: on one line while open, the name under the rest closed
+        self.top = top = QGridLayout()
+        top.setHorizontalSpacing(14)
+        top.setVerticalSpacing(4)
+        top.setColumnStretch(1, 1)
         self.strip = Strip()
         self.strip.setToolTip("The pictures to look for: any of them showing up plays the "
                               "sound. Click one to see it big.")
         self.strip.picture_clicked.connect(lambda i: self.picture_view.emit(self, i))
         self.strip.picture_removed.connect(lambda i: self.picture_removed.emit(self, i))
-        top.addWidget(self.strip, 0, Qt.AlignTop)
         self.badge = QLabel()           # instead of the strip, for a trigger without pictures
         self.badge.setObjectName("iconlabel")
         self.badge.setFixedSize(THUMB + QSize(12, 8))   # one thumbnail's slot: names line up
         self.badge.setAlignment(Qt.AlignCenter)
-        top.addWidget(self.badge, 0, Qt.AlignTop)
-        names = QVBoxLayout()
+        self.names = QWidget()
+        self.names.setObjectName("labelled")      # see-through, like labelled()'s boxes
+        self.names.setStyleSheet("QWidget#labelled { background: transparent; }")
+        names = QVBoxLayout(self.names)
+        names.setContentsMargins(0, 0, 0, 0)
         names.setSpacing(4)
         self.name = QLineEdit(t.name)
         # a title until you click it. Styled here, in the palette's colours, rather than
@@ -771,23 +778,25 @@ class TriggerRow(QFrame):
         state_line.addWidget(self.btn_retarget)
         names.addLayout(state_line)
         names.addStretch(1)
-        top.addLayout(names, 1)
         self.live = QLabel("—")
         self.live.setMinimumWidth(48)
         self.live.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        top.addWidget(self.live, 0, Qt.AlignVCenter)
         self.chk_on = Switch()
         self.chk_on.setToolTip("Watch for this trigger (switch it off to keep it but pause it)")
         self.chk_on.setChecked(t.enabled)
         self.chk_on.toggled.connect(self._on_enabled)
-        top.addWidget(self.chk_on, 0, Qt.AlignVCenter)
         self.btn_open = QPushButton()
         self.btn_open.setObjectName("fold")
         self.btn_open.setCheckable(True)
         self.btn_open.setFixedSize(34, 34)
         self.btn_open.setAccessibleName("Edit trigger")
         self.btn_open.toggled.connect(self.set_open)
-        top.addWidget(self.btn_open, 0, Qt.AlignVCenter)
+        top.addWidget(self.strip, 0, 0, Qt.AlignTop | Qt.AlignLeft)
+        top.addWidget(self.badge, 0, 0, Qt.AlignTop | Qt.AlignLeft)
+        top.addWidget(self.live, 0, 2, Qt.AlignVCenter)
+        top.addWidget(self.chk_on, 0, 3, Qt.AlignVCenter)
+        top.addWidget(self.btn_open, 0, 4, Qt.AlignVCenter)
+        self._tile: bool | None = None      # how the header is laid out now (_arrange)
         v.addLayout(top)
 
         self.body = QWidget()
@@ -1013,6 +1022,7 @@ class TriggerRow(QFrame):
         self.cb_category.activated.connect(self._on_category)
         row.addWidget(labelled("Category", self.cb_category))
         tune_col.addWidget(self.tune)
+        v.addStretch(1)     # a tile taller than it needs (its line's tallest): space below
         for w in (self.delay, self.cooldown, self.hold, self.threshold):
             no_wheel(w)
             w.valueChanged.connect(self._on_numbers)
@@ -1050,6 +1060,7 @@ class TriggerRow(QFrame):
     def set_open(self, on: bool):
         """Show the whole card, or just its header."""
         self.body.setVisible(on)
+        self._arrange(not on)
         if self.btn_open.isChecked() != on:
             self.btn_open.blockSignals(True)
             self.btn_open.setChecked(on)
@@ -1057,7 +1068,26 @@ class TriggerRow(QFrame):
         icons.set_icon(self.btn_open, "fold_open" if on else "fold", "muted", "muted", size=16)
         self.btn_open.setToolTip("Close this trigger" if on else "Open this trigger to change it")
 
+    def _arrange(self, tile: bool):
+        """The header as a tile's (pictures and switch over the name and what it does)
+        or on one line (the card's open, the whole width)."""
+        if tile == self._tile:
+            return
+        self._tile = tile
+        self.top.removeWidget(self.names)
+        if tile:
+            self.top.addWidget(self.names, 1, 0, 1, 5)
+        else:
+            self.top.addWidget(self.names, 0, 1)
+        self.state.setWordWrap(tile)        # two lines of it, not one cut short
+        self.state.setMaximumHeight(2 * self.state.fontMetrics().lineSpacing() + 2
+                                    if tile else 16777215)
+        self._narrow = None             # re-decided for the new layout
+        self._fit_narrow()
+        self.updateGeometry()
+
     NARROW = 380        # px: below this the header's thumbnail goes, for the rest to fit
+    NARROW_TILE = 230   # ...a tile's: its first line is only the thumbnail and switches
 
     def changeEvent(self, ev):
         super().changeEvent(ev)
@@ -1070,15 +1100,18 @@ class TriggerRow(QFrame):
 
     def resizeEvent(self, ev):
         super().resizeEvent(ev)
-        narrow = self.width() < self.NARROW
-        if narrow != self._narrow:
-            self._narrow = narrow
-            self._show_thumb()
+        self._fit_narrow()
         # Duplicate / Delete share Fine-tune's line: shorter a bit before the card is
         # narrow, or that line would stop it getting any narrower
         short = self.width() < self.NARROW + 80
         self.btn_dup.setText("Copy" if short else "Duplicate")
         self.btn_del.setText("" if short else "Delete")
+
+    def _fit_narrow(self):
+        narrow = self.width() < (self.NARROW_TILE if self._tile else self.NARROW)
+        if narrow != self._narrow:
+            self._narrow = narrow
+            self._show_thumb()
 
     def _show_thumb(self):
         """The header's pictures (or the badge of a trigger without), unless the card
