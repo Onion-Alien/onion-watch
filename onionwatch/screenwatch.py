@@ -994,6 +994,24 @@ def tint(rgb: np.ndarray, mask: np.ndarray | None = None) -> np.ndarray | None:
         return np.where((n >= 0.5 * area)[..., None], sums / n[..., None], np.nan)
 
 
+def tint_at(rgb: np.ndarray, mask: np.ndarray | None, s: float
+            ) -> tuple[np.ndarray, np.ndarray | None] | None:
+    """tint() of a picture's own colours (uint8 RGB) shrunk by `s` as the capture is,
+    and the mask it was taken under (its own, shrunk the same way): (tint, mask).
+    Shrunk, a thin part of a cut-out (an outline, a letter's stroke) blends with
+    what's around it, in the capture and here too, where at full size it has the
+    stroke's colour alone and doesn't match the capture's. Its edges blend with the
+    scenery it was cut from, though, so a place counts when its colours agree with
+    either this or the full-size tint (the scene's light changed: the full size's)."""
+    if s >= 0.999:
+        return None
+    f = rgb[..., :3].astype(np.float32) * (1 / 255)
+    small = np.stack([shrink(f[..., c], s) for c in range(3)], -1)
+    m = None if mask is None else shrink_mask(mask, s)
+    got = tint(small, m)
+    return None if got is None else (got, m)
+
+
 def tint_gap(want: np.ndarray, got: np.ndarray) -> float:
     """How far apart two tints' colours are, light aside. The whole scene getting
     darker, brighter, washed out or tinted (a night filter, a flash, a colour grade)
@@ -1063,6 +1081,8 @@ class Look:
         # usual size is this much smaller (< 1: its stand-in is found there, PROXY_MIN)
         self.ratio, self.coarse = ratio, coarse
         self.tint = tint                        # its colours (see tint()), if known
+        # ...also at the size it's matched at (tint_at): (tint, the mask it was taken under)
+        self.small_tint: tuple | None = None
         self.pats: list[tuple[float, Pattern]] = []
         self.found: list[float] = []
         self.changes = 0                        # bumped whenever `pats` changes
@@ -1950,6 +1970,9 @@ class Watched:
     any_size: bool = False
     cuts: list = field(default_factory=list)
     tints: list = field(default_factory=list)       # each picture's tint(), or None
+    # each picture's own colours (uint8 RGB, its size), or None: when given, its
+    # colours are also taken at the size the capture is matched at (see tint_at)
+    colours: list = field(default_factory=list)
     gates: dict = field(default_factory=dict)       # place -> its Gate
 
     def __post_init__(self):
@@ -2526,6 +2549,9 @@ class Watcher:
                 at = base if min(g.shape) * min(sizes) * base >= FINE_SIDE else scale
                 look = Look(g, m, at, sizes, i.any_size, found,
                             i.tints[k] if k < len(i.tints) else None, at / scale, base / at)
+                rgb = i.colours[k] if k < len(i.colours) else None
+                if rgb is not None and rgb.shape[:2] == g.shape:
+                    look.small_tint = tint_at(rgb, m, scale)
                 for _f, p in look.pats:
                     need = spectrum * (1 if p.box else 2)
                     if room >= need:
@@ -2730,7 +2756,10 @@ class Watcher:
                     if r < 0.999:
                         b = tuple(round(v / r) for v in b)
                     if check and sc >= near_:
-                        sc *= Watcher._tint_factor(raw, b, lk.tint, lk.mask)
+                        f_ = Watcher._tint_factor(raw, b, lk.tint, lk.mask)
+                        if f_ < 1.0 and lk.small_tint is not None:
+                            f_ = max(f_, Watcher._tint_factor(raw, b, *lk.small_tint))
+                        sc *= f_
                     if sc > top[0]:
                         top = (sc, b)
                 return top

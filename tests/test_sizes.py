@@ -359,3 +359,30 @@ def test_a_thing_turning_up_at_another_size_is_found_at_once(monkeypatch):
     assert fired == ["t"]
     assert any(1.25 < f < 1.6 for f in cap.scaled["t"][0].found)
     assert not cap.hunts or all("t" not in h[2] for h in cap.hunts)
+
+
+def test_colours_taken_at_the_matching_size_also_count():
+    """A place counts when its colours agree with the picture's at full size or at
+    the size it's matched at (tint_at): thin parts of a cut-out (letters' strokes)
+    only agree at the latter. Here the full-size tint is made wrong on purpose."""
+    level = world()
+    x, y, s = 292, 192, 64
+    rgb = level[y:y + s, x:x + s].copy()
+    pic, tint = cut(level)
+    wrong = tint[..., ::-1].copy()          # the colours the other way round
+    h, w = level.shape[:2]
+
+    def score(colours):
+        grab = Grab(w, h)
+        it = sw.Watched("t", [(pic, None)], 0.8, 0.0, cuts=[(w, h)], tints=[wrong],
+                        colours=colours)
+        cap = sw._Capture(0, Monitor(0, 0, w, h, True))
+        cap.grab = grab
+        cap.fitted, cap.scaled = sw.Watcher._fit(grab, cap.mon, [it])
+        small = scaled(level, grab.w / w)[:grab.h, :grab.w]
+        grab.raw = (np.dstack([small[..., ::-1], np.full(small.shape[:2], 255, np.uint8)]),
+                    sw.FMT_BGRA8, 1)
+        return sw.Watcher._score(cap, gray(small), it, 0.0, {})[0]
+
+    assert score([]) < 0.8                  # the wrong full-size tint alone: kept down
+    assert score([rgb]) >= 0.9              # its colours at the matching size agree

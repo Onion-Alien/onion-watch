@@ -155,6 +155,17 @@ def load_picture(path: str) -> Picture | None:
     return picture_of(QImage(path))
 
 
+def picture_rgb(img: QImage) -> np.ndarray | None:
+    """The picture's own colours, (h, w, 3) uint8 RGB: the watcher takes its colours
+    in brief from them at the size it's matched at (screenwatch.tint_at)."""
+    if img.isNull():
+        return None
+    img = img.convertToFormat(QImage.Format_ARGB32)
+    h, w = img.height(), img.width()
+    buf = np.frombuffer(img.constBits(), np.uint8, count=img.bytesPerLine() * h)
+    return buf.reshape(h, img.bytesPerLine())[:, :w * 4].reshape(h, w, 4)[..., 2::-1].copy()
+
+
 def picture_tint(img: QImage) -> np.ndarray | None:
     """The picture's colours in brief (screenwatch.tint), so a place matching it in
     grey but not in colour doesn't count."""
@@ -1572,6 +1583,7 @@ class TriggersTab(QWidget):
         self._gray: dict[str, tuple[float, Picture]] = {}   # picture path -> (mtime, picture)
         self._cuts: dict[str, tuple[int, int] | None] = {}  # ...-> the size it was cut from
         self._tints: dict[str, np.ndarray | None] = {}      # ...-> its colours in brief
+        self._colours: dict[str, np.ndarray | None] = {}    # ...-> its colours (RGB)
         self._gen = 0                   # bumped to drop sounds still waiting to play
         self._bag = ShuffleBag()        # "Random": each trigger's sounds, each once per round
         self._order: dict[str, int] = {}   # "In order": each trigger's next sound
@@ -2192,7 +2204,8 @@ class TriggersTab(QWidget):
                                      colour=t.rgb, region=t.region, hold=t.hold,
                                      unfocused=t.unfocused, any_size=t.any_size,
                                      cuts=[self._cuts.get(path) for _p, path in got],
-                                     tints=[self._tints.get(path) for _p, path in got]))
+                                     tints=[self._tints.get(path) for _p, path in got],
+                                     colours=[self._colours.get(path) for _p, path in got]))
         self.watcher.set_items(items)
 
     @staticmethod
@@ -2219,6 +2232,7 @@ class TriggersTab(QWidget):
             self._gray[path] = (mtime, pic)
             self._cuts[path] = cut_size(img)
             self._tints[path] = picture_tint(img)
+            self._colours[path] = picture_rgb(img)
         return pic
 
     def _playable(self, t: Trigger) -> list[str]:
