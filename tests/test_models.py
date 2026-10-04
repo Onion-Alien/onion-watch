@@ -257,3 +257,27 @@ def test_the_colour_check_allows_for_the_whole_scene_s_light_but_not_another_col
         assert sw.tint_gap(want, sw.tint(lit, m)) < 0.05
     green = here[..., [1, 2, 0]]                    # the purple beast, green
     assert sw.tint_gap(want, sw.tint(green, m)) > sw.TINT_OK + sw.TINT_SPAN
+
+
+def test_the_colour_check_lets_a_tight_cut_out_with_one_cell_covered_pass():
+    """A tight cut-out has only a few cells to compare: something over one of them
+    pulled the light change fitted to all of them off, so the others looked off too,
+    and a creature matching at 0.86 was thrown out. Fitted again without each cell
+    in turn, the rest agree; in other colours they still don't."""
+    pic = np.zeros((40, 40, 3), np.float32)
+    pic[:20, :20], pic[:20, 20:] = (0.7, 0.3, 0.3), (0.3, 0.6, 0.3)
+    pic[20:, :20], pic[20:, 20:] = (0.3, 0.35, 0.7), (0.7, 0.65, 0.2)
+    keep = np.zeros((40, 40), bool)
+    keep[10:30, 10:30] = True                       # 4 cells
+    want = sw.tint(pic, keep)
+    covered = pic.copy()
+    covered[20:, 20:] = (0.19, 0.2, 0.24)
+    assert sw.tint_gap(want, sw.tint(covered, keep)) < sw.TINT_OK
+    for twin in (pic[..., [1, 2, 0]], covered[..., [1, 2, 0]]):
+        assert sw.tint_gap(want, sw.tint(twin, keep)) > sw.TINT_OK + sw.TINT_SPAN
+    old = sw.TINT_FEW_CELLS
+    try:
+        sw.TINT_FEW_CELLS = 0
+        assert sw.tint_gap(want, sw.tint(covered, keep)) > sw.TINT_OK
+    finally:
+        sw.TINT_FEW_CELLS = old

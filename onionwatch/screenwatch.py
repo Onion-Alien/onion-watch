@@ -215,6 +215,7 @@ PEAKS = 3
 TINT_OK = 0.25
 TINT_SPAN = 0.25
 TINT_FLOOR = 0.02
+TINT_FEW_CELLS = 5      # a picture with this many cells or fewer may have one covered
 CORES = os.cpu_count() or 1
 REARM_MARGIN = 0.08     # a match must fall this far below the threshold to count as gone
 FLAT_STD = 2 / 255      # screen windows flatter than this never match (blank areas)
@@ -1081,6 +1082,40 @@ def tint_gaps(want: np.ndarray, got: np.ndarray) -> np.ndarray:
     a = want.reshape(1, -1, 3).astype(np.float64)
     b = got.reshape(len(got), -1, 3).astype(np.float64)
     ok = ~(np.isnan(a).any(-1) | np.isnan(b).any(-1))           # (n, cells)
+    err, n, aa = _tint_err(a, b, ok)
+    gap = _tint_top(err, n)
+    redo = np.flatnonzero((gap > TINT_OK) & (n <= TINT_FEW_CELLS))
+    if len(redo):
+        # a picture with only a few cells to compare (a tight cut-out) and something
+        # over one of them: that cell pulls the light change fitted to all of them
+        # off, and the rest look off too (the worst can then be another one). Fitted
+        # again without each in turn, it counts if the rest then agree. (Not for
+        # more cells: scenery in other colours in a few of them got through, and
+        # went off in game footage.)
+        best = np.full(len(redo), np.inf)
+        for c in range(err.shape[1]):
+            some = ok[redo, c]
+            if some.any():
+                left = ok[redo] & (np.arange(err.shape[1]) != c)[None, :]
+                again = _tint_top(_tint_err(a, b[redo], left)[0], n[redo])
+                best = np.where(some, np.minimum(best, again), best)
+        gap[redo] = np.where(best <= TINT_OK, best, gap[redo])
+    return np.where((n >= 4) & (aa >= 1e-6), gap, 0.0)
+
+
+def _tint_top(err: np.ndarray, n: np.ndarray) -> np.ndarray:
+    """The mean of each row's worst quarter of cell errors, after the worst."""
+    err = -np.sort(-err, axis=1)                                 # each row's largest first
+    k = np.maximum(1, n // 4)
+    run = np.cumsum(np.maximum(err, 0.0), axis=1)
+    rows = np.arange(len(err))
+    return (run[rows, np.minimum(k, err.shape[1] - 1)] - run[rows, 0]) / k
+
+
+def _tint_err(a: np.ndarray, b: np.ndarray, ok: np.ndarray
+              ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Each cell's colour error once the light change is taken off (-1 where not
+    `ok`), the cells counted, and the picture's own spread."""
     n = ok.sum(1)
     w = ok[..., None].astype(np.float64)
     a0, b0 = np.where(ok[..., None], a, 0.0), np.where(ok[..., None], b, 0.0)
@@ -1093,13 +1128,7 @@ def tint_gaps(want: np.ndarray, got: np.ndarray) -> np.ndarray:
     left -= left.mean(-1, keepdims=True)                         # colour, not brightness
     err = np.abs(left).sum(-1)
     spread = (np.abs(gain * A).sum(-1) * w[..., 0]).sum(1) / np.maximum(n, 1) + TINT_FLOOR
-    err = np.where(ok, err / spread[:, None], -1.0)
-    err = -np.sort(-err, axis=1)                                 # each row's largest first
-    k = np.maximum(1, n // 4)                                    # its worst quarter...
-    run = np.cumsum(np.maximum(err, 0.0), axis=1)
-    rows = np.arange(len(err))
-    top = (run[rows, np.minimum(k, err.shape[1] - 1)] - run[rows, 0]) / k  # ...after the worst
-    return np.where((n >= 4) & (aa >= 1e-6), top, 0.0)
+    return np.where(ok, err / spread[:, None], -1.0), n, aa
 
 
 def tint_factor(gap: float) -> float:
