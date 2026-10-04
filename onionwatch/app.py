@@ -72,12 +72,20 @@ def main():
         sys.exit(0)
     holder = {}
     app.instance_server = listen_for_second_launch(app, lambda: holder.get("w"))
+    from onionwatch.ui import splash
+    if TRAY_ARG not in sys.argv:   # Hoot hops about while the window is built
+        splash.show()
     app.setStyle("Fusion")
     from onionwatch import theme
     app.setWindowIcon(theme.app_icon())
     from onionwatch.ui.mainwindow import MainWindow
-    w = holder["w"] = MainWindow()
+    try:
+        w = holder["w"] = MainWindow()
+    except BaseException:
+        splash.close()
+        raise
     app.aboutToQuit.connect(w.shutdown)
     if TRAY_ARG not in sys.argv or app.instance_server.show_requested:
         w.show()
+    splash.close()
     sys.exit(app.exec())
