@@ -645,7 +645,7 @@ class TriggerRow(QFrame):
         self.name.setObjectName("cardname")
         self.name.setStyleSheet(
             "QLineEdit#cardname { background:transparent; border:1px solid transparent;"
-            " padding:2px 3px; margin-left:-4px; font-size:11pt; font-weight:700; }"
+            " padding:2px 3px; font-size:11pt; font-weight:700; }"
             "QLineEdit#cardname:hover { border-color:palette(mid); }"
             "QLineEdit#cardname:focus { background:palette(base);"
             " border-color:palette(highlight); }")
@@ -667,6 +667,7 @@ class TriggerRow(QFrame):
         names.addLayout(line)
         self.state = QLabel()
         self.state.setObjectName("hint")
+        self.state.setIndent(4)     # lines up with the name's text (its border + padding)
         self.state.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
         names.addWidget(self.state)
         names.addStretch(1)
