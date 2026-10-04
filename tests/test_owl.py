@@ -77,3 +77,26 @@ def test_room_beside_him_gives_way(qapp):
     r = w._owl_rect()
     assert r.left() >= 0 and r.right() <= w.width()
     paint(w)
+
+
+def test_feathers_follow_the_theme_but_artwork_stays_teal(qapp):
+    from PySide6.QtCore import QRectF
+    from PySide6.QtGui import QColor, QPainter
+
+    from onionwatch import theme
+
+    def body_colour():
+        img = QImage(100, 120, QImage.Format_ARGB32)
+        img.fill(Qt.transparent)
+        p = QPainter(img)
+        owl.draw_owl(p, QRectF(0, 0, 100, 120))
+        p.end()
+        return img.pixelColor(50, 30)   # the top of his head, above the face
+
+    try:
+        theme.use_palette({"accent": "#ff0000"})   # a host's theme
+        assert body_colour() == QColor("#ff0000")
+        img = owl.owl_image(120)
+        assert img.pixelColor(img.width() // 2, 30) == owl.FEATHER
+    finally:
+        theme.set_current(theme.DEFAULT)

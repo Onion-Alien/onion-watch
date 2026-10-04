@@ -73,7 +73,8 @@ def avatar(s: int = 800) -> QImage:
     p.fillRect(0, 0, s, s, g)
     rays(p, QPointF(s / 2, s * 0.55), s)
     glow(p, QPointF(s / 2, s * 0.55), s * 0.42, QColor("#ffffff"))
-    owl.draw_owl(p, QRectF(s * 0.17, s * 0.14, s * 0.66, s * 0.78), look=0.5)
+    owl.draw_owl(p, QRectF(s * 0.17, s * 0.14, s * 0.66, s * 0.78), look=0.5,
+                 feather=owl.FEATHER, dark=owl.FEATHER_DARK)
     p.end()
     return img
 
@@ -162,7 +163,8 @@ def social_preview(W: int = 2560, H: int = 1280) -> QImage:
     # Hoot, bottom right, over the window's corner
     bh = 440
     bw = bh * owl.W / owl.H
-    owl.draw_owl(p, QRectF(W - bw - 70, H - bh - 40, bw, bh), look=-0.6)
+    owl.draw_owl(p, QRectF(W - bw - 70, H - bh - 40, bw, bh), look=-0.6,
+                 feather=owl.FEATHER, dark=owl.FEATHER_DARK)
     assert title.right() < frame.left() - 40, title
     p.end()
     return img
