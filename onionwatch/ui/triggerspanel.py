@@ -1613,6 +1613,8 @@ class TriggersTab(QWidget):
         share = s.get("cpu_share", screenwatch.CPU_SHARE)
         self.watcher.cpu_share = (share if share in screenwatch.CPU_SHARES
                                   else screenwatch.CPU_SHARE)
+        most = s.get("max_detect", "off")
+        self.watcher.max_detect = most if most in screenwatch.MAX_DETECTS else "off"
         self.watcher.default = self._saved_default()
 
         v = QVBoxLayout(self)
@@ -2597,6 +2599,13 @@ class TriggersTab(QWidget):
         self.host.screen["cpu_share"] = share
         self.host.save()
 
+    def set_max_detect(self, how: str):
+        """"Max detection" (screenwatch.MAX_DETECTS), kept in a key of its own: the
+        processor share stays as picked, for when it's off (and older versions)."""
+        self.watcher.max_detect = how
+        self.host.screen["max_detect"] = how
+        self.host.save()
+
     def watching_text(self) -> str:
         """How often each trigger is checked now, for the Watching dialog."""
         pics = plural(self._counts()[2], "picture")
@@ -2604,6 +2613,8 @@ class TriggersTab(QWidget):
             return f"Not watching right now ({pics} on)."
         w = self.watcher
         slower = " (the most it can in that share)" if w.gap > w.interval * 1.05 else ""
+        if w.heavy:
+            slower = " (max detection is on)"
         text = f"Each trigger is checked every {w.gap:.2f} s{slower}, with {pics} on."
         if w.cpu_used is not None:
             text += (f"\nWatching is using about {w.cpu_used * 100:.2f} % of your processor "

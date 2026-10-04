@@ -299,3 +299,26 @@ def test_a_window_that_never_comes_out_is_flagged(fake, monkeypatch):
         assert run_until(lambda: GAME1 not in w.unseen and "t" in w.scores)
     finally:
         w.stop()
+
+
+@pytest.mark.parametrize("in_front, heavy", [(True, False), (False, True)])
+def test_max_detection_while_away_from_a_watched_window(fake, in_front, heavy):
+    """"away": all out only while the watched game's window isn't the one in front."""
+    fake.open[GAME1] = scene(1)
+
+    class Grab(fake.Grab):
+        def in_front(self):
+            return in_front
+    w = sw.Watcher(lambda *_a: None, grabber=lambda *_a: pytest.fail("screen captured"),
+                   window_grabber=Grab, front=lambda: 5,
+                   fills=lambda *_a: pytest.fail("a window's capture has no screen"))
+    w.interval = 0.01
+    w.max_detect = "away"
+    w.set_items([Watched("t", [(banner(), None)], 0.8, 0.0, source=GAME1)])
+    w.start()
+    try:
+        assert run_until(lambda: "t" in w.scores)
+        time.sleep(0.1)
+        assert w.heavy == heavy
+    finally:
+        w.stop()

@@ -94,6 +94,7 @@ def _win():
     u.GetWindowThreadProcessId.argtypes = [H, ctypes.POINTER(wintypes.DWORD)]
     u.GetWindowThreadProcessId.restype = wintypes.DWORD
     u.GetClientRect.argtypes = [H, ctypes.POINTER(wintypes.RECT)]
+    u.GetWindowRect.argtypes = [H, ctypes.POINTER(wintypes.RECT)]
     u.GetWindowLongW.argtypes = [H, ctypes.c_int]
     u.GetWindow.argtypes = [H, wintypes.UINT]
     u.GetWindow.restype = H
@@ -189,6 +190,18 @@ def client_size(hwnd: int) -> tuple[int, int]:
     if not u.GetClientRect(hwnd, ctypes.byref(r)):
         return 0, 0
     return max(0, r.right - r.left), max(0, r.bottom - r.top)
+
+
+def fills(hwnd: int, mon) -> bool:
+    """Window `hwnd` covers the whole of monitor `mon` (left, top, width, height in
+    physical pixels): a fullscreen or borderless game. False when it can't be told."""
+    if not supported() or not hwnd:
+        return False
+    r = wintypes.RECT()
+    if not _win()[0].GetWindowRect(hwnd, ctypes.byref(r)):
+        return False
+    return (r.left <= mon.left and r.top <= mon.top and r.right >= mon.left + mon.width
+            and r.bottom >= mon.top + mon.height)
 
 
 def _cloaked(d, hwnd) -> bool:

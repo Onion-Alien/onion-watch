@@ -558,3 +558,28 @@ def test_processor_use_is_picked_behind_the_cog_and_kept(tab, qapp, monkeypatch)
     odd = TriggersTab(tab.host)
     odd.shutdown()
     assert odd.watcher.cpu_share == sw.CPU_SHARE
+
+
+def test_max_detection_is_picked_behind_the_cog_and_kept(tab, qapp, monkeypatch):
+    """Max detection has a key of its own ("max_detect"): picking it keeps the
+    processor share as it was (what an older version, or "Off", goes by), the next
+    start reads it back, and a value no version knows is "off"."""
+    from onionwatch.ui.watching import MAX_CHOICES, WatchingDialog
+    assert tab.watcher.max_detect == "off"
+    shown = []
+    monkeypatch.setattr(WatchingDialog, "exec", lambda self: shown.append(self) or 0)
+    tab.btn_settings.click()
+    dlg = shown[0]
+    assert dlg.max_radios["off"].isChecked()
+    dlg.radios[0.02].click()
+    dlg.max_radios["away"].click()
+    assert tab.watcher.max_detect == "away" and tab.host.screen["max_detect"] == "away"
+    assert tab.watcher.cpu_share == 0.02 and tab.host.screen["cpu_share"] == 0.02
+    assert sorted(c[0] for c in MAX_CHOICES) == sorted(sw.MAX_DETECTS)
+    again = TriggersTab(tab.host)
+    again.shutdown()
+    assert again.watcher.max_detect == "away" and again.watcher.cpu_share == 0.02
+    tab.host.screen["max_detect"] = "turbo"
+    odd = TriggersTab(tab.host)
+    odd.shutdown()
+    assert odd.watcher.max_detect == "off"

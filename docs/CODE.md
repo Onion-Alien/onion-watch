@@ -106,7 +106,7 @@ then installs that file instead of downloading.
 | `onionwatch/packs.py` | saving triggers to a .zip with their pictures and loading them back |
 | `onionwatch/ui/mainwindow.py` | the window, the tray icon, notifications |
 | `onionwatch/ui/settingsdialog.py` | output device, volume, notifications, tray, theme |
-| `onionwatch/ui/watching.py` | the Triggers bar's ⚙: how much of the processor watching may use, and how often each trigger is checked now |
+| `onionwatch/ui/watching.py` | the Triggers bar's ⚙: how much of the processor watching may use, "Max detection", and how often each trigger is checked now |
 | `onionwatch/owl.py` | Hoot, the mascot owl, drawn in code (Onion Board's Bun's style), and `OwlWidget`: Hoot animated, waiting for a trigger |
 | `onionwatch/theme.py`, `ui/icons.py`, `ui/panel.py` | themes, the logo, painted icons and layout helpers, shared with Onion Board |
 | `onionwatch/singleinstance.py` | one copy at a time: a second launch brings the running one to the front |

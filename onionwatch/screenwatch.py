@@ -31,7 +31,10 @@ Watching is kept to about CPU_SHARE of the computer's processor (or what's picke
 `Watcher.cpu_share`), so it doesn't cost a game frames: when the checks take more
 processor time than that allows (a slow computer, a lot of pictures) they're spaced
 out further than `interval`. Time spent waiting (for a window to be copied, say) isn't
-counted, as it costs the game nothing.
+counted, as it costs the game nothing. "Max detection" (`Watcher.max_detect`, one of
+MAX_DETECTS) lifts that cap and sweeps and hunts far more each check: always, or only
+while you're away from the game (none of the watched windows in front, and nothing
+filling a watched screen).
 A 1080p screen with one picture costs a few milliseconds per check.
 
 `Gate` decides when a score is a new appearance: it fires once when a picture shows
@@ -189,6 +192,12 @@ CPU_MEASURE_S = 2.0     # Watcher.cpu_used is measured over this long
 # so it's averaged over the last PACE_ROUNDS checks (those of the last PACE_S).
 PACE_ROUNDS = 10
 PACE_S = 3.0
+# "Max detection": "off", "always", or "away" (only while no watched window is in
+# front and no window fills a watched screen: you're not playing). While it's on,
+# there's no processor cap and each check sweeps and hunts this much more
+MAX_DETECTS = ("off", "always", "away")
+MAX_SWEEPERS = 10
+MAX_HUNT = 1000
 # A match is judged on grey, which can't tell a green slime from a red one, or a
 # wooden crate from a metal one once softened. So a place scoring within TINT_NEAR
 # of the threshold (the best PEAKS places of each picture and size; a place scoring
@@ -2098,13 +2107,15 @@ class Watcher:
     then called from the thread once what stops it by itself happens (Quieter).
 
     `grabber(mon, w, h)`, `window_grabber(ref, w, h)`, `lister()` (the open
-    windows) and `front()` (the window in front) stand in for the real ones (tests)."""
+    windows), `front()` (the window in front) and `fills(hwnd, monitor)` (that window
+    covers the whole monitor) stand in for the real ones (tests)."""
 
     def __init__(self, on_fire, grabber=None, window_grabber=None, lister=None,
-                 hits: bool = False, on_quiet=None, front=None):
+                 hits: bool = False, on_quiet=None, front=None, fills=None):
         self._on_fire = on_fire
         self._on_quiet = on_quiet
         self._front = front
+        self._fills = fills
         self._quiet: dict[str, Quieter] = {}    # ringing trigger id -> what stops it
         self._hits = hits
         self._grabber = grabber
@@ -2119,6 +2130,8 @@ class Watcher:
         self._thread: threading.Thread | None = None
         self.interval = DEFAULT_INTERVAL_MS / 1000
         self.cpu_share = CPU_SHARE          # see CPU_SHARES
+        self.max_detect = "off"             # see MAX_DETECTS
+        self.heavy = False                  # max detection is on right now
         self.default: int | WindowRef = 0  # where triggers that don't pick are looked for
         self.scores: dict[str, float] = {}
         self.black = False                # a capture only sees black
@@ -2182,6 +2195,28 @@ class Watcher:
             return foreground()
         except OSError:
             return 0
+
+    def _away(self, live: list[_Capture]) -> bool:
+        """You're not playing what's watched: none of the watched windows is in front,
+        and the window in front doesn't fill a watched screen (a fullscreen game). When
+        that can't be told, you're taken to be playing."""
+        front = self._front_window()
+        if not front:
+            return False
+        for cap in live:
+            if cap.is_window:
+                if cap.in_front():
+                    return False
+                continue
+            try:
+                fills = self._fills
+                if fills is None:
+                    from onionwatch.windows import fills
+                if cap.mon is None or fills(front, cap.mon):
+                    return False
+            except OSError:
+                return False
+        return True
 
     def set_default(self, source: int | WindowRef):
         with self._lock:
@@ -2314,8 +2349,11 @@ class Watcher:
                         raise OSError(next(c.error for c in screens if c.error))
                 worked = worked or any(not c.is_window for c in live)
                 # one budget of sweeps for every capture, which take turns to go first
-                self._sweeps = [SWEEPERS]
-                self._hunts = [HUNT_PER_CHECK]
+                self.heavy = heavy = live != [] and (
+                    self.max_detect == "always"
+                    or (self.max_detect == "away" and self._away(live)))
+                self._sweeps = [MAX_SWEEPERS if heavy else SWEEPERS]
+                self._hunts = [MAX_HUNT if heavy else HUNT_PER_CHECK]
                 rounds += 1
                 if live:
                     live = live[rounds % len(live):] + live[:rounds % len(live)]
@@ -2346,7 +2384,7 @@ class Watcher:
                 while len(costs) > 1 and now_t - costs[0][0] > PACE_S:
                     costs.popleft()
                 cost = sum(c for _t, c in costs) / len(costs)
-                share = self.cpu_share
+                share = 0.0 if heavy else self.cpu_share
                 self.gap = (self.interval if share <= 0
                             else max(self.interval, cost / (share * CORES)))
                 if now_t - mark[1] >= CPU_MEASURE_S:

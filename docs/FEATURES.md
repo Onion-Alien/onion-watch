@@ -98,6 +98,14 @@ the processor (a trigger with an Area costs far less). Fewer pictures are checke
 often, so switch off the categories you don't need now; the list warns when checks are
 spaced out past half a second.
 
+"Max detection", under the same ⚙, drops the limit and searches much harder for
+pictures shown bigger or smaller than they were cut: always, or only while you're not
+in the game (none of the watched windows in front, and no fullscreen window over a
+watched screen), going back to your share the moment you are. In the same 10-window
+test on an 8-thread processor it noticed things about four times sooner (0.2 s instead
+of 0.85 s) and found one more of the 50 harder cases, for about 5 % of the processor
+instead of 0.7 %.
+
 A trigger fires once each time its picture appears, then waits for it to go away
 before it can fire again. A window that isn't open yet is looked for every two
 seconds, and one that closes is picked up again when it reopens.

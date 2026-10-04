@@ -887,3 +887,61 @@ def test_a_rectangle_turning_up_on_other_scenery_keeps_its_structure():
     p = sw.Pattern(bright[60:96, 100:160].copy())
     assert sw.structure(sw.Frame(bright), p, (100, 60)) >= 0.95
     assert sw.structure(sw.Frame(dark), p, (100, 60)) >= 0.95
+
+
+def test_max_detection_lifts_the_processor_cap(fake_screen, monkeypatch):
+    """"always": checks as often as `interval` asks whatever the share, with the
+    bigger sweep and hunt budgets; "off" keeps to the share."""
+    monkeypatch.setattr(sw, "CORES", 4)
+    fake_screen.frames = [scene()]
+    real = FakeGrabber.grab
+
+    def slow(self):
+        end = time.thread_time() + 0.02
+        while time.thread_time() < end:
+            pass
+        return real(self)
+    monkeypatch.setattr(FakeGrabber, "grab", slow)
+    for how in ("off", "always"):
+        w = sw.Watcher(lambda *_a: None)
+        w.interval = 0.01
+        w.cpu_share = 0.01
+        w.max_detect = how
+        w.set_items([sw.Watched("t", pics(banner()), 0.8, 0.0)])
+        w.start()
+        try:
+            assert run_until(lambda w=w: "t" in w.scores)
+            time.sleep(0.6)
+            if how == "off":
+                assert not w.heavy and w.gap > 0.3
+            else:
+                assert w.heavy and w.gap == w.interval
+                assert w._sweeps is not None and w._sweeps[0] <= sw.MAX_SWEEPERS
+        finally:
+            w.stop()
+
+
+@pytest.mark.parametrize("front, fills, heavy", [
+    (0, False, False),          # the window in front can't be told: you may be playing
+    (7, True, False),           # a fullscreen window covers the watched screen
+    (7, False, True),           # something else in front, not filling it: away
+])
+def test_max_detection_while_away_from_a_watched_screen(fake_screen, front, fills, heavy):
+    fake_screen.frames = [scene()]
+    seen = []
+
+    def filled(hwnd, mon):
+        seen.append((hwnd, mon))
+        return fills
+    w = sw.Watcher(lambda *_a: None, front=lambda: front, fills=filled)
+    w.interval = 0.01
+    w.max_detect = "away"
+    w.set_items([sw.Watched("t", pics(banner()), 0.8, 0.0)])
+    w.start()
+    try:
+        assert run_until(lambda: "t" in w.scores)
+        time.sleep(0.1)
+        assert w.heavy == heavy
+        assert all(h == front and m.width == W for h, m in seen)
+    finally:
+        w.stop()
