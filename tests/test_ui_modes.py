@@ -140,7 +140,8 @@ def test_duplicate_copies_the_trigger_and_its_pictures(tab):
     assert b.name == "Rare (copy)" and b.id != a.id and b.sources == [GAME]
     assert len(b.images) == 1 and b.images != a.images
     assert QImage(b.images[0]).size() == QImage(a.images[0]).size()
-    assert tab.list_layout.indexOf(tab.rows[b.id]) == tab.list_layout.indexOf(row) + 1
+    cards = tab.sections[""].body_layout       # the list's one category
+    assert cards.indexOf(tab.rows[b.id]) == cards.indexOf(row) + 1
 
 
 def test_triggers_are_saved_to_a_file_and_loaded_back(tab, tmp_path):

@@ -8,6 +8,9 @@ sound of the same name when you have one, else the default alert.
                                   and "sound_names" beside "sounds"]}
     pictures/       the PNGs
 
+Each trigger keeps its category (Trigger.category), so a pack of a whole library
+loads back sorted the way it was.
+
 Reading checks everything: only these names are read, sizes are capped, and the
 triggers go through Trigger.from_raw like a config does.
 """
@@ -21,7 +24,7 @@ from onionwatch import __version__
 from onionwatch.screenwatch import MAX_PICTURES, Trigger
 
 FORMAT = "onion-watch-triggers"
-MAX_PACK_TRIGGERS = 50
+MAX_PACK_TRIGGERS = 500
 MAX_JSON = 4 * 1024 * 1024          # bytes
 MAX_PICTURE = 32 * 1024 * 1024      # bytes, one picture
 MAX_TOTAL = 256 * 1024 * 1024       # bytes, all of them

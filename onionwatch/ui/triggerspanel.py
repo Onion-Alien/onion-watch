@@ -33,11 +33,12 @@ from PySide6.QtWidgets import (QApplication, QBoxLayout, QCheckBox, QComboBox, Q
                                QMessageBox, QPushButton, QScrollArea, QSizePolicy, QSpinBox,
                                QVBoxLayout, QWidget)
 
-from onionwatch import owl, packs, screenwatch, theme, windows
+from onionwatch import owl, packs, profiles, screenwatch, theme, windows
 from onionwatch.screenwatch import (INTERVALS_MS, MAX_PICTURES, MAX_SOUNDS, Monitor, Picture,
                                     Trigger, Watched, WindowRef)
 from onionwatch.shuffle import ShuffleBag
 from onionwatch.ui import icons
+from onionwatch.ui.categories import CategorySection, ProfilesDialog, counts_text
 from onionwatch.ui.history import HistoryDialog
 from onionwatch.ui.panel import Flow, UndoBar, card, hint_label
 from onionwatch.ui.windowpicker import places_label
@@ -51,8 +52,9 @@ FILE = "__file__"       # ...its "Choose a sound file…" entry
 PICK_WINDOW = "__pick_window__"   # a "Look in" list's "Pick a window…" entry
 DEFAULT = "__default__"           # ...its "Same as below" entry
 PLACES = "__places__"             # ...the trigger's own windows and screens
+NEW_CATEGORY = "__new_category__"   # a card's Category list's "New category…" entry
 POLL_MS = 150           # how often the live match numbers refresh
-MAX_TRIGGERS = 50
+MAX_TRIGGERS = 500      # in all; how many can be on at once is up to the computer
 MAX_SIDE = 8192         # bigger pictures are refused (kept pixel for pixel, never resized)
 CUT_KEY = "OnionWatch cut from"   # a picture's PNG text: the size of what it was cut from
 THUMB = QSize(96, 54)
@@ -87,6 +89,12 @@ INPUT_POLL_MS = 100     # how often an "input" ring checks for the mouse or keyb
 
 
 HISTORY = 50            # alerts kept in the history (in memory only)
+APP_POLL_MS = 2000      # how often Automatic profiles look at which programs are open
+BUILD_NOW = 60          # an opened category's cards made at once; the rest a few at a
+BUILD_STEP = 20         # ...time, so a category of hundreds doesn't freeze the window
+HEAVY_GAP = 0.5         # s: checks spaced out further than this (to keep to 1 % of the
+HEAVY_FOR = 5.0         # ...processor) for this long: say too many pictures are on
+EDIT_PROFILES = "__edit_profiles__"   # the Profile list's "Edit profiles…"
 KEEP_DAYS = 30          # deleted triggers stay in Recently deleted this long
 MAX_DELETED = 50        # ...and at most this many of them
 
@@ -602,6 +610,7 @@ class TriggerRow(QFrame):
     window_wanted = Signal(object)       # row: "Pick windows…"
     area_wanted = Signal(object)         # row: "Area…"
     duplicate = Signal(object)           # row: "Duplicate"
+    category_wanted = Signal(object, str)  # row, category: moved there (NEW_CATEGORY: ask)
     hear = Signal(str)                   # a sound chip was clicked: play that sound id
     test = Signal(object)
     remove = Signal(object)
@@ -900,6 +909,12 @@ class TriggerRow(QFrame):
         row.addWidget(match)
         self._in: dict = {match: row, hold: row}   # box -> the Flow it's in now
         row.addWidget(self.chk_quiet)
+        self.cb_category = WideCombo(min_width=120)
+        self.cb_category.setToolTip("The category this trigger is in: a whole category can "
+                                    "be switched on or off at once")
+        no_wheel(self.cb_category)
+        self.cb_category.activated.connect(self._on_category)
+        row.addWidget(labelled("Category", self.cb_category))
         tune_col.addWidget(self.tune)
         for w in (self.delay, self.cooldown, self.hold, self.threshold):
             no_wheel(w)
@@ -997,6 +1012,8 @@ class TriggerRow(QFrame):
         parts.append(f"not again for {t.cooldown:g} s")
         if t.unfocused:
             parts.append("quiet while you're in it")
+        if t.category:
+            parts.append(f"in {t.category}")
         return " · ".join(parts)
 
     # ------------------------------------------------------------------ view
@@ -1230,6 +1247,24 @@ class TriggerRow(QFrame):
             self.t.name = name
             self.changed.emit(self)
 
+    def set_categories(self, names: list[str]):
+        """The categories it can be put in (onionwatch.profiles), its own picked."""
+        cb = self.cb_category
+        cb.blockSignals(True)
+        cb.clear()
+        for n in names if self.t.category in names else [*names, self.t.category]:
+            cb.addItem(profiles.label(n), n)
+        cb.insertSeparator(cb.count())
+        cb.addItem("New category…", NEW_CATEGORY)
+        cb.setCurrentIndex(max(0, cb.findData(self.t.category)))
+        cb.blockSignals(False)
+
+    def _on_category(self, _i: int):
+        want = self.cb_category.currentData()
+        self.cb_category.setCurrentIndex(max(0, self.cb_category.findData(self.t.category)))
+        if want is not None and want != self.t.category:
+            self.category_wanted.emit(self, want)
+
     def _on_enabled(self, on: bool):
         self.t.enabled = on
         self.changed.emit(self)
@@ -1372,7 +1407,18 @@ class TriggersTab(QWidget):
             if t is not None and len(self.triggers) < MAX_TRIGGERS:
                 t.pending = ""      # an older Onion Board's sound import, long over
                 self.triggers.append(t)
-        self.rows: dict[str, TriggerRow] = {}
+        self.rows: dict[str, TriggerRow] = {}   # the cards made so far (open categories')
+        # the categories and profiles (onionwatch.profiles), and the categories on now
+        self.groups = profiles.Groups.load(s, [t.category for t in self.triggers])
+        self.groups.ensure(profiles.UNCATEGORISED)
+        self.apps = profiles.AppWatch()
+        self._active = self.groups.active()
+        self.sections: dict[str, CategorySection] = {}
+        self._lister = windows.list_windows     # the open windows, and the one in front
+        self._front = windows.foreground        # (tests stand in for them)
+        self._last_category = ""    # where a new trigger goes: the category last opened
+        self._heavy_since: float | None = None  # checks spaced out past HEAVY_GAP since
+        self._gap_shown = ""        # the check gap as the counts line last said it
         self._mons: list[Monitor] = []      # the screens as last listed
         self._fell_back: frozenset[str] = frozenset()   # watcher.fell_back as last seen
         self._gray: dict[str, tuple[float, Picture]] = {}   # picture path -> (mtime, picture)
@@ -1428,6 +1474,28 @@ class TriggersTab(QWidget):
         # "Deleted X · Undo" floats over the top of the tab: not in the layout, so
         # showing it never pushes the list down
         self.undo_bar = UndoBar(parent=self)
+
+        # the profile in charge and how much is on: there once there are categories
+        # or profiles (a plain list of triggers looks as it always did)
+        self.groupbar = QWidget()
+        gb = QHBoxLayout(self.groupbar)
+        gb.setContentsMargins(4, 0, 4, 0)
+        gb.setSpacing(12)
+        self.cb_profile = WideCombo(min_width=150)
+        self.cb_profile.setMaximumWidth(240)
+        self.cb_profile.setToolTip("Which categories are on: your own switches (Manual), a "
+                                   "profile's, or Automatic: the profile of the program "
+                                   "that's open")
+        no_wheel(self.cb_profile)
+        self.cb_profile.activated.connect(self._on_profile)
+        gb.addWidget(labelled("Profile", self.cb_profile))
+        self.lbl_counts = hint_label("")     # wraps rather than widen a narrow window
+        self.lbl_counts.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
+        gb.addWidget(self.lbl_counts, 1)
+        v.addWidget(self.groupbar)
+        self._app_timer = QTimer(self)
+        self._app_timer.setInterval(APP_POLL_MS)
+        self._app_timer.timeout.connect(self._check_apps)
 
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
@@ -1498,6 +1566,9 @@ class TriggersTab(QWidget):
         menu = QMenu(self.btn_more)
         menu.addAction("What went off…", self.show_history)
         menu.addSeparator()
+        menu.addAction("New category…", self.new_category)
+        menu.addAction("Profiles…", self.edit_profiles)
+        menu.addSeparator()
         self.act_export = menu.addAction("Save triggers to a file…", self.export_triggers)
         menu.addAction("Load triggers from a file…", self.import_triggers)
         menu.addSeparator()
@@ -1560,8 +1631,9 @@ class TriggersTab(QWidget):
             self.warn.setVisible(True)
             self.btn_watch.setEnabled(False)
         self._fill_sources()
-        for t in self.triggers:
-            self._add_row(t, open_=len(self.triggers) == 1)
+        self._layout_sections()
+        self._fill_profiles()
+        self._update_app_timer()
         self._prune_bin()
         self._label_bin()
         self.poll = QTimer(self)
@@ -1749,7 +1821,7 @@ class TriggersTab(QWidget):
         """Hand the watcher the triggers that can fire, pictures loaded and grey."""
         items = []
         for t in self.triggers:
-            if not (t.enabled and self.ready(t) and self._playable(t)):
+            if not (self.is_on(t) and self.ready(t) and self._playable(t)):
                 continue
             got = [(p, path) for path in (t.images if t.uses_pictures else [])
                    if (p := self._picture(path)) is not None]
@@ -1813,7 +1885,7 @@ class TriggersTab(QWidget):
 
     def _fire(self, tid: str, gen: int):
         t = next((t for t in self.triggers if t.id == tid), None)
-        if gen != self._gen or t is None or not t.enabled:
+        if gen != self._gen or t is None or not self.is_on(t):
             return
         if self._play_trigger(t):
             log.info("trigger %r matched", t.name)
@@ -1908,8 +1980,15 @@ class TriggersTab(QWidget):
             self._fill_sources()
         for tid, row in self.rows.items():
             row.set_note(self._notes(w.where.get(tid, ())))
+        heavy = w.gap > HEAVY_GAP and w.gap > w.interval * 1.05
+        if not heavy:
+            self._heavy_since = None
+        elif self._heavy_since is None:
+            self._heavy_since = time.monotonic()
         if not self.isVisible():
             return
+        if self._gap_text() != self._gap_shown:
+            self._refresh_counts()
         for tid, row in self.rows.items():
             row.show_score(w.scores.get(tid))
         self._show_warning()
@@ -1955,9 +2034,19 @@ class TriggersTab(QWidget):
             why = ("Waiting for the screen to come back. A game switching to or from "
                    "fullscreen does this for a moment.")
         elif self.is_active() and not w.scores and not w.failed and not any(
-                t.enabled and self.ready(t) and t.sounds for t in self.triggers):
-            why = ("Nothing to watch for yet: each trigger needs a sound, and a picture "
-                   "(or its bar) to look for.")
+                self.is_on(t) and self.ready(t) and t.sounds for t in self.triggers):
+            if any(t.enabled and self.ready(t) and t.sounds for t in self.triggers):
+                why = ("Nothing to watch for: the triggers that could go off are all in "
+                       "categories that are off now.")
+            else:
+                why = ("Nothing to watch for yet: each trigger needs a sound, and a "
+                       "picture (or its bar) to look for.")
+        elif (self.is_active() and self._heavy_since is not None
+              and time.monotonic() - self._heavy_since >= HEAVY_FOR):
+            why = (f"Each trigger is checked only every {w.gap:.1f} s: "
+                   f"{plural(self._counts()[2], 'picture')} are on, more than this "
+                   "computer looks for in 1 % of its processor. Switch off a category, or "
+                   "give triggers an Area to look in, to check more often.")
         self.warn.setText(why)
         self.warn.setVisible(bool(why))
 
@@ -1979,6 +2068,471 @@ class TriggersTab(QWidget):
             self.watcher.rescan()
         self._mons = mons
 
+    # ------------------------------------------------------------------ categories
+    # Triggers sit in categories (Trigger.category, onionwatch.profiles), each a
+    # section of the list. A section's cards are only made once it's opened, so a
+    # library of hundreds opens at once, and a trigger is watched for only while
+    # it's on and so is its category (is_on): one that's off costs nothing.
+    def is_on(self, t: Trigger) -> bool:
+        """It's switched on, and so is its category (by hand or by a profile)."""
+        return t.enabled and t.category in self._active
+
+    def _grouped(self) -> bool:
+        """There's more than the one category, or a profile: show the sections'
+        headers and the Profile line."""
+        return len(self.groups.categories) > 1 or bool(self.groups.profiles)
+
+    def _shown_categories(self) -> list[str]:
+        """The categories with a section: all of them, but Uncategorised only while
+        a trigger is in it or it's the only one."""
+        have = {t.category for t in self.triggers}
+        names = self.groups.names()
+        return [n for n in names if n or n in have or len(names) == 1]
+
+    def _new_category(self) -> str:
+        """The category a new trigger goes in: the one last opened, if it's still there."""
+        return self._last_category if self.groups.find(self._last_category) else ""
+
+    def _section_of(self, t: Trigger) -> CategorySection:
+        self.groups.ensure(t.category)
+        if t.category not in self.sections:
+            self._layout_sections()
+        return self.sections[t.category]
+
+    def _make_section(self, name: str) -> CategorySection:
+        sec = CategorySection(name)
+        sec.fold_toggled.connect(self._on_fold)
+        sec.switched.connect(self._on_switch)
+        sec.menu_wanted.connect(self._category_menu)
+        self.sections[name] = sec
+        return sec
+
+    def _drop_section(self, name: str):
+        sec = self.sections.pop(name, None)
+        if sec is None:
+            return
+        for tid in [tid for tid, r in self.rows.items() if r.parentWidget() is sec.body]:
+            self._drop_row(tid)
+        self.list_layout.removeWidget(sec)
+        sec.setParent(None)
+        sec.deleteLater()
+
+    def _layout_sections(self):
+        """Make, order and label the sections, and make the open ones' cards."""
+        names = self._shown_categories()
+        for n in list(self.sections):
+            if n not in names:
+                self._drop_section(n)
+        lone = len(names) == 1
+        for i, n in enumerate(names):
+            sec = self.sections.get(n) or self._make_section(n)
+            if self.list_layout.indexOf(sec) != i + 1:
+                self.list_layout.removeWidget(sec)
+                self.list_layout.insertWidget(i + 1, sec)     # after the "no triggers" note
+            sec.set_header_visible(not lone)
+            c = self.groups.find(n)
+            if lone:
+                c.open = True       # and still open once a second category comes along
+            sec.set_open(c.open)
+            if c.open:
+                self._build(sec)
+        self.empty.setVisible(not self.triggers)
+        self.groupbar.setVisible(self._grouped())
+        self._refresh_switches()
+        self._refresh_counts()
+
+    def _set_open(self, sec: CategorySection, on: bool):
+        c = self.groups.ensure(sec.name)
+        c.open = on
+        sec.set_open(on)
+        if on:
+            self._last_category = sec.name
+            self._build(sec)
+
+    def _on_fold(self, name: str, on: bool):
+        sec = self.sections.get(name)
+        if sec is None:
+            return
+        self._set_open(sec, on)
+        self.groups.save(self.host.screen)
+        self.host.save()
+
+    def _build(self, sec: CategorySection, need: Trigger | None = None):
+        """Make the cards of `sec`'s triggers: BUILD_NOW now (and `need`), the rest
+        BUILD_STEP at a time after."""
+        todo = [t for t in self.triggers if t.category == sec.name and t.id not in self.rows]
+        if sec.built and not todo:
+            return
+        sec.built = True
+        one = len(self.triggers) == 1
+        for t in todo[:BUILD_NOW]:
+            self._place_row(t, sec, open_=one)
+        if need is not None and need.id not in self.rows:
+            self._place_row(need, sec, open_=True)
+        if len(todo) > BUILD_NOW:
+            QTimer.singleShot(0, self, lambda: self._build_more(sec))
+        self._refresh_counts()
+
+    def _build_more(self, sec: CategorySection):
+        if self.sections.get(sec.name) is not sec or not sec.is_open:
+            sec.built = False           # gone or folded meanwhile: the rest when reopened
+            return
+        todo = [t for t in self.triggers if t.category == sec.name and t.id not in self.rows]
+        for t in todo[:BUILD_STEP]:
+            self._place_row(t, sec)
+        if len(todo) > BUILD_STEP:
+            QTimer.singleShot(0, self, lambda: self._build_more(sec))
+
+    def _counts(self) -> tuple[int, int, int]:
+        """(triggers, on, pictures on) over the whole list."""
+        on = [t for t in self.triggers if self.is_on(t)]
+        return (len(self.triggers), len(on),
+                sum(len(t.images) for t in on if t.uses_pictures))
+
+    def _gap_text(self) -> str:
+        if not self.is_active() or not self.watcher.running:
+            return ""
+        return f"each checked every {self.watcher.gap:.1f} s"
+
+    def _refresh_counts(self):
+        """The numbers on the sections' headers and the Profile line."""
+        per: dict[str, list[int]] = {}
+        for t in self.triggers:
+            n = per.setdefault(t.category, [0, 0, 0])
+            n[0] += 1
+            if t.enabled:
+                n[1] += 1
+                if t.uses_pictures:
+                    n[2] += len(t.images)
+        for name, sec in self.sections.items():
+            n, on, pics = per.get(name, (0, 0, 0))
+            cat_on = name in self._active
+            sec.set_counts(counts_text(n, on, pics, cat_on), "" if cat_on else "warn")
+            sec.empty.setVisible(not n and not sec.header.isHidden())
+        total, on, pics = self._counts()
+        parts = [f"{on} of {plural(total, 'trigger')} on", plural(pics, "picture")]
+        self._gap_shown = self._gap_text()
+        if self._gap_shown:
+            parts.append(self._gap_shown)
+        state = self._profile_state()
+        self.lbl_counts.setText(" · ".join(parts) + (f"  —  {state}" if state else ""))
+        self.lbl_counts.setToolTip(
+            "Triggers on, and the pictures they look for. Each picture on takes a share of "
+            "the 1 % of the processor watching keeps to: with too many, each is checked "
+            "less often. Turn off what you don't need now, or give triggers an Area.")
+
+    def _refresh_switches(self):
+        """Each section's switch: is it on now, and who says so."""
+        ps = self.groups.in_charge(self.apps.matched)
+        if not ps:
+            tip = ("Switch the whole category on or off. Its triggers keep their own "
+                   "switches, so turning it back on brings back just the ones that were on.")
+        elif len(ps) == 1:
+            tip = (f"On or off as the profile “{ps[0].name}” says: switching it changes "
+                   "that profile.")
+        else:
+            tip = (f"On or off as the profiles {', '.join(p.name for p in ps)} say (Automatic). "
+                   "Change them under More → Profiles….")
+        for name, sec in self.sections.items():
+            sec.set_switch(name in self._active, tip)
+
+    def _apply_active(self, force: bool = False) -> bool:
+        """Work out which categories are on again; hand the watcher what changed."""
+        active = self.groups.active(self.apps.matched)
+        changed = active != self._active
+        self._active = active
+        if changed or force:
+            if self.is_active():
+                self._sync()
+            self._refresh_switches()
+            self._refresh_counts()
+            self._show_warning()
+        return changed
+
+    def _on_switch(self, name: str, on: bool):
+        """A category's switch was clicked."""
+        if not self.groups.set_on(name, on, self.apps.matched):
+            names = ", ".join(p.name for p in self.groups.in_charge(self.apps.matched))
+            QMessageBox.information(self, "Set by profiles",
+                                    f"The profiles {names} say which categories are on now "
+                                    "(Profile is Automatic). Change them under More → "
+                                    "Profiles….")
+            self._refresh_switches()
+            return
+        self._save_groups()
+        self._apply_active(force=True)
+        if name not in self._active:        # you switched it off: its rings stop too
+            for t in self.triggers:
+                if t.category == name:
+                    self._silence(t.id, ring=True)
+
+    def _save_groups(self):
+        self.groups.save(self.host.screen)
+        self.host.save()
+
+    def new_category(self, name: str | None = None) -> str | None:
+        """Make a category (asked for when `name` isn't given): its name, or None."""
+        if name is None:
+            from PySide6.QtWidgets import QInputDialog
+            name, ok = QInputDialog.getText(self, "New category", "Name of the category:")
+            if not ok:
+                return None
+        name = profiles.clean_name(name)
+        if not name:
+            return None
+        if self.groups.find(name) is None:
+            if len(self.groups.categories) >= profiles.MAX_CATEGORIES:
+                QMessageBox.information(self, "Too many categories",
+                                        f"You can have up to {profiles.MAX_CATEGORIES}.")
+                return None
+            self.groups.ensure(name).open = True
+        self._last_category = name
+        self._categories_changed()
+        return name
+
+    def _categories_changed(self):
+        """Categories were added, renamed, removed or moved: the sections, the cards'
+        Category lists and the profiles follow."""
+        self._layout_sections()
+        names = self.groups.names()
+        for row in self.rows.values():
+            row.set_categories(names)
+        self._apply_active(force=True)
+        self._save_groups()
+
+    def _move_to(self, row: TriggerRow, name: str):
+        """A card's Category was changed."""
+        if name == NEW_CATEGORY:
+            name = self.new_category()
+            if name is None:
+                return
+        self.move_trigger(row.t, name)
+
+    def move_trigger(self, t: Trigger, name: str):
+        """Put `t` in category `name` (made if need be). Its card moves there, if
+        that category is open."""
+        self._drop_row(t.id)
+        t.category = profiles.clean_name(name)
+        self.groups.ensure(t.category)
+        self._last_category = t.category
+        self._layout_sections()
+        sec = self.sections.get(t.category)
+        if sec is not None and sec.is_open and sec.built:
+            row = self._place_row(t, sec)
+            row.flash(f"Moved to {profiles.label(t.category)}")
+        self._store()
+
+    def rename_category(self, old: str, new: str) -> bool:
+        new = profiles.clean_name(new)
+        if old == profiles.UNCATEGORISED or not new or new == old:
+            return False
+        was_open = self.groups.find(old).open if self.groups.find(old) else False
+        if not self.groups.rename(old, new):
+            return False
+        for t in self.triggers:
+            if t.category == old:
+                t.category = new
+        self._drop_section(old)
+        self._drop_section(new)
+        self.groups.find(new).open = self.groups.find(new).open or was_open
+        if self._last_category == old:
+            self._last_category = new
+        self._categories_changed()
+        self._store()
+        return True
+
+    def set_category_triggers(self, name: str, on: bool):
+        """Switch every trigger in a category on (or off), each one's own switch."""
+        for t in self.triggers:
+            if t.category != name or t.enabled == on:
+                continue
+            t.enabled = on
+            row = self.rows.get(t.id)
+            if row is not None:
+                row.chk_on.blockSignals(True)
+                row.chk_on.setChecked(on)
+                row.chk_on.blockSignals(False)
+                row._update_state()
+            if not on:
+                self._silence(t.id, ring=True)
+        self._store()
+
+    def move_category(self, name: str, step: int):
+        self.groups.move(name, step)
+        self._categories_changed()
+
+    def delete_category(self, name: str, ask: bool = True) -> bool:
+        """Take a category away: its triggers go to Uncategorised (nothing is
+        deleted), with an Undo bar."""
+        if name == profiles.UNCATEGORISED or self.groups.find(name) is None:
+            return False
+        moved = [t for t in self.triggers if t.category == name]
+        if ask:
+            box = QMessageBox(QMessageBox.Question, "Delete category",
+                              f"Delete the category “{name}”?\n\n"
+                              + (f"Its {plural(len(moved), 'trigger')} move to "
+                                 f"{profiles.UNCATEGORISED_LABEL}: none is deleted."
+                                 if moved else "It's empty."),
+                              QMessageBox.Yes | QMessageBox.Cancel, self)
+            box.button(QMessageBox.Yes).setText("Delete")
+            box.setDefaultButton(QMessageBox.Cancel)
+            if box.exec() != QMessageBox.Yes:
+                return False
+        before: dict = {}
+        self.groups.save(before)
+        self.groups.remove(name)
+        for t in moved:
+            t.category = profiles.UNCATEGORISED
+            self._drop_row(t.id)
+        self._drop_section(name)
+        if self.groups.mode and self.groups.mode != profiles.AUTO \
+                and self.groups.profile(self.groups.mode) is None:
+            self.groups.mode = ""
+        self._categories_changed()
+        self._store()
+        ids = {t.id for t in moved}
+
+        def undo():
+            self.groups = profiles.Groups.load(before, [t.category for t in self.triggers])
+            self.groups.ensure(profiles.UNCATEGORISED)
+            for t in self.triggers:
+                if t.id in ids:
+                    self._drop_row(t.id)
+                    t.category = name
+            self._drop_section(profiles.UNCATEGORISED)
+            self._categories_changed()
+            self._fill_profiles()
+            self._store()
+        self.undo_bar.show_for(f"Deleted the category “{name}”", undo,
+                               tip="Put it back, its triggers and all")
+        return True
+
+    def export_category(self, name: str):
+        ts = [t for t in self.triggers if t.category == name]
+        if ts:
+            self.export_triggers(ts, profiles.label(name))
+
+    def _category_menu(self, name: str):
+        """A section's ⋯ menu."""
+        sec = self.sections.get(name)
+        if sec is None:
+            return
+        menu = QMenu(sec.btn_menu)
+        named = name != profiles.UNCATEGORISED
+        n = sum(t.category == name for t in self.triggers)
+        if named:
+            menu.addAction("Rename…", lambda: self._ask_rename(name))
+        a = menu.addAction("Turn all its triggers on",
+                           lambda: self.set_category_triggers(name, True))
+        a.setEnabled(n > 0)
+        a = menu.addAction("Turn all its triggers off",
+                           lambda: self.set_category_triggers(name, False))
+        a.setEnabled(n > 0)
+        menu.addSeparator()
+        i = self.groups.names().index(name) if self.groups.find(name) else 0
+        menu.addAction("Move up", lambda: self.move_category(name, -1)).setEnabled(i > 0)
+        menu.addAction("Move down", lambda: self.move_category(name, 1)).setEnabled(
+            i < len(self.groups.categories) - 1)
+        menu.addSeparator()
+        menu.addAction("Save to a file…", lambda: self.export_category(name)).setEnabled(n > 0)
+        if named:
+            menu.addAction(icons.icon("trash"), "Delete category…",
+                           lambda: self.delete_category(name))
+        menu.exec(sec.btn_menu.mapToGlobal(sec.btn_menu.rect().bottomLeft()))
+
+    def _ask_rename(self, name: str):
+        from PySide6.QtWidgets import QInputDialog
+        new, ok = QInputDialog.getText(self, "Rename category", "New name:", text=name)
+        if ok:
+            self.rename_category(name, new)
+
+    # ------------------------------------------------------------------ profiles
+    def _fill_profiles(self):
+        cb, g = self.cb_profile, self.groups
+        cb.blockSignals(True)
+        cb.clear()
+        cb.addItem("Manual (your switches)", "")
+        for p in g.profiles:
+            cb.addItem(p.name, p.id)
+        if g.profiles:
+            cb.addItem("Automatic (by program)", profiles.AUTO)
+        cb.insertSeparator(cb.count())
+        cb.addItem("Edit profiles…", EDIT_PROFILES)
+        cb.setCurrentIndex(max(0, cb.findData(g.mode)))
+        cb.blockSignals(False)
+        self.groupbar.setVisible(self._grouped())
+
+    def _profile_state(self) -> str:
+        """Who decides what's on, in a few words, when it isn't Manual."""
+        if self.groups.mode != profiles.AUTO:
+            return ""
+        ps = self.groups.in_charge(self.apps.matched)
+        if not ps:
+            return "no profile's program is open: your switches apply"
+        return "on now: " + ", ".join(p.name for p in ps)
+
+    def set_profile(self, mode: str):
+        """Manual (""), a profile's id, or profiles.AUTO."""
+        g = self.groups
+        if mode != profiles.AUTO and mode and g.profile(mode) is None:
+            mode = ""
+        g.mode = mode
+        self._save_groups()
+        self._fill_profiles()
+        self._update_app_timer()
+        self._apply_active(force=True)
+
+    def _on_profile(self, _i: int):
+        want = self.cb_profile.currentData()
+        if want == EDIT_PROFILES:
+            self.cb_profile.setCurrentIndex(max(0, self.cb_profile.findData(self.groups.mode)))
+            self.edit_profiles()
+            return
+        self.set_profile(want or "")
+
+    def edit_profiles(self):
+        start = self.groups.mode if self.groups.profile(self.groups.mode) else ""
+        dlg = ProfilesDialog(self, self.groups.profiles, self.groups.names(), self._lister,
+                             start)
+        if dlg.exec():
+            self.set_profiles(dlg.result_profiles)
+
+    def set_profiles(self, ps: list):
+        self.groups.profiles = ps[:profiles.MAX_PROFILES]
+        mode = self.groups.mode
+        if mode == profiles.AUTO and not ps:
+            mode = ""
+        self.apps.matched = [m for m in self.apps.matched if self.groups.profile(m)]
+        self.set_profile(mode)
+        self._layout_sections()
+
+    def _update_app_timer(self):
+        """Automatic looks at the open programs every APP_POLL_MS (only then)."""
+        g = self.groups
+        if g.mode == profiles.AUTO and any(p.apps for p in g.profiles):
+            if not self._app_timer.isActive():
+                self._app_timer.start()
+            self._check_apps()
+        else:
+            self._app_timer.stop()
+            self.apps.matched = []
+
+    def _check_apps(self):
+        """Which profiles' programs are open (or in front) now; a change switches
+        their categories on or off. A ring going on isn't stopped by it."""
+        try:
+            wins = self._lister()
+            fg = self._front()
+        except OSError:
+            log.debug("couldn't list the windows for the profiles", exc_info=True)
+            return
+        running = {w.exe for w in wins if w.exe}
+        front = next((w.exe for w in wins if w.hwnd == fg), "")
+        if self.apps.update(self.groups.profiles, running, front, time.monotonic()):
+            log.info("profiles on now: %s", ", ".join(
+                p.name for p in self.groups.in_charge(self.apps.matched)) or "none")
+            self._apply_active(force=True)
+
     # ------------------------------------------------------------------ the list
     def sounds_changed(self):
         sounds = self.host.sounds()
@@ -1993,9 +2547,21 @@ class TriggersTab(QWidget):
                 self._silence(tid, [], ring=True)
 
     def _add_row(self, t: Trigger, at: int | None = None, open_: bool = True) -> TriggerRow:
-        """A card for `t` (at `at` in the list, else at the end), opened unless
-        `open_` is false (the cards there at start, when there's more than one)."""
+        """The card of `t` (already in self.triggers), made if it isn't yet, in its
+        category, which is opened to show it. `at` is past: a card goes where its
+        trigger is in self.triggers."""
+        sec = self._section_of(t)
+        if not sec.is_open:
+            self._set_open(sec, True)
+        self._build(sec, need=t)
+        return self.rows.get(t.id) or self._place_row(t, sec, open_)
+
+    def _make_row(self, t: Trigger, open_: bool) -> TriggerRow:
+        """A card for `t`, opened unless `open_` is false (the cards made for the
+        list at start, when there's more than one)."""
         row = TriggerRow(t, self.host.sounds(), self._mons, open_=open_)
+        row.set_categories(self.groups.names())
+        row.category_wanted.connect(self._move_to)
         row.changed.connect(self._row_changed)
         row.pictures_wanted.connect(self._add_picture_files)
         row.paste_wanted.connect(self._paste_picture)
@@ -2011,11 +2577,36 @@ class TriggersTab(QWidget):
         row.test.connect(lambda r: self._play_trigger(r.t, test=True))
         row.remove.connect(self.ask_remove)
         self.rows[t.id] = row
-        # the empty note is the layout's first item and the stretch its last
-        last = self.list_layout.count() - 1
-        self.list_layout.insertWidget(last if at is None else min(at + 1, last), row)
+        return row
+
+    def _place_row(self, t: Trigger, sec: CategorySection, open_: bool = False) -> TriggerRow:
+        """Put `t`'s card (made if need be) in `sec` where it is in self.triggers."""
+        row = self.rows.get(t.id) or self._make_row(t, open_)
+        old = row.parentWidget()
+        if old is not None and old.layout() is not None:
+            old.layout().removeWidget(row)
+        before = 0
+        for x in self.triggers:
+            if x is t:
+                break
+            r = self.rows.get(x.id)
+            if x.category == t.category and r is not None and r.parentWidget() is sec.body:
+                before += 1
+        sec.body_layout.insertWidget(before + 1, row)      # after its "empty" note
+        sec.empty.setVisible(False)
         self.empty.setVisible(False)
         return row
+
+    def _drop_row(self, tid: str):
+        """Throw a trigger's card away (the trigger stays)."""
+        row = self.rows.pop(tid, None)
+        if row is None:
+            return
+        parent = row.parentWidget()
+        if parent is not None and parent.layout() is not None:
+            parent.layout().removeWidget(row)
+        row.setParent(None)   # gone from the list now, not when the event loop gets to it
+        row.deleteLater()
 
     def _row_changed(self, row: TriggerRow):
         """A card was edited: save, and silence what it no longer plays. A sound
@@ -2070,7 +2661,9 @@ class TriggersTab(QWidget):
 
     def _store(self):
         self.host.screen["triggers"] = [t.to_raw() for t in self.triggers]
+        self.groups.save(self.host.screen)
         self.host.save()
+        self._refresh_counts()
         if self.is_active():
             self._sync()
         self._show_warning()
@@ -2083,7 +2676,8 @@ class TriggersTab(QWidget):
                                     f"You can have up to {MAX_TRIGGERS} triggers.")
             return None
         t = Trigger(id=uuid.uuid4().hex[:12], name=name[:60] or "Trigger",
-                    sounds=[self.host.default_sound] if self.host.default_sound else [])
+                    sounds=[self.host.default_sound] if self.host.default_sound else [],
+                    category=self._new_category())
         if not self._add_pictures(t, [img] if isinstance(img, QImage) else list(img)):
             return None
         self.triggers.append(t)
@@ -2413,7 +3007,6 @@ class TriggersTab(QWidget):
                  "trigger": t.to_raw()}
         self.host.screen["deleted"] = self._bin() + [entry]
         self.triggers = [x for x in self.triggers if x.id != t.id]
-        self.rows.pop(t.id, None)
         self._bag.forget(t.id)
         self._order.pop(t.id, None)
         self.host.stop_tag(t.id)
@@ -2421,12 +3014,10 @@ class TriggersTab(QWidget):
         self._forget_ring(t.id)
         for d in (self._played, self._ring_sounds, self._ring_how):
             d.pop(t.id, None)
-        self.list_layout.removeWidget(row)
-        row.setParent(None)   # gone from the list now, not when the event loop gets to it
-        row.deleteLater()
+        self._drop_row(t.id)
         for path in t.images:
             self._gray.pop(path, None)   # the file stays, in the bin
-        self.empty.setVisible(not self.triggers)
+        self._layout_sections()
         self._prune_bin()
         self._store()
         self.ringing_changed.emit()
@@ -2583,8 +3174,6 @@ class TriggersTab(QWidget):
         i = self.triggers.index(after) + 1 if after in self.triggers else len(self.triggers)
         self.triggers.insert(i, t)
         row = self._add_row(t)
-        self.list_layout.removeWidget(row)
-        self.list_layout.insertWidget(i + 1, row)       # after the "no triggers yet" note
         self._store()
         QTimer.singleShot(0, row, lambda: self.scroll.ensureWidgetVisible(row))
         return row
@@ -2599,7 +3188,8 @@ class TriggersTab(QWidget):
             return
         t = Trigger(id=uuid.uuid4().hex[:12], name=f"Trigger {len(self.triggers) + 1}",
                     sounds=[self.host.default_sound] if self.host.default_sound else [],
-                    mode="still", level=LEVELS["still"], hold=10.0)
+                    mode="still", level=LEVELS["still"], hold=10.0,
+                    category=self._new_category())
         row = self._insert(t)
         row.name.setFocus()
         row.name.selectAll()
@@ -2608,23 +3198,27 @@ class TriggersTab(QWidget):
         HistoryDialog(self, self).exec()
 
     # ------------------------------------------------------------------ packs
-    def export_triggers(self):
-        if not self.triggers:
+    def export_triggers(self, triggers: list[Trigger] | None = None, name: str = ""):
+        """Save triggers to a pack: all of them, or `triggers` (a category, `name`)."""
+        triggers = self.triggers if triggers is None else triggers
+        if not triggers:
             return
-        path, _ = QFileDialog.getSaveFileName(self, "Save triggers",
-                                              str(Path.home() / "Onion Watch triggers.zip"),
+        file = f"Onion Watch {name}.zip" if name else "Onion Watch triggers.zip"
+        file = "".join("_" if c in '\\/:*?"<>|' else c for c in file)
+        path, _ = QFileDialog.getSaveFileName(self, "Save triggers", str(Path.home() / file),
                                               "Trigger packs (*.zip)")
         if not path:
             return
         try:
-            packs.write_pack(path, self.triggers, dict(self.host.sounds()))
+            packs.write_pack(path, triggers, dict(self.host.sounds()))
         except OSError as e:
             QMessageBox.warning(self, "Couldn't save the triggers", str(e))
             return
         QMessageBox.information(
             self, "Triggers saved",
-            f"{plural(len(self.triggers), 'trigger')} saved to {Path(path).name}, pictures "
-            "and all. Sounds go by name: sound files of yours aren't in it.")
+            f"{plural(len(triggers), 'trigger')} saved to {Path(path).name}, pictures "
+            "and all, each in its category. Sounds go by name: sound files of yours "
+            "aren't in it.")
 
     def import_triggers(self):
         path, _ = QFileDialog.getOpenFileName(self, "Load triggers", str(Path.home()),
@@ -2636,6 +3230,12 @@ class TriggersTab(QWidget):
         except packs.PackError as e:
             QMessageBox.warning(self, "Can't load those triggers", str(e))
             return
+        if found and not any(t.category for t, _p, _s in found):
+            # a pack without categories (an older one): its triggers go in one named
+            # after the file, so they stay together
+            name = profiles.clean_name(Path(path).stem.removeprefix("Onion Watch "))
+            for t, _p, _s in found:
+                t.category = name
         added = self.add_pack(found)
         if found and not added:
             QMessageBox.information(self, "Too many triggers",
@@ -2646,7 +3246,8 @@ class TriggersTab(QWidget):
     def add_pack(self, found) -> int:
         """Add the triggers read from a pack (packs.read_pack): each gets a new id,
         its pictures are kept like cut ones, and its sounds are the host's of the
-        same id or name, else the default. Returns how many were added."""
+        same id or name, else the default. Each keeps its category (made if need be).
+        Returns how many were added."""
         have = self.host.sounds()
         ids, by_name = {sid for sid, _n in have}, {n.lower(): sid for sid, n in have}
         added = 0

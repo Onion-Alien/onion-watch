@@ -306,8 +306,8 @@ def test_a_deleted_trigger_can_be_undone_or_brought_back_later(tab, monkeypatch)
     assert not tab.undo_bar.isHidden() and "First" in tab.undo_bar.label.text()
     tab.undo_bar.btn_undo.click()             # back in its old place, as it was
     assert [t.id for t in tab.triggers] == [first.id, second.id]
-    assert tab.list_layout.indexOf(tab.rows[first.id]) < tab.list_layout.indexOf(
-        tab.rows[second.id])
+    cards = tab.sections[""].body_layout       # the list's one category
+    assert cards.indexOf(tab.rows[first.id]) < cards.indexOf(tab.rows[second.id])
     assert tab.host.screen["deleted"] == [] and tab.triggers[0].images == [str(pic)]
     # after the Undo bar has gone, it's still in Recently deleted
     tab._remove(tab.rows[first.id])
