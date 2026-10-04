@@ -22,9 +22,10 @@ game would draw it at now: scaled from the size of the window or screen it was c
 from (`Watched.cuts`) to the size being watched, by height and by width, which
 covers a game cut fullscreen and played in a window. Sizes nothing predicts (an
 in-game UI scale, a picture from before sizes were kept) are swept for, a couple of
-sizes a check; one found is kept (`Look`). At any size but its own a picture and
-the frame are both softened a little first (BLUR), as a game drawing something at
-another size doesn't draw a resized copy of it.
+sizes a check, the triggers taking turns (SWEEPERS); one found is kept (`Look`). At
+any size but its own a picture and the frame are both softened a little first
+(BLUR), as a game drawing something at another size doesn't draw a resized copy of
+it.
 
 Watching is kept to about CPU_SHARE of the computer's processor, so it doesn't cost
 a game frames: when the checks take longer than that allows (a slow computer, a lot
@@ -86,7 +87,12 @@ SOFT_MASK_MIN = 400
 SIZES = (0.5, 2.0)
 SAME = 0.025
 SWEEP_STEP = 1.06
-SWEEP_PER_CHECK = 2     # sizes each trigger sweeps per check
+SWEEP_PER_CHECK = 2     # sizes a trigger sweeps on its turn
+# triggers that get a turn to sweep, per capture per check: the ones that waited
+# longest. Sweeping is most of the work for a picture that isn't showing, so with
+# dozens of triggers on, each sweeping every check would space the checks out by
+# seconds (see CPU_SHARE); taking turns costs the same however many there are
+SWEEPERS = 2
 SWEEP_MIN_SIDE = 6      # ...skipping those that shrink a picture below this
 PROMISING = 0.15
 SWEEP_DONE = 0.9        # a match scoring less may be at a size a little off: keep sweeping
@@ -1659,6 +1665,8 @@ class _Capture:
         self.scores: dict[str, float] = {}
         self.refs: dict[str, tuple[float, np.ndarray]] = {}   # "change" / "still": (when, area)
         self.turns: dict[str, int] = {}   # "any size": which picture each trigger sweeps next
+        self.swept: dict[str, int] = {}   # ...and the check it last swept on (SWEEPERS)
+        self.checks = 0             # checks made on this capture
         self.reopen_since = 0.0     # > 0: the capture was lost (or never opened); trying again
         self.next_try = 0.0         # ...not before this time
         self.opened = False         # it has captured at some point
@@ -2139,6 +2147,13 @@ class Watcher:
         fh, fw = gray.shape
         frames: dict = {}                # an area -> its Frame, shared by its pictures
         scores = {}
+        judged = {}
+        if not black:
+            # those that swept longest ago are scored first, so they get the turns
+            budget = [SWEEPERS]
+            for it in sorted(items, key=lambda i: cap.swept.get(i.id, -1)):
+                judged[it.id] = self._score(cap, gray, it, now, frames, budget)
+        cap.checks += 1
         for it in items:
             gate = it.gate_for(cap.source)
             if black:
@@ -2146,7 +2161,7 @@ class Watcher:
                 if it.mode == "appear":
                     gate.step(False, now, it.cooldown)
                 continue
-            score, box = self._score(cap, gray, it, now, frames)
+            score, box = judged[it.id]
             scores[it.id] = 0.0 if score is None else score
             if score is None:
                 continue
@@ -2202,9 +2217,12 @@ class Watcher:
 
     @staticmethod
     def _score(cap: _Capture, gray: np.ndarray, it: Watched, now: float,
-               frames: dict) -> tuple[float | None, tuple[int, int, int, int]]:
+               frames: dict, budget: list[int] | None = None
+               ) -> tuple[float | None, tuple[int, int, int, int]]:
         """A trigger's score in one frame (None: nothing to judge yet) and the box
-        (y0, y1, x0, x1) it's about: where its best picture is, or its area."""
+        (y0, y1, x0, x1) it's about: where its best picture is, or its area. With
+        "any size" it sweeps a step too when it isn't matched well, if `budget` (the
+        turns left this check, taken one) has a turn left; None: always."""
         if it.uses_pictures:
             looks = cap.scaled.get(it.id) or []
             least = (max((lk.pats[0][1].shape[0] for lk in looks), default=2),
@@ -2236,7 +2254,11 @@ class Watcher:
                     sc, b = judge(p, lk)
                     if sc > best:
                         best, at = sc, b
-            if best < max(it.threshold, SWEEP_DONE) and it.any_size:
+            if (best < max(it.threshold, SWEEP_DONE) and it.any_size
+                    and (budget is None or budget[0] > 0)):
+                if budget is not None:
+                    budget[0] -= 1
+                cap.swept[it.id] = cap.checks
                 sc, b = Watcher._sweep(cap, it, looks, judge, f.shape, best)
                 if sc > best:
                     best, at = sc, b

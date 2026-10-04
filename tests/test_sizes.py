@@ -251,3 +251,26 @@ def test_a_picture_keeps_the_size_it_was_cut_from(qapp, tmp_path):
     path = tp.save_picture(img, "p", tmp_path)
     assert tp.cut_size(QImage(path)) == (1920, 1080)
     assert tp.picture_tint(QImage(path)) is not None
+
+
+def test_triggers_take_turns_to_sweep():
+    """Dozens of "any size" triggers whose pictures aren't showing: only SWEEPERS of
+    them sweep each check (the work stays flat), and every one gets its turn."""
+    level = world()
+    pic, _tint = cut(level)
+    h, w = 540, 960
+    grab = Grab(w, h)
+    items = [sw.Watched(f"t{i}", [(pic, None)], 0.8, 0.0, any_size=True, cuts=[(w, h)])
+             for i in range(10)]
+    cap = sw._Capture(0, Monitor(0, 0, w, h, True))
+    cap.grab = grab
+    cap.fitted, cap.scaled = sw.Watcher._fit(grab, cap.mon, items)
+    blank = np.random.default_rng(9).random((grab.h, grab.w)).astype(np.float32)
+    watcher = sw.Watcher(lambda *_a: None)
+    swept = []
+    for _ in range(5):
+        before = dict(cap.swept)
+        watcher._check(cap, blank, items)
+        swept.append({k for k, v in cap.swept.items() if before.get(k) != v})
+    assert all(len(s) == sw.SWEEPERS for s in swept)
+    assert set().union(*swept) == {it.id for it in items}     # 5 checks x 2: all ten
