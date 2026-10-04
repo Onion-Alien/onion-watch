@@ -27,7 +27,7 @@ from pathlib import Path
 
 import numpy as np
 from PySide6.QtCore import QEvent, QPoint, QRect, QSize, Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QFontMetrics, QIcon, QImage, QPixmap
+from PySide6.QtGui import QColor, QFontMetrics, QIcon, QImage, QKeySequence, QPixmap, QShortcut
 from PySide6.QtWidgets import (QApplication, QBoxLayout, QCheckBox, QComboBox, QDoubleSpinBox,
                                QFileDialog, QFrame, QHBoxLayout, QLabel, QLineEdit, QMenu,
                                QMessageBox, QPushButton, QScrollArea, QSizePolicy, QSpinBox,
@@ -475,14 +475,25 @@ def swatch(colour: str, size: int = 14) -> QIcon:
     return QIcon(pm)
 
 
+def align_control(widget: QWidget):
+    """One readable control size in both the standalone app and the Board module."""
+    widget.setStyleSheet("padding-top:4px; padding-bottom:4px; font-size:9pt;")
+    widget.ensurePolished()
+    widget.setFixedHeight(max(34, widget.fontMetrics().height() + 16))
+    if isinstance(widget, QPushButton):
+        widget.setCursor(Qt.PointingHandCursor)
+        if widget.menu():
+            widget.setStyleSheet(widget.styleSheet() + "padding-right:24px;")
+
+
 class FlowBox(QWidget):
     """A wrapping row (Flow) that takes the height its lines need at its width. A
     Flow's height-for-width isn't passed up through the scrolling list of cards,
     so on its own a row that wraps overlaps what's below it, or runs off the edge."""
 
-    def __init__(self, gap: int = 6, parent=None):
+    def __init__(self, gap: int = 6, parent=None, flow_type=Flow):
         super().__init__(parent)
-        self.flow = Flow(self, gap=gap)
+        self.flow = flow_type(self, gap=gap)
 
     def resizeEvent(self, ev):
         super().resizeEvent(ev)
@@ -491,6 +502,12 @@ class FlowBox(QWidget):
     def showEvent(self, ev):
         super().showEvent(ev)
         self._fit()
+
+    def event(self, ev):
+        result = super().event(ev)
+        if ev.type() == QEvent.LayoutRequest:
+            self._fit()
+        return result
 
     def _fit(self):
         h = self.flow.heightForWidth(max(self.width(), 1))
@@ -505,6 +522,13 @@ class BarFlow(Flow):
 
     def _place(self, rect: QRect, move: bool) -> int:
         x, y, line = rect.x(), rect.y(), 0
+        pending = []
+
+        def place_line():
+            if move:
+                for item, left, size in pending:
+                    item.setGeometry(QRect(QPoint(left, y + (line - size.height()) // 2), size))
+
         for it in self._items:
             if it.isEmpty():
                 continue
@@ -513,14 +537,16 @@ class BarFlow(Flow):
             hint, least = it.sizeHint(), it.minimumSize().width()
             keep = pair.one_line_width() if pair else least
             if line and x + keep > rect.right() + 1:        # doesn't fit here: next line
+                place_line()
+                pending.clear()
                 x, y, line = rect.x(), y + line + self._gap, 0
             w = max(least, min(hint.width(), rect.right() + 1 - x))
             # (asked directly: Qt asks a widget's layout, not the widget)
             h = pair.heightForWidth(w) if pair else hint.height()
-            if move:
-                it.setGeometry(QRect(QPoint(x, y), QSize(w, h)))
+            pending.append((it, x, QSize(w, h)))
             x += w + self._gap
             line = max(line, h)
+        place_line()
         return y + line - rect.y()
 
 
@@ -545,6 +571,8 @@ class Pair(QWidget):
 
     def one_line_width(self) -> int:
         """The least it can be with both on one line."""
+        if self.second.isHidden():
+            return self.first.minimumSizeHint().width()
         return (self.first.minimumSizeHint().width() + self.GAP
                 + self.second.minimumSizeHint().width())
 
@@ -552,10 +580,14 @@ class Pair(QWidget):
         return w >= self.one_line_width()
 
     def sizeHint(self) -> QSize:
+        if self.second.isHidden():
+            return self.first.sizeHint()
         a, b = self.first.sizeHint(), self.second.sizeHint()
         return QSize(a.width() + self.GAP + b.width(), max(a.height(), b.height()))
 
     def minimumSizeHint(self) -> QSize:
+        if self.second.isHidden():
+            return self.first.minimumSizeHint()
         a, b = self.first.minimumSizeHint(), self.second.minimumSizeHint()
         return QSize(max(a.width(), b.width()), max(a.height(), b.height()))
 
@@ -563,6 +595,8 @@ class Pair(QWidget):
         return True
 
     def heightForWidth(self, w: int) -> int:
+        if self.second.isHidden():
+            return self.first.sizeHint().height()
         a, b = self.first.sizeHint().height(), self.second.sizeHint().height()
         return max(a, b) if self._one_line(w) else a + self.STACKED + b
 
@@ -741,18 +775,19 @@ class TriggerRow(QFrame):
         self.live = QLabel("—")
         self.live.setMinimumWidth(48)
         self.live.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        top.addWidget(self.live, 0, Qt.AlignTop)
+        top.addWidget(self.live, 0, Qt.AlignVCenter)
         self.chk_on = Switch()
         self.chk_on.setToolTip("Watch for this trigger (switch it off to keep it but pause it)")
         self.chk_on.setChecked(t.enabled)
         self.chk_on.toggled.connect(self._on_enabled)
-        top.addWidget(self.chk_on, 0, Qt.AlignTop)
+        top.addWidget(self.chk_on, 0, Qt.AlignVCenter)
         self.btn_open = QPushButton()
         self.btn_open.setObjectName("fold")
         self.btn_open.setCheckable(True)
-        self.btn_open.setFixedWidth(30)
+        self.btn_open.setFixedSize(34, 34)
+        self.btn_open.setAccessibleName("Edit trigger")
         self.btn_open.toggled.connect(self.set_open)
-        top.addWidget(self.btn_open, 0, Qt.AlignTop)
+        top.addWidget(self.btn_open, 0, Qt.AlignVCenter)
         v.addLayout(top)
 
         self.body = QWidget()
@@ -891,11 +926,16 @@ class TriggerRow(QFrame):
         self.until.setVisible(t.ring)
         no_wheel(self.until)
         self.until.currentIndexChanged.connect(self._on_until)
+        self.ring_box = Pair(self.chk_ring, self.until)
         self.btn_test = QPushButton("Test")
         self.btn_test.setToolTip("Play now, as the trigger would, to check it")
         icons.set_icon(self.btn_test, "play", size=14)
         self.btn_test.clicked.connect(lambda: self.test.emit(self))
         then_col.addWidget(self.sounds_box)
+        playback = FlowBox(gap=10, flow_type=BarFlow)
+        playback.flow.addWidget(self.ring_box)
+        playback.flow.addWidget(self.btn_test)
+        then_col.addWidget(playback)
 
         # FINE-TUNE: the numbers, folded away behind a line saying what they are
         bv.addSpacing(8)
@@ -987,6 +1027,12 @@ class TriggerRow(QFrame):
         self._update_state()
         self.btn_open.setChecked(open_)
         self.set_open(open_)
+        for control in (self.mode, self.where, self.btn_area, self.btn_cut,
+                        self.btn_pictures, self.btn_paste, self.sound, self.pick,
+                        self.until, self.btn_test, self.btn_dup, self.btn_del,
+                        self.delay, self.cooldown, self.hold, self.threshold,
+                        self.below, self.cb_category):
+            align_control(control)
 
     def _fit_name(self, _text: str = ""):
         """The name box as wide as its text (or the hint while it's empty), plus room
@@ -1176,8 +1222,7 @@ class TriggerRow(QFrame):
         """Put the sounds row's widgets back in order (the Flow layout has no insert)."""
         while self.sounds_row.count():
             self.sounds_row.takeAt(0)
-        for w in (self.lbl_play, *self.chips, self.sound, self.pick, self.chk_ring,
-                  self.until, self.btn_test):
+        for w in (self.lbl_play, *self.chips, self.sound, self.pick):
             self.sounds_row.addWidget(w)
         self.sounds_row.invalidate()
         self.sounds_box._fit()
@@ -1551,9 +1596,9 @@ class TriggersTab(QWidget):
         # the profile in charge and how much is on: there once there are categories
         # or profiles (a plain list of triggers looks as it always did)
         self.groupbar = QWidget()
-        gb = QHBoxLayout(self.groupbar)
+        gb = QVBoxLayout(self.groupbar)
         gb.setContentsMargins(4, 0, 4, 0)
-        gb.setSpacing(12)
+        gb.setSpacing(4)
         self.cb_profile = WideCombo(min_width=150)
         self.cb_profile.setMaximumWidth(240)
         self.cb_profile.setToolTip("Which categories are on: your own switches (Manual), a "
@@ -1561,11 +1606,52 @@ class TriggersTab(QWidget):
                                    "that's open")
         no_wheel(self.cb_profile)
         self.cb_profile.activated.connect(self._on_profile)
-        gb.addWidget(labelled("Profile", self.cb_profile))
+        gb.addWidget(labelled("Profile", self.cb_profile), 0, Qt.AlignLeft)
         self.lbl_counts = hint_label("")     # wraps rather than widen a narrow window
         self.lbl_counts.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
         gb.addWidget(self.lbl_counts, 1)
         v.addWidget(self.groupbar)
+        search_head = QHBoxLayout()
+        self.btn_search = QPushButton("Search")
+        self.btn_search.setCheckable(True)
+        self.btn_search.setToolTip("Find triggers in all categories (Ctrl+F)")
+        align_control(self.btn_search)
+        search_head.addWidget(self.btn_search)
+        self.search_summary = hint_label("Find a trigger by name, category, window or sound")
+        search_head.addWidget(self.search_summary, 1)
+        v.addLayout(search_head)
+        self.search_bar = QWidget()
+        search_layout = QVBoxLayout(self.search_bar)
+        search_layout.setContentsMargins(0, 0, 0, 0)
+        search_layout.setSpacing(6)
+        self.search_text = QLineEdit()
+        self.search_text.setPlaceholderText("Search triggers…")
+        self.search_text.setAccessibleName("Search triggers")
+        self.search_text.setClearButtonEnabled(True)
+        align_control(self.search_text)
+        search_layout.addWidget(self.search_text)
+        scope_row = FlowBox(gap=8, flow_type=BarFlow)
+        scope_line = scope_row.flow
+        self.search_scope = WideCombo(min_width=140)
+        self.search_scope.setAccessibleName("Search category")
+        align_control(self.search_scope)
+        scope_line.addWidget(labelled("Search in", self.search_scope))
+        self.btn_clear_search = QPushButton("Clear filters")
+        align_control(self.btn_clear_search)
+        scope_line.addWidget(self.btn_clear_search)
+        search_layout.addWidget(scope_row)
+        v.addWidget(self.search_bar)
+        self.search_bar.hide()
+        self._search_ids: set[str] | None = None
+        self.btn_search.toggled.connect(self._toggle_search)
+        self.search_text.textChanged.connect(self._apply_search)
+        self.search_scope.currentIndexChanged.connect(self._apply_search)
+        self.btn_clear_search.clicked.connect(self.clear_search)
+        self.find_shortcut = QShortcut(QKeySequence.Find, self)
+        self.find_shortcut.activated.connect(self.show_search)
+        self.close_search_shortcut = QShortcut(QKeySequence("Escape"), self.search_bar)
+        self.close_search_shortcut.setContext(Qt.WidgetWithChildrenShortcut)
+        self.close_search_shortcut.activated.connect(lambda: self.btn_search.setChecked(False))
         self._app_timer = QTimer(self)
         self._app_timer.setInterval(APP_POLL_MS)
         self._app_timer.timeout.connect(self._check_apps)
@@ -1589,14 +1675,25 @@ class TriggersTab(QWidget):
         hint.setAlignment(Qt.AlignCenter)
         ev.addWidget(hint)
         self.list_layout.addWidget(self.empty)
+        self.no_results = hint_label("No matching triggers. Try another search or clear filters.")
+        self.no_results.setAlignment(Qt.AlignCenter)
+        self.no_results.hide()
+        v.addWidget(self.no_results)
         self.list_layout.addStretch(1)
         self.scroll.setWidget(self.list)
         v.addWidget(self.scroll, 1)
 
         f = QFrame()
         f.setObjectName("transport")
-        h = BarFlow(f, gap=8)
-        h.setContentsMargins(12, 10, 12, 10)
+        self.toolbar = f
+        toolbar = QVBoxLayout(f)
+        toolbar.setContentsMargins(12, 10, 12, 10)
+        toolbar.setSpacing(8)
+        source_row = FlowBox(gap=8, flow_type=BarFlow)
+        actions = FlowBox(gap=8)
+        toolbar.addWidget(source_row)
+        toolbar.addWidget(actions)
+        h = actions.flow
         self.btn_watch = QPushButton()
         self.btn_watch.setObjectName("live")
         self.btn_watch.setCheckable(True)
@@ -1607,7 +1704,7 @@ class TriggersTab(QWidget):
         self.btn_cut = QPushButton("Cut picture…")
         self.btn_cut.setObjectName("primary")
         self.btn_cut.setToolTip("A new trigger: cut a picture out of the window (or screen) "
-                                "picked on the right")
+                                "picked in Look in above")
         icons.set_icon(self.btn_cut, "crop", "on_accent")
         self.btn_cut.clicked.connect(self.add_from_cut)
         self.hoot.clicked.connect(lambda: self.btn_cut.setFocus(Qt.OtherFocusReason))
@@ -1682,17 +1779,18 @@ class TriggersTab(QWidget):
         every = labelled("every", self.cb_interval)
         self.lbl_interval = every.layout().itemAt(0).widget()
         self.look = Pair(look, every)
-        h.addWidget(self.look)
+        # Source first, then creation and playback: stable rows at normal widths.
+        source_row.flow.addWidget(self.look)
         # the watching settings (processor use), then last the ⓘ and the bin (only
         # while it holds something)
-        self.btn_settings = QPushButton()
+        self.btn_settings = QPushButton("Watching settings")
         self.btn_settings.setToolTip("Watching settings: how much of your processor it may use")
         self.btn_settings.setAccessibleName("Watching settings")
         icons.set_icon(self.btn_settings, "settings")
         self.btn_settings.clicked.connect(self.show_watching)
-        h.addWidget(self.btn_settings)
+        source_row.flow.addWidget(self.btn_settings)
         if not callable(getattr(host, "tab_info", None)):
-            self.btn_info = QPushButton("ⓘ")
+            self.btn_info = QPushButton("Help")
             self.btn_info.setObjectName("small")
             self.btn_info.setCursor(Qt.PointingHandCursor)
             self.btn_info.setToolTip("What is this?")
@@ -1703,6 +1801,11 @@ class TriggersTab(QWidget):
         icons.set_icon(self.btn_bin, "trash")
         self.btn_bin.clicked.connect(self.show_deleted)
         h.addWidget(self.btn_bin)
+        for control in (self.btn_watch, self.btn_cut, self.btn_add, self.btn_more,
+                        self.cb_where, self.cb_interval, self.btn_settings, self.btn_bin):
+            align_control(control)
+        if hasattr(self, "btn_info"):
+            align_control(self.btn_info)
         v.addWidget(f)
 
         ok, why = screenwatch.supported()
@@ -1721,6 +1824,76 @@ class TriggersTab(QWidget):
         self._label_watch()
         if ok and s.get("on") and self.triggers:
             self.btn_watch.setChecked(True)    # it was on when the app last closed
+
+    # ------------------------------------------------------------------ search
+    def show_search(self, category: str | None = None):
+        self.btn_search.setChecked(True)
+        if category is not None:
+            self.search_scope.setCurrentIndex(max(0, self.search_scope.findData(category)))
+        self.search_text.setFocus()
+        self.search_text.selectAll()
+
+    def _toggle_search(self, on: bool):
+        self.search_bar.setVisible(on)
+        if on:
+            self.search_text.setFocus()
+        else:
+            self.clear_search()
+            self.btn_search.setFocus()
+
+    def clear_search(self):
+        self.search_text.blockSignals(True)
+        self.search_scope.blockSignals(True)
+        self.search_text.clear()
+        self.search_scope.setCurrentIndex(0)
+        self.search_text.blockSignals(False)
+        self.search_scope.blockSignals(False)
+        self._apply_search()
+
+    def _search_categories(self):
+        scope = self.search_scope.currentData()
+        self.search_scope.blockSignals(True)
+        self.search_scope.clear()
+        self.search_scope.addItem("All categories", None)
+        for name in self.groups.names():
+            self.search_scope.addItem(profiles.label(name), name)
+        self.search_scope.setCurrentIndex(max(0, self.search_scope.findData(scope)))
+        self.search_scope.blockSignals(False)
+
+    def _apply_search(self, *_):
+        """Filter model data, including unbuilt/folded cards, without changing watching."""
+        words = self.search_text.text().casefold().split()
+        scope = self.search_scope.currentData()
+        active = bool(words) or scope is not None
+        was_active = self._search_ids is not None
+        sounds = dict(self.host.sounds())
+        self._search_ids = set() if active else None
+        if active:
+            for t in self.triggers:
+                text = " ".join([t.name, profiles.label(t.category),
+                                 *[f"{s.label} {s.exe}"
+                                   for s in (t.sources or [self.watcher.default])
+                                   if isinstance(s, WindowRef)],
+                                 *[sounds.get(s, s) for s in t.sounds]]).casefold()
+                if (scope is None or t.category == scope) and all(w in text for w in words):
+                    self._search_ids.add(t.id)
+        for name, sec in self.sections.items():
+            matches = any(t.category == name and self._matches_search(t) for t in self.triggers)
+            sec.setVisible(matches if active else True)
+            sec.set_open(matches if active else self.groups.find(name).open)
+            if sec.is_open and (active or was_active):
+                self._build(sec)
+        for row in self.rows.values():
+            row.setVisible(self._matches_search(row.t))
+        self.no_results.setVisible(active and not self._search_ids)
+        self.empty.setVisible(not self.triggers and not active)
+        self.search_summary.setText(
+            f"{len(self._search_ids)} of {plural(len(self.triggers), 'trigger')} · "
+            "watching is unchanged" if active else
+            "Find a trigger by name, category, window or sound")
+
+    def _matches_search(self, trigger: Trigger) -> bool:
+        return self._search_ids is None or trigger.id in self._search_ids
 
     # ------------------------------------------------------------------ the default
     def _saved_default(self) -> int | WindowRef:
@@ -2258,6 +2431,7 @@ class TriggersTab(QWidget):
         sec.fold_toggled.connect(self._on_fold)
         sec.switched.connect(self._on_switch)
         sec.menu_wanted.connect(self._category_menu)
+        sec.search_wanted.connect(self.show_search)
         self.sections[name] = sec
         return sec
 
@@ -2295,6 +2469,9 @@ class TriggersTab(QWidget):
         self._refresh_switches()
         self._refresh_counts()
 
+        self._search_categories()
+        self._apply_search()
+
     def _set_open(self, sec: CategorySection, on: bool):
         c = self.groups.ensure(sec.name)
         c.open = on
@@ -2307,6 +2484,8 @@ class TriggersTab(QWidget):
         sec = self.sections.get(name)
         if sec is None:
             return
+        if self._search_ids is not None:
+            return   # search temporarily opens categories; never persist those folds
         self._set_open(sec, on)
         self.groups.save(self.host.screen)
         self.host.save()
@@ -2314,7 +2493,8 @@ class TriggersTab(QWidget):
     def _build(self, sec: CategorySection, need: Trigger | None = None):
         """Make the cards of `sec`'s triggers: BUILD_NOW now (and `need`), the rest
         BUILD_STEP at a time after."""
-        todo = [t for t in self.triggers if t.category == sec.name and t.id not in self.rows]
+        todo = [t for t in self.triggers if t.category == sec.name and t.id not in self.rows
+                and self._matches_search(t)]
         if sec.built and not todo:
             return
         sec.built = True
@@ -2331,7 +2511,8 @@ class TriggersTab(QWidget):
         if self.sections.get(sec.name) is not sec or not sec.is_open:
             sec.built = False           # gone or folded meanwhile: the rest when reopened
             return
-        todo = [t for t in self.triggers if t.category == sec.name and t.id not in self.rows]
+        todo = [t for t in self.triggers if t.category == sec.name and t.id not in self.rows
+                and self._matches_search(t)]
         for t in todo[:BUILD_STEP]:
             self._place_row(t, sec)
         if len(todo) > BUILD_STEP:
@@ -2727,6 +2908,8 @@ class TriggersTab(QWidget):
         """The card of `t` (already in self.triggers), made if it isn't yet, in its
         category, which is opened to show it. `at` is past: a card goes where its
         trigger is in self.triggers."""
+        if self._search_ids is not None:
+            self.clear_search()   # the newly added/restored card must be visible to edit
         sec = self._section_of(t)
         if not sec.is_open:
             self._set_open(sec, True)
@@ -2771,6 +2954,7 @@ class TriggersTab(QWidget):
             if x.category == t.category and r is not None and r.parentWidget() is sec.body:
                 before += 1
         sec.body_layout.insertWidget(before + 1, row)      # after its "empty" note
+        row.setVisible(self._matches_search(t))
         sec.empty.setVisible(False)
         self.empty.setVisible(False)
         return row
@@ -2848,6 +3032,8 @@ class TriggersTab(QWidget):
         self.groups.save(self.host.screen)
         self.host.save()
         self._refresh_counts()
+        if self._search_ids is not None:
+            self._apply_search()
         if self.is_active():
             self._sync()
         self._show_warning()

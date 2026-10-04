@@ -40,6 +40,12 @@ A bigger library in categories, the game's profile switched on because the game 
 open:
 ![Categories, and a profile turned on by the program that's open](docs/screenshots/categories.png)
 
+Finding a trigger across the whole library, including folded categories:
+![Global trigger search](docs/screenshots/search-global.png)
+
+Narrowing the search to one category:
+![Search within a category](docs/screenshots/search-category.png)
+
 </details>
 
 ## It only looks
@@ -101,6 +107,11 @@ Everything happens on your PC. What it captures is never saved or sent anywhere
 - **Duplicate** a trigger, and **save triggers to a file** (pictures and all, each
   in its category; or just one category) to move them to another PC or share them;
   sounds go by name.
+- **Search large libraries.** Click **Search** or press **Ctrl+F** to find triggers
+  by name, category, game window or sound. Search all categories, choose one in
+  **Search in**, or use a category's **Search** button. Folded categories are
+  searched too. **Clear filters** restores the list; **Escape** closes search.
+  Filtering never switches triggers off or changes which ones are watched.
 - **Nothing is lost to a misclick.** Deleting a trigger asks first, and a deleted
   trigger stays in **Recently deleted** for 30 days, pictures and all, so it can be
   brought back.

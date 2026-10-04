@@ -87,6 +87,13 @@ class Flow(QLayout):
 
     def _place(self, rect: QRect, move: bool) -> int:
         x, y, line = rect.x(), rect.y(), 0
+        pending = []
+
+        def place_line():
+            if move:
+                for item, left, size in pending:
+                    item.setGeometry(QRect(QPoint(left, y + (line - size.height()) // 2), size))
+
         for it in self._items:
             if it.isEmpty():
                 continue
@@ -94,11 +101,13 @@ class Flow(QLayout):
             if hint.width() > rect.width() > 0:   # wider than the whole row: as narrow
                 hint.setWidth(max(rect.width(), it.minimumSize().width()))   # as it goes
             if line and x + hint.width() > rect.right() + 1:
+                place_line()
+                pending.clear()
                 x, y, line = rect.x(), y + line + self._gap, 0
-            if move:
-                it.setGeometry(QRect(QPoint(x, y), hint))
+            pending.append((it, x, hint))
             x += hint.width() + self._gap
             line = max(line, hint.height())
+        place_line()
         return y + line - rect.y()
 
 

@@ -82,6 +82,9 @@ def tab(qapp, app_dir, fake_screen, monkeypatch):
     yield tab
     tab.shutdown()
     tab.host.player.close()
+    tab.deleteLater()
+    from PySide6.QtCore import QCoreApplication, QEvent
+    QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
 
 
 def test_a_pasted_picture_becomes_a_trigger_that_plays_the_default_alert(tab, qapp):
@@ -488,21 +491,22 @@ def test_the_delete_button_asks_first(tab, monkeypatch):
     assert tab.triggers == [] and tab.deleted()[0][1] == "Keep me"
 
 
-def test_one_compact_bar_with_the_other_ways_in_an_add_menu(tab, qapp, styled):
+def test_source_and_actions_have_stable_toolbar_rows(tab, qapp, styled):
     """Cut picture stays a button; a picture file, the copied picture and a trigger
-    without a picture are in the Add menu next to it. At the width the user had,
-    the whole bar (Look in and every included) is one line."""
+    without a picture are in the Add menu next to it. Source controls sit above
+    the actions instead of wrapping a lone settings button onto another line."""
     texts = [a.text() for a in tab.btn_add.menu().actions()]
     assert texts == ["From a picture file…", "Paste the copied picture", "Without a picture…"]
     assert "Without a picture…" not in [a.text() for a in tab.btn_more.menu().actions()]
     tab.resize(1180, 700)
     tab.show()
     qapp.processEvents()
-    bar = tab.btn_watch.parentWidget()
+    bar = tab.toolbar
     tops = {w.mapTo(bar, w.rect().topLeft()).y() for w in
-            (tab.btn_watch, tab.btn_cut, tab.btn_add, tab.btn_more, tab.cb_where,
-             tab.cb_interval)}
-    assert len(tops) <= 2 and max(tops) - min(tops) < tab.btn_watch.height()   # one line
+            (tab.btn_watch, tab.btn_cut, tab.btn_add, tab.btn_more)}
+    assert len(tops) == 1
+    assert tab.cb_where.mapTo(bar, tab.cb_where.rect().bottomLeft()).y() < min(tops)
+    assert tab.cb_where.height() == tab.btn_watch.height() == tab.btn_cut.height()
 
 
 def test_a_narrow_window_puts_every_under_look_in(tab, qapp, styled):
@@ -512,7 +516,7 @@ def test_a_narrow_window_puts_every_under_look_in(tab, qapp, styled):
     tab.show()
     for _ in range(4):
         qapp.processEvents()
-    bar = tab.btn_watch.parentWidget()
+    bar = tab.toolbar
     assert tab.width() == 300
 
     def top(w):
