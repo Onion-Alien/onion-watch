@@ -83,7 +83,8 @@ background, in daylight or at night, nearer or further away. A plain rectangle c
 around a model brings its scenery with it and is mostly found only where it was
 cut. While you cut, the window keeps being looked at (a screen, for a moment after): if
 the scene behind the thing moves meanwhile, that scenery is left out of the picture for
-you when it works better, and a piece that may be missed or go off by mistake is said
+you when it works better (with smooth or dark scenery next to it that barely changed),
+and a piece that may be missed or go off by mistake is said
 straight away. Picture matching can't follow a model that turns or changes pose, or is mostly
 hidden: add a picture of each pose to the same trigger (it holds up to 100).
 
@@ -102,9 +103,9 @@ spaced out past half a second.
 pictures shown bigger or smaller than they were cut: always, or only while you're not
 in the game (none of the watched windows in front, and no fullscreen window over a
 watched screen), going back to your share the moment you are. In the same 10-window
-test on an 8-thread processor it noticed things about four times sooner (0.2 s instead
-of 0.85 s) and found one more of the 50 harder cases, for about 5 % of the processor
-instead of 0.7 %.
+test on an 8-thread processor it noticed things about three times sooner (0.3 s instead
+of 0.9 s) and, with all 50 harder cases shown at once, found one more of them, for about
+5 % of the processor instead of 0.6 %.
 
 A trigger fires once each time its picture appears, then waits for it to go away
 before it can fire again. A window that isn't open yet is looked for every two

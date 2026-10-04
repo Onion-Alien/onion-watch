@@ -42,6 +42,7 @@ EDGE_TEXTURED = 0.1     # ...and at least this share of the border must count
 PAD = 3             # px (at the working size) a place may be off by, frame to frame
 BETTER = 0.03       # the cut-out is kept only if its gap is wider by this much
 NARROW = 0.15       # a gap narrower than this is worth a warning
+GROWN_HERE = 0.85   # a spread cut-out matching its own place worse than this gives way
 ELSEWHERE_FRAMES = 4    # frames looked through for a match elsewhere
 
 
@@ -62,11 +63,34 @@ def _textured(px: np.ndarray, d: int = 2) -> np.ndarray:
     return out
 
 
-def learn_mask(frames: list[np.ndarray]) -> tuple[np.ndarray | None, float]:
+GROW = 4           # scenery spreads to neighbours within this (of 255) of it; 0: off
+
+
+def _grow(px: np.ndarray, scenery: np.ndarray) -> np.ndarray:
+    """Spread `scenery` to the pixels next to it that look the same (every channel
+    within GROW): smooth or dark scenery barely changes as the scene moves, so it isn't
+    learned, though it is as much scenery as what did change. A thing's own outline
+    stops it."""
+    out = scenery.copy()
+    for _ in range(sum(px.shape[:2])):
+        before = int(out.sum())
+        for a, b, sa, sb in ((px[1:], px[:-1], out[1:], out[:-1]),
+                             (px[:, 1:], px[:, :-1], out[:, 1:], out[:, :-1])):
+            near = np.abs(a - b).max(-1) <= GROW
+            sa |= sb & near
+            sb |= sa & near
+        if int(out.sum()) == before:
+            break
+    return out
+
+
+def learn_mask(frames: list[np.ndarray], grow: bool = True
+               ) -> tuple[np.ndarray | None, float]:
     """The thing's pixels (True = keep) in `frames[0]`, the cut rectangle (h, w, 3 or
     4 uint8), from the same rectangle in later frames, in the order they were
-    grabbed; frames of another size are skipped. Returns (mask or None, the share of
-    the picture left out)."""
+    grabbed; frames of another size are skipped. `grow`: scenery also spreads to
+    look-alike neighbours (_grow). Returns (mask or None, the share of the picture
+    left out)."""
     if not frames:
         return None, 0.0
     first = _rgb(frames[0])
@@ -94,6 +118,8 @@ def learn_mask(frames: list[np.ndarray]) -> tuple[np.ndarray | None, float]:
     edge &= _textured(first) | (moved > 0)      # a flat, still border says nothing
     if int(edge.sum()) < EDGE_TEXTURED * rim or float(scenery[edge].mean()) < EDGE_MOVED:
         return None, 0.0
+    if grow and GROW:
+        scenery = _grow(first, scenery)
     keep = ~scenery
     share = float(keep.mean())
     if not KEEP_MIN <= share <= KEEP_MAX:
@@ -154,11 +180,20 @@ def choose(frames: list[np.ndarray], rect: tuple[int, int, int, int]
     cut-out's or None when nothing was learned)."""
     x, y, w, h = rect
     same = [f for f in frames if f.shape == frames[0].shape]
-    keep, _left = learn_mask([f[y:y + h, x:x + w] for f in same])
+    crops = [f[y:y + h, x:x + w] for f in same]
     plain = fit(same, rect, None)
+    # spread (learn_mask's _grow), and as learned: the spread one is kept unless it
+    # didn't help (a gap no wider) or took too much (a thing's edge blending into the
+    # scenery: it no longer matches its own place well, and the other does better)
+    keep, cut = None, None
+    for k in (learn_mask(crops)[0], learn_mask(crops, grow=False)[0] if GROW else None):
+        if k is None or (keep is not None and np.array_equal(k, keep)):
+            continue
+        f = fit(same, rect, k)
+        if cut is None or f.gap > cut.gap or (cut.here < GROWN_HERE and f.here > cut.here):
+            keep, cut = k, f
     if keep is None:
         return None, plain, None
-    cut = fit(same, rect, keep)
     return (keep if cut.gap > plain.gap + BETTER else None), plain, cut
 
 

@@ -53,6 +53,31 @@ def test_scenery_moving_behind_a_word_is_left_out():
     assert keep[:, :8].mean() < 0.2              # ...the scenery left of it isn't
 
 
+def test_flat_scenery_that_never_changed_is_left_out_too():
+    # the lower part of the scene is dark flat ground running into a soft slope: panning
+    # changes the slope, not the flat part, but that joins the slope smoothly, so it's
+    # scenery too
+    bg = scenery()
+    v = 20 + np.clip(np.arange(bg.shape[1]) - 300, 0, 100)
+    bg[128:] = np.stack([v, v + 10, v], -1)[None].astype(np.uint8)
+    frames = [word(bg[:, i * 7:i * 7 + W]) for i in range(6)]
+    keep, _left = cutout.learn_mask(cut(frames))
+    assert keep is not None
+    x, y, w, h = RECT
+    letters = word(np.full((H, W, 3), 128, np.uint8)) != 128
+    letters = letters.any(-1)[y:y + h, x:x + w]
+    assert keep[letters].mean() > 0.95                   # the word is still kept...
+    flat = np.zeros((h, w), bool)
+    flat[128 - y:, :300 - 5 * 7 - x] = True              # ground still flat in every frame
+    assert keep[flat & ~letters].mean() < 0.1            # ...the flat dark ground isn't
+    cutout.GROW, was = 0, cutout.GROW
+    try:
+        keep0, _ = cutout.learn_mask(cut(frames))
+    finally:
+        cutout.GROW = was
+    assert keep0[flat & ~letters].mean() > 0.9           # without spreading it was kept
+
+
 def test_choose_keeps_the_cut_out_when_it_does_better():
     mask, plain, cut_fit = cutout.choose(panning(8), RECT)
     assert cut_fit is not None
