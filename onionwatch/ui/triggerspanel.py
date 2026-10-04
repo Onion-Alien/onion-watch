@@ -63,7 +63,7 @@ MAX_TRIGGERS = 500      # in all; how many can be on at once is up to the comput
 OLD_TRIGGERS = 50
 MAX_SIDE = 8192         # bigger pictures are refused (kept pixel for pixel, never resized)
 CUT_KEY = "OnionWatch cut from"   # a picture's PNG text: the size of what it was cut from
-THUMB = QSize(96, 54)
+THUMB = QSize(64, 36)
 STRIP_THUMBS = 3        # thumbnails a card's strip shows before it scrolls
 CHIP_CHARS = 24         # a sound chip's name is cut to this many characters
 PICKS = (("random", "Random"), ("order", "In order"), ("all", "All at once"))
@@ -705,8 +705,8 @@ class TriggerRow(QFrame):
         self._sounds: list[tuple[str, str]] = []   # the sounds as last given
         self._narrow = False            # too narrow for the header's thumbnail
         v = QVBoxLayout(self)
-        v.setContentsMargins(14, 12, 14, 12)
-        v.setSpacing(10)
+        v.setContentsMargins(12, 8, 12, 8)
+        v.setSpacing(6)
 
         # the header, always shown: its pictures, name, what it does (or what's wrong),
         # the live match, on / off, and open / close. Click it to open the rest
@@ -720,7 +720,7 @@ class TriggerRow(QFrame):
         top.addWidget(self.strip, 0, Qt.AlignTop)
         self.badge = QLabel()           # instead of the strip, for a trigger without pictures
         self.badge.setObjectName("iconlabel")
-        self.badge.setFixedSize(THUMB + QSize(8, 8))
+        self.badge.setFixedSize(THUMB + QSize(12, 8))   # one thumbnail's slot: names line up
         self.badge.setAlignment(Qt.AlignCenter)
         top.addWidget(self.badge, 0, Qt.AlignTop)
         names = QVBoxLayout()
@@ -1596,7 +1596,7 @@ class TriggersTab(QWidget):
         # the profile in charge and how much is on: there once there are categories
         # or profiles (a plain list of triggers looks as it always did)
         self.groupbar = QWidget()
-        gb = QVBoxLayout(self.groupbar)
+        gb = QHBoxLayout(self.groupbar)
         gb.setContentsMargins(4, 0, 4, 0)
         gb.setSpacing(4)
         self.cb_profile = WideCombo(min_width=150)
@@ -1610,18 +1610,18 @@ class TriggersTab(QWidget):
         self.lbl_counts = hint_label("")     # wraps rather than widen a narrow window
         self.lbl_counts.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
         gb.addWidget(self.lbl_counts, 1)
-        v.addWidget(self.groupbar)
         search_head = QHBoxLayout()
+        search_head.addWidget(self.groupbar, 1)
+        search_head.addStretch(0)       # without the groupbar, Search stays small on the right
         self.btn_search = QPushButton("Search")
         self.btn_search.setCheckable(True)
         self.btn_search.setToolTip("Find triggers in all categories (Ctrl+F)")
         align_control(self.btn_search)
         search_head.addWidget(self.btn_search)
         self.search_summary = hint_label("Find a trigger by name, category, window or sound")
-        search_head.addWidget(self.search_summary, 1)
         v.addLayout(search_head)
         self.search_bar = QWidget()
-        search_layout = QVBoxLayout(self.search_bar)
+        search_layout = QBoxLayout(QBoxLayout.LeftToRight, self.search_bar)
         search_layout.setContentsMargins(0, 0, 0, 0)
         search_layout.setSpacing(6)
         self.search_text = QLineEdit()
@@ -1629,9 +1629,11 @@ class TriggersTab(QWidget):
         self.search_text.setAccessibleName("Search triggers")
         self.search_text.setClearButtonEnabled(True)
         align_control(self.search_text)
-        search_layout.addWidget(self.search_text)
-        scope_row = FlowBox(gap=8, flow_type=BarFlow)
-        scope_line = scope_row.flow
+        search_layout.addWidget(self.search_text, 1)
+        scope_row = QWidget()
+        scope_line = QHBoxLayout(scope_row)
+        scope_line.setContentsMargins(0, 0, 0, 0)
+        scope_line.setSpacing(6)
         self.search_scope = WideCombo(min_width=140)
         self.search_scope.setAccessibleName("Search category")
         align_control(self.search_scope)
@@ -1640,6 +1642,9 @@ class TriggersTab(QWidget):
         align_control(self.btn_clear_search)
         scope_line.addWidget(self.btn_clear_search)
         search_layout.addWidget(scope_row)
+        search_layout.addWidget(self.search_summary)
+        # side by side only sets no minimum: below 600 px resizeEvent stacks it instead
+        self.search_bar.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
         v.addWidget(self.search_bar)
         self.search_bar.hide()
         self._search_ids: set[str] | None = None
@@ -1663,7 +1668,7 @@ class TriggersTab(QWidget):
         self.list = QWidget()
         self.list_layout = QVBoxLayout(self.list)
         self.list_layout.setContentsMargins(0, 0, 0, 0)
-        self.list_layout.setSpacing(14)
+        self.list_layout.setSpacing(8)
         self.empty = QWidget()
         ev = QVBoxLayout(self.empty)
         ev.setContentsMargins(0, 24, 0, 0)
@@ -1686,14 +1691,8 @@ class TriggersTab(QWidget):
         f = QFrame()
         f.setObjectName("transport")
         self.toolbar = f
-        toolbar = QVBoxLayout(f)
-        toolbar.setContentsMargins(12, 10, 12, 10)
-        toolbar.setSpacing(8)
-        source_row = FlowBox(gap=8, flow_type=BarFlow)
-        actions = FlowBox(gap=8)
-        toolbar.addWidget(source_row)
-        toolbar.addWidget(actions)
-        h = actions.flow
+        h = BarFlow(f, gap=6)
+        h.setContentsMargins(10, 8, 10, 8)
         self.btn_watch = QPushButton()
         self.btn_watch.setObjectName("live")
         self.btn_watch.setCheckable(True)
@@ -1704,7 +1703,7 @@ class TriggersTab(QWidget):
         self.btn_cut = QPushButton("Cut picture…")
         self.btn_cut.setObjectName("primary")
         self.btn_cut.setToolTip("A new trigger: cut a picture out of the window (or screen) "
-                                "picked in Look in above")
+                                "picked in Look in")
         icons.set_icon(self.btn_cut, "crop", "on_accent")
         self.btn_cut.clicked.connect(self.add_from_cut)
         self.hoot.clicked.connect(lambda: self.btn_cut.setFocus(Qt.OtherFocusReason))
@@ -1753,7 +1752,7 @@ class TriggersTab(QWidget):
         self.btn_more.setMenu(menu)
         h.addWidget(self.btn_more)
         self.cb_where = WideCombo(min_width=140)
-        self.cb_where.setMaximumWidth(190)   # a long window title doesn't stretch the bar
+        self.cb_where.setMaximumWidth(150)   # long titles stay in the popup and tooltip
         self.cb_where.setToolTip("Where triggers that say “Same as below” look: your game's "
                                  "window, or a whole screen")
         self.cb_where.activated.connect(self._on_where)
@@ -1761,7 +1760,8 @@ class TriggersTab(QWidget):
         look = labelled("Look in", self.cb_where)
         # six characters ("100 ms") when there's room, just enough for them when the
         # window is small
-        self.cb_interval = narrow(WideCombo(min_width=110), 6)
+        self.cb_interval = narrow(WideCombo(min_width=80), 6)
+        self.cb_interval.setMaximumWidth(90)
         for ms in INTERVALS_MS:
             label = f"{ms} ms" + (" (every frame)" if ms == 16 else "")
             self.cb_interval.addItem(label, ms)
@@ -1780,15 +1780,16 @@ class TriggersTab(QWidget):
         self.lbl_interval = every.layout().itemAt(0).widget()
         self.look = Pair(look, every)
         # Source first, then creation and playback: stable rows at normal widths.
-        source_row.flow.addWidget(self.look)
+        h.addWidget(self.look)
         # the watching settings (processor use), then last the ⓘ and the bin (only
         # while it holds something)
-        self.btn_settings = QPushButton("Watching settings")
+        self.btn_settings = QPushButton()
+        self.btn_settings.setFixedWidth(34)
         self.btn_settings.setToolTip("Watching settings: how much of your processor it may use")
         self.btn_settings.setAccessibleName("Watching settings")
         icons.set_icon(self.btn_settings, "settings")
         self.btn_settings.clicked.connect(self.show_watching)
-        source_row.flow.addWidget(self.btn_settings)
+        h.addWidget(self.btn_settings)
         if not callable(getattr(host, "tab_info", None)):
             self.btn_info = QPushButton("Help")
             self.btn_info.setObjectName("small")
@@ -1796,7 +1797,10 @@ class TriggersTab(QWidget):
             self.btn_info.setToolTip("What is this?")
             self.btn_info.clicked.connect(
                 lambda: QMessageBox.information(self, *self.info))
-            h.addWidget(self.btn_info)
+            self.btn_info.setParent(self)
+            self.btn_info.hide()
+            menu.addSeparator()
+            menu.addAction("Help…", self.btn_info.click)
         self.btn_bin = QPushButton()     # the bin's icon and count (_label_bin)
         icons.set_icon(self.btn_bin, "trash")
         self.btn_bin.clicked.connect(self.show_deleted)
@@ -1826,6 +1830,12 @@ class TriggersTab(QWidget):
             self.btn_watch.setChecked(True)    # it was on when the app last closed
 
     # ------------------------------------------------------------------ search
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self.search_bar.layout().setDirection(
+            QBoxLayout.TopToBottom if self.width() < 600 else QBoxLayout.LeftToRight)
+        self.lbl_counts.setVisible(self.width() >= 600)
+
     def show_search(self, category: str | None = None):
         self.btn_search.setChecked(True)
         if category is not None:
@@ -1888,9 +1898,8 @@ class TriggersTab(QWidget):
         self.no_results.setVisible(active and not self._search_ids)
         self.empty.setVisible(not self.triggers and not active)
         self.search_summary.setText(
-            f"{len(self._search_ids)} of {plural(len(self.triggers), 'trigger')} · "
-            "watching is unchanged" if active else
-            "Find a trigger by name, category, window or sound")
+            f"{len(self._search_ids)} of {len(self.triggers)}" if active else "")
+        self.search_summary.setToolTip("Matching triggers; watching is unchanged")
 
     def _matches_search(self, trigger: Trigger) -> bool:
         return self._search_ids is None or trigger.id in self._search_ids

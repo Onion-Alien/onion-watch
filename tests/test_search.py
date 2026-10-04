@@ -22,7 +22,7 @@ def test_global_search_finds_a_folded_unbuilt_trigger_and_restores_folds(make, q
         qapp.processEvents()
     assert visible_ids(tab) == {"t299"}
     assert set(tab.rows) == {"t299"}  # don't construct 299 irrelevant cards
-    assert "1 of 300 triggers" in tab.search_summary.text()
+    assert tab.search_summary.text() == "1 of 300"
     assert tab.sections["Cat 2"].is_open
     assert tab.host.screen == before
     assert all(not c.open for c in tab.groups.categories)

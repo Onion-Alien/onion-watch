@@ -491,10 +491,10 @@ def test_the_delete_button_asks_first(tab, monkeypatch):
     assert tab.triggers == [] and tab.deleted()[0][1] == "Keep me"
 
 
-def test_source_and_actions_have_stable_toolbar_rows(tab, qapp, styled):
+def test_toolbar_is_one_row_when_there_is_room(tab, qapp, styled):
     """Cut picture stays a button; a picture file, the copied picture and a trigger
-    without a picture are in the Add menu next to it. Source controls sit above
-    the actions instead of wrapping a lone settings button onto another line."""
+    without a picture are in the Add menu next to it. At a normal width the whole
+    bar, Look in and the settings button included, is one centred row."""
     texts = [a.text() for a in tab.btn_add.menu().actions()]
     assert texts == ["From a picture file…", "Paste the copied picture", "Without a picture…"]
     assert "Without a picture…" not in [a.text() for a in tab.btn_more.menu().actions()]
@@ -502,10 +502,10 @@ def test_source_and_actions_have_stable_toolbar_rows(tab, qapp, styled):
     tab.show()
     qapp.processEvents()
     bar = tab.toolbar
-    tops = {w.mapTo(bar, w.rect().topLeft()).y() for w in
-            (tab.btn_watch, tab.btn_cut, tab.btn_add, tab.btn_more)}
-    assert len(tops) == 1
-    assert tab.cb_where.mapTo(bar, tab.cb_where.rect().bottomLeft()).y() < min(tops)
+    mids = {w.mapTo(bar, w.rect().center()).y() for w in
+            (tab.btn_watch, tab.btn_cut, tab.btn_add, tab.btn_more, tab.cb_where,
+             tab.cb_interval, tab.btn_settings)}
+    assert max(mids) - min(mids) <= 1
     assert tab.cb_where.height() == tab.btn_watch.height() == tab.btn_cut.height()
 
 

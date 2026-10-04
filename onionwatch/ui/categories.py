@@ -6,7 +6,7 @@ from __future__ import annotations
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (QComboBox, QDialog, QDialogButtonBox, QFrame, QHBoxLayout,
                                QLineEdit, QListWidget, QListWidgetItem, QMenu, QPushButton,
-                               QVBoxLayout, QWidget)
+                               QVBoxLayout, QWidget, QSizePolicy)
 
 from onionwatch import profiles
 from onionwatch.profiles import Profile
@@ -33,16 +33,12 @@ class CategorySection(QWidget):
         self.built = False              # its cards have been made
         v = QVBoxLayout(self)
         v.setContentsMargins(0, 0, 0, 0)
-        v.setSpacing(10)
+        v.setSpacing(6)
         self.header = QFrame()
         self.header.setObjectName("transport")   # a panel-coloured strip, like the bar
-        header_layout = QVBoxLayout(self.header)
+        header_layout = QHBoxLayout(self.header)
         header_layout.setContentsMargins(8, 6, 10, 6)
-        header_layout.setSpacing(4)
-        title = QHBoxLayout()
-        h = QHBoxLayout()
-        header_layout.addLayout(title)
-        header_layout.addLayout(h)
+        h = header_layout
         h.setSpacing(10)
         self.btn_fold = QPushButton()
         self.btn_fold.setObjectName("fold")
@@ -51,10 +47,11 @@ class CategorySection(QWidget):
         self.btn_fold.setStyleSheet("text-align:left; font-weight:700; font-size:10.5pt;"
                                     " padding-left:2px;")
         self.btn_fold.toggled.connect(self._on_fold)
-        title.addWidget(self.btn_fold, 1)
+        self.btn_fold.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
+        h.addWidget(self.btn_fold, 1)
         self.count = hint_label("")
-        self.count.setWordWrap(True)
-        h.addWidget(self.count, 1)
+        self.count.setWordWrap(False)
+        h.addWidget(self.count)
         self.btn_search = QPushButton("Search")
         self.btn_search.setObjectName("small")
         self.btn_search.setToolTip("Search within this category")
@@ -77,7 +74,7 @@ class CategorySection(QWidget):
         self.body = QWidget()
         self.body_layout = QVBoxLayout(self.body)
         self.body_layout.setContentsMargins(0, 0, 0, 0)
-        self.body_layout.setSpacing(14)
+        self.body_layout.setSpacing(8)
         self.empty = hint_label("No triggers in this category yet. Move one here with "
                                 "Category, under a trigger's Fine-tune.")
         self.body_layout.addWidget(self.empty)
@@ -88,6 +85,10 @@ class CategorySection(QWidget):
     @property
     def is_open(self) -> bool:
         return self.btn_fold.isChecked()
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self.count.setVisible(self.width() >= 600)
 
     def set_name(self, name: str):
         self.name = name
