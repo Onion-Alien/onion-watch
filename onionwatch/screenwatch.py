@@ -85,6 +85,7 @@ MAX_ZOOM = 2            # ...nor ever kept above this many times WORK_WIDTH (sma
 # there cheaply first, see PROXY_MIN): at a dozen pixels an icon is a blob that
 # patches of scenery match, at a few dozen it keeps its shape
 FINE_SIDE = 32
+SHRINK_EXACT = 1        # exact area average (shrink(exact=True)) for: 1 frames, 2 pictures, 3 both
 MASK_MIN = 16           # a cut-out with fewer opaque pixels than this once shrunk is unreliable
 # ...and softened (see BLUR) it needs this many: a few dozen blurred pixels of a
 # slim figure correlate with almost anything (a cut-out game model scored 0.97 in
@@ -941,7 +942,7 @@ def shrink_mask(mask: np.ndarray, scale: float) -> np.ndarray:
     return loose
 
 
-def shrink(gray: np.ndarray, scale: float) -> np.ndarray:
+def shrink(gray: np.ndarray, scale: float, exact: bool | None = None) -> np.ndarray:
     """Area-average `gray` by `scale` (<= 1), the way the HALFTONE screen shrink does,
     so a picture and the screen it was cut from end up alike
     (the screen's shrink is close to an area average too: see Grabber)."""
@@ -949,13 +950,31 @@ def shrink(gray: np.ndarray, scale: float) -> np.ndarray:
         return gray.astype(np.float32)
     h, w = gray.shape
     nh, nw = max(1, round(h * scale)), max(1, round(w * scale))
-    ys = np.linspace(0, h, nh + 1).astype(int)
-    xs = np.linspace(0, w, nw + 1).astype(int)
     ii = np.zeros((h + 1, w + 1))
     ii[1:, 1:] = gray.astype(np.float64).cumsum(0).cumsum(1)
-    tot = ii[ys[1:]][:, xs[1:]] - ii[ys[:-1]][:, xs[1:]] - ii[ys[1:]][:, xs[:-1]] + \
-        ii[ys[:-1]][:, xs[:-1]]
-    area = np.outer(np.diff(ys), np.diff(xs)).clip(min=1)
+    if not (bool(SHRINK_EXACT & 2) if exact is None else exact):
+        ys = np.linspace(0, h, nh + 1).astype(int)
+        xs = np.linspace(0, w, nw + 1).astype(int)
+        tot = ii[ys[1:]][:, xs[1:]] - ii[ys[:-1]][:, xs[1:]] - ii[ys[1:]][:, xs[:-1]] + \
+            ii[ys[:-1]][:, xs[:-1]]
+        area = np.outer(np.diff(ys), np.diff(xs)).clip(min=1)
+        return (tot / area).astype(np.float32)
+    # each new pixel the mean of exactly its share of the old ones, parts of pixels
+    # at its edges included: whole-pixel edges make a shrink by, say, 0.9 take one
+    # pixel here and two there, which shifts detail by up to a pixel
+    def at(n, size):
+        """Where the n + 1 edges fall, and the integral image's row (or column)
+        weights there: it's linear between whole pixels."""
+        e = np.linspace(0.0, size, n + 1)
+        i0 = np.minimum(e.astype(np.intp), size - 1)
+        return i0, e - i0
+
+    y0, fy = at(nh, h)
+    x0, fx = at(nw, w)
+    rows = ii[y0] * (1 - fy)[:, None] + ii[y0 + 1] * fy[:, None]
+    jj = rows[:, x0] * (1 - fx) + rows[:, x0 + 1] * fx
+    tot = jj[1:, 1:] - jj[:-1, 1:] - jj[1:, :-1] + jj[:-1, :-1]
+    area = np.outer(h / nh * np.ones(nh), w / nw * np.ones(nw))
     return (tot / area).astype(np.float32)
 
 
@@ -2750,7 +2769,7 @@ class Watcher:
                     if r < 0.999:
                         g = frames.get(("grey", r))
                         if g is None:
-                            g = frames[("grey", r)] = shrink(gray, r)
+                            g = frames[("grey", r)] = shrink(gray, r, bool(SHRINK_EXACT & 1))
                     on = [lk.pats[0][1].size for lk in looks if lk.ratio == r]
                     bx = region_box(it.region, g.shape, (max((a for a, _b in on), default=2),
                                                          max((b for _a, b in on), default=2)))

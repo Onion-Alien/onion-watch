@@ -945,3 +945,23 @@ def test_max_detection_while_away_from_a_watched_screen(fake_screen, front, fill
         assert all(h == front and m.width == W for h, m in seen)
     finally:
         w.stop()
+
+
+
+def test_an_exact_shrink_takes_each_pixel_its_share_of_the_old_ones():
+    # each new pixel is the mean of what it covers, parts of old pixels included:
+    # whole-pixel bins would take one old pixel here and two there
+    rng = np.random.default_rng(1)
+    img = rng.random((20, 50)).astype(np.float32)
+
+    def overlap(n, size):           # weights[new, old]: how much of `old` each covers
+        e = np.linspace(0, size, n + 1)
+        k = np.arange(size)
+        return np.clip(np.minimum(e[1:, None], k + 1) - np.maximum(e[:-1, None], k), 0, None)
+    want_y, want_x = overlap(18, 20), overlap(45, 50)
+    want = (want_y @ img @ want_x.T) / np.outer(want_y.sum(1), want_x.sum(1))
+    got = sw.shrink(img, 0.9, exact=True)
+    assert got.shape == (18, 45)
+    assert np.allclose(got, want, atol=1e-5)
+    assert not np.allclose(sw.shrink(img, 0.9, exact=False), want, atol=1e-2)
+    assert sw.SHRINK_EXACT & 1       # the frame's own second shrink uses it
