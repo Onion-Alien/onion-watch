@@ -70,6 +70,11 @@ log = logging.getLogger(__name__)
 WORK_WIDTH = 480        # the screen is shrunk to about this wide before matching
 MIN_SIDE = 12           # ...but never so far that a picture's short side drops below this
 MAX_ZOOM = 2            # ...nor ever kept above this many times WORK_WIDTH (small pictures)
+# when a capture is finer than the usual size (a small picture needs it), a picture
+# under this many px at the usual size is matched on the finer frame too (found
+# there cheaply first, see PROXY_MIN): at a dozen pixels an icon is a blob that
+# patches of scenery match, at a few dozen it keeps its shape
+FINE_SIDE = 32
 MASK_MIN = 16           # a cut-out with fewer opaque pixels than this once shrunk is unreliable
 # ...and softened (see BLUR) it needs this many: a few dozen blurred pixels of a
 # slim figure correlate with almost anything (a cut-out game model scored 0.97 in
@@ -118,6 +123,20 @@ CONFIRM_PAD = 3
 # would match sharp is passed over; and most checks never need the full-size frame's
 # transforms at all. (A place scoring less keeps its soft score: it's far from going off.)
 EXACT_NEAR = 0.25
+# ...a cut-out too, if this many of its pixels are left at half size; one under
+# SOFT_MASK_MIN has EXACT_PEAKS of its places checked (its few pixels look like
+# more of the scenery than a bigger picture's do)
+EXACT_MASK_MIN = 40
+EXACT_PEAKS = 5
+# A picture too small for the usual working size makes its capture finer (see
+# Watcher._fit), and is matched there; but it's found first at the usual size with
+# a stand-in (a copy shrunk to it, if that's at least PROXY_MIN px each way): its
+# COARSE_PEAKS best places there scoring within COARSE_NEAR of the sharp check's
+# level are matched sharp, close up. A small picture showing ranks first or second
+# there; the work drops from a whole finer frame to a few dozen places.
+PROXY_MIN = 4
+COARSE_PEAKS = 6
+COARSE_NEAR = 0.15
 # a sharp check of a picture with more pixels than this is done with transforms
 DIRECT_MAX = 4000
 MAX_FOUND = 3           # sizes the sweep found kept per picture
@@ -583,6 +602,7 @@ class Pattern:
         self.sharp: tuple | None = None
         self._sharps: list[Pattern] | None = None
         self.exact = False      # a soft one standing in for the picture at its own size
+        self.proxy: Pattern | None = None   # its stand-in at the usual size (find_via)
 
     def spectra(self, n: tuple[int, int]) -> tuple[np.ndarray, np.ndarray | None]:
         """(the picture's spectrum, its mask's or None for a box) at FFT size `n`,
@@ -613,7 +633,7 @@ def find_peaks(f: Frame, p: Pattern, n: int = 1, floor: float = 1.0,
     if p.soft:
         f = f.soft()
         if p.exact:
-            n, floor = max(n, PEAKS), min(floor, check)
+            n, floor = max(n, PEAKS if p.count >= SOFT_MASK_MIN else EXACT_PEAKS), min(floor, check)
     (th, tw), (sh, sw) = p.shape, f.shape
     if not p.ok or th > sh or tw > sw:
         return [(0.0, (0, 0))]
@@ -675,6 +695,11 @@ def _confirm(full: Frame, p: Pattern, at: tuple[int, int], sc: float,
 def _ncc_near(area: np.ndarray, q: Pattern) -> float:
     """find_peaks()'s best score for `q` in a small `area`, worked out directly:
     for a few dozen places that's cheaper than transforms."""
+    return _ncc_at(area, q)[0]
+
+
+def _ncc_at(area: np.ndarray, q: Pattern) -> tuple[float, tuple[int, int]]:
+    """_ncc_near(), and where in `area` (x, y) that score is."""
     th, tw = q.shape
     win = np.lib.stride_tricks.sliding_window_view(area.astype(np.float64), (th, tw))
     t = q.t.astype(np.float64)
@@ -690,7 +715,39 @@ def _ncc_near(area: np.ndarray, q: Pattern) -> float:
     ok = var > q.count * q.flat * q.flat
     score = np.divide(num, np.sqrt(np.where(ok, var, 1.0)), where=ok,
                       out=np.zeros_like(num))
-    return float(min(score.max() / q.norm, 1.0)) if score.size else 0.0
+    if not score.size:
+        return 0.0, (0, 0)
+    i = int(np.argmax(score))
+    y, x = divmod(i, score.shape[1])
+    return float(min(score.flat[i] / q.norm, 1.0)), (x, y)
+
+
+def find_via(fine: Frame, coarse: Frame, r: float, off: tuple[int, int], p: Pattern,
+             floor: float, check: float) -> list[tuple[float, tuple[int, int]]]:
+    """find_peaks() for a picture too small for the usual working size, matched on
+    the finer `fine`: found first with its stand-in `p.proxy` on `coarse` (the frame
+    shrunk by `r`, a quarter of the work or less), and only its best COARSE_PEAKS
+    places there scoring `check` - COARSE_NEAR or more are matched sharp on `fine`,
+    where they were found. `off` (x, y) is where `fine`'s area starts in `coarse`'s
+    coordinates, over r. Places in `fine`'s coordinates; the sharp score counts."""
+    q = p.proxy
+    out = []
+    th, tw = p.shape
+    fh, fw = fine.shape
+    pad = int(math.ceil(1 / r)) + 1
+    for sc, (x, y) in find_peaks(coarse, q, COARSE_PEAKS, check - COARSE_NEAR):
+        cx, cy = round(x / r) - off[0], round(y / r) - off[1]
+        if sc < check - COARSE_NEAR:
+            out.append((sc, (min(max(cx, 0), fw - tw), min(max(cy, 0), fh - th))))
+            continue
+        y0, x0 = max(0, cy - pad), max(0, cx - pad)
+        area = fine.s[y0:min(fh, cy + th + pad), x0:min(fw, cx + tw + pad)]
+        if area.shape[0] < th or area.shape[1] < tw:
+            continue
+        got, (ax, ay) = _ncc_at(area, p)
+        out.append((got, (x0 + ax, y0 + ay)))
+    out.sort(reverse=True)
+    return out or [(0.0, (0, 0))]
 
 
 def match(screen: np.ndarray | Frame, tmpl: np.ndarray,
@@ -841,10 +898,12 @@ class Look:
 
     def __init__(self, gray: np.ndarray, mask: np.ndarray | None, scale: float,
                  sizes: list[float], sweep: bool, found: list[float] = (),
-                 tint: np.ndarray | None = None, ratio: float = 1.0):
+                 tint: np.ndarray | None = None, ratio: float = 1.0, coarse: float = 1.0):
         self.gray, self.mask, self.scale = gray, mask, scale
-        # the frame it's matched on: the capture's, shrunk by this (see Watcher._fit)
-        self.ratio = ratio
+        # the frame it's matched on: the capture's, shrunk by this (see Watcher._fit);
+        # and for a picture too small for the usual size, that frame shrunk to the
+        # usual size is this much smaller (< 1: its stand-in is found there, PROXY_MIN)
+        self.ratio, self.coarse = ratio, coarse
         self.tint = tint                        # its colours (see tint()), if known
         self.pats: list[tuple[float, Pattern]] = []
         self.found: list[float] = []
@@ -863,7 +922,14 @@ class Look:
         g = resize(self.gray, s)
         m = None if self.mask is None else shrink_mask(self.mask, s)
         if min(g.shape) < BLUR_MIN_SIDE:
-            return Pattern(g, m)
+            pat = Pattern(g, m)
+            if self.coarse < 0.999 and pat.ok:
+                c = s * self.coarse
+                q = Pattern(resize(self.gray, c),
+                            None if self.mask is None else shrink_mask(self.mask, c))
+                if min(q.shape) >= PROXY_MIN and q.ok:
+                    pat.proxy = q
+            return pat
         # like Frame.soft(): half size, softened as much (a half-size shrink has
         # softened it a little already)
         gray, hm = self.gray, None
@@ -872,9 +938,15 @@ class Look:
             # doesn't smear black into its edge, and a pixel less of it compared
             # (the frame's softened edge has whatever is behind the picture in it)
             gray = np.where(self.mask, self.gray, np.float32(self.gray[self.mask].mean()))
-            hm = binary_erosion(shrink_mask(self.mask, s / 2))
-            if int(hm.sum()) < SOFT_MASK_MIN:
-                return Pattern(g, m)
+            hm = shrink_mask(self.mask, s / 2)
+            if near(f, 1.0):
+                # only finding places to check sharp: a slim figure's few pixels do
+                if int(hm.sum()) < EXACT_MASK_MIN:
+                    return Pattern(g, m)
+            else:
+                hm = binary_erosion(hm)
+                if int(hm.sum()) < SOFT_MASK_MIN:
+                    return Pattern(g, m)
         soft = gaussian_filter(resize(gray, s / 2), BLUR / 2)
         # softening takes contrast away, the frame's as much as the picture's: a window
         # counts as flat by what it had before
@@ -2262,9 +2334,9 @@ class Watcher:
                 found = ([f * ratio for f in before[k].found]
                          if i.any_size and k < len(before) and isinstance(before[k], Look) else [])
                 sizes = i.sizes(k, (sw, sh))
-                at = base if min(g.shape) * min(sizes) * base >= MIN_SIDE else scale
+                at = base if min(g.shape) * min(sizes) * base >= FINE_SIDE else scale
                 look = Look(g, m, at, sizes, i.any_size, found,
-                            i.tints[k] if k < len(i.tints) else None, at / scale)
+                            i.tints[k] if k < len(i.tints) else None, at / scale, base / at)
                 for _f, p in look.pats:
                     need = spectrum * (1 if p.box else 2)
                     if room >= need:
@@ -2416,8 +2488,15 @@ class Watcher:
                 check = raw is not None and lk.tint is not None
                 f, (y0, _y1, x0, _x1) = level(lk.ratio)
                 r = lk.ratio
-                for sc, (mx, my) in find_peaks(f, p, PEAKS if check else 1, near_,
-                                               it.threshold - EXACT_NEAR):
+                if p.proxy is not None:
+                    fc, (cy0, _cy1, cx0, _cx1) = level(lk.ratio * lk.coarse)
+                    c = lk.coarse
+                    peaks = find_via(f, fc, c, (round(x0 - cx0 / c), round(y0 - cy0 / c)),
+                                     p, near_, it.threshold - EXACT_NEAR)
+                else:
+                    peaks = find_peaks(f, p, PEAKS if check else 1, near_,
+                                       it.threshold - EXACT_NEAR)
+                for sc, (mx, my) in peaks:
                     b = (y0 + my, y0 + my + p.size[0], x0 + mx, x0 + mx + p.size[1])
                     if r < 0.999:
                         b = tuple(round(v / r) for v in b)
