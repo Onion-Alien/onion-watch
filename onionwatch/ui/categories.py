@@ -3,7 +3,7 @@ a category's section in the list (a header to fold it, switch it on or off and
 open its menu, over its trigger cards) and the Profiles window."""
 from __future__ import annotations
 
-from PySide6.QtCore import QRect, Qt, Signal
+from PySide6.QtCore import QPoint, QRect, Qt, Signal
 from PySide6.QtWidgets import (QComboBox, QDialog, QDialogButtonBox, QFrame, QHBoxLayout,
                                QLineEdit, QListWidget, QListWidgetItem, QMenu, QPushButton,
                                QVBoxLayout, QWidget, QWidgetItem, QSizePolicy)
@@ -84,6 +84,9 @@ class CategorySection(QWidget):
     switched = Signal(str, bool)         # name, on (its switch was clicked)
     menu_wanted = Signal(str)            # name: the ⋯ button
     search_wanted = Signal(str)
+    card_dropped = Signal(str, str, object)  # trigger id, this category, before which id
+    drag_at = Signal(QPoint)             # a card is being dragged here (global position)
+    MIME = "application/x-onionwatch-trigger"   # (TriggerRow.MIME)
 
     def __init__(self, name: str):
         super().__init__()
@@ -132,12 +135,98 @@ class CategorySection(QWidget):
         v.addWidget(self.header)
         self.body = FlowBox(gap=8, flow_type=CardGrid)
         self.body_layout = self.body.flow
-        self.empty = hint_label("No triggers in this category yet. Move one here with "
-                                "Category, under a trigger's Fine-tune.")
+        self.empty = hint_label("No triggers in this category yet. Drag one here, or "
+                                "pick it with Category, under a trigger's Fine-tune.")
         self.body_layout.addWidget(self.empty)
         v.addWidget(self.body)
+        # where a dragged card would land: a line in the accent colour
+        self.drop_line = QFrame(self)
+        self.drop_line.setObjectName("dropline")
+        self.drop_line.setStyleSheet("QFrame#dropline { background: palette(highlight);"
+                                     " border-radius: 2px; }")
+        self.drop_line.setAttribute(Qt.WA_TransparentForMouseEvents)
+        self.drop_line.hide()
+        self.setAcceptDrops(True)
         self.set_name(name)
         self.set_open(False)
+
+    # ------------------------------------------------------------------ dropping cards
+    def _cards(self) -> list[QWidget]:
+        """Its cards as laid out, in order (the ones a search hides left out)."""
+        out = []
+        for i in range(self.body_layout.count()):
+            w = self.body_layout.itemAt(i).widget()
+            if w is not None and w is not self.empty and not w.isHidden():
+                out.append(w)
+        return out
+
+    def drop_spot(self, pos: QPoint) -> tuple[str | None, QRect]:
+        """Where a card dropped at `pos` (in this section) goes: before which card
+        (its trigger's id; None: after the last), and the line that shows it."""
+        cards = self._cards() if self.body.isVisible() else []
+        if not cards or not self.body.geometry().adjusted(0, -6, 0, 6).contains(pos):
+            r = self.header.geometry() if self.header.isVisible() else self.body.geometry()
+            if cards:
+                last = cards[-1].geometry().translated(self.body.pos())
+                return None, QRect(last.right() + 2, last.top(), 3, last.height())
+            return None, QRect(r.left(), r.bottom() - 1, r.width(), 3)
+        p = pos - self.body.pos()
+
+        def dist(w):
+            g = w.geometry()
+            dx = max(g.left() - p.x(), 0, p.x() - g.right())
+            dy = max(g.top() - p.y(), 0, p.y() - g.bottom())
+            return dx * dx + dy * dy
+        near = min(cards, key=dist)
+        g = near.geometry()
+        whole_line = getattr(near, "is_open", False)    # an open card: above / below
+        after = p.y() > g.center().y() if whole_line else p.x() > g.center().x()
+        i = cards.index(near) + (1 if after else 0)
+        before = cards[i] if i < len(cards) else None
+        if whole_line:
+            y = g.bottom() + 3 if after else g.top() - 5
+            line = QRect(g.left(), y, g.width(), 3)
+        else:
+            x = g.right() + 2 if after else g.left() - 5
+            line = QRect(x, g.top(), 3, g.height())
+        tid = getattr(getattr(before, "t", None), "id", None)
+        return tid, line.translated(self.body.pos())
+
+    def _dragged(self, ev) -> str | None:
+        data = ev.mimeData()
+        return bytes(data.data(self.MIME)).decode() if data.hasFormat(self.MIME) else None
+
+    def dragEnterEvent(self, ev):
+        if self._dragged(ev) is None:
+            ev.ignore()
+            return
+        ev.acceptProposedAction()
+        self.dragMoveEvent(ev)
+
+    def dragMoveEvent(self, ev):
+        if self._dragged(ev) is None:
+            ev.ignore()
+            return
+        ev.acceptProposedAction()
+        _before, line = self.drop_spot(ev.position().toPoint())
+        self.drop_line.setGeometry(line)
+        self.drop_line.show()
+        self.drop_line.raise_()
+        self.drag_at.emit(self.mapToGlobal(ev.position().toPoint()))
+
+    def dragLeaveEvent(self, ev):
+        self.drop_line.hide()
+        super().dragLeaveEvent(ev)
+
+    def dropEvent(self, ev):
+        self.drop_line.hide()
+        tid = self._dragged(ev)
+        if tid is None:
+            ev.ignore()
+            return
+        ev.acceptProposedAction()
+        before, _line = self.drop_spot(ev.position().toPoint())
+        self.card_dropped.emit(tid, self.name, before)
 
     @property
     def is_open(self) -> bool:

@@ -1,14 +1,16 @@
-"""Watching settings, behind the cog on the Triggers bar: how much of the processor
-watching may use (screenwatch.CPU_SHARES), "Max detection" (screenwatch.MAX_DETECTS),
-and how often each trigger is being checked right now. A change applies at once and
-is kept in the host's screen settings ("cpu_share", "max_detect"), so the same choice
-holds in Onion Watch and in Onion Board's Triggers tab. "max_detect" is a key of its
-own: a version without it keeps reading "cpu_share" as before."""
+"""Watching settings, behind the cog on the Triggers bar: how often triggers left on
+"Default" are checked (screenwatch.INTERVALS_MS; each card can pick its own), how much
+of the processor watching may use (screenwatch.CPU_SHARES), "Max detection"
+(screenwatch.MAX_DETECTS), and how often each trigger is being checked right now. A
+change applies at once and is kept in the host's screen settings ("interval_ms",
+"cpu_share", "max_detect"), so the same choice holds in Onion Watch and in Onion
+Board's Triggers tab. "max_detect" is a key of its own: a version without it keeps
+reading "cpu_share" as before."""
 from __future__ import annotations
 
 from PySide6.QtCore import QTimer
-from PySide6.QtWidgets import (QButtonGroup, QDialog, QDialogButtonBox, QLabel, QRadioButton,
-                               QVBoxLayout)
+from PySide6.QtWidgets import (QButtonGroup, QComboBox, QDialog, QDialogButtonBox, QHBoxLayout,
+                               QLabel, QRadioButton, QVBoxLayout)
 
 from onionwatch import screenwatch
 from onionwatch.ui.panel import card, hint_label
@@ -23,8 +25,8 @@ CHOICES = [
     (0.05, "Fast — up to 5 %",
      "For dozens of pictures that must be noticed straight away."),
     (0.0, "As fast as it can",
-     "No limit: checks as often as the bar's “every” says, whatever it costs. A busy "
-     "game may lose frames."),
+     "No limit: checks each trigger as often as its check speed says, whatever it "
+     "costs. A busy game may lose frames."),
 ]
 
 
@@ -56,6 +58,24 @@ class WatchingDialog(QDialog):
         self.setMinimumWidth(420)
         v = QVBoxLayout(self)
         v.setSpacing(10)
+        from onionwatch.ui.triggerspanel import interval_label
+        box, bv = card("CHECK SPEED", "How often each trigger left on “Default” looks. "
+                       "A trigger can have its own speed: “Check every”, on its card.")
+        line = QHBoxLayout()
+        line.addWidget(QLabel("Default: every"))
+        self.speed = QComboBox()
+        self.speed.setAccessibleName("Default check speed")
+        for ms in screenwatch.INTERVALS_MS:
+            self.speed.addItem(interval_label(ms), ms)
+        self.speed.setCurrentIndex(max(0, self.speed.findData(panel.default_interval)))
+        self.speed.setToolTip("Faster notices sooner: 100 ms is a tenth of a second. "
+                              "Watching still keeps to the processor use below, so with a "
+                              "lot on it may check less often than this.")
+        self.speed.currentIndexChanged.connect(self._picked_speed)
+        line.addWidget(self.speed)
+        line.addStretch(1)
+        bv.addLayout(line)
+        v.addWidget(box)
         box, bv = card("PROCESSOR USE", "How much of your processor Onion Watch may use to "
                        "look for your pictures. More lets it check each trigger sooner when "
                        "a lot are on; less leaves more for your game.")
@@ -108,6 +128,10 @@ class WatchingDialog(QDialog):
         h = self.layout().heightForWidth(self.width())
         if h > 0:
             self.resize(self.width(), h)
+
+    def _picked_speed(self, _i: int):
+        self.panel.set_default_interval(self.speed.currentData())
+        self._show_now()
 
     def _picked(self, i: int, on: bool):
         if on:

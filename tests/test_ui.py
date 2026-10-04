@@ -504,7 +504,7 @@ def test_toolbar_is_one_row_when_there_is_room(tab, qapp, styled):
     bar = tab.toolbar
     mids = {w.mapTo(bar, w.rect().center()).y() for w in
             (tab.btn_watch, tab.btn_cut, tab.btn_add, tab.btn_more, tab.cb_where,
-             tab.cb_interval, tab.btn_settings)}
+             tab.btn_settings)}
     assert max(mids) - min(mids) <= 1
     assert tab.cb_where.height() == tab.btn_watch.height() == tab.btn_cut.height()
     # with room to spare, Look in shows the whole "Screen 1: 320×180", not "Screen 1: 1…"
@@ -515,9 +515,9 @@ def test_toolbar_is_one_row_when_there_is_room(tab, qapp, styled):
     assert cb.width() == min(cb.sizeHint().width(), cb.maximumWidth())
 
 
-def test_a_narrow_window_puts_every_under_look_in(tab, qapp, styled):
-    """At 300 px the group goes on two lines, each label with its list, and nothing
-    in the bar runs past its edge (or stops the tab getting that narrow)."""
+def test_a_narrow_window_keeps_the_bar_inside_it(tab, qapp, styled):
+    """At 300 px the bar wraps: nothing in it runs past its edge (or stops the tab
+    getting that narrow). The check speed isn't on it: it's under ⚙."""
     tab.resize(300, 700)
     tab.show()
     for _ in range(4):
@@ -527,9 +527,10 @@ def test_a_narrow_window_puts_every_under_look_in(tab, qapp, styled):
 
     def top(w):
         return w.mapTo(bar, w.rect().topLeft()).y()
-    assert top(tab.lbl_interval) == top(tab.cb_interval) > top(tab.cb_where)
+    assert top(tab.cb_where) > top(tab.btn_watch)
+    assert not hasattr(tab, "cb_interval")
     for w in (tab.btn_watch, tab.btn_cut, tab.btn_add, tab.btn_more, tab.cb_where,
-              tab.cb_interval):
+              tab.btn_settings):
         assert w.mapTo(bar, w.rect().topRight()).x() < bar.width()
     tab.hide()
 

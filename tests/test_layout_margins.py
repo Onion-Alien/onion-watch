@@ -12,7 +12,7 @@ styled = test_ui.styled
 
 
 def test_the_bottom_bar_keeps_its_margins_when_it_wraps(tab, qapp):
-    tab.resize(700, 600)
+    tab.resize(480, 600)        # narrow enough to wrap (the check speed is under ⚙ now)
     tab.show()
     qapp.processEvents()
     bar = tab.toolbar
