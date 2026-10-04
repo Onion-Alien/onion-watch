@@ -801,26 +801,33 @@ def structure(full: Frame, p: Pattern, at: tuple[int, int]) -> float:
     x, y = at
     fh, fw = s.shape
     y0, x0 = max(0, y - pad), max(0, x - pad)
-    area = s[max(0, y0 - k):min(fh, y + th + pad + k), max(0, x0 - k):min(fw, x + tw + pad + k)]
-    area = area.astype(np.float64)
+    area = s[y0:min(fh, y + th + pad), x0:min(fw, x + tw + pad)].astype(np.float64)
     t = p.t.astype(np.float64)
     if blur > 0:
-        area, t = gaussian_filter(area, blur), gaussian_filter(t, blur)
-    area = area - _box_mean(area, k)
-    oy, ox = y0 - max(0, y0 - k), x0 - max(0, x0 - k)
+        t = gaussian_filter(t, blur)
     t = t - _box_mean(t, k)
     t -= t.mean()
     nt = math.sqrt(float((t * t).sum()))
     best = 0.0
-    for dy in range(2 * pad + 1):
-        for dx in range(2 * pad + 1):
-            b = area[oy + dy:oy + dy + th, ox + dx:ox + dx + tw]
-            if b.shape != t.shape:
-                continue
-            b = b - b.mean()
-            nb = math.sqrt(float((b * b).sum()))
-            if nt > 1e-9 and nb > 1e-9:
-                best = max(best, float((t * b).sum()) / (nt * nb))
+    places = [(dy, dx) for dy in range(2 * pad + 1) for dx in range(2 * pad + 1)]
+    if pad > 1 and area.shape[0] >= th and area.shape[1] >= tw:
+        # where it matches best as it is, and right around there: not every place
+        _sc, (bx, by) = _ncc_at(area, p)
+        places = [(by + dy, bx + dx) for dy in (-1, 0, 1) for dx in (-1, 0, 1)
+                  if 0 <= by + dy <= 2 * pad and 0 <= bx + dx <= 2 * pad]
+    for dy, dx in places:
+        # each place on its own pixels only, as the picture is: what's around it
+        # (other scenery where it turned up) mustn't change its light's slow changes
+        b = area[dy:dy + th, dx:dx + tw]
+        if b.shape != t.shape:
+            continue
+        if blur > 0:
+            b = gaussian_filter(b, blur)
+        b = b - _box_mean(b, k)
+        b = b - b.mean()
+        nb = math.sqrt(float((b * b).sum()))
+        if nt > 1e-9 and nb > 1e-9:
+            best = max(best, float((t * b).sum()) / (nt * nb))
     return best
 
 

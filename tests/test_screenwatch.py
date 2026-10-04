@@ -871,3 +871,19 @@ def test_the_processor_watching_uses_is_measured(fake_screen, monkeypatch):
     finally:
         w.stop()
     assert 0.0 <= w.cpu_used <= 1.0
+
+
+def test_a_rectangle_turning_up_on_other_scenery_keeps_its_structure():
+    """structure() takes each place's light from its own pixels, as it does the
+    picture's: the scenery around where a thing turned up (other than where it was
+    cut) mustn't count. A HUD panel cut over a bright sky, shown over dark rocks,
+    scored 0.58 instead of 1.0."""
+    rng = np.random.default_rng(11)
+    panel = np.kron(rng.random((6, 10)), np.ones((6, 6))).astype(np.float32) * 0.5 + 0.25
+    bright = np.full((H, W), 0.95, np.float32)
+    dark = (rng.random((H, W)) * 0.1).astype(np.float32)
+    for back in (bright, dark):
+        back[60:96, 100:160] = panel
+    p = sw.Pattern(bright[60:96, 100:160].copy())
+    assert sw.structure(sw.Frame(bright), p, (100, 60)) >= 0.95
+    assert sw.structure(sw.Frame(dark), p, (100, 60)) >= 0.95
