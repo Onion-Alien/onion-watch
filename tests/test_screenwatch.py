@@ -827,3 +827,20 @@ def test_processor_use_sets_how_far_apart_checks_are(fake_screen, monkeypatch):
     assert 0.3 < gaps[0.01] < 1.5
     assert gaps[0.05] == pytest.approx(gaps[0.01] / 5, rel=0.6)
     assert gaps[0.0] == w.interval
+
+
+def test_the_processor_watching_uses_is_measured(fake_screen, monkeypatch):
+    """Watcher.cpu_used: its own thread's time over CPU_MEASURE_S, as a share of the
+    whole processor (a check that only sleeps uses next to none)."""
+    monkeypatch.setattr(sw, "CPU_MEASURE_S", 0.2)
+    fake_screen.frames = [scene()]
+    w = sw.Watcher(lambda *_a: None)
+    w.interval = 0.01
+    w.set_items([sw.Watched("t", pics(banner()), 0.8, 0.0)])
+    assert w.cpu_used is None
+    w.start()
+    try:
+        assert run_until(lambda: w.cpu_used is not None)
+    finally:
+        w.stop()
+    assert 0.0 <= w.cpu_used <= 1.0

@@ -2232,7 +2232,11 @@ class TriggersTab(QWidget):
             return f"Not watching right now ({pics} on)."
         w = self.watcher
         slower = " (the most it can in that share)" if w.gap > w.interval * 1.05 else ""
-        return f"Each trigger is checked every {w.gap:.2f} s{slower}, with {pics} on."
+        text = f"Each trigger is checked every {w.gap:.2f} s{slower}, with {pics} on."
+        if w.cpu_used is not None:
+            text += (f"\nWatching is using about {w.cpu_used * 100:.2f} % of your processor "
+                     f"({w.cpu_used * screenwatch.CORES * 100:.0f} % of one core).")
+        return text
 
     def _gap_text(self) -> str:
         if not self.is_active() or not self.watcher.running:

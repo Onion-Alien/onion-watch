@@ -146,6 +146,7 @@ CPU_SHARE = 0.01        # watching uses about this share of the whole processor,
 # ...or, as picked under Processor use (Watcher.cpu_share; 0: no limit, every
 # `interval`, whatever it costs)
 CPU_SHARES = (0.01, 0.02, 0.05, 0.0)
+CPU_MEASURE_S = 2.0     # Watcher.cpu_used is measured over this long
 # A match is judged on grey, which can't tell a green slime from a red one, or a
 # wooden crate from a metal one once softened. So a place scoring within TINT_NEAR
 # of the threshold (the best PEAKS places of each picture and size; a place scoring
@@ -1936,6 +1937,9 @@ class Watcher:
         self.lost = False                 # a capture dropped out; it's being brought back
         self.error = ""
         self.check_ms = 0.0               # how long the last check took
+        # the share of the whole processor the watching thread really used, over the
+        # last few seconds (its own time; None until measured): for people to see
+        self.cpu_used: float | None = None
         self.gap = self.interval          # the time between checks: `interval`, or more
                                           # when that would use over cpu_share
         # All replaced whole by the thread, like `scores`:
@@ -2052,6 +2056,7 @@ class Watcher:
         listed = -math.inf
         cost: float | None = None                # a check's time, averaged
         rounds = 0                               # checks made
+        mark = (time.thread_time(), time.perf_counter())    # for cpu_used
         worked = False                           # a screen was captured since Start
         tick_errors: dict = {}                   # source -> a check that failed, logged once
         try:
@@ -2148,6 +2153,10 @@ class Watcher:
                 share = self.cpu_share
                 self.gap = (self.interval if share <= 0
                             else max(self.interval, cost / (share * CORES)))
+                now_cpu, now_t = time.thread_time(), time.perf_counter()
+                if now_t - mark[1] >= CPU_MEASURE_S:
+                    self.cpu_used = (now_cpu - mark[0]) / (now_t - mark[1]) / CORES
+                    mark = (now_cpu, now_t)
                 stop.wait(max(0.001, self.gap - spent))
         except Exception as e:  # noqa: BLE001 - say so in the window instead of dying quietly
             log.exception("screen watching stopped")
