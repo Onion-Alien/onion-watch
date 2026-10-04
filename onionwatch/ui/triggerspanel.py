@@ -33,7 +33,7 @@ from PySide6.QtWidgets import (QApplication, QBoxLayout, QCheckBox, QComboBox, Q
                                QMessageBox, QPushButton, QScrollArea, QSizePolicy, QSpinBox,
                                QVBoxLayout, QWidget)
 
-from onionwatch import owl, packs, profiles, screenwatch, theme, windows
+from onionwatch import cutout, owl, packs, profiles, screenwatch, theme, windows
 from onionwatch.screenwatch import (INTERVALS_MS, MAX_PICTURES, MAX_SOUNDS, Monitor, Picture,
                                     Trigger, Watched, WindowRef)
 from onionwatch.shuffle import ShuffleBag
@@ -98,6 +98,7 @@ HISTORY = 50            # alerts kept in the history (in memory only)
 APP_POLL_MS = 2000      # how often Automatic profiles look at which programs are open
 BUILD_NOW = 60          # an opened category's cards made at once; the rest a few at a
 BUILD_STEP = 20         # ...time, so a category of hundreds doesn't freeze the window
+SCREEN_LEARN_MS = 1300  # a screen cut's frames for the cut-out: grabbed this long after
 HEAVY_GAP = 0.5         # s: checks spaced out further than this (to keep to the share of
 HEAVY_FOR = 5.0         # ...the processor picked) for this long: say too many pictures are on
 EDIT_PROFILES = "__edit_profiles__"   # the Profile list's "Edit profiles…"
@@ -196,6 +197,18 @@ def picture_of(img: QImage) -> Picture | None:
     bgra = buf.reshape(h, img.bytesPerLine())[:, :w * 4].reshape(h, w, 4)
     mask = bgra[..., 3] >= 128
     return screenwatch.to_gray(bgra), (None if mask.all() else mask)
+
+
+def with_alpha(img: QImage, keep: np.ndarray) -> QImage:
+    """`img` with only `keep` (a (h, w) bool mask of its size) left opaque."""
+    out = img.convertToFormat(QImage.Format_ARGB32)
+    for key in img.textKeys():
+        out.setText(key, img.text(key))
+    h, w = out.height(), out.width()
+    buf = np.frombuffer(out.bits(), np.uint8, count=out.bytesPerLine() * h)
+    buf.reshape(h, out.bytesPerLine())[:, :w * 4].reshape(h, w, 4)[..., 3] = \
+        np.where(keep, 255, 0).astype(np.uint8)
+    return out
 
 
 def save_picture(img: QImage, name: str, folder: Path) -> str:
@@ -2723,9 +2736,11 @@ class TriggersTab(QWidget):
             self._sync()
         self._show_warning()
 
-    def _new(self, img: QImage | list[QImage], name: str) -> Trigger | None:
+    def _new(self, img: QImage | list[QImage], name: str, notes: list[str] = ()
+             ) -> Trigger | None:
         """A new trigger from a picture (or several), playing the default alert until
-        another sound is picked; None when no picture could be used."""
+        another sound is picked; None when no picture could be used. `notes`: see
+        _add_pictures."""
         if len(self.triggers) >= MAX_TRIGGERS:
             QMessageBox.information(self, "Too many triggers",
                                     f"You can have up to {MAX_TRIGGERS} triggers.")
@@ -2733,7 +2748,8 @@ class TriggersTab(QWidget):
         t = Trigger(id=uuid.uuid4().hex[:12], name=name[:60] or "Trigger",
                     sounds=[self.host.default_sound] if self.host.default_sound else [],
                     category=self._new_category())
-        if not self._add_pictures(t, [img] if isinstance(img, QImage) else list(img)):
+        if not self._add_pictures(t, [img] if isinstance(img, QImage) else list(img),
+                                  notes=notes):
             return None
         self.triggers.append(t)
         row = self._add_row(t)
@@ -2762,13 +2778,14 @@ class TriggersTab(QWidget):
         return pic, ()
 
     def _add_pictures(self, t: Trigger, imgs: list[QImage], names: list[str] = (),
-                      at: int | None = None) -> int:
+                      at: int | None = None, notes: list[str] = ()) -> int:
         """Add pictures to a trigger (`at`: replace that one instead). Each is checked
         before it's saved, so a refused picture never replaces or joins the others;
-        what was refused, and what may not be found, is said once for the lot.
+        what was refused, and what may not be found (`notes`: more of that, from how
+        a cut did while it was cut), is said once for the lot.
         Returns how many were added."""
         refused: list[tuple[str, str, str]] = []      # (name, title, text)
-        notes: list[tuple[str, str]] = []             # (name, note)
+        extra, notes = list(notes), []                # notes: (name, note)
         added = left_out = 0
         # a pasted or loaded picture doesn't say what it was cut from: most likely
         # what the trigger watches, as it is now
@@ -2798,7 +2815,7 @@ class TriggersTab(QWidget):
             else:
                 t.images.append(path)
             added += 1
-            for note in self._picture_notes(pic, t):
+            for note in self._picture_notes(pic, t) + extra:
                 notes.append((name, note))
         row = self.rows.get(t.id)
         if row is not None:
@@ -2867,19 +2884,25 @@ class TriggersTab(QWidget):
         """A full-size picture of a window or screen to cut from: (image, its name),
         or (None, why not)."""
         from onionwatch.ui.windowpicker import bgra_image
+        px, where, _again = self._grab(src)
+        return (None if px is None else bgra_image(px)), where
+
+    def _grab(self, src) -> tuple[np.ndarray | None, str, object]:
+        """capture() as pixels: (BGRA, its name, how to grab it again: a function
+        for a window, the Monitor for a screen) or (None, why not, None)."""
         if isinstance(src, WindowRef):
             info = windows.find(src)
             if info is None:
-                return None, f"{src.label} isn't open. Start it, then try again."
+                return None, f"{src.label} isn't open. Start it, then try again.", None
             if info.minimized:
-                return None, f"{src.label} is minimized. Restore it, then try again."
+                return None, f"{src.label} is minimized. Restore it, then try again.", None
             px = windows.snapshot(info.hwnd)
             if px is None:
-                return None, f"{src.label} couldn't be copied."
-            return bgra_image(px), src.label
+                return None, f"{src.label} couldn't be copied.", None
+            return px, src.label, lambda: windows.snapshot(info.hwnd)
         mons = screenwatch.monitors()
         if not mons:
-            return None, "No screen was found."
+            return None, "No screen was found.", None
         mon = mons[src] if isinstance(src, int) and 0 <= src < len(mons) else mons[0]
         win = self.window()
         # take our own window out of the way first: it's probably on that screen
@@ -2893,37 +2916,105 @@ class TriggersTab(QWidget):
         finally:
             win.setWindowOpacity(was)
         if px is None:
-            return None, "The screen couldn't be copied."
-        return bgra_image(px), source_label(src, mons)
+            return None, "The screen couldn't be copied.", None
+        return px, source_label(src, mons), mon
 
-    def _cut(self, src) -> QImage | None:
-        img, where = self.capture(src)
-        if img is None:
+    def _cut(self, src, threshold: float = Trigger.threshold
+             ) -> tuple[QImage | None, list[str], str]:
+        """Cut a picture from a window or screen: (the piece or None, what's worth
+        warning about it, a line to flash when it was made a cut-out). While a
+        window's cut dialog is open the window keeps being grabbed (a screen, for a
+        moment after it): scenery moving behind the thing is learned and left out
+        (cutout.py), and a piece that may be missed or go off by mistake is said."""
+        from onionwatch.ui.windowpicker import bgra_image
+        px, where, again = self._grab(src)
+        if px is None:
             QMessageBox.information(self, "Can't cut a picture", where)
-            return None
-        if float(np.asarray(img.constBits(), np.uint8).reshape(-1, 4)[:, :3].max()) < 8:
+            return None, [], ""
+        if float(px[..., :3].max()) < 8:
             QMessageBox.information(self, "It comes out black",
                                     f"{where} comes out black, so there's nothing to cut. "
                                     "Some games can only be seen on the screen: pick its "
                                     "screen under Look in instead.")
-            return None
+            return None, [], ""
+        img = bgra_image(px)
         from onionwatch.ui.snip import SnipDialog
+        rec = cutout.Recorder(px, again if callable(again) else None)
+        if callable(again):
+            rec.start()
         dlg = SnipDialog(img, where, self)
         if not dlg.exec() or dlg.piece is None:
-            return None
-        set_cut_size(dlg.piece, (img.width(), img.height()))
-        return dlg.piece
+            rec.stop()
+            return None, [], ""
+        piece = dlg.piece
+        s = dlg.view.selection
+        rect = (s.x(), s.y(), piece.width(), piece.height())
+        if isinstance(again, Monitor):
+            rec.stop()
+            self._grab_screen_after(rec, again, rect)
+        QApplication.setOverrideCursor(Qt.WaitCursor)
+        try:
+            keep, plain, cut = cutout.learn(rec, rect)
+        except Exception:       # learning is a bonus: the plain cut still works
+            log.exception("learning the cut's background failed")
+            keep, plain, cut = None, None, None
+        finally:
+            QApplication.restoreOverrideCursor()
+        flash = ""
+        if keep is not None:
+            piece = with_alpha(piece, keep)
+            flash = (f"Learned the background: {1 - float(keep.mean()):.0%} of the picture "
+                     "is scenery and left out")
+        set_cut_size(piece, (img.width(), img.height()))
+        kept = cut if keep is not None else plain
+        what = "window" if isinstance(src, WindowRef) else "screen"
+        return piece, ([] if kept is None else cutout.notes(kept, threshold, what)), flash
+
+    def _grab_screen_after(self, rec: cutout.Recorder, mon: Monitor,
+                           rect: tuple[int, int, int, int]):
+        """A screen's frames for the cut-out: grabbed for SCREEN_LEARN_MS once the
+        cut dialog has closed (it covered the screen while open), our window hidden
+        only when it's over the piece."""
+        from PySide6.QtCore import QElapsedTimer, QThread
+        win = self.window()
+        g = win.frameGeometry()
+        dpr = win.devicePixelRatioF() or 1.0
+        x, y, w, h = rect
+        over = (g.left() * dpr < mon.left + x + w and g.right() * dpr > mon.left + x
+                and g.top() * dpr < mon.top + y + h and g.bottom() * dpr > mon.top + y)
+        was = win.windowOpacity()
+        if over:
+            win.setWindowOpacity(0.0)
+        QApplication.setOverrideCursor(Qt.WaitCursor)
+        try:
+            QApplication.processEvents()
+            QThread.msleep(150)
+            rec.restart(lambda: windows.screen_snapshot(mon.left, mon.top, mon.width,
+                                                        mon.height))
+            clock = QElapsedTimer()
+            clock.start()
+            while clock.elapsed() < SCREEN_LEARN_MS:
+                QApplication.processEvents()
+                QThread.msleep(20)
+        finally:
+            QApplication.restoreOverrideCursor()
+            if over:
+                win.setWindowOpacity(was)
 
     def add_from_cut(self):
-        piece = self._cut(self.watcher.default)
+        piece, notes, flash = self._cut(self.watcher.default)
         if piece is not None:
-            self._new(piece, f"Trigger {len(self.triggers) + 1}")
+            t = self._new(piece, f"Trigger {len(self.triggers) + 1}", notes)
+            if t is not None and flash and t.id in self.rows:
+                self.rows[t.id].flash(flash, 5000)
 
     def _cut_picture(self, row: TriggerRow):
         src = row.t.source if row.t.source is not None else self.watcher.default
-        piece = self._cut(src)
-        if piece is not None and self._add_pictures(row.t, [piece]):
+        piece, notes, flash = self._cut(src, row.t.threshold)
+        if piece is not None and self._add_pictures(row.t, [piece], notes=notes):
             self._store()
+            if flash:
+                row.flash(flash, 5000)
 
     # ------------------------------------------------------------------ files
     def add_from_file(self):

@@ -21,6 +21,8 @@ worth telling the user about (it may be missed, or go off by mistake)."""
 from __future__ import annotations
 
 import math
+import threading
+from collections import deque
 from dataclasses import dataclass
 
 import numpy as np
@@ -135,3 +137,104 @@ def choose(frames: list[np.ndarray], rect: tuple[int, int, int, int]
         return None, plain, None
     cut = fit(same, rect, keep)
     return (keep if cut.gap > plain.gap + BETTER else None), plain, cut
+
+
+# ------------------------------------------------------------------ the grabs
+
+GRAB_S = 0.25           # s between grabs
+RING = 8                # grabs kept (the last ones: about 2 s)
+RING_BYTES = 100 << 20  # what they may take in all: bigger windows are kept smaller
+
+
+def factor(w: int, h: int) -> int:
+    """How much to shrink a w x h grab so RING of them (and the cut) fit RING_BYTES."""
+    k = 1
+    while (w // k) * (h // k) * 4 * (RING + 1) > RING_BYTES:
+        k += 1
+    return k
+
+
+def reduce(px: np.ndarray, k: int) -> np.ndarray:
+    """A grab (h, w, 3 or 4 uint8) area-averaged k times smaller (its colour only)."""
+    if k <= 1:
+        return px[..., :3]
+    h, w = (px.shape[0] // k) * k, (px.shape[1] // k) * k
+    a = px[:h, :w, :3].reshape(h // k, k, w // k, k, 3).mean((1, 3), dtype=np.float32)
+    return (a + 0.5).astype(np.uint8)
+
+
+class Recorder:
+    """Grabs (`grab()`, a whole window or screen as uint8 pixels, or None; no `grab`,
+    no grabs) every GRAB_S on a thread of its own, from start() until stop(), keeping
+    the last RING k times smaller (k from the first grab, the one cut from)."""
+
+    def __init__(self, first: np.ndarray, grab):
+        self.k = factor(first.shape[1], first.shape[0])
+        self.size = first.shape[:2]
+        self.first = reduce(first, self.k)
+        self._grab = grab
+        self._ring: deque = deque(maxlen=RING)
+        self._stop = threading.Event()
+        self._thread: threading.Thread | None = None
+
+    def start(self) -> Recorder:
+        if self._grab is not None:
+            self._stop = threading.Event()
+            self._thread = threading.Thread(target=self._run, name="cut-grabs", daemon=True)
+            self._thread.start()
+        return self
+
+    def restart(self, grab) -> Recorder:
+        """Grab again, another way (a screen once the cut dialog has gone)."""
+        self.stop()
+        self._grab = grab
+        return self.start()
+
+    def _run(self):
+        while not self._stop.wait(GRAB_S):
+            try:
+                px = self._grab()
+            except OSError:         # a closed window, a lost screen: no more grabs
+                return
+            if px is not None and px.shape[:2] == self.size:
+                self._ring.append(reduce(px, self.k))
+
+    def stop(self) -> list[np.ndarray]:
+        """Stop grabbing; the frames, the one cut from first."""
+        self._stop.set()
+        if self._thread is not None:
+            self._thread.join(2.0)
+        return [self.first, *self._ring]
+
+
+def notes(f: Fit, threshold: float, what: str = "window") -> list[str]:
+    """What's worth telling the user about how the kept picture did on the grabs
+    (`f`), for a trigger going off at `threshold`."""
+    out = []
+    if f.here < threshold:
+        out.append(f"While you were cutting it, it didn't always match itself where it "
+                   f"was ({f.here:.0%}, it needs {threshold:.0%}), so it may be missed when "
+                   "the scene behind it changes. Cut tighter around it, with less scenery.")
+    if f.away >= threshold - screenwatch.REARM_MARGIN:
+        out.append(f"Something else in the {what} looks a lot like it ({f.away:.0%}), so "
+                   "it may go off by mistake, or not get ready to go off again. Cut a "
+                   "piece with more of what makes it stand out.")
+    return out
+
+
+def learn(rec: Recorder, rect: tuple[int, int, int, int]
+          ) -> tuple[np.ndarray | None, Fit, Fit | None]:
+    """choose() on what `rec` grabbed, for a cut at `rect` (x, y, w, h) of the full-size
+    grab: the mask comes back at the cut's full size."""
+    frames = rec.stop()
+    k = rec.k
+    x, y, w, h = rect
+    r = (x // k, y // k, max(1, round(w / k)), max(1, round(h / k)))
+    fh, fw = frames[0].shape[:2]
+    r = (r[0], r[1], min(r[2], fw - r[0]), min(r[3], fh - r[1]))
+    keep, plain, cut = choose(frames, r)
+    if keep is not None and k > 1:
+        ys = np.minimum(np.arange(h) * keep.shape[0] // h, keep.shape[0] - 1)
+        xs = np.minimum(np.arange(w) * keep.shape[1] // w, keep.shape[1] - 1)
+        keep = keep[ys][:, xs]
+    return keep, plain, cut

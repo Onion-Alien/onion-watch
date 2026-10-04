@@ -268,6 +268,8 @@ def test_watcher_scales_the_pictures_to_the_screen_the_capture_really_sees(monke
     what the frames show."""
     monkeypatch.setattr(sw, "monitors", lambda: [Monitor(0, 0, W, H, True)])
     monkeypatch.setattr(sw, "WORK_WIDTH", W)
+    # the 24 px banner mustn't itself ask for more detail than the frames have
+    monkeypatch.setattr(sw, "DETAIL_SIDE", 12)
     # the real screen: 2x the size, the banner at its real size (in real pixels)
     big = with_banner(np.kron(scene(), np.ones((2, 2), np.float32)), x=220, y=140)
     ModeGrabber.source, ModeGrabber.resized = (2 * W, 2 * H), []

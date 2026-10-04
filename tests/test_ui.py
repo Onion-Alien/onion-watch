@@ -244,6 +244,70 @@ def test_a_picture_is_cut_straight_out_of_a_window(tab, monkeypatch):
     assert (got.width(), got.height()) == (90, 30)
 
 
+def cut_while(tab, monkeypatch, grabs, rect, secs=0.4):
+    """Cut `rect` out of a game window whose snapshots are `grabs` (BGRA, over and
+    over), the cut dialog kept open `secs`; the warnings said, as text."""
+    import itertools
+    import time
+
+    from onionwatch import cutout
+    from onionwatch.ui import snip
+    monkeypatch.setattr(cutout, "GRAB_S", 0.02)
+    monkeypatch.setattr(windows, "find", lambda r, wins=None: windows.WindowInfo(
+        7, "Game", "game.exe", 7, 0, grabs[0].shape[1], grabs[0].shape[0]))
+    it = itertools.cycle(grabs)
+    monkeypatch.setattr(windows, "snapshot", lambda hwnd: next(it))
+    said = []
+    monkeypatch.setattr(triggerspanel.QMessageBox, "warning",
+                        lambda _p, title, text: said.append(f"{title}: {text}"))
+
+    def fake_exec(dlg):
+        end = time.monotonic() + secs
+        while time.monotonic() < end:
+            time.sleep(0.01)
+        dlg.view.selection = QRect(*rect)
+        dlg._accept()
+        return True
+    monkeypatch.setattr(snip.SnipDialog, "exec", fake_exec)
+    tab.set_default(WindowRef("game.exe", "Game", 0))
+    tab.add_from_cut()
+    return " ".join(said)
+
+
+def as_bgra(gray: np.ndarray) -> np.ndarray:
+    px = np.empty(gray.shape + (4,), np.uint8)
+    px[..., :3] = (np.clip(gray, 0, 1)[..., None] * 255).astype(np.uint8)
+    px[..., 3] = 255
+    return px
+
+
+def test_scenery_moving_behind_a_cut_is_learned_and_left_out(tab, monkeypatch):
+    """The window kept being grabbed while the cut dialog was open: the scenery
+    panning behind the banner is see-through in the picture kept."""
+    rng = np.random.default_rng(5)
+    wide = np.kron(rng.random((H // 6 + 1, (W + 200) // 6 + 1)), np.ones((6, 6)))
+    wide = (wide * 0.6 + 0.2).astype(np.float32)
+    grabs = [as_bgra(showing(wide[:H, i * 7:i * 7 + W], banner(), 120, 75)) for i in range(12)]
+    said = cut_while(tab, monkeypatch, grabs, (110, 65, 110, 50))
+    assert len(tab.triggers) == 1
+    got = QImage(tab.triggers[0].images[0])
+    assert (got.width(), got.height()) == (110, 50) and got.hasAlphaChannel()
+    pic = triggerspanel.load_picture(tab.triggers[0].images[0])
+    assert pic[1] is not None
+    assert pic[1][10:40, 10:100].mean() > 0.95          # the banner is kept...
+    assert pic[1][:, :8].mean() < 0.3                   # ...the scenery beside it isn't
+    assert triggerspanel.cut_size(got) == (W, H)
+    assert "Learned the background" in tab.rows[tab.triggers[0].id].state.text()
+    assert "go off by mistake" not in said
+
+
+def test_a_cut_with_a_look_alike_elsewhere_is_warned_about(tab, monkeypatch):
+    frame = showing(showing(scene(4), banner(), 20, 20), banner(), 200, 120)
+    said = cut_while(tab, monkeypatch, [as_bgra(frame)], (20, 20, 90, 30), secs=0.1)
+    assert len(tab.triggers) == 1                       # kept anyway...
+    assert "go off by mistake" in said                  # ...but said
+
+
 def test_the_crop_view_maps_a_drag_to_the_capture_pixels(qapp):
     from onionwatch.ui.snip import CropView
     view = CropView(as_qimage(scene(3)))

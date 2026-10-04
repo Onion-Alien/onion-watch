@@ -129,7 +129,10 @@ are searched for a couple at a time and kept once found.
 PNG with the scenery erased): then only the model counts, so it's found over any
 background, in daylight or at night, nearer or further away. A plain rectangle cut
 around a model brings its scenery with it and is mostly found only where it was
-cut. Picture matching can't follow a model that turns or changes pose, or is mostly
+cut. While you cut, the window keeps being looked at (a screen, for a moment after): if
+the scene behind the thing moves meanwhile, that scenery is left out of the picture for
+you when it works better, and a piece that may be missed or go off by mistake is said
+straight away. Picture matching can't follow a model that turns or changes pose, or is mostly
 hidden: add a picture of each pose to the same trigger (it holds up to 100).
 
 Watching keeps to about 1 % of your processor so games keep their frame rate. On
@@ -231,6 +234,7 @@ then installs that file instead of downloading.
 | Path | What |
 |---|---|
 | `onionwatch/screenwatch.py` | the engine: screen capture (DXGI Desktop Duplication, GDI fallback, grey and when needed colour), the matcher, the kinds of trigger (appears, goes away, area changes / stops changing, colour level) and their areas, the fire-once `Gate`, the watcher thread (one capture per screen or window in use, every copy of a game expanded), `Trigger`, `WindowRef` and `Hit` |
+| `onionwatch/cutout.py` | learning a cut's background while it's cut: grabs of the window while the cut dialog is open, the scenery that moved left out of the picture when that does better, and how well the kept picture did (for the cut-time warning) |
 | `onionwatch/imgops.py` | the matcher's image operations: FFTs (scipy.fft, numpy's without it), Gaussian softening, smooth enlarging, mask erosion (numpy). Of scipy, Onion Board ships only scipy.fft |
 | `onionwatch/windows.py` | listing windows, finding a remembered one again (and the right copy), `PrintWindow` capture of a covered window, full-size snapshots for cutting |
 | `onionwatch/sounds.py` | the built-in alert sounds (made in code) and the added sound files |
