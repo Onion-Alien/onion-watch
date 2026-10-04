@@ -81,7 +81,7 @@ def test_a_row_that_wraps_takes_the_height_it_needs(qapp):
 def test_a_thumbnail_opens_its_picture_big(tab, monkeypatch):
     from onionwatch.ui import viewer
     seen = []
-    monkeypatch.setattr(viewer.PictureViewer, "exec",
+    monkeypatch.setattr(viewer.PictureViewer, "open",
                         lambda self: seen.append((self.index, list(self.paths))) or 0)
     row = new_card(tab)
     tab._add_pictures(row.t, [as_qimage(banner()[:, ::-1])])

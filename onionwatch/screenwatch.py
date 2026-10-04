@@ -364,6 +364,7 @@ class Trigger:
     # the category it's in (onionwatch.profiles; "" = Uncategorised): one line,
     # at most CATEGORY_MAX characters
     category: str = ""
+    interval_ms: int = 0     # 0 inherits the global check interval
 
     @property
     def source(self) -> int | WindowRef | None:
@@ -456,10 +457,13 @@ class Trigger:
                 ok = isinstance(v, bool)
             elif isinstance(default, float):
                 ok = isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
+            elif isinstance(default, int):
+                ok = isinstance(v, int) and not isinstance(v, bool)
             else:
                 ok = isinstance(v, type(default))
             if ok:
                 setattr(t, k, float(v) if isinstance(default, float) else v)
+        t.interval_ms = (min(60000, max(16, t.interval_ms)) if t.interval_ms > 0 else 0)
         t.delay = min(max(t.delay, 0.0), 60.0)
         t.cooldown = min(max(t.cooldown, 0.0), 600.0)
         t.threshold = min(max(t.threshold, 0.3), 0.99)
@@ -1982,6 +1986,7 @@ class Watched:
     # each picture's own colours (uint8 RGB, its size), or None: when given, its
     # colours are also taken at the size the capture is matched at (see tint_at)
     colours: list = field(default_factory=list)
+    interval_ms: int = 0
     gates: dict = field(default_factory=dict)       # place -> its Gate
 
     def __post_init__(self):
@@ -2056,6 +2061,7 @@ class _Capture:
         # "any size": changed patches still to look in at every size (HUNT_*):
         # [box, the check it changed on, ids of the triggers still to look there]
         self.hunts: list[list] = []
+        self.checked_at: dict = {}  # id -> (Watched instance, last check time)
         self.checks = 0             # checks made on this capture
         # the last frame checked, and each picture trigger's (Watched, its Looks,
         # their `changes`, (score, box) at the sizes looked for every check) from
@@ -2385,8 +2391,10 @@ class Watcher:
                     costs.popleft()
                 cost = sum(c for _t, c in costs) / len(costs)
                 share = 0.0 if heavy else self.cpu_share
-                self.gap = (self.interval if share <= 0
-                            else max(self.interval, cost / (share * CORES)))
+                interval = min((it.interval_ms / 1000 if it.interval_ms else self.interval
+                                for it in items), default=self.interval)
+                self.gap = (interval if share <= 0
+                            else max(interval, cost / (share * CORES)))
                 if now_t - mark[1] >= CPU_MEASURE_S:
                     self.cpu_used = ((now_cpu - mark[0] + elsewhere - mark[2])
                                      / (now_t - mark[1]) / CORES)
@@ -2545,7 +2553,19 @@ class Watcher:
             return
         if gray is not None:
             cap.black = is_black(gray)
-            cap.scores = self._check(cap, gray, items)
+            now = time.monotonic()
+            due = []
+            for it in items:
+                previous, checked = cap.checked_at.get(it.id, (None, 0.0))
+                interval = it.interval_ms / 1000 if it.interval_ms else self.interval
+                if previous is not it or now - checked >= interval - 0.001:
+                    due.append(it)
+                    cap.checked_at[it.id] = (it, now)
+            if due:
+                cap.scores.update(self._check(cap, gray, due))
+            ids = {it.id for it in items}
+            cap.scores = {k: v for k, v in cap.scores.items() if k in ids}
+            cap.checked_at = {k: v for k, v in cap.checked_at.items() if k in ids}
 
     @staticmethod
     def _fit(grab, mon: Monitor | None, items: list[Watched], old: dict | None = None,

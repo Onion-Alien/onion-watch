@@ -38,6 +38,10 @@ class AppHost:
     def sounds(self) -> list[tuple[str, str]]:
         return self.library.listing()
 
+    def sound_details(self, sid: str) -> str:
+        """Optional card detail; older hosts can keep providing names alone."""
+        return f"Volume: {self.cfg.volume:.0%} · Hotkey: none"
+
     def add_sound(self, path: str, done: Callable[[str | None], None]) -> None:
         done(self.library.add_file(path))    # OSError: it can't be read as a sound
 

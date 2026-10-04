@@ -9,8 +9,8 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 
-from PySide6.QtCore import QRectF, QSize, Qt, Signal
-from PySide6.QtGui import QColor, QIcon, QImage, QKeySequence, QPainter, QShortcut
+from PySide6.QtCore import QRectF, QSize, Qt, QTimer, Signal
+from PySide6.QtGui import QColor, QIcon, QImage, QImageReader, QKeySequence, QPainter, QShortcut
 from PySide6.QtWidgets import (QDialog, QHBoxLayout, QLabel, QPushButton, QScrollArea,
                                QSizePolicy, QVBoxLayout, QWidget)
 
@@ -21,6 +21,16 @@ from onionwatch.ui.windowpicker import thumbnail
 TILE = QSize(96, 54)    # a thumbnail along the bottom
 CHECK = 10              # px: a square of the see-through checkerboard
 MAX_ZOOM = 12           # a tiny cut-out is shown at most this many times its size
+
+
+def read_image(path: str, size: QSize) -> QImage:
+    """Decode at display size, without a full-size photo for a thumbnail."""
+    reader = QImageReader(path)
+    original = reader.size()
+    if original.isValid() and (original.width() > size.width()
+                               or original.height() > size.height()):
+        reader.setScaledSize(original.scaled(size, Qt.KeepAspectRatio))
+    return reader.read()
 
 
 class PictureView(QWidget):
@@ -102,6 +112,8 @@ class PictureViewer(QDialog):
         self.describe = describe
         self.paths: list[str] = []
         self.index = index
+        self._loaded_path = None
+        self._tile_generation = 0
         scr = self.screen().availableGeometry() if self.screen() else None
         self.resize(min(1100, scr.width() - 80) if scr else 1000,
                     min(760, scr.height() - 80) if scr else 700)
@@ -184,9 +196,11 @@ class PictureViewer(QDialog):
     def reload(self):
         """Read the trigger's pictures again (one was swapped or taken off)."""
         self.paths = list(self.get_paths())
+        self._loaded_path = None
+        self._tile_generation += 1
         for b in self.tiles:
             self.tiles_row.removeWidget(b)
-            b.setParent(None)
+            b.hide()
             b.deleteLater()
         self.tiles = []
         for i, p in enumerate(self.paths):
@@ -195,7 +209,6 @@ class PictureViewer(QDialog):
             b.setFixedSize(TILE + QSize(8, 8))
             b.setIconSize(TILE)
             b.setCursor(Qt.PointingHandCursor)
-            b.setIcon(QIcon(thumbnail(QImage(p), TILE)))
             b.setToolTip(Path(p).name)
             b.clicked.connect(lambda _c=False, i=i: self.go(i))
             self.tiles_row.insertWidget(i, b)
@@ -205,14 +218,26 @@ class PictureViewer(QDialog):
             self.accept()               # the last one was taken off: nothing to show
             return
         self.go(min(self.index, len(self.paths) - 1))
+        generation = self._tile_generation
+        QTimer.singleShot(0, self, lambda: self._load_tile(generation, 0))
+
+    def _load_tile(self, generation: int, index: int):
+        """Yield between thumbnails; only the selected picture blocks the first paint."""
+        if generation != self._tile_generation or index >= len(self.tiles):
+            return
+        self.tiles[index].setIcon(QIcon(thumbnail(read_image(self.paths[index], TILE), TILE)))
+        QTimer.singleShot(0, self, lambda: self._load_tile(generation, index + 1))
 
     def go(self, index: int):
         if not self.paths:
             return
         self.index = index % len(self.paths)      # round from the last back to the first
         path = self.paths[self.index]
-        img = QImage(path)
-        self.view.set_image(img)
+        if path != self._loaded_path:
+            self._image_size = QImageReader(path).size()
+            self.view.set_image(read_image(path, QSize(2048, 2048)))
+            self._loaded_path = path
+        img = self.view.img
         for i, b in enumerate(self.tiles):
             b.setChecked(i == self.index)
         if self.tiles:
@@ -223,7 +248,7 @@ class PictureViewer(QDialog):
         parts = [f"Picture {self.index + 1} of {len(self.paths)}" if many else "",
                  Path(path).name]
         if not img.isNull():
-            parts.append(f"{img.width()}×{img.height()} px")
+            parts.append(f"{self._image_size.width()}×{self._image_size.height()} px")
             if self.describe:
                 parts.append(self.describe(img))
             z = self.view.zoom()

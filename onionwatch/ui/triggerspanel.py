@@ -63,7 +63,7 @@ MAX_TRIGGERS = 500      # in all; how many can be on at once is up to the comput
 OLD_TRIGGERS = 50
 MAX_SIDE = 8192         # bigger pictures are refused (kept pixel for pixel, never resized)
 CUT_KEY = "OnionWatch cut from"   # a picture's PNG text: the size of what it was cut from
-THUMB = QSize(64, 36)
+THUMB = QSize(112, 64)
 STRIP_THUMBS = 3        # thumbnails a card's strip shows before it scrolls
 CHIP_CHARS = 24         # a sound chip's name is cut to this many characters
 PICKS = (("random", "Random"), ("order", "In order"), ("all", "All at once"))
@@ -325,14 +325,15 @@ class Thumb(QWidget):
         self.pic.setIconSize(THUMB)
         self.pic.setCursor(Qt.PointingHandCursor)
         self.pic.clicked.connect(lambda: self.clicked.emit(self.index))
-        pm = QPixmap(path) if path else QPixmap()
+        from onionwatch.ui.viewer import read_image
+        pm = QPixmap.fromImage(read_image(path, THUMB)) if path else QPixmap()
         if pm.isNull():
             self.pic.setIcon(icons.icon("image", "muted"))
             self.pic.setToolTip(f"{Path(path).name}: this picture can't be read — click to "
                                 "open it and swap it for another file")
         else:
             self.pic.setIcon(pm.scaled(THUMB, Qt.KeepAspectRatio, Qt.SmoothTransformation))
-            self.pic.setToolTip(f"{Path(path).name} ({pm.width()}×{pm.height()})\n"
+            self.pic.setToolTip(f"{Path(path).name}\n"
                                 "Click to see it big")
         self.setFixedSize(self.pic.size())
         self.x = QPushButton("✕", self)
@@ -384,7 +385,7 @@ class Strip(QScrollArea):
     def set_paths(self, paths: list[str]):
         for th in self.thumbs:
             self.row.removeWidget(th)
-            th.setParent(None)   # out of the strip now, not when the event loop gets to it
+            th.hide()           # retain ownership until deferred deletion
             th.deleteLater()
         self.thumbs = []
         for i, p in enumerate(paths):
@@ -714,6 +715,10 @@ class TriggerRow(QFrame):
         super().__init__()
         self.setObjectName("card")
         self.t = t
+        self.advanced = False
+        self.watching = False
+        self.cooldown_until = 0.0
+        self.sound_details = lambda _sid: "Volume / hotkey: sound settings"
         self.missing: list[str] = []    # its sounds that are no longer in the library
         self.fallback = False           # its own screen isn't there: the default is watched
         self.note: tuple[str, str] | None = None   # (text, tone) from watching: not open…
@@ -763,6 +768,7 @@ class TriggerRow(QFrame):
         self.name.setPlaceholderText("Name, e.g. Rare spawn")
         self.name.setMaxLength(60)
         self.name.setCursorPosition(0)          # a long name shows its start, not its end
+        self.setStyleSheet("QFrame#card:hover { border-color:palette(highlight); }")
         self.name.editingFinished.connect(self._on_name)
         self.name.editingFinished.connect(lambda: self.name.setCursorPosition(0))
         # as wide as the name, not the whole card: the hover / editing box hugs it
@@ -794,7 +800,17 @@ class TriggerRow(QFrame):
         state_line.addWidget(self.btn_retarget)
         names.addLayout(state_line)
         names.addStretch(1)
-        self.live = QLabel("—")
+        self.sound_summary = QLabel()
+        self.sound_summary.setWordWrap(True)
+        self.sound_summary.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
+        names.addWidget(self.sound_summary)
+        self.details = QLabel()
+        self.details.setObjectName("hint")
+        self.details.setWordWrap(True)
+        self.details.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
+        names.addWidget(self.details)
+        self.details.hide()
+        self.live = QLabel("Ready")
         self.live.setMinimumWidth(48)
         self.live.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         self.chk_on = Switch()
@@ -856,6 +872,16 @@ class TriggerRow(QFrame):
         self.where.activated.connect(self._on_where)
         self.where_box = labelled("in", self.where)
         row.addWidget(self.where_box)
+        self.interval = WideCombo(min_width=100)
+        self.interval.addItem("Default", 0)
+        for ms in sorted(set(INTERVALS_MS) | {t.interval_ms} - {0}):
+            self.interval.addItem(f"{ms} ms", ms)
+        self.interval.setCurrentIndex(max(0, self.interval.findData(t.interval_ms)))
+        self.interval.setToolTip("How often this trigger is checked. Default uses the bottom "
+                                 "bar. The shared processor limit may slow checks down.")
+        no_wheel(self.interval)
+        self.interval.currentIndexChanged.connect(self._on_interval)
+        row.addWidget(labelled("Check every", self.interval))
         self.btn_area = QPushButton()
         self.btn_area.setObjectName("small")
         self.btn_area.clicked.connect(lambda: self.area_wanted.emit(self))
@@ -1091,10 +1117,23 @@ class TriggerRow(QFrame):
             return
         self._tile = tile
         self.top.removeWidget(self.names)
+        for widget in (self.strip, self.badge, self.live, self.chk_on, self.btn_open):
+            self.top.removeWidget(widget)
         if tile:
-            self.top.addWidget(self.names, 1, 0, 1, 5)
+            self.top.addWidget(self.strip, 0, 0, 1, 5)
+            self.top.addWidget(self.badge, 0, 0, 1, 5, Qt.AlignLeft)
+            self.top.addWidget(self.live, 1, 0, 1, 3, Qt.AlignLeft)
+            self.top.addWidget(self.chk_on, 1, 3)
+            self.top.addWidget(self.btn_open, 1, 4)
+            self.top.addWidget(self.names, 2, 0, 1, 5)
         else:
+            self.top.addWidget(self.strip, 0, 0, Qt.AlignTop | Qt.AlignLeft)
+            self.top.addWidget(self.badge, 0, 0, Qt.AlignTop | Qt.AlignLeft)
+            self.top.addWidget(self.live, 0, 2)
+            self.top.addWidget(self.chk_on, 0, 3)
+            self.top.addWidget(self.btn_open, 0, 4)
             self.top.addWidget(self.names, 0, 1)
+        self.details.setVisible(tile and self.advanced)
         self.state.setWordWrap(tile)        # two lines of it, not one cut short
         self.state.setMaximumHeight(2 * self.state.fontMetrics().lineSpacing() + 2
                                     if tile else 16777215)
@@ -1124,7 +1163,7 @@ class TriggerRow(QFrame):
         self.btn_del.setText("" if short else "Delete")
 
     def _fit_narrow(self):
-        narrow = self.width() < (self.NARROW_TILE if self._tile else self.NARROW)
+        narrow = not self._tile and self.width() < self.NARROW
         if narrow != self._narrow:
             self._narrow = narrow
             self._show_thumb()
@@ -1320,14 +1359,26 @@ class TriggerRow(QFrame):
         self._update_state()
 
     def show_score(self, score: float | None):
+        style = (f"background:{theme.T.get('inset', '#20242c')};"
+                 "border-radius:6px; padding:2px 6px;")
+        self.live.setStyleSheet(style)
+        if not self.t.enabled:
+            self.live.setText("Off")
+            return
+        if self.note:
+            self.live.setText("Waiting")
+            return
+        if self.watching and time.monotonic() < self.cooldown_until:
+            self.live.setText("Cooldown")
+            return
         if score is None:
-            self.live.setText("—")
-            self.live.setStyleSheet("")
+            self.live.setText("Watching" if self.watching else "Ready")
             return
         pct = max(0, round(score * 100))
         hit = screenwatch.verdict(self.t.mode, score, self.t.number, self.t.below) is True
-        self.live.setText(f"{pct}%")
-        self.live.setStyleSheet(f"color:{theme.status('ok')}; font-weight:600;" if hit else "")
+        self.live.setText(f"Watching · {pct}%")
+        self.live.setStyleSheet(style + (f"color:{theme.status('ok')}; font-weight:600;"
+                                         if hit else ""))
 
     def set_note(self, note: tuple[str, str] | None, waiting: WindowRef | None = None):
         """What watching says about this trigger's window or screen (not open,
@@ -1394,8 +1445,30 @@ class TriggerRow(QFrame):
         theme.set_tone(self.state, tone)
         self.btn_retarget.setVisible(retarget)
         self.tune_text.setText(self._tune_summary())
+        sounds = dict(self._sounds)
+        self.sound_summary.setText("♪ " + (", ".join(sounds.get(s, "Removed sound")
+                                                    for s in t.sounds) or "Choose a sound"))
+        where = places_label(t.sources) if t.sources else "Default window / screen"
+        interval = f"{t.interval_ms} ms" if t.interval_ms else "default"
+        self.details.setText(
+            f"Look in: {where}\n"
+            f"{dict(MODES)[t.mode]} · check every {interval}\n"
+            f"Cooldown: {t.cooldown:g} s · {'Any size' if t.any_size else 'Original size'}\n"
+            f"Area: {'custom' if t.region else 'whole view'} · {plural(len(t.images), 'picture')}\n"
+            + "\n".join(self.sound_details(sid) for sid in t.sounds))
+        self.details.setVisible(self.advanced and bool(self._tile))
+
+    def set_advanced(self, on: bool):
+        self.advanced = on
+        self.details.setVisible(on and bool(self._tile))
+        self.updateGeometry()
 
     # ------------------------------------------------------------------ edits
+    def _on_interval(self, _index):
+        self.t.interval_ms = self.interval.currentData()
+        self._update_state()
+        self.changed.emit(self)
+
     def _on_name(self):
         name = self.name.text().strip() or "Trigger"
         if name != self.t.name:
@@ -1662,16 +1735,21 @@ class TriggersTab(QWidget):
         self.lbl_counts = hint_label("")     # wraps rather than widen a narrow window
         self.lbl_counts.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
         gb.addWidget(self.lbl_counts, 1)
-        search_head = QHBoxLayout()
-        search_head.addWidget(self.groupbar, 1)
-        search_head.addStretch(0)       # without the groupbar, Search stays small on the right
+        search_box = FlowBox(gap=8)
+        search_head = search_box.flow
+        search_head.addWidget(self.groupbar)
+        self.chk_advanced = QCheckBox("Advanced")
+        self.chk_advanced.setToolTip("Show each trigger's settings on its closed card")
+        self.chk_advanced.setChecked(host.screen.get("advanced_cards") is True)
+        self.chk_advanced.toggled.connect(self._on_advanced)
+        search_head.addWidget(self.chk_advanced)
         self.btn_search = QPushButton("Search")
         self.btn_search.setCheckable(True)
         self.btn_search.setToolTip("Find triggers in all categories (Ctrl+F)")
         align_control(self.btn_search)
         search_head.addWidget(self.btn_search)
         self.search_summary = hint_label("Find a trigger by name, category, window or sound")
-        v.addLayout(search_head)
+        v.addWidget(search_box)
         self.search_bar = QWidget()
         search_layout = QBoxLayout(QBoxLayout.LeftToRight, self.search_bar)
         search_layout.setContentsMargins(0, 0, 0, 0)
@@ -1820,7 +1898,8 @@ class TriggersTab(QWidget):
             label = f"{ms} ms" + (" (every frame)" if ms == 16 else "")
             self.cb_interval.addItem(label, ms)
         self.cb_interval.setCurrentIndex(self.cb_interval.findData(interval))
-        self.cb_interval.setToolTip("How often to look. Faster reacts sooner; 100 ms is a tenth "
+        self.cb_interval.setToolTip("Default check interval; each trigger can override it. "
+                                   "Faster reacts sooner; 100 ms is a tenth "
                                     "of a second. Watching keeps to the share of your processor "
                                     "picked under ⚙ (1 % unless you change it), so your games "
                                     "keep their frame rate: on a slow computer, or with many "
@@ -2212,6 +2291,7 @@ class TriggersTab(QWidget):
                                      sources=list(t.sources), mode=t.mode, below=t.below,
                                      colour=t.rgb, region=t.region, hold=t.hold,
                                      unfocused=t.unfocused, any_size=t.any_size,
+                                     interval_ms=t.interval_ms,
                                      cuts=[self._cuts.get(path) for _p, path in got],
                                      tints=[self._tints.get(path) for _p, path in got],
                                      colours=[self._colours.get(path) for _p, path in got]))
@@ -2253,6 +2333,9 @@ class TriggersTab(QWidget):
         t = next((t for t in self.triggers if t.id == tid), None)
         if t is None or not self.is_active() or not self._playable(t):
             return
+        row = self.rows.get(tid)
+        if row is not None:
+            row.cooldown_until = time.monotonic() + t.cooldown
         if hit is not None:
             self._hits[tid] = hit
             self.history.append(Alert.of(t, hit, self.place_name(hit.source)))
@@ -2374,6 +2457,7 @@ class TriggersTab(QWidget):
         if self._gap_text() != self._gap_shown:
             self._refresh_counts()
         for tid, row in self.rows.items():
+            row.watching = w.running and self.is_on(row.t)
             row.show_score(w.scores.get(tid))
         self._show_warning()
 
@@ -2447,6 +2531,12 @@ class TriggersTab(QWidget):
         self.watcher.interval = ms / 1000
         self.host.screen["interval_ms"] = ms
         self.host.save()
+
+    def _on_advanced(self, on: bool):
+        self.host.screen["advanced_cards"] = on
+        self.host.save()
+        for row in self.rows.values():
+            row.set_advanced(on)
 
     def _fill_sources(self):
         """List the screens again: the "Look in" at the bottom (the default) and each
@@ -2616,6 +2706,10 @@ class TriggersTab(QWidget):
         if w.heavy:
             slower = " (max detection is on)"
         text = f"Each trigger is checked every {w.gap:.2f} s{slower}, with {pics} on."
+        if any(t.interval_ms for t in self.triggers if self.is_on(t)):
+            text = (f"Watching ticks every {w.gap:.2f} s, with {pics} on. "
+                    "Each trigger follows its own interval (or the default); "
+                    "the shared processor limit can make checks slower.")
         if w.cpu_used is not None:
             text += (f"\nWatching is using about {w.cpu_used * 100:.2f} % of your processor "
                      f"({w.cpu_used * screenwatch.CORES * 100:.0f} % of one core).")
@@ -2624,6 +2718,8 @@ class TriggersTab(QWidget):
     def _gap_text(self) -> str:
         if not self.is_active() or not self.watcher.running:
             return ""
+        if any(t.interval_ms for t in self.triggers if self.is_on(t)):
+            return f"watching tick {self.watcher.gap:.2f} s · individual intervals"
         return f"each checked every {self.watcher.gap:.1f} s"
 
     def _refresh_counts(self):
@@ -2994,6 +3090,9 @@ class TriggersTab(QWidget):
         """A card for `t`, opened unless `open_` is false (the cards made for the
         list at start, when there's more than one)."""
         row = TriggerRow(t, self.host.sounds(), self._mons, open_=open_)
+        row.sound_details = getattr(self.host, "sound_details", row.sound_details)
+        row._update_state()
+        row.set_advanced(self.chk_advanced.isChecked())
         row.set_categories(self.groups.names())
         row.category_wanted.connect(self._move_to)
         row.changed.connect(self._row_changed)
@@ -3431,6 +3530,14 @@ class TriggersTab(QWidget):
         """A thumbnail was clicked: its picture big, with the trigger's others."""
         from onionwatch.ui.viewer import PictureViewer
         t = row.t
+        viewers = getattr(self, "_picture_viewers", None)
+        if viewers is None:
+            viewers = self._picture_viewers = {}
+        if t.id in viewers:
+            viewers[t.id].go(index)
+            viewers[t.id].raise_()
+            viewers[t.id].activateWindow()
+            return
 
         def made_from(img: QImage) -> str:
             size = cut_size(img)
@@ -3446,8 +3553,12 @@ class TriggersTab(QWidget):
             if r is not None:
                 self._remove_picture(r, i)
 
-        PictureViewer(f"Pictures of “{t.name}”", lambda: t.images, index, swap, remove,
-                      made_from, self).exec()
+        viewer = PictureViewer(f"Pictures of “{t.name}”", lambda: t.images, index, swap,
+                               remove, made_from, self)
+        viewers[t.id] = viewer
+        viewer.setAttribute(Qt.WA_DeleteOnClose)
+        viewer.finished.connect(lambda _result: viewers.pop(t.id, None))
+        viewer.open()
 
     def _change_picture(self, row: TriggerRow, index: int = 0):
         """Swap one of the trigger's pictures for a file."""
