@@ -540,9 +540,8 @@ class BarFlow(Flow):
                 for item, left, size in pending:
                     item.setGeometry(QRect(QPoint(left, y + (line - size.height()) // 2), size))
 
-        for it in self._items:
-            if it.isEmpty():
-                continue
+        items = [it for it in self._items if not it.isEmpty()]
+        for i, it in enumerate(items):
             wid = it.widget()
             pair = wid if isinstance(wid, Pair) else None
             hint, least = it.sizeHint(), it.minimumSize().width()
@@ -551,7 +550,13 @@ class BarFlow(Flow):
                 place_line()
                 pending.clear()
                 x, y, line = rect.x(), y + line + self._gap, 0
-            w = max(least, min(hint.width(), rect.right() + 1 - x))
+            room = rect.right() + 1 - x
+            # leave the items after it their least on this line when it can give way
+            # that far (a wide Look in pushed the ⚙ onto a line of its own)
+            rest = sum(self._gap + later.minimumSize().width() for later in items[i + 1:])
+            if room - rest >= keep:
+                room -= rest
+            w = max(least, min(hint.width(), room))
             # (asked directly: Qt asks a widget's layout, not the widget)
             h = pair.heightForWidth(w) if pair else hint.height()
             pending.append((it, x, QSize(w, h)))
@@ -1797,7 +1802,9 @@ class TriggersTab(QWidget):
         self.btn_more.setMenu(menu)
         h.addWidget(self.btn_more)
         self.cb_where = WideCombo(min_width=140)
-        self.cb_where.setMaximumWidth(150)   # long titles stay in the popup and tooltip
+        # as wide as "Screen 1: 1920×1080" when there's room (at 150 it always read
+        # "Screen 1: 1…"); a long window title stays in the popup and the tooltip
+        self.cb_where.setMaximumWidth(260)
         self.cb_where.setToolTip("Where triggers that say “Same as below” look: your game's "
                                  "window, or a whole screen")
         self.cb_where.activated.connect(self._on_where)

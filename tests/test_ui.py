@@ -507,6 +507,12 @@ def test_toolbar_is_one_row_when_there_is_room(tab, qapp, styled):
              tab.cb_interval, tab.btn_settings)}
     assert max(mids) - min(mids) <= 1
     assert tab.cb_where.height() == tab.btn_watch.height() == tab.btn_cut.height()
+    # with room to spare, Look in shows the whole "Screen 1: 320×180", not "Screen 1: 1…"
+    tab.resize(1800, 700)
+    qapp.processEvents()
+    cb = tab.cb_where
+    assert cb.maximumWidth() >= 240    # "Screen 1: 1920×1080  (main)" in Segoe UI
+    assert cb.width() == min(cb.sizeHint().width(), cb.maximumWidth())
 
 
 def test_a_narrow_window_puts_every_under_look_in(tab, qapp, styled):
