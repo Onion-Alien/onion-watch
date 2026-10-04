@@ -69,7 +69,11 @@ from onionwatch.imgops import (binary_erosion, gaussian_filter, irfft2, next_fas
 log = logging.getLogger(__name__)
 
 WORK_WIDTH = 480        # the screen is shrunk to about this wide before matching
-MIN_SIDE = 12           # ...but never so far that a picture's short side drops below this
+MIN_SIDE = 12           # a picture's short side, shrunk, can't be less than this and match
+# ...and the screen is shrunk no further than keeps the smallest picture this big:
+# at a dozen pixels a line of small text is a smudge (one cut over a moving scene
+# was found 7 times in 10, and other scenery matched it); at two dozen, 9 in 10
+DETAIL_SIDE = 24
 MAX_ZOOM = 2            # ...nor ever kept above this many times WORK_WIDTH (small pictures)
 # when a capture is finer than the usual size (a small picture needs it), a picture
 # under this many px at the usual size is matched on the finer frame too (found
@@ -767,7 +771,7 @@ def match(screen: np.ndarray | Frame, tmpl: np.ndarray,
 
 def work_scale(screen_w: int, tmpl_sides: list[int]) -> float:
     """How much to shrink the screen (and every picture) before matching: down to
-    about WORK_WIDTH, but keeping the smallest picture at least MIN_SIDE px. A tiny
+    about WORK_WIDTH, but keeping the smallest picture at least DETAIL_SIDE px. A tiny
     picture can't push it past MAX_ZOOM x WORK_WIDTH: every check would get slow
     (a whole 4K screen matched at full size takes over a second)."""
     if screen_w <= 0:
@@ -775,7 +779,7 @@ def work_scale(screen_w: int, tmpl_sides: list[int]) -> float:
     scale = WORK_WIDTH / screen_w
     cap = MAX_ZOOM * scale
     if tmpl_sides:
-        scale = max(scale, MIN_SIDE / max(min(tmpl_sides), 1))
+        scale = max(scale, DETAIL_SIDE / max(min(tmpl_sides), 1))
     return min(1.0, scale, cap)
 
 

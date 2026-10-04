@@ -83,7 +83,7 @@ def test_a_picture_cut_at_full_size_matches_the_shrunk_screen():
 
 def test_work_scale_keeps_small_pictures_readable():
     assert sw.work_scale(1920, []) == pytest.approx(sw.WORK_WIDTH / 1920)
-    assert sw.work_scale(1920, [40]) == pytest.approx(sw.MIN_SIDE / 40)
+    assert sw.work_scale(1920, [80]) == pytest.approx(sw.DETAIL_SIDE / 80)
     assert sw.work_scale(400, []) == 1.0
 
 
