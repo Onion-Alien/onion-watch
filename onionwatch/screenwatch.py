@@ -132,6 +132,7 @@ MAX_PICTURES = 100      # pictures one trigger can look for (extras in a config 
 MAX_SOUNDS = 100        # ...and sounds it can play
 PICKS = ("random", "order", "all")   # Trigger.pick: which of its sounds play when it fires
 MAX_SOURCES = 16        # windows and screens one trigger can look in
+CATEGORY_MAX = 60       # characters in a trigger's category (profiles.NAME_MAX)
 # Trigger.mode: what counts as the trigger going off
 #   appear  one of its pictures shows up (the first kind there was)
 #   vanish  its picture goes away, having been seen
@@ -262,6 +263,9 @@ class Trigger:
     unfocused: bool = False
     # find its pictures at other sizes too (cut fullscreen, played in a window)
     any_size: bool = True
+    # the category it's in (onionwatch.profiles; "" = Uncategorised): one line,
+    # at most CATEGORY_MAX characters
+    category: str = ""
 
     @property
     def source(self) -> int | WindowRef | None:
@@ -363,6 +367,7 @@ class Trigger:
         t.threshold = min(max(t.threshold, 0.3), 0.99)
         t.level = min(max(t.level, 0.01), 0.99)
         t.hold = min(max(t.hold, 0.0), MAX_HOLD)
+        t.category = " ".join(t.category.split())[:CATEGORY_MAX]
         return t
 
     def to_raw(self) -> dict:
