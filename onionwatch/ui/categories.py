@@ -24,6 +24,7 @@ class CategorySection(QWidget):
     fold_toggled = Signal(str, bool)     # name, open
     switched = Signal(str, bool)         # name, on (its switch was clicked)
     menu_wanted = Signal(str)            # name: the ⋯ button
+    search_wanted = Signal(str)
 
     def __init__(self, name: str):
         super().__init__()
@@ -35,8 +36,13 @@ class CategorySection(QWidget):
         v.setSpacing(10)
         self.header = QFrame()
         self.header.setObjectName("transport")   # a panel-coloured strip, like the bar
-        h = QHBoxLayout(self.header)
-        h.setContentsMargins(8, 6, 10, 6)
+        header_layout = QVBoxLayout(self.header)
+        header_layout.setContentsMargins(8, 6, 10, 6)
+        header_layout.setSpacing(4)
+        title = QHBoxLayout()
+        h = QHBoxLayout()
+        header_layout.addLayout(title)
+        header_layout.addLayout(h)
         h.setSpacing(10)
         self.btn_fold = QPushButton()
         self.btn_fold.setObjectName("fold")
@@ -45,10 +51,17 @@ class CategorySection(QWidget):
         self.btn_fold.setStyleSheet("text-align:left; font-weight:700; font-size:10.5pt;"
                                     " padding-left:2px;")
         self.btn_fold.toggled.connect(self._on_fold)
-        h.addWidget(self.btn_fold)
+        title.addWidget(self.btn_fold, 1)
         self.count = hint_label("")
-        self.count.setWordWrap(False)
+        self.count.setWordWrap(True)
         h.addWidget(self.count, 1)
+        self.btn_search = QPushButton("Search")
+        self.btn_search.setObjectName("small")
+        self.btn_search.setToolTip("Search within this category")
+        self.btn_search.clicked.connect(lambda: self.search_wanted.emit(self.name))
+        from onionwatch.ui.triggerspanel import align_control
+        align_control(self.btn_search)
+        h.addWidget(self.btn_search)
         self.switch = Switch()
         self.switch.clicked.connect(lambda on: self.switched.emit(self.name, on))
         h.addWidget(self.switch)
@@ -58,6 +71,7 @@ class CategorySection(QWidget):
         self.btn_menu.setAccessibleName("Category menu")
         self.btn_menu.setToolTip("Rename, turn its triggers on or off, save it to a file…")
         self.btn_menu.clicked.connect(lambda: self.menu_wanted.emit(self.name))
+        align_control(self.btn_menu)
         h.addWidget(self.btn_menu)
         v.addWidget(self.header)
         self.body = QWidget()

@@ -37,6 +37,9 @@ def make(qapp, tmp_path, monkeypatch):
     yield make
     for tab in made:
         tab.shutdown()
+        tab.deleteLater()
+    from PySide6.QtCore import QCoreApplication, QEvent
+    QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
 
 
 def watched(tab) -> list[str]:

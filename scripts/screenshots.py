@@ -198,6 +198,23 @@ def main(out: Path):
         app.processEvents()
     win.grab().save(str(out / "main.png"))
 
+    # Audit the real layout at compact widths and with advanced controls visible.
+    # All data remains synthetic, including the pictures in the expanded card.
+    for width, height, name, advanced in (
+            (1200, 900, "wide", True), (600, 900, "compact", False),
+            (360, 900, "narrow", True)):
+        queue.btn_tune.setChecked(advanced)
+        win.resize(width, height)
+        for _ in range(12):
+            app.processEvents()
+        tab.scroll.ensureWidgetVisible(queue)
+        app.processEvents()
+        win.grab().save(str(out / f"{name}.png"))
+    queue.btn_tune.setChecked(False)
+    win.resize(900, 820)
+    for _ in range(12):
+        app.processEvents()
+
     # the window picker, with invented windows
     shots = {101: game_scene(640, 360, 3), 102: game_scene(640, 360, 7, plate="Gorehowl"),
              103: game_scene(640, 360, 1)}
@@ -290,10 +307,32 @@ def main(out: Path):
     for _ in range(3):
         app.processEvents()
     win.grab().save(str(out / "categories.png"))
+    tab.show_search()
+    tab.search_text.setText("Ready check 3")
+    for _ in range(12):
+        app.processEvents()
+    win.grab().save(str(out / "search-global.png"))
+    tab.search_text.clear()
+    tab.show_search("Dungeons and queues")
+    tab.search_text.setText("Ready")
+    for _ in range(12):
+        app.processEvents()
+    win.grab().save(str(out / "search-category.png"))
+    win.resize(360, 900)
+    for _ in range(12):
+        app.processEvents()
+    win.grab().save(str(out / "search-narrow.png"))
 
     # the icon
     theme.logo_pixmap(256).save(str(out / "icon.png"))
     win.quit()
+    empty = MainWindow(Config())
+    empty.resize(860, 720)
+    empty.show()
+    for _ in range(12):
+        app.processEvents()
+    empty.grab().save(str(out / "empty.png"))
+    empty.quit()
     print(f"saved to {out}")
 
 
