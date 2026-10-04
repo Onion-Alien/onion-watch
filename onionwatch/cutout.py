@@ -29,13 +29,16 @@ import numpy as np
 
 from onionwatch import screenwatch
 
-TOL = 24            # a channel moving more than this (of 255) counts as a change
+TOL = 12            # a channel moving more than this (of 255) counts as a change
 MIN_FRAMES = 3      # frames after the cut needed to learn anything
 KEEP_MIN = 0.04     # what's kept must be at least this share of the picture...
 KEEP_MAX = 0.97     # ...and what's left out at least 1 - this
 EDGE = 2            # px: the cut's border, where there's scenery around the thing...
 EDGE_MOVED = 0.5    # ...at least this share of which must be what moved: otherwise it's
-                    # the thing moving (an idle animation, a glow) over a still scene
+                    # the thing moving (an idle animation, a glow) over a still scene.
+                    # Only its pixels that changed or are textured count: a plain
+                    # border that stayed the same says nothing...
+EDGE_TEXTURED = 0.1     # ...and at least this share of the border must count
 PAD = 3             # px (at the working size) a place may be off by, frame to frame
 BETTER = 0.03       # the cut-out is kept only if its gap is wider by this much
 NARROW = 0.15       # a gap narrower than this is worth a warning
@@ -44,6 +47,19 @@ ELSEWHERE_FRAMES = 4    # frames looked through for a match elsewhere
 
 def _rgb(px: np.ndarray) -> np.ndarray:
     return px[..., :3].astype(np.int16)
+
+
+def _textured(px: np.ndarray, d: int = 2) -> np.ndarray:
+    """Pixels differing by more than TOL from one `d` px away (any side): ones whose
+    change would show if the scene moved under them."""
+    out = np.zeros(px.shape[:2], bool)
+    dy = np.abs(px[d:] - px[:-d]).max(-1) > TOL
+    dx = np.abs(px[:, d:] - px[:, :-d]).max(-1) > TOL
+    out[d:] |= dy
+    out[:-d] |= dy
+    out[:, d:] |= dx
+    out[:, :-d] |= dx
+    return out
 
 
 def learn_mask(frames: list[np.ndarray]) -> tuple[np.ndarray | None, float]:
@@ -59,17 +75,24 @@ def learn_mask(frames: list[np.ndarray]) -> tuple[np.ndarray | None, float]:
         return None, 0.0
     moved = np.zeros(first.shape[:2], np.int32)      # frames it differed from the cut in
     events = np.zeros(first.shape[:2], np.int32)     # frames it changed from the one before
-    prev = first
+    between = np.zeros(first.shape[:2], bool)        # it was neither as cut nor as it ended
+    prev, last = first, later[-1]
     for f in later:
-        moved += np.abs(f - first).max(-1) > TOL
+        off = np.abs(f - first).max(-1) > TOL
+        moved += off
         events += np.abs(f - prev).max(-1) > TOL
+        between |= off & (np.abs(f - last).max(-1) > TOL)
         prev = f
-    scenery = (events >= 2) & (moved >= max(2, math.ceil(len(later) / 2)))
+    # scenery: changed in most frames, and more than once (or slowly, through values
+    # in between: a smooth sky drifting), not just there and then gone
+    scenery = (moved >= max(2, math.ceil(len(later) / 2))) & ((events >= 2) | between)
     if min(scenery.shape) <= 2 * EDGE:
         return None, 0.0
     edge = np.ones(scenery.shape, bool)
     edge[EDGE:-EDGE, EDGE:-EDGE] = False
-    if float(scenery[edge].mean()) < EDGE_MOVED:
+    rim = int(edge.sum())
+    edge &= _textured(first) | (moved > 0)      # a flat, still border says nothing
+    if int(edge.sum()) < EDGE_TEXTURED * rim or float(scenery[edge].mean()) < EDGE_MOVED:
         return None, 0.0
     keep = ~scenery
     share = float(keep.mean())

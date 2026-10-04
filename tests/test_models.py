@@ -241,3 +241,19 @@ def test_a_slim_figure_does_not_match_empty_scenes(watch):
         assert not fired, f"landscape {seed}: went off at {best:.2f}"
     fired, best = watch(slim, place(landscape(2), slim, 300, 180))
     assert fired, f"the figure itself: best {best:.2f}"
+
+
+def test_the_colour_check_allows_for_the_whole_scene_s_light_but_not_another_colour():
+    """Darker, brighter, washed out, tinted or a night filter over the whole scene
+    keeps the colours' gap near nothing; the same creature in other colours doesn't."""
+    rgb, m = BEAST
+    frame = place(landscape(2), BEAST, 300, 180)
+    h, w = m.shape
+    want = sw.tint(rgb, m)
+    here = frame[180:180 + h, 300:300 + w]
+    for lit in (here * 0.45, here * 0.65 + 0.35, here * 0.5 + 0.5 * 0.5,
+                here * 0.73 + np.array([1.0, 0.47, 0.0]) * 0.27,
+                here * 0.41 + np.array([0.0, 0.08, 0.35]) * 0.59):
+        assert sw.tint_gap(want, sw.tint(lit, m)) < 0.05
+    green = here[..., [1, 2, 0]]                    # the purple beast, green
+    assert sw.tint_gap(want, sw.tint(green, m)) > sw.TINT_OK + sw.TINT_SPAN

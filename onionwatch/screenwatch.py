@@ -155,17 +155,17 @@ CPU_MEASURE_S = 2.0     # Watcher.cpu_used is measured over this long
 # wooden crate from a metal one once softened. So a place scoring within TINT_NEAR
 # of the threshold (the best PEAKS places of each picture and size; a place scoring
 # less can't set a trigger off or keep it from re-arming, see REARM_MARGIN) also has its
-# colours compared with the picture's: the hue of each of TINT_GRID x TINT_GRID
-# cells (tint(); brightness doesn't change a hue, so a darker scene still passes,
-# and cells darker than TINT_DARK have too little colour to say). A gap past
-# TINT_OK (a colour grade over a whole scene makes about 0.15) takes the score
-# down, to nothing TINT_SPAN further on.
+# colours compared with the picture's: the mean colour of each of TINT_GRID x
+# TINT_GRID cells (tint()), allowing for the whole scene's light having changed
+# (tint_gap(): darker, brighter, washed out, tinted all pass). A gap past TINT_OK
+# takes the score down, to nothing TINT_SPAN further on; TINT_FLOOR keeps a
+# picture with almost no colour or contrast from making small gaps look big.
 TINT_GRID = 4
 TINT_NEAR = 0.1
 PEAKS = 3
-TINT_DARK = 0.06
-TINT_OK = 0.2
-TINT_SPAN = 0.2
+TINT_OK = 0.25
+TINT_SPAN = 0.25
+TINT_FLOOR = 0.02
 CORES = os.cpu_count() or 1
 REARM_MARGIN = 0.08     # a match must fall this far below the threshold to count as gone
 FLAT_STD = 2 / 255      # screen windows flatter than this never match (blank areas)
@@ -865,26 +865,42 @@ def tint(rgb: np.ndarray, mask: np.ndarray | None = None) -> np.ndarray | None:
 
 
 def tint_gap(want: np.ndarray, got: np.ndarray) -> float:
-    """How far apart two tints' hues are: per cell, the difference of their shares
-    of red, green and blue (0 to 2), over the cells bright enough in both to have a
-    colour; the mean of the worst quarter of them (a picture is often mostly
-    background, which would water a difference down). A dimmer copy is 0 apart."""
+    """How far apart two tints' colours are, light aside. The whole scene getting
+    darker, brighter, washed out or tinted (a night filter, a flash, a colour grade)
+    makes each cell's colour g = s * w + o: one gain for every channel and cell, and
+    an offset per channel. That's fitted, and what it leaves over in colour (not
+    brightness: something partly covered by a grey shape still has its colours) is
+    the gap, per cell, as a share of the picture's own spread; the mean of the worst
+    quarter of the cells (a picture is often mostly background, which would water a
+    difference down) after the very worst one (something in front of a corner of it:
+    a pillar, a cursor). A red skull's place showing a blue one is about 1 apart."""
     return float(tint_gaps(want, got[None])[0])
 
 
 def tint_gaps(want: np.ndarray, got: np.ndarray) -> np.ndarray:
     """tint_gap() for several tints at once: (n, G, G, 3) -> (n,)."""
-    a, b = want.reshape(-1, 3), got.reshape(len(got), -1, 3)
-    lum = np.array([0.299, 0.587, 0.114], np.float32)
-    with np.errstate(invalid="ignore", divide="ignore"):
-        ok = np.minimum(a @ lum, b @ lum) >= TINT_DARK
-        d = np.abs(a / a.sum(1, keepdims=True) - b / b.sum(-1, keepdims=True)).sum(-1)
-    ok &= ~np.isnan(d)
-    d = np.where(ok, d, -1.0)
-    d = -np.sort(-d, axis=1)                       # each row's largest first
-    k = np.maximum(1, ok.sum(1) // 4)              # its worst quarter
-    top = np.cumsum(np.maximum(d, 0.0), axis=1)[np.arange(len(d)), k - 1] / k
-    return np.where(ok.any(1), top, 0.0)
+    a = want.reshape(1, -1, 3).astype(np.float64)
+    b = got.reshape(len(got), -1, 3).astype(np.float64)
+    ok = ~(np.isnan(a).any(-1) | np.isnan(b).any(-1))           # (n, cells)
+    n = ok.sum(1)
+    w = ok[..., None].astype(np.float64)
+    a0, b0 = np.where(ok[..., None], a, 0.0), np.where(ok[..., None], b, 0.0)
+    cnt = np.maximum(n, 1)[:, None, None]
+    A = (a0 - (a0 * w).sum(1, keepdims=True) / cnt) * w
+    B = (b0 - (b0 * w).sum(1, keepdims=True) / cnt) * w
+    aa = (A * A).sum((1, 2))
+    gain = np.maximum((A * B).sum((1, 2)) / np.maximum(aa, 1e-12), 0.0)[:, None, None]
+    left = B - gain * A
+    left -= left.mean(-1, keepdims=True)                         # colour, not brightness
+    err = np.abs(left).sum(-1)
+    spread = (np.abs(gain * A).sum(-1) * w[..., 0]).sum(1) / np.maximum(n, 1) + TINT_FLOOR
+    err = np.where(ok, err / spread[:, None], -1.0)
+    err = -np.sort(-err, axis=1)                                 # each row's largest first
+    k = np.maximum(1, n // 4)                                    # its worst quarter...
+    run = np.cumsum(np.maximum(err, 0.0), axis=1)
+    rows = np.arange(len(err))
+    top = (run[rows, np.minimum(k, err.shape[1] - 1)] - run[rows, 0]) / k  # ...after the worst
+    return np.where((n >= 4) & (aa >= 1e-6), top, 0.0)
 
 
 def tint_factor(gap: float) -> float:
