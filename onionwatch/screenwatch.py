@@ -27,9 +27,10 @@ any size but its own a picture and the frame are both softened a little first
 (BLUR), as a game drawing something at another size doesn't draw a resized copy of
 it.
 
-Watching is kept to about CPU_SHARE of the computer's processor, so it doesn't cost
-a game frames: when the checks take longer than that allows (a slow computer, a lot
-of pictures, a game using every core) they're spaced out further than `interval`.
+Watching is kept to about CPU_SHARE of the computer's processor (or what's picked:
+`Watcher.cpu_share`), so it doesn't cost a game frames: when the checks take longer
+than that allows (a slow computer, a lot of pictures, a game using every core)
+they're spaced out further than `interval`.
 A 1080p screen with one picture costs a few milliseconds per check.
 
 `Gate` decides when a score is a new appearance: it fires once when a picture shows
@@ -142,6 +143,9 @@ DIRECT_MAX = 4000
 MAX_FOUND = 3           # sizes the sweep found kept per picture
 SPECTRA_MB = 48         # at most this much of the pictures' spectra is kept between checks
 CPU_SHARE = 0.01        # watching uses about this share of the whole processor, at most
+# ...or, as picked under Processor use (Watcher.cpu_share; 0: no limit, every
+# `interval`, whatever it costs)
+CPU_SHARES = (0.01, 0.02, 0.05, 0.0)
 # A match is judged on grey, which can't tell a green slime from a red one, or a
 # wooden crate from a metal one once softened. So a place scoring within TINT_NEAR
 # of the threshold (the best PEAKS places of each picture and size; a place scoring
@@ -1925,6 +1929,7 @@ class Watcher:
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
         self.interval = DEFAULT_INTERVAL_MS / 1000
+        self.cpu_share = CPU_SHARE          # see CPU_SHARES
         self.default: int | WindowRef = 0  # where triggers that don't pick are looked for
         self.scores: dict[str, float] = {}
         self.black = False                # a capture only sees black
@@ -1932,7 +1937,7 @@ class Watcher:
         self.error = ""
         self.check_ms = 0.0               # how long the last check took
         self.gap = self.interval          # the time between checks: `interval`, or more
-                                          # when that would use over CPU_SHARE
+                                          # when that would use over cpu_share
         # All replaced whole by the thread, like `scores`:
         # triggers whose own screen isn't there (watched on the default instead)
         self.fell_back: frozenset[str] = frozenset()
@@ -2137,10 +2142,12 @@ class Watcher:
                     self.detail, self.scores = self._gather(items, caps)
                 spent = time.perf_counter() - t0
                 self.check_ms = spent * 1000
-                # keep to CPU_SHARE of the processor: a check's time (on the clock,
+                # keep to cpu_share of the processor: a check's time (on the clock,
                 # so a busy computer counts too) sets how far apart they must be
                 cost = spent if cost is None else cost + (spent - cost) * 0.2
-                self.gap = max(self.interval, cost / (CPU_SHARE * CORES))
+                share = self.cpu_share
+                self.gap = (self.interval if share <= 0
+                            else max(self.interval, cost / (share * CORES)))
                 stop.wait(max(0.001, self.gap - spent))
         except Exception as e:  # noqa: BLE001 - say so in the window instead of dying quietly
             log.exception("screen watching stopped")

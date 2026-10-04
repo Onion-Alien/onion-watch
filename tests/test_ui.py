@@ -458,3 +458,29 @@ def test_a_narrow_window_puts_every_under_look_in(tab, qapp, styled):
               tab.cb_interval):
         assert w.mapTo(bar, w.rect().topRight()).x() < bar.width()
     tab.hide()
+
+
+def test_processor_use_is_picked_behind_the_cog_and_kept(tab, qapp, monkeypatch):
+    """The ⚙ on the bar opens Watching: picking Fast lets watching use 5 % at once
+    and keeps it in the screen settings, which the next start (Onion Watch's or
+    Onion Board's tab) reads back; a value no version knows falls back to 1 %."""
+    from onionwatch.ui.watching import CHOICES, WatchingDialog
+    assert tab.watcher.cpu_share == sw.CPU_SHARE
+    shown = []
+    monkeypatch.setattr(WatchingDialog, "exec", lambda self: shown.append(self) or 0)
+    tab.btn_settings.click()
+    dlg = shown[0]
+    assert dlg.radios[sw.CPU_SHARE].isChecked()
+    assert "Not watching" in dlg.now.text()
+    dlg.radios[0.05].click()
+    assert tab.watcher.cpu_share == 0.05 and tab.host.screen["cpu_share"] == 0.05
+    dlg.radios[0.0].click()
+    assert tab.watcher.cpu_share == 0.0
+    assert [c[0] for c in CHOICES] == list(sw.CPU_SHARES)
+    again = TriggersTab(tab.host)
+    again.shutdown()
+    assert again.watcher.cpu_share == 0.0
+    tab.host.screen["cpu_share"] = 0.33
+    odd = TriggersTab(tab.host)
+    odd.shutdown()
+    assert odd.watcher.cpu_share == sw.CPU_SHARE

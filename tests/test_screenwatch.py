@@ -798,3 +798,32 @@ def test_one_bad_check_does_not_end_watching(fake_screen, monkeypatch):
         assert w.running and not w.error
     finally:
         w.stop()
+
+
+def test_processor_use_sets_how_far_apart_checks_are(fake_screen, monkeypatch):
+    """A check costing 4 ms on one core: at 1 % they're 0.4 s apart, at 5 % 80 ms,
+    and with no limit as often as `interval` asks."""
+    monkeypatch.setattr(sw, "CORES", 1)
+    fake_screen.frames = [scene()]
+    real = FakeGrabber.grab
+
+    def slow(self):
+        time.sleep(0.004)
+        return real(self)
+    monkeypatch.setattr(FakeGrabber, "grab", slow)
+    gaps = {}
+    for share in (0.01, 0.05, 0.0):
+        w = sw.Watcher(lambda *_a: None)
+        w.interval = 0.01
+        w.cpu_share = share
+        w.set_items([sw.Watched("t", pics(banner()), 0.8, 0.0)])
+        w.start()
+        try:
+            assert run_until(lambda w=w: "t" in w.scores)
+            time.sleep(0.9)
+            gaps[share] = w.gap
+        finally:
+            w.stop()
+    assert 0.3 < gaps[0.01] < 1.5
+    assert gaps[0.05] == pytest.approx(gaps[0.01] / 5, rel=0.6)
+    assert gaps[0.0] == w.interval

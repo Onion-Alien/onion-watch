@@ -41,6 +41,7 @@ from onionwatch.ui import icons
 from onionwatch.ui.categories import CategorySection, ProfilesDialog, counts_text
 from onionwatch.ui.history import HistoryDialog
 from onionwatch.ui.panel import Flow, UndoBar, card, hint_label
+from onionwatch.ui.watching import share_label
 from onionwatch.ui.windowpicker import places_label
 from onionwatch.wheelguard import no_wheel
 
@@ -97,8 +98,8 @@ HISTORY = 50            # alerts kept in the history (in memory only)
 APP_POLL_MS = 2000      # how often Automatic profiles look at which programs are open
 BUILD_NOW = 60          # an opened category's cards made at once; the rest a few at a
 BUILD_STEP = 20         # ...time, so a category of hundreds doesn't freeze the window
-HEAVY_GAP = 0.5         # s: checks spaced out further than this (to keep to 1 % of the
-HEAVY_FOR = 5.0         # ...processor) for this long: say too many pictures are on
+HEAVY_GAP = 0.5         # s: checks spaced out further than this (to keep to the share of
+HEAVY_FOR = 5.0         # ...the processor picked) for this long: say too many pictures are on
 EDIT_PROFILES = "__edit_profiles__"   # the Profile list's "Edit profiles…"
 KEEP_DAYS = 30          # deleted triggers stay in Recently deleted this long
 MAX_DELETED = 50        # ...and at most this many of them
@@ -1459,6 +1460,9 @@ class TriggersTab(QWidget):
         if interval not in INTERVALS_MS:
             interval = screenwatch.DEFAULT_INTERVAL_MS
         self.watcher.interval = interval / 1000
+        share = s.get("cpu_share", screenwatch.CPU_SHARE)
+        self.watcher.cpu_share = (share if share in screenwatch.CPU_SHARES
+                                  else screenwatch.CPU_SHARE)
         self.watcher.default = self._saved_default()
 
         v = QVBoxLayout(self)
@@ -1611,10 +1615,10 @@ class TriggersTab(QWidget):
             self.cb_interval.addItem(label, ms)
         self.cb_interval.setCurrentIndex(self.cb_interval.findData(interval))
         self.cb_interval.setToolTip("How often to look. Faster reacts sooner; 100 ms is a tenth "
-                                    "of a second. Watching never takes more than about 1 % of "
-                                    "your processor, so your games keep their frame rate: on a "
-                                    "slow computer, or with many pictures, it looks less often "
-                                    "than this.")
+                                    "of a second. Watching keeps to the share of your processor "
+                                    "picked under ⚙ (1 % unless you change it), so your games "
+                                    "keep their frame rate: on a slow computer, or with many "
+                                    "pictures, it looks less often than this.")
         self.cb_interval.currentIndexChanged.connect(self._on_interval)
         no_wheel(self.cb_interval)
         # "Look in [game] every [100 ms]": one group, beside the buttons when there's
@@ -1624,7 +1628,14 @@ class TriggersTab(QWidget):
         self.lbl_interval = every.layout().itemAt(0).widget()
         self.look = Pair(look, every)
         h.addWidget(self.look)
-        # last: the bin (only while it holds something) and the ⓘ
+        # the watching settings (processor use), then last the ⓘ and the bin (only
+        # while it holds something)
+        self.btn_settings = QPushButton()
+        self.btn_settings.setToolTip("Watching settings: how much of your processor it may use")
+        self.btn_settings.setAccessibleName("Watching settings")
+        icons.set_icon(self.btn_settings, "settings")
+        self.btn_settings.clicked.connect(self.show_watching)
+        h.addWidget(self.btn_settings)
         if not callable(getattr(host, "tab_info", None)):
             self.btn_info = QPushButton("ⓘ")
             self.btn_info.setObjectName("small")
@@ -2059,8 +2070,9 @@ class TriggersTab(QWidget):
               and time.monotonic() - self._heavy_since >= HEAVY_FOR):
             why = (f"Each trigger is checked only every {w.gap:.1f} s: "
                    f"{plural(self._counts()[2], 'picture')} are on, more than this "
-                   "computer looks for in 1 % of its processor. Switch off a category, or "
-                   "give triggers an Area to look in, to check more often.")
+                   f"computer looks for in {share_label(w.cpu_share)} of its processor. "
+                   "Let it use more under ⚙, switch off a category, or give triggers an "
+                   "Area to look in, to check more often.")
         self.warn.setText(why)
         self.warn.setVisible(bool(why))
 
@@ -2203,6 +2215,25 @@ class TriggersTab(QWidget):
         return (len(self.triggers), len(on),
                 sum(len(t.images) for t in on if t.uses_pictures))
 
+    def show_watching(self):
+        from onionwatch.ui.watching import WatchingDialog
+        WatchingDialog(self, self).exec()
+
+    def set_cpu_share(self, share: float):
+        """How much of the processor watching may use (screenwatch.CPU_SHARES), kept."""
+        self.watcher.cpu_share = share
+        self.host.screen["cpu_share"] = share
+        self.host.save()
+
+    def watching_text(self) -> str:
+        """How often each trigger is checked now, for the Watching dialog."""
+        pics = plural(self._counts()[2], "picture")
+        if not self.is_active() or not self.watcher.running:
+            return f"Not watching right now ({pics} on)."
+        w = self.watcher
+        slower = " (the most it can in that share)" if w.gap > w.interval * 1.05 else ""
+        return f"Each trigger is checked every {w.gap:.2f} s{slower}, with {pics} on."
+
     def _gap_text(self) -> str:
         if not self.is_active() or not self.watcher.running:
             return ""
@@ -2232,7 +2263,7 @@ class TriggersTab(QWidget):
         self.lbl_counts.setText(" · ".join(parts) + (f"  —  {state}" if state else ""))
         self.lbl_counts.setToolTip(
             "Triggers on, and the pictures they look for. Each picture on takes a share of "
-            "the 1 % of the processor watching keeps to: with too many, each is checked "
+            "the processor watching keeps to (⚙): with too many, each is checked "
             "less often. Turn off what you don't need now, or give triggers an Area.")
 
     def _refresh_switches(self):
