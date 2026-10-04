@@ -55,6 +55,11 @@ PLACES = "__places__"             # ...the trigger's own windows and screens
 NEW_CATEGORY = "__new_category__"   # a card's Category list's "New category…" entry
 POLL_MS = 150           # how often the live match numbers refresh
 MAX_TRIGGERS = 500      # in all; how many can be on at once is up to the computer
+# Versions before categories load only the first 50 of Config.screen["triggers"] and
+# save just those back. So only the first OLD_TRIGGERS are kept there and the rest
+# under "more_triggers", which those versions never read or write: opening the same
+# settings in one of them (an older Onion Board add-on, say) can't lose any
+OLD_TRIGGERS = 50
 MAX_SIDE = 8192         # bigger pictures are refused (kept pixel for pixel, never resized)
 CUT_KEY = "OnionWatch cut from"   # a picture's PNG text: the size of what it was cut from
 THUMB = QSize(96, 54)
@@ -1402,9 +1407,12 @@ class TriggersTab(QWidget):
         self.host = host
         s = host.screen
         self.triggers: list[Trigger] = []
-        for d in s.get("triggers", []) if isinstance(s.get("triggers"), list) else []:
+        saved = [d for k in ("triggers", "more_triggers")
+                 for d in (s.get(k) if isinstance(s.get(k), list) else [])]
+        for d in saved:
             t = Trigger.from_raw(d)
-            if t is not None and len(self.triggers) < MAX_TRIGGERS:
+            if (t is not None and len(self.triggers) < MAX_TRIGGERS
+                    and all(x.id != t.id for x in self.triggers)):
                 t.pending = ""      # an older Onion Board's sound import, long over
                 self.triggers.append(t)
         self.rows: dict[str, TriggerRow] = {}   # the cards made so far (open categories')
@@ -2660,7 +2668,9 @@ class TriggersTab(QWidget):
             self.ringing_changed.emit()
 
     def _store(self):
-        self.host.screen["triggers"] = [t.to_raw() for t in self.triggers]
+        raws = [t.to_raw() for t in self.triggers]
+        self.host.screen["triggers"] = raws[:OLD_TRIGGERS]      # (see OLD_TRIGGERS)
+        self.host.screen["more_triggers"] = raws[OLD_TRIGGERS:]
         self.groups.save(self.host.screen)
         self.host.save()
         self._refresh_counts()

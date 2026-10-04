@@ -209,6 +209,28 @@ def test_packs_carry_categories(make, tmp_path, monkeypatch):
     assert other.triggers[-1].category == "Fishing"
 
 
+def test_an_older_version_opening_the_settings_loses_no_triggers(make):
+    """Versions before categories load only the first 50 of "triggers" and save just
+    those back: the rest are kept where they never look."""
+    tab = make({"triggers": [raw(i) for i in range(120)]})
+    tab._store()
+    s = tab.host.screen
+    assert len(s["triggers"]) == triggerspanel.OLD_TRIGGERS == 50
+    assert len(s["more_triggers"]) == 70
+    # an older version: loads the first 50, deletes one, renames one, saves its list
+    old = s["triggers"][:50]
+    del old[3]
+    old[0] = {**old[0], "name": "Renamed in the old version"}
+    s["triggers"] = old
+    again = make(s)
+    assert len(again.triggers) == 119
+    assert again.triggers[0].name == "Renamed in the old version"
+    assert "t3" not in {t.id for t in again.triggers} and again.triggers[-1].id == "t119"
+    # the same trigger in both lists (a hand-edited file) counts once
+    s["more_triggers"].append(s["triggers"][0])
+    assert len(make(s).triggers) == 119
+
+
 def test_a_pack_holds_hundreds_now():
     assert packs.MAX_PACK_TRIGGERS >= triggerspanel.MAX_TRIGGERS >= 500
     assert Trigger.from_raw(raw(1, "Raids")).category == "Raids"

@@ -23,7 +23,8 @@ class Host(Protocol):
     api_version: int          # the API_VERSION the host was written for
     name: str                 # "Onion Watch", "Onion Board": for words on screen
     # the triggers and how they're watched, as saved: on, interval_ms, monitor /
-    # window (the default), triggers (screenwatch.Trigger.to_raw). Edited in place.
+    # window (the default), triggers (screenwatch.Trigger.to_raw; past the 50th in
+    # more_triggers), categories, profiles, profile. Edited in place.
     screen: dict
     data_dir: Path            # the trigger pictures are kept in data_dir / "triggers"
     default_sound: str        # a new trigger's sound ("" = none until one is picked)
