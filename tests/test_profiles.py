@@ -121,3 +121,19 @@ def test_app_watch_running_and_front_with_linger():
     assert not w.update(ps, {"game.exe", "other.exe"}, "chat.exe", 2.0 + pf.FRONT_LINGER)
     assert w.update(ps, {"other.exe"}, "chat.exe", 3.0 + pf.FRONT_LINGER)
     assert w.matched == []
+
+
+def test_a_renamed_program_is_swapped_in_every_profile_in_its_place():
+    g = pf.Groups.load({"profiles": [
+        {"id": "p1", "name": "Evening", "apps": ["chat.exe", "game.exe", "music.exe"]},
+        {"id": "p2", "name": "Both", "apps": ["game.exe", "game_dx12.exe"]},
+        {"id": "p3", "name": "Other", "apps": ["other.exe"]}]})
+    assert g.replace_app("Game.EXE", "game_dx12")
+    assert [p.apps for p in g.profiles] == [["chat.exe", "game_dx12.exe", "music.exe"],
+                                            ["game_dx12.exe"], ["other.exe"]]
+    assert not g.replace_app("game.exe", "anything.exe")    # nothing uses it now
+    assert not g.replace_app("other.exe", "other.exe") and not g.replace_app("", "x.exe")
+    # saved as before: an older version loads it as it is
+    screen: dict = {}
+    g.save(screen)
+    assert pf.Groups.load(screen).profiles[0].apps == g.profiles[0].apps

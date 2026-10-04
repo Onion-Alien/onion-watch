@@ -223,6 +223,19 @@ class Groups:
     def profile(self, pid: str) -> Profile | None:
         return next((p for p in self.profiles if p.id == pid), None)
 
+    def replace_app(self, old: str, new: str) -> bool:
+        """The program `old` is now called `new` (a game's exe renamed): every
+        profile tied to `old` is tied to `new` instead, in its place. True if any was."""
+        old, new = exe_name(old), exe_name(new)
+        if not old or not new or old == new:
+            return False
+        changed = False
+        for p in self.profiles:
+            if old in p.apps:
+                p.apps = list(dict.fromkeys(new if a == old else a for a in p.apps))
+                changed = True
+        return changed
+
     def in_charge(self, matched: list[str] = ()) -> list[Profile]:
         """The profiles deciding what's on now ([]: Manual's switches). `matched`:
         the ids of the profiles whose program fits now (AppWatch.matched)."""

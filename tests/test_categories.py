@@ -252,3 +252,71 @@ def test_an_older_version_saving_its_triggers_keeps_their_categories(make):
 def test_a_pack_holds_hundreds_now():
     assert packs.MAX_PACK_TRIGGERS >= triggerspanel.MAX_TRIGGERS >= 500
     assert Trigger.from_raw(raw(1, "Raids")).category == "Raids"
+
+
+def test_change_window_moves_everything_that_looked_in_it_with_undo(make, monkeypatch):
+    """The game's program was renamed: one "Change window…" moves the default Look
+    in, every trigger's copies of that window ("every copy" stays every copy) and
+    the profiles' program to the new one, saved once, and Undo puts it all back."""
+    old = {"exe": "game.exe", "title": "Game", "nth": 0}
+    screen = {"window": old,
+              "triggers": [raw(1, windows=[old, {**old, "nth": 1}], screens=[0]),
+                           raw(2, windows=[{**old, "every": True}]),
+                           raw(3, windows=[{"exe": "other.exe", "title": "Other", "nth": 0}]),
+                           raw(4)],
+              "profiles": [{"id": "p1", "name": "Evening", "apps": ["chat.exe", "game.exe"],
+                            "categories": [""]},
+                           {"id": "p2", "name": "Work", "apps": ["other.exe"]}]}
+    tab = make(screen)
+    host = tab.host
+    t1, t2, t3, t4 = tab.triggers
+    before = {t.id: t.to_raw() for t in tab.triggers}
+    ref = sw.WindowRef("game.exe", "Game", 0)
+    new = sw.WindowRef("game_dx12.exe", "Game", 0)
+    monkeypatch.setattr(tab, "pick_window", lambda current=None: new if current == ref else None)
+    saves = host.saves
+    assert tab.change_window(ref)
+    assert host.saves == saves + 1                          # saved once
+    assert tab.watcher.default == new and host.screen["window"] == new.to_raw()
+    assert t1.sources == [0, new, sw.WindowRef("game_dx12.exe", "Game", 1)]
+    assert t2.sources == [sw.WindowRef("game_dx12.exe", "Game", 0, True)]
+    assert t3.sources == [sw.WindowRef("other.exe", "Other", 0)] and t4.sources == []
+    assert [p.apps for p in tab.groups.profiles] == [["chat.exe", "game_dx12.exe"],
+                                                     ["other.exe"]]
+    # as saved: what an older version reads (its one `window`) points at it too
+    saved = {d["id"]: d for d in host.screen["triggers"]}
+    assert saved["t1"]["window"] == new.to_raw()
+    assert saved["t2"]["windows"] == [{**new.to_raw(), "every": True}]
+    assert host.screen["profiles"][0]["apps"] == ["chat.exe", "game_dx12.exe"]
+    loaded = [sw.Trigger.from_raw(d) for d in host.screen["triggers"]]
+    assert [t.sources for t in loaded] == [t.sources for t in tab.triggers]
+    bar = tab.undo_bar
+    assert not bar.isHidden() and "2 triggers" in bar.label.toolTip()
+    bar.btn_undo.click()
+    assert {t.id: t.to_raw() for t in tab.triggers} == before
+    assert tab.watcher.default == ref and host.screen["window"] == old
+    assert host.screen["profiles"][0]["apps"] == ["chat.exe", "game.exe"]
+    # cancelled, the same window again, or nothing using it: nothing changes
+    assert not tab.change_window(sw.WindowRef("nope.exe", "Nope"))
+    monkeypatch.setattr(tab, "pick_window", lambda current=None: current)
+    assert not tab.change_window(ref)
+    assert not tab.retarget_window(sw.WindowRef("nope.exe", "Nope"), new)
+    assert host.screen["window"] == old
+
+
+def test_a_card_waiting_for_its_window_offers_to_change_it(make, monkeypatch):
+    old = {"exe": "game.exe", "title": "Game", "nth": 0}
+    tab = make({"triggers": [raw(1, windows=[old])]})
+    t = tab.triggers[0]
+    tab._set_open(tab.sections[""], True)
+    row = tab.rows[t.id]
+    ref = sw.WindowRef.from_raw(old)
+    assert row.btn_retarget.isHidden()
+    tab.watcher.failed = frozenset({ref})
+    tab.watcher.where = {t.id: [ref]}
+    tab._poll()
+    assert row.state.text() == "Waiting for Game to open" and not row.btn_retarget.isHidden()
+    new = sw.WindowRef("game_dx12.exe", "Game", 0)
+    monkeypatch.setattr(tab, "pick_window", lambda current=None: new)
+    row.btn_retarget.click()
+    assert t.sources == [new] and row.btn_retarget.isHidden()

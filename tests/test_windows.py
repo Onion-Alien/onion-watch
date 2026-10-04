@@ -41,7 +41,26 @@ def info(hwnd, title, exe="game.exe", started=0, pid=None, minimized=False):
 def test_a_window_is_found_by_its_title_and_program():
     wins = [info(1, "Notes", "notepad.exe"), info(2, "Game", "game.exe")]
     assert windows.find(WindowRef("game.exe", "Game"), wins).hwnd == 2
-    assert windows.find(WindowRef("other.exe", "Game"), wins) is None
+    # another program with a window open: its windows only, whatever their titles
+    wins.append(info(3, "Other", "other.exe"))
+    assert windows.find(WindowRef("other.exe", "Game"), wins).hwnd == 3
+    assert windows.find(WindowRef("other.exe", "Nope"), wins).hwnd == 3
+
+
+def test_a_renamed_program_is_found_by_its_exact_title():
+    """game.exe became game_dx12.exe (a launcher change): with no game.exe open at
+    all, a window with exactly the remembered title is taken from any program."""
+    wins = [info(1, "Notes", "notepad.exe"), info(9, "Game", "game_dx12.exe", started=200),
+            info(4, "Game", "game_dx12.exe", started=100), info(6, "Game - Chat", "chat.exe")]
+    assert [w.hwnd for w in windows.copies(WindowRef("game.exe", "Game"), wins)] == [4, 9]
+    assert windows.find(WindowRef("game.exe", "Game", 1), wins).hwnd == 9
+    assert windows.find(WindowRef("game.exe", "Game", 2), wins) is None
+    # only an exact title counts, and an empty one never falls back
+    assert windows.find(WindowRef("game.exe", "Gam"), wins) is None
+    assert windows.find(WindowRef("game.exe", ""), wins) is None
+    # once a game.exe window is open again, it's the one meant
+    wins.append(info(2, "Game - Loading", "game.exe"))
+    assert [w.hwnd for w in windows.copies(WindowRef("game.exe", "Game"), wins)] == [2]
 
 
 def test_a_title_that_changed_still_finds_the_program():

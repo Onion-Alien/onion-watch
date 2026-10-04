@@ -248,9 +248,12 @@ def copies(ref: WindowRef, wins: list[WindowInfo]) -> list[WindowInfo]:
     """The open windows `ref` could mean, oldest process first: the same title from
     the same program when there are any, else any window of that program (a game
     whose title shows the character or the zone), else (no program known) the
-    same title."""
+    same title. When no window of that program is open at all, the same title from
+    any program (the game's exe was renamed: game.exe became game_dx12.exe)."""
     same_exe = [w for w in wins if w.exe == ref.exe] if ref.exe else []
-    if ref.title:
+    if ref.exe and not same_exe and ref.title:
+        pool = [w for w in wins if w.title == ref.title]
+    elif ref.title:
         exact = [w for w in (same_exe if ref.exe else wins) if w.title == ref.title]
         pool = exact or same_exe
     else:

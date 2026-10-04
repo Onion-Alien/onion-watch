@@ -447,6 +447,28 @@ def source_label(src, mons: list[Monitor]) -> str:
     return "the screen"
 
 
+def retarget(src, old: WindowRef, new: WindowRef):
+    """`src` (a screen or a WindowRef) after the window `old` was swapped for `new`
+    (Change window…): a WindowRef of `old`'s program and title becomes `new`'s. The
+    copy `old` named takes the copy picked; other copies keep theirs, and one for
+    every copy stays every copy. Anything else stays as it is."""
+    if not isinstance(src, WindowRef) or (src.exe, src.title) != (old.exe, old.title):
+        return src
+    if src.every:
+        return WindowRef(new.exe, new.title, 0, True)
+    return WindowRef(new.exe, new.title, new.nth if src.nth == old.nth else src.nth)
+
+
+def retargeted(sources: list, old: WindowRef, new: WindowRef) -> list:
+    """A trigger's places with `old` swapped for `new` (see retarget), each once."""
+    out: list = []
+    for s in sources:
+        s = retarget(s, old, new)
+        if s not in out:
+            out.append(s)
+    return out
+
+
 def swatch(colour: str, size: int = 14) -> QIcon:
     pm = QPixmap(size, size)
     pm.fill(QColor(colour) if colour else QColor(0, 0, 0, 0))
@@ -627,6 +649,7 @@ class TriggerRow(QFrame):
     picture_removed = Signal(object, int)  # row, index
     sound_file_wanted = Signal(object)   # row: "Choose a sound file…"
     window_wanted = Signal(object)       # row: "Pick windows…"
+    retarget_wanted = Signal(object)     # WindowRef: "Change window…" on a window not open
     area_wanted = Signal(object)         # row: "Area…"
     duplicate = Signal(object)           # row: "Duplicate"
     category_wanted = Signal(object, str)  # row, category: moved there (NEW_CATEGORY: ask)
@@ -642,6 +665,7 @@ class TriggerRow(QFrame):
         self.missing: list[str] = []    # its sounds that are no longer in the library
         self.fallback = False           # its own screen isn't there: the default is watched
         self.note: tuple[str, str] | None = None   # (text, tone) from watching: not open…
+        self.waiting: WindowRef | None = None       # the window the note waits for
         self._screens = 0               # how many screens there are
         self._mons: list[Monitor] = []
         self._sounds: list[tuple[str, str]] = []   # the sounds as last given
@@ -697,7 +721,21 @@ class TriggerRow(QFrame):
         self.state.setObjectName("hint")
         self.state.setIndent(4)     # lines up with the name's text (its border + padding)
         self.state.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
-        names.addWidget(self.state)
+        # on "Waiting for <game> to open": point everything that looked in that
+        # window at another one (the game's program was renamed, a new launcher...)
+        self.btn_retarget = QPushButton("Change window…")
+        self.btn_retarget.setObjectName("small")
+        self.btn_retarget.setToolTip(
+            "Pick the window to look in instead. Every trigger, the default Look in and "
+            "the profiles that used this window (or its program) move to the new one.")
+        self.btn_retarget.clicked.connect(
+            lambda: self.waiting is not None and self.retarget_wanted.emit(self.waiting))
+        self.btn_retarget.setVisible(False)
+        state_line = QHBoxLayout()
+        state_line.setSpacing(6)
+        state_line.addWidget(self.state, 1)
+        state_line.addWidget(self.btn_retarget)
+        names.addLayout(state_line)
         names.addStretch(1)
         top.addLayout(names, 1)
         self.live = QLabel("—")
@@ -1197,11 +1235,12 @@ class TriggerRow(QFrame):
         self.live.setText(f"{pct}%")
         self.live.setStyleSheet(f"color:{theme.status('ok')}; font-weight:600;" if hit else "")
 
-    def set_note(self, note: tuple[str, str] | None):
+    def set_note(self, note: tuple[str, str] | None, waiting: WindowRef | None = None):
         """What watching says about this trigger's window or screen (not open,
-        minimized, black), or None."""
-        if note != self.note:
+        minimized, black), or None; `waiting`: the window it says isn't open."""
+        if note != self.note or waiting != self.waiting:
             self.note = note
+            self.waiting = waiting
             if not self._flash.isActive():
                 self._update_state()
 
@@ -1225,6 +1264,7 @@ class TriggerRow(QFrame):
     def _update_state(self):
         t = self.t
         n = len(t.sounds)
+        retarget = False
         if t.uses_pictures and not t.images:
             text, tone = "No picture yet — Cut from window…, Add pictures… or Paste", "warn"
         elif t.mode == "colour" and (not t.colour or t.region is None):
@@ -1240,6 +1280,7 @@ class TriggerRow(QFrame):
                           f"on {where}"), "warn"
         elif self.note is not None:
             text, tone = self.note
+            retarget = self.waiting is not None
         else:
             how = UNTILS[t.stop][1] if t.ring else "Plays"
             what = self._what()
@@ -1257,6 +1298,7 @@ class TriggerRow(QFrame):
             tone = ""
         self.state.setText(text)
         theme.set_tone(self.state, tone)
+        self.btn_retarget.setVisible(retarget)
         self.tune_text.setText(self._tune_summary())
 
     # ------------------------------------------------------------------ edits
@@ -1382,14 +1424,14 @@ class TriggerRow(QFrame):
         if places == t.sources:
             return
         t.sources = places
-        self.note = None
+        self.note = self.waiting = None
         self.set_screens(self._mons)
         self.changed.emit(self)
 
     def set_places(self, places: list):
         """Look in these windows and screens from now on."""
         self.t.sources = list(places)
-        self.note = None
+        self.note = self.waiting = None
         self.set_screens(self._mons)
         self.changed.emit(self)
 
@@ -1691,14 +1733,17 @@ class TriggersTab(QWidget):
 
     def set_default(self, src: int | WindowRef):
         """Where triggers without their own window / screen look."""
+        self._put_default(src)
+        self.host.save()
+        self._fill_sources()
+
+    def _put_default(self, src: int | WindowRef):
         self.watcher.set_default(src)
         if isinstance(src, WindowRef):
             self.host.screen["window"] = src.to_raw()
         else:
             self.host.screen["window"] = None
             self.host.screen["monitor"] = src
-        self.host.save()
-        self._fill_sources()
 
     def _on_where(self, i: int):
         data = self.cb_where.itemData(i)
@@ -1727,6 +1772,69 @@ class TriggersTab(QWidget):
         places = self.pick_places(row.t.sources)
         if places:
             row.set_places(places)
+
+    def change_window(self, old: WindowRef) -> bool:
+        """"Change window…" on a card waiting for `old`: pick another window, and
+        everything that looked in `old` looks in it instead (retarget_window)."""
+        new = self.pick_window(old)
+        if new is None or new == old:
+            return False
+        return self.retarget_window(old, new)
+
+    def retarget_window(self, old: WindowRef, new: WindowRef) -> bool:
+        """Swap the window `old` for `new` everywhere at once: the default Look in,
+        every trigger's places (copies and "every copy" ones too, see retarget), and
+        `old`'s program for `new`'s in the profiles. Saved once, with an Undo bar.
+        False if nothing used `old`."""
+        before_default = self.watcher.default
+        before_sources = {t.id: list(t.sources) for t in self.triggers}
+        before_apps = {p.id: list(p.apps) for p in self.groups.profiles}
+        default = retarget(before_default, old, new)
+        moved = []
+        for t in self.triggers:
+            places = retargeted(t.sources, old, new)
+            if places != t.sources:
+                t.sources = places
+                moved.append(t)
+        apps = bool(old.exe and new.exe) and self.groups.replace_app(old.exe, new.exe)
+        if default == before_default and not moved and not apps:
+            return False
+        ids = {t.id for t in moved}
+        before_sources = {k: v for k, v in before_sources.items() if k in ids}
+        before_apps = {p.id: before_apps[p.id] for p in self.groups.profiles
+                       if p.id in before_apps and p.apps != before_apps[p.id]}
+        if default != before_default:
+            self._put_default(default)
+
+        def refresh():
+            for t in self.triggers:
+                row = self.rows.get(t.id)
+                if row is not None and t.id in ids:
+                    row.note = row.waiting = None
+                    row.set_screens(self._mons)
+            self._fill_sources()
+            self._update_app_timer()
+            self._store()
+        refresh()
+
+        def undo():
+            if self.watcher.default == default:
+                self._put_default(before_default)
+            for t in self.triggers:
+                if t.id in ids:
+                    t.sources = before_sources[t.id]
+            for p in self.groups.profiles:
+                if p.id in before_apps:
+                    p.apps = before_apps[p.id]
+            refresh()
+        what = [plural(len(moved), "trigger")] if moved else []
+        if default != before_default:
+            what.append("the default Look in")
+        if apps:
+            what.append("profiles")
+        self.undo_bar.show_for(f"Moved {', '.join(what)} to {new.label}", undo,
+                               tip=f"Look in {old.label} again")
+        return True
 
     # ------------------------------------------------------------------ watching
     @property
@@ -2017,7 +2125,7 @@ class TriggersTab(QWidget):
             self._fell_back = w.fell_back
             self._fill_sources()
         for tid, row in self.rows.items():
-            row.set_note(self._notes(w.where.get(tid, ())))
+            row.set_note(*self._first_note(w.where.get(tid, ())))
         heavy = w.gap > HEAVY_GAP and w.gap > w.interval * 1.05
         if not heavy:
             self._heavy_since = None
@@ -2031,9 +2139,16 @@ class TriggersTab(QWidget):
             row.show_score(w.scores.get(tid))
         self._show_warning()
 
-    def _notes(self, places) -> tuple[str, str] | None:
-        """What to say on a card about the places it's looked in: the first problem."""
-        return next((n for n in map(self._note, places) if n is not None), None)
+    def _first_note(self, places) -> tuple[tuple[str, str] | None, WindowRef | None]:
+        """What to say on a card about the places it's looked in: the first problem,
+        and the window it's about when that one isn't open (for "Change window…")."""
+        for src in places:
+            note = self._note(src)
+            if note is not None:
+                waiting = src if isinstance(src, WindowRef) and src in self.watcher.failed \
+                    else None
+                return note, waiting
+        return None, None
 
     def _note(self, src) -> tuple[str, str] | None:
         """What to say on a card about the window / screen it's looked for in."""
@@ -2633,6 +2748,7 @@ class TriggersTab(QWidget):
         row.picture_removed.connect(self._remove_picture)
         row.sound_file_wanted.connect(self._choose_sound_file)
         row.window_wanted.connect(self._pick_for)
+        row.retarget_wanted.connect(self.change_window)
         row.area_wanted.connect(self._pick_area)
         row.duplicate.connect(self._duplicate)
         row.hear.connect(lambda sid, r=row: self._hear(r.t, sid))
