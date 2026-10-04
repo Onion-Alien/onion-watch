@@ -36,6 +36,10 @@ Cutting the picture to watch for straight out of the game window:
 Pointing a trigger at a health bar:
 ![Picking a health bar and its colour](docs/screenshots/health-bar.png)
 
+A bigger library in categories, the game's profile switched on because the game is
+open:
+![Categories, and a profile turned on by the program that's open](docs/screenshots/categories.png)
+
 </details>
 
 ## It only looks
@@ -87,8 +91,16 @@ Everything happens on your PC. What it captures is never saved or sent anywhere
   - how long it must last before it counts, so a flicker doesn't set it off;
   - how close a match must be, with the live match shown next to it;
   - staying quiet while the window it went off in is the one you're playing.
-- **Duplicate** a trigger, and **save triggers to a file** (pictures and all) to
-  move them to another PC or share them; sounds go by name.
+- **Categories and profiles for a big library.** Keep hundreds of triggers (up to
+  500) in categories of your own and switch a whole category on or off in one
+  click; a trigger that's off costs nothing. A **profile** is a set of categories:
+  pick one by hand, or set Profile to **Automatic** and a profile turns on while a
+  program you tie it to (any `something.exe`, picked from the open windows or
+  typed) has a window open or is in front. The list shows how many triggers and
+  pictures are on, and says so when that's more than your computer checks often.
+- **Duplicate** a trigger, and **save triggers to a file** (pictures and all, each
+  in its category; or just one category) to move them to another PC or share them;
+  sounds go by name.
 - **Nothing is lost to a misclick.** Deleting a trigger asks first, and a deleted
   trigger stays in **Recently deleted** for 30 days, pictures and all, so it can be
   brought back.
@@ -122,7 +134,10 @@ hidden: add a picture of each pose to the same trigger (it holds up to 100).
 
 Watching keeps to about 1 % of your processor so games keep their frame rate. On
 a slow computer, or with a lot of pictures, it looks less often than the "Check
-every" setting rather than use more.
+every" setting rather than use more. As a guide, on an 8-thread processor about
+50 pictures on are each checked every half second (a trigger with an Area costs far
+less), so switch off the categories you don't need now; the list warns when checks
+are spaced out past half a second.
 
 A trigger fires once each time its picture appears, then waits for it to go away
 before it can fire again. A window that isn't open yet is looked for every two
@@ -218,6 +233,8 @@ then installs that file instead of downloading.
 | `onionwatch/board.py` | the Onion Board add-on's entry point: `create(host)` gives the board its Triggers tab (alarm bar + triggers page) |
 | `onionwatch/ui/triggerspanel.py` | the triggers page: one card per trigger, "Look in", Watching, Cut picture. Talks only to its host |
 | `onionwatch/ui/alarmbar.py` | the red bar shown while a trigger rings, with Stop |
+| `onionwatch/profiles.py` | trigger categories and profiles: which triggers are on now (Manual switches, a profile, or Automatic by the programs open), saved beside the triggers in `Config.screen` |
+| `onionwatch/ui/categories.py` | a category's section in the list (fold, switch, counts, menu; its cards made only once opened) and the Profiles window |
 | `onionwatch/ui/windowpicker.py` | the window list with live thumbnails; ticking several windows and screens, or every copy of a game |
 | `onionwatch/ui/snip.py` | cutting a picture out of a capture; picking a trigger's area and a bar's colour |
 | `onionwatch/ui/viewer.py` | a trigger's pictures shown big (whole pixels, full screen), to swap or remove them |

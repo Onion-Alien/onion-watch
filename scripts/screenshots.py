@@ -251,6 +251,46 @@ def main(out: Path):
     area.grab().save(str(out / "health-bar.png"))
     area.close()
 
+    # a bigger library in categories, a profile turned on by the game being open
+    from onionwatch import profiles
+    win.host.ringing = lambda: []
+    win.alarm.hide()
+    tab.set_watching(False, remember=False)
+    for name in ("Raid bosses", "Dungeons and queues", "Rare spawns", "Fishing"):
+        tab.new_category(name)
+    moves = {"demo0": "Rare spawns", "demo1": "Raid bosses", "demo2": "Dungeons and queues"}
+    for t in list(tab.triggers):
+        if t.id in moves:
+            tab.move_trigger(t, moves[t.id])
+    extra = [("Raid bosses", "Boss ability", 11), ("Dungeons and queues", "Ready check", 5),
+             ("Rare spawns", "Rare spawn", 37), ("Fishing", "Bobber", 120)]
+    for cat, name, n in extra:
+        open_ = cat == "Dungeons and queues"     # (folded categories' cards aren't made)
+        for k in range(n):
+            tab.triggers.append(Trigger(id=f"{cat[:4]}{k}", name=f"{name} {k + 1}",
+                                        sounds=["builtin:chime"], category=cat,
+                                        enabled=k % 4 != 3, mode="change" if open_ else "appear",
+                                        images=[] if open_ else ["x.png"]))
+    tab.groups.find("Fishing").on = False
+    raids = profiles.new_profile("Realm Online raids")
+    raids.categories = ["Raid bosses", "Dungeons and queues", ""]
+    raids.apps = ["realmonline.exe"]
+    tab._lister = lambda: list(wins)      # the invented windows: the game is open
+    tab._front = lambda: 104
+    tab.set_profiles([raids])
+    tab.set_profile(profiles.AUTO)
+    for c in tab.groups.categories:
+        c.open = c.name == "Dungeons and queues"
+    tab._drop_section("Dungeons and queues")
+    tab._layout_sections()
+    for row in tab.rows.values():
+        row.set_open(False)
+    win.resize(900, 640)
+    app.processEvents()
+    for _ in range(3):
+        app.processEvents()
+    win.grab().save(str(out / "categories.png"))
+
     # the icon
     theme.logo_pixmap(256).save(str(out / "icon.png"))
     win.quit()
