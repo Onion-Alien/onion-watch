@@ -78,6 +78,37 @@ def test_flat_scenery_that_never_changed_is_left_out_too():
     assert keep0[flat & ~letters].mean() > 0.9           # without spreading it was kept
 
 
+def test_specks_learned_inside_a_flat_thing_dont_spread_through_it():
+    # a big flat white plate, with a few of its pixels flickering (noise in a video):
+    # they're learned as scenery, but spreading from them would take the whole plate
+    bg = scenery()
+    frames = []
+    for i in range(6):
+        f = bg[:, i * 7:i * 7 + W].copy()
+        f[118:142, 198:282] = 0
+        f[120:140, 200:280] = 250
+        if i % 2:
+            f[125:127, 210:212] = 120
+            f[133:135, 260:262] = 120
+        frames.append(f)
+    keep, _left = cutout.learn_mask(cut(frames))
+    assert keep is not None
+    x, y = RECT[:2]
+    plate = keep[120 - y:140 - y, 200 - x:280 - x]
+    assert plate.mean() > 0.95
+
+
+def test_a_cut_out_matching_elsewhere_as_well_is_not_kept(monkeypatch):
+    # the rectangle is hopeless and the cut-out does better, but it matches elsewhere
+    # about as well as where it was: a scrap of scenery, so the rectangle stays
+    def fit(frames, rect, mask):
+        return cutout.Fit(0.2, 0.9) if mask is None else cutout.Fit(0.6, 0.6 - cutout.CUT_GAP / 2)
+    monkeypatch.setattr(cutout, "fit", fit)
+    mask, plain, cut_fit = cutout.choose(panning(8), RECT)
+    assert cut_fit is not None and cut_fit.gap > plain.gap + cutout.BETTER
+    assert mask is None
+
+
 def test_choose_keeps_the_cut_out_when_it_does_better():
     mask, plain, cut_fit = cutout.choose(panning(8), RECT)
     assert cut_fit is not None

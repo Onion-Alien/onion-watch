@@ -41,6 +41,8 @@ EDGE_MOVED = 0.5    # ...at least this share of which must be what moved: otherw
 EDGE_TEXTURED = 0.1     # ...and at least this share of the border must count
 PAD = 3             # px (at the working size) a place may be off by, frame to frame
 BETTER = 0.03       # the cut-out is kept only if its gap is wider by this much
+CUT_GAP = 0.1       # ...and at least this wide: one matching elsewhere about as well as
+                    # where it was is a scrap of scenery, not the thing
 NARROW = 0.15       # a gap narrower than this is worth a warning
 GROWN_HERE = 0.85   # a spread cut-out matching its own place worse than this gives way
 ELSEWHERE_FRAMES = 4    # frames looked through for a match elsewhere
@@ -64,24 +66,55 @@ def _textured(px: np.ndarray, d: int = 2) -> np.ndarray:
 
 
 GROW = 4           # scenery spreads to neighbours within this (of 255) of it; 0: off
+GROW_DRIFT = 10    # ...staying within this of the learned scenery it spread from
+GROW_SOLID = 2     # px: it spreads from learned scenery this far inside what was learned
+
+
+def _flood(px: np.ndarray, out: np.ndarray, allowed: np.ndarray, tol: int, drift: int
+           ) -> np.ndarray:
+    """Spread `out` (in place) through `allowed` pixels to neighbours within `tol` of
+    the one spreading and within `drift` of the pixel the spread started from."""
+    seed = px.copy()
+    for _ in range(sum(px.shape[:2])):
+        before = int(out.sum())
+        for a, b, sa, sb, ea, eb, la, lb in (
+                (px[1:], px[:-1], out[1:], out[:-1], seed[1:], seed[:-1],
+                 allowed[1:], allowed[:-1]),
+                (px[:, 1:], px[:, :-1], out[:, 1:], out[:, :-1], seed[:, 1:], seed[:, :-1],
+                 allowed[:, 1:], allowed[:, :-1])):
+            near = np.abs(a - b).max(-1) <= tol
+            go = sb & ~sa & la & near & (np.abs(a - eb).max(-1) <= drift)
+            ea[go] = eb[go]
+            sa |= go
+            go = sa & ~sb & lb & near & (np.abs(b - ea).max(-1) <= drift)
+            eb[go] = ea[go]
+            sb |= go
+        if int(out.sum()) == before:
+            break
+    return out
 
 
 def _grow(px: np.ndarray, scenery: np.ndarray) -> np.ndarray:
     """Spread `scenery` to the pixels next to it that look the same (every channel
-    within GROW): smooth or dark scenery barely changes as the scene moves, so it isn't
-    learned, though it is as much scenery as what did change. A thing's own outline
-    stops it."""
-    out = scenery.copy()
-    for _ in range(sum(px.shape[:2])):
-        before = int(out.sum())
-        for a, b, sa, sb in ((px[1:], px[:-1], out[1:], out[:-1]),
-                             (px[:, 1:], px[:, :-1], out[:, 1:], out[:, :-1])):
-            near = np.abs(a - b).max(-1) <= GROW
-            sa |= sb & near
-            sb |= sa & near
-        if int(out.sum()) == before:
-            break
-    return out
+    within GROW, and within GROW_DRIFT of the learned scenery pixel it spread from):
+    smooth or dark scenery barely changes as the scene moves, so it isn't learned,
+    though it is as much scenery as what did change. It spreads only from the scenery
+    joined to the cut's border, and from GROW_SOLID px inside it: specks learned inside
+    a thing (noise in a video, a flicker), or the soft rim around it, would otherwise
+    flood its flat parts. A thing's own outline stops it."""
+    px = px.astype(np.int16)
+    edge = np.zeros(scenery.shape, bool)
+    edge[0], edge[-1], edge[:, 0], edge[:, -1] = True, True, True, True
+    joined = _flood(px, scenery & edge, scenery, 255, 255)
+    solid = joined.copy()        # not its rim: a thing's soft outline flickers there
+    for _ in range(GROW_SOLID):
+        s = solid.copy()
+        s[1:] &= solid[:-1]
+        s[:-1] &= solid[1:]
+        s[:, 1:] &= solid[:, :-1]
+        s[:, :-1] &= solid[:, 1:]
+        solid = s
+    return scenery | _flood(px, solid, np.ones(scenery.shape, bool), GROW, GROW_DRIFT)
 
 
 def learn_mask(frames: list[np.ndarray], grow: bool = True
@@ -194,7 +227,7 @@ def choose(frames: list[np.ndarray], rect: tuple[int, int, int, int]
             keep, cut = k, f
     if keep is None:
         return None, plain, None
-    return (keep if cut.gap > plain.gap + BETTER else None), plain, cut
+    return (keep if cut.gap > max(plain.gap + BETTER, CUT_GAP) else None), plain, cut
 
 
 # ------------------------------------------------------------------ the grabs
