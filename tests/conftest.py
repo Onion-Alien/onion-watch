@@ -96,3 +96,41 @@ def app_dir(tmp_path, monkeypatch):
     from onionwatch import settings
     monkeypatch.setattr(settings, "APP_DIR", tmp_path)
     return tmp_path
+
+
+def pytest_xdist_auto_num_workers(config):
+    """`-n auto` (pyproject's addopts): the whole suite runs on up to 4 workers; a file
+    or two runs in this process, where starting workers would cost more than it
+    saves. `-n 2` / `-n 0` on the command line override it."""
+    picked = [a for a in config.args if Path(a.split("::")[0]).suffix == ".py"]
+    if picked and len(picked) == len(config.args) and len(picked) <= 2:
+        return 0
+    return min(4, os.cpu_count() or 1)
+
+
+@pytest.fixture(autouse=True)
+def _free_test_windows():
+    """Close and free the windows a test leaves behind. Qt keeps a closed top-level
+    window alive, and every stylesheet change restyles all of them: with hundreds
+    left over from earlier tests, one `styled` test's setup took over 100 s."""
+    from PySide6.QtWidgets import QApplication
+    from shiboken6 import getCppPointer
+
+    def key(w):
+        return getCppPointer(w)[0]   # the C++ object: a wrapper's id() can change
+
+    app = QApplication.instance()
+    before = set(map(key, app.topLevelWidgets())) if app is not None else set()
+    yield
+    app = QApplication.instance()
+    if app is None:
+        return
+    from PySide6.QtCore import QEvent
+    for w in app.topLevelWidgets():
+        if key(w) not in before:
+            try:
+                w.close()
+                w.deleteLater()
+            except RuntimeError:   # already gone on the C++ side
+                pass
+    app.sendPostedEvents(None, QEvent.DeferredDelete)
