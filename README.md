@@ -214,6 +214,9 @@ To release a new version:
    Keep both file names: the website links to the installer, Onion Board looks for the zip.
    GitHub lists a release's files by name, so the installer is named to sort first
    (`OnionWatch-I…` before `OnionWatch-m…`): it's the file people should click.
+   Start the notes with a download line, since GitHub adds two *Source code* files that
+   people mistake for the app:
+   `**[⬇ Download OnionWatch-Installer.exe](https://github.com/Onion-Alien/onion-watch/releases/download/vX.Y.Z/OnionWatch-Installer.exe)**: the one file you need. Run it to install Onion Watch. (The *Source code* files are for developers.)`
 
 To try a zip in Onion Board before releasing it, start Onion Board with
 `ONIONBOARD_ONION_WATCH_ZIP` set to the zip's path: its *Get Onion Watch* button
