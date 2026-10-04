@@ -26,12 +26,12 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
-from PySide6.QtCore import QEvent, QSize, Qt, QTimer, Signal
+from PySide6.QtCore import QEvent, QPoint, QRect, QSize, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QFontMetrics, QIcon, QImage, QPixmap
-from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDoubleSpinBox, QFileDialog,
-                               QFrame, QHBoxLayout, QLabel, QLineEdit, QMenu, QMessageBox,
-                               QPushButton, QScrollArea, QSizePolicy, QSpinBox, QVBoxLayout,
-                               QWidget)
+from PySide6.QtWidgets import (QApplication, QBoxLayout, QCheckBox, QComboBox, QDoubleSpinBox,
+                               QFileDialog, QFrame, QHBoxLayout, QLabel, QLineEdit, QMenu,
+                               QMessageBox, QPushButton, QScrollArea, QSizePolicy, QSpinBox,
+                               QVBoxLayout, QWidget)
 
 from onionwatch import owl, packs, screenwatch, theme, windows
 from onionwatch.screenwatch import (INTERVALS_MS, MAX_PICTURES, MAX_SOUNDS, Monitor, Picture,
@@ -447,6 +447,81 @@ class FlowBox(QWidget):
         h = self.flow.heightForWidth(max(self.width(), 1))
         if h != self.minimumHeight():
             self.setMinimumHeight(h)
+
+
+class BarFlow(Flow):
+    """The bottom bar's Flow: an item that doesn't fit the rest of a line gives way,
+    down to its minimum (a Pair: to what keeps it on one line), before it wraps, and
+    is as tall as it needs at the width it gets (a Pair on two lines)."""
+
+    def _place(self, rect: QRect, move: bool) -> int:
+        x, y, line = rect.x(), rect.y(), 0
+        for it in self._items:
+            if it.isEmpty():
+                continue
+            wid = it.widget()
+            pair = wid if isinstance(wid, Pair) else None
+            hint, least = it.sizeHint(), it.minimumSize().width()
+            keep = pair.one_line_width() if pair else least
+            if line and x + keep > rect.right() + 1:        # doesn't fit here: next line
+                x, y, line = rect.x(), y + line + self._gap, 0
+            w = max(least, min(hint.width(), rect.right() + 1 - x))
+            # (asked directly: Qt asks a widget's layout, not the widget)
+            h = pair.heightForWidth(w) if pair else hint.height()
+            if move:
+                it.setGeometry(QRect(QPoint(x, y), QSize(w, h)))
+            x += w + self._gap
+            line = max(line, h)
+        return y + line - rect.y()
+
+
+class Pair(QWidget):
+    """Two labelled controls that read as one ("Look in [game] every [100 ms]"): on
+    one line while it's wide enough for both, the second under the first when it
+    isn't. A label never ends up apart from its control."""
+
+    GAP, STACKED = 10, 6    # px between them: side by side, one under the other
+
+    def __init__(self, first: QWidget, second: QWidget, parent=None):
+        super().__init__(parent)
+        self.setObjectName("labelled")      # see-through, like labelled()'s boxes
+        self.setStyleSheet("QWidget#labelled { background: transparent; }")
+        self.first, self.second = first, second
+        self.box = QBoxLayout(QBoxLayout.LeftToRight, self)
+        self.box.setContentsMargins(0, 0, 0, 0)
+        self.box.setSpacing(self.GAP)
+        self.box.addWidget(first, 0, Qt.AlignLeft)
+        self.box.addWidget(second, 0, Qt.AlignLeft)
+        self.box.addStretch(1)
+
+    def one_line_width(self) -> int:
+        """The least it can be with both on one line."""
+        return (self.first.minimumSizeHint().width() + self.GAP
+                + self.second.minimumSizeHint().width())
+
+    def _one_line(self, w: int) -> bool:
+        return w >= self.one_line_width()
+
+    def sizeHint(self) -> QSize:
+        a, b = self.first.sizeHint(), self.second.sizeHint()
+        return QSize(a.width() + self.GAP + b.width(), max(a.height(), b.height()))
+
+    def minimumSizeHint(self) -> QSize:
+        a, b = self.first.minimumSizeHint(), self.second.minimumSizeHint()
+        return QSize(max(a.width(), b.width()), max(a.height(), b.height()))
+
+    def hasHeightForWidth(self) -> bool:
+        return True
+
+    def heightForWidth(self, w: int) -> int:
+        a, b = self.first.sizeHint().height(), self.second.sizeHint().height()
+        return max(a, b) if self._one_line(w) else a + self.STACKED + b
+
+    def resizeEvent(self, ev):
+        super().resizeEvent(ev)
+        one = self._one_line(self.width())
+        self.box.setDirection(QBoxLayout.LeftToRight if one else QBoxLayout.TopToBottom)
+        self.box.setSpacing(self.GAP if one else self.STACKED)
 
 
 class Switch(QCheckBox):
@@ -1378,7 +1453,7 @@ class TriggersTab(QWidget):
 
         f = QFrame()
         f.setObjectName("transport")
-        h = Flow(f, gap=8)
+        h = BarFlow(f, gap=8)
         h.setContentsMargins(12, 10, 12, 10)
         self.btn_watch = QPushButton()
         self.btn_watch.setObjectName("live")
@@ -1456,13 +1531,13 @@ class TriggersTab(QWidget):
                                     "than this.")
         self.cb_interval.currentIndexChanged.connect(self._on_interval)
         no_wheel(self.cb_interval)
-        # "Look in [game] every [100 ms]": one group, so a narrow window wraps it onto
-        # a line of its own rather than leaving "every" stranded
-        self.lbl_interval = QLabel("every")
-        look.layout().addSpacing(4)
-        look.layout().addWidget(self.lbl_interval)
-        look.layout().addWidget(self.cb_interval)
-        h.addWidget(look)
+        # "Look in [game] every [100 ms]": one group, beside the buttons when there's
+        # room (the list gives way first), on a line of its own when not, and on two
+        # in a narrow window, "every" always with its list
+        every = labelled("every", self.cb_interval)
+        self.lbl_interval = every.layout().itemAt(0).widget()
+        self.look = Pair(look, every)
+        h.addWidget(self.look)
         # last: the bin (only while it holds something) and the ⓘ
         if not callable(getattr(host, "tab_info", None)):
             self.btn_info = QPushButton("ⓘ")

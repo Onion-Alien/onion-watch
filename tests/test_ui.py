@@ -439,3 +439,22 @@ def test_one_compact_bar_with_the_other_ways_in_an_add_menu(tab, qapp, styled):
             (tab.btn_watch, tab.btn_cut, tab.btn_add, tab.btn_more, tab.cb_where,
              tab.cb_interval)}
     assert len(tops) <= 2 and max(tops) - min(tops) < tab.btn_watch.height()   # one line
+
+
+def test_a_narrow_window_puts_every_under_look_in(tab, qapp, styled):
+    """At 300 px the group goes on two lines, each label with its list, and nothing
+    in the bar runs past its edge (or stops the tab getting that narrow)."""
+    tab.resize(300, 700)
+    tab.show()
+    for _ in range(4):
+        qapp.processEvents()
+    bar = tab.btn_watch.parentWidget()
+    assert tab.width() == 300
+
+    def top(w):
+        return w.mapTo(bar, w.rect().topLeft()).y()
+    assert top(tab.lbl_interval) == top(tab.cb_interval) > top(tab.cb_where)
+    for w in (tab.btn_watch, tab.btn_cut, tab.btn_add, tab.btn_more, tab.cb_where,
+              tab.cb_interval):
+        assert w.mapTo(bar, w.rect().topRight()).x() < bar.width()
+    tab.hide()
