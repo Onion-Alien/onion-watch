@@ -118,6 +118,21 @@ def test_a_small_picture_is_shown_in_whole_pixels(qapp):
     assert pv.zoom() == MAX_ZOOM
 
 
+def test_closed_card_switch_is_centered_beside_picture(tab, qapp):
+    row = new_card(tab)
+    row.set_open(False)
+    tab.resize(1100, 650)
+    tab.show()
+    for _ in range(6):
+        qapp.processEvents()
+    picture = row.strip.thumbs[0].pic
+    middle = picture.mapTo(row, picture.rect().center()).y()
+    for control in (row.chk_on, row.btn_open):
+        assert abs(control.mapTo(row, control.rect().center()).y() - middle) <= 1
+    assert {label.contentsMargins().left()
+            for label in (row.state, row.sound_summary, row.details)} == {6}
+
+
 def test_closed_cards_are_tiles_side_by_side_an_open_one_the_whole_width(tab, qapp):
     rows = [new_card(tab) for _ in range(4)]
     for r in rows:
