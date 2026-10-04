@@ -88,10 +88,11 @@ SIZES = (0.5, 2.0)
 SAME = 0.025
 SWEEP_STEP = 1.06
 SWEEP_PER_CHECK = 2     # sizes a trigger sweeps on its turn
-# triggers that get a turn to sweep, per capture per check: the ones that waited
-# longest. Sweeping is most of the work for a picture that isn't showing, so with
-# dozens of triggers on, each sweeping every check would space the checks out by
-# seconds (see CPU_SHARE); taking turns costs the same however many there are
+# triggers that get a turn to sweep per check, all screens and windows together:
+# the ones that waited longest (the captures take turns to go first). Sweeping is
+# most of the work for a picture that isn't showing, so with dozens of triggers on,
+# each sweeping every check would space the checks out by seconds (see CPU_SHARE);
+# taking turns costs the same however many triggers and windows there are
 SWEEPERS = 2
 SWEEP_MIN_SIDE = 6      # ...skipping those that shrink a picture below this
 PROMISING = 0.15
@@ -109,19 +110,30 @@ SOFT_CHECK = 0.7
 SOFT_CONFIRM = 0.7
 CONFIRM_STEP = 1.015
 CONFIRM_PAD = 3
+# Coarse to fine: at its own size too, a picture at least BLUR_MIN_SIDE px each way
+# is looked for on the frame's soft half-size copy first (a quarter of the work), and
+# only its best places there (PEAKS of them) scoring within EXACT_NEAR of the
+# threshold are matched sharp, where they were found: that sharp score is the one
+# that counts. Softened, a match scores about as well or better, so nothing that
+# would match sharp is passed over; and most checks never need the full-size frame's
+# transforms at all. (A place scoring less keeps its soft score: it's far from going off.)
+EXACT_NEAR = 0.25
+# a sharp check of a picture with more pixels than this is done with transforms
+DIRECT_MAX = 4000
 MAX_FOUND = 3           # sizes the sweep found kept per picture
 SPECTRA_MB = 48         # at most this much of the pictures' spectra is kept between checks
 CPU_SHARE = 0.01        # watching uses about this share of the whole processor, at most
 # A match is judged on grey, which can't tell a green slime from a red one, or a
 # wooden crate from a metal one once softened. So a place scoring within TINT_NEAR
-# of the threshold (the best PEAKS places of each picture and size) also has its
+# of the threshold (the best PEAKS places of each picture and size; a place scoring
+# less can't set a trigger off or keep it from re-arming, see REARM_MARGIN) also has its
 # colours compared with the picture's: the hue of each of TINT_GRID x TINT_GRID
 # cells (tint(); brightness doesn't change a hue, so a darker scene still passes,
 # and cells darker than TINT_DARK have too little colour to say). A gap past
 # TINT_OK (a colour grade over a whole scene makes about 0.15) takes the score
 # down, to nothing TINT_SPAN further on.
 TINT_GRID = 4
-TINT_NEAR = 0.2
+TINT_NEAR = 0.1
 PEAKS = 3
 TINT_DARK = 0.06
 TINT_OK = 0.2
@@ -519,18 +531,24 @@ class Frame:
         totals (an integral image of it and of its square, made once): four lookups
         a place instead of two more transforms, and exact."""
         if self._totals is None:
-            s = self.s.astype(np.float64)
-            self._totals = (_integral(s), _integral(s * s))
+            self._totals = (_integral(self.s), _integral(self.s * self.s))
         th, tw = shape
-        return tuple((ii[th:, tw:] - ii[:-th, tw:] - ii[th:, :-tw] + ii[:-th, :-tw]
-                      ).astype(np.float32) for ii in self._totals)
+        out = []
+        for ii in self._totals:
+            got = ii[th:, tw:] - ii[:-th, tw:]
+            got -= ii[th:, :-tw]
+            got += ii[:-th, :-tw]
+            out.append(got.astype(np.float32))
+        return out[0], out[1]
 
 
 def _integral(a: np.ndarray) -> np.ndarray:
-    """`a`'s integral image, a row and a column of zeros in front: [y, x] is the sum
-    of a[:y, :x]."""
+    """`a`'s integral image (summed in float64), a row and a column of zeros in
+    front: [y, x] is the sum of a[:y, :x]."""
     ii = np.zeros((a.shape[0] + 1, a.shape[1] + 1))
-    ii[1:, 1:] = a.cumsum(0).cumsum(1)
+    inner = ii[1:, 1:]
+    np.cumsum(a, axis=1, dtype=np.float64, out=inner)
+    np.cumsum(inner, axis=0, out=inner)
     return ii
 
 
@@ -564,6 +582,7 @@ class Pattern:
         # those sharp patterns once made (see SOFT_CONFIRM)
         self.sharp: tuple | None = None
         self._sharps: list[Pattern] | None = None
+        self.exact = False      # a soft one standing in for the picture at its own size
 
     def spectra(self, n: tuple[int, int]) -> tuple[np.ndarray, np.ndarray | None]:
         """(the picture's spectrum, its mask's or None for a box) at FFT size `n`,
@@ -583,14 +602,18 @@ def find(f: Frame, p: Pattern) -> tuple[float, tuple[int, int]]:
     return find_peaks(f, p)[0]
 
 
-def find_peaks(f: Frame, p: Pattern, n: int = 1, floor: float = 1.0
-               ) -> list[tuple[float, tuple[int, int]]]:
+def find_peaks(f: Frame, p: Pattern, n: int = 1, floor: float = 1.0,
+               check: float = 0.0) -> list[tuple[float, tuple[int, int]]]:
     """The best place, then (up to `n` in all) the next best ones scoring at least
-    `floor`, each at least half the picture away from those before it."""
+    `floor`, each at least half the picture away from those before it. A soft
+    picture standing in for one at its own size has its places scoring `check` or
+    more matched sharp (EXACT_NEAR)."""
     k = 2 if p.soft else 1
     full = f
     if p.soft:
         f = f.soft()
+        if p.exact:
+            n, floor = max(n, PEAKS), min(floor, check)
     (th, tw), (sh, sw) = p.shape, f.shape
     if not p.ok or th > sh or tw > sw:
         return [(0.0, (0, 0))]
@@ -613,19 +636,22 @@ def find_peaks(f: Frame, p: Pattern, n: int = 1, floor: float = 1.0
             break
         score[max(0, y - th // 2):y + th // 2 + 1, max(0, x - tw // 2):x + tw // 2 + 1] = 0
     if p.soft and p.sharp is not None:
-        out = sorted(((_confirm(full, p, at, sc), at) for sc, at in out), reverse=True)
+        out = sorted(((_confirm(full, p, at, sc, check), at) for sc, at in out), reverse=True)
     return out
 
 
-def _confirm(full: Frame, p: Pattern, at: tuple[int, int], sc: float) -> float:
+def _confirm(full: Frame, p: Pattern, at: tuple[int, int], sc: float,
+             check: float = 0.0) -> float:
     """A soft match's score once it's checked with the sharp picture where it was
-    found, in the full-size frame (see SOFT_CONFIRM)."""
-    if sc < SOFT_CHECK:
+    found, in the full-size frame (see SOFT_CONFIRM; for a picture at its own size,
+    EXACT_NEAR: there the sharp score is the score, if the soft one is `check` or
+    more)."""
+    if sc < (check if p.exact else SOFT_CHECK):
         return sc
     if p._sharps is None:
         gray, mask, s = p.sharp
         p._sharps = []
-        for k in (-2, -1, 0, 1, 2):
+        for k in ((0,) if p.exact else (-2, -1, 0, 1, 2)):
             f = s * CONFIRM_STEP ** k
             q = Pattern(resize(gray, f), None if mask is None else shrink_mask(mask, f))
             if q.ok:
@@ -638,7 +664,11 @@ def _confirm(full: Frame, p: Pattern, at: tuple[int, int], sc: float) -> float:
         y0, x0 = max(0, y - CONFIRM_PAD), max(0, x - CONFIRM_PAD)
         y1, x1 = min(fh, y + th + CONFIRM_PAD), min(fw, x + tw + CONFIRM_PAD)
         if y1 - y0 >= th and x1 - x0 >= tw:
-            best = max(best, _ncc_near(full.s[y0:y1, x0:x1], q))
+            area = full.s[y0:y1, x0:x1]
+            best = max(best, _ncc_near(area, q) if th * tw <= DIRECT_MAX
+                       else find(Frame(area), q)[0])
+    if p.exact:
+        return best
     return sc if best >= SOFT_CONFIRM else min(sc, best)
 
 
@@ -751,8 +781,9 @@ def sizes_for(cut: tuple[int, int] | None, now: tuple[int, int]) -> list[float]:
 def tint(rgb: np.ndarray, mask: np.ndarray | None = None) -> np.ndarray | None:
     """A picture's colours in brief: the mean colour (0..1 RGB) of each of TINT_GRID
     x TINT_GRID cells, (G, G, 3), NaN where a cut-out has nothing. None when it's
-    too small to tell."""
-    h, w = rgb.shape[:2]
+    too small to tell. Several pictures the same size at once: (n, h, w, 3) ->
+    (n, G, G, 3)."""
+    h, w = rgb.shape[-3:-1]
     g = TINT_GRID
     if h < g or w < g:
         return None
@@ -760,7 +791,7 @@ def tint(rgb: np.ndarray, mask: np.ndarray | None = None) -> np.ndarray | None:
     xs = np.linspace(0, w, g + 1).astype(int)[:-1]
     wt = np.ones((h, w), np.float32) if mask is None else mask.astype(np.float32)
     rgb = rgb[..., :3].astype(np.float32) * wt[..., None]
-    sums = np.add.reduceat(np.add.reduceat(rgb, ys, 0), xs, 1)
+    sums = np.add.reduceat(np.add.reduceat(rgb, ys, -3), xs, -2)
     n = np.add.reduceat(np.add.reduceat(wt, ys, 0), xs, 1)
     area = np.outer(np.diff(np.append(ys, h)), np.diff(np.append(xs, w)))
     with np.errstate(invalid="ignore", divide="ignore"):
@@ -772,20 +803,30 @@ def tint_gap(want: np.ndarray, got: np.ndarray) -> float:
     of red, green and blue (0 to 2), over the cells bright enough in both to have a
     colour; the mean of the worst quarter of them (a picture is often mostly
     background, which would water a difference down). A dimmer copy is 0 apart."""
-    a, b = want.reshape(-1, 3), got.reshape(-1, 3)
-    lum = np.array([0.299, 0.587, 0.114])
+    return float(tint_gaps(want, got[None])[0])
+
+
+def tint_gaps(want: np.ndarray, got: np.ndarray) -> np.ndarray:
+    """tint_gap() for several tints at once: (n, G, G, 3) -> (n,)."""
+    a, b = want.reshape(-1, 3), got.reshape(len(got), -1, 3)
+    lum = np.array([0.299, 0.587, 0.114], np.float32)
     with np.errstate(invalid="ignore", divide="ignore"):
-        ok = (np.minimum(a @ lum, b @ lum) >= TINT_DARK)
-        d = np.abs(a / a.sum(1, keepdims=True) - b / b.sum(1, keepdims=True)).sum(1)
-    d = d[ok & ~np.isnan(d)]
-    if not d.size:
-        return 0.0
-    return float(np.sort(d)[-max(1, d.size // 4):].mean())
+        ok = np.minimum(a @ lum, b @ lum) >= TINT_DARK
+        d = np.abs(a / a.sum(1, keepdims=True) - b / b.sum(-1, keepdims=True)).sum(-1)
+    ok &= ~np.isnan(d)
+    d = np.where(ok, d, -1.0)
+    d = -np.sort(-d, axis=1)                       # each row's largest first
+    k = np.maximum(1, ok.sum(1) // 4)              # its worst quarter
+    top = np.cumsum(np.maximum(d, 0.0), axis=1)[np.arange(len(d)), k - 1] / k
+    return np.where(ok.any(1), top, 0.0)
 
 
 def tint_factor(gap: float) -> float:
     return min(1.0, max(0.0, 1.0 - (gap - TINT_OK) / TINT_SPAN))
 
+
+# the box itself, then a pixel off each way (Watcher._tint_factor)
+_NEAR_FIRST = [(0, 0)] + [(dy, dx) for dy in (-1, 0, 1) for dx in (-1, 0, 1) if dy or dx]
 
 # nearest the size it was cut at first: small changes are the likeliest
 SWEEP = sorted((f for f in (SWEEP_STEP ** i for i in range(-40, 41)) if SIZES[0] <= f <= SIZES[1]),
@@ -800,11 +841,14 @@ class Look:
 
     def __init__(self, gray: np.ndarray, mask: np.ndarray | None, scale: float,
                  sizes: list[float], sweep: bool, found: list[float] = (),
-                 tint: np.ndarray | None = None):
+                 tint: np.ndarray | None = None, ratio: float = 1.0):
         self.gray, self.mask, self.scale = gray, mask, scale
+        # the frame it's matched on: the capture's, shrunk by this (see Watcher._fit)
+        self.ratio = ratio
         self.tint = tint                        # its colours (see tint()), if known
         self.pats: list[tuple[float, Pattern]] = []
         self.found: list[float] = []
+        self.changes = 0                        # bumped whenever `pats` changes
         for f in sizes:
             self._add(f)
         self.todo = SWEEP if sweep else []
@@ -818,7 +862,7 @@ class Look:
         s = self.scale * f
         g = resize(self.gray, s)
         m = None if self.mask is None else shrink_mask(self.mask, s)
-        if near(f, 1.0) or min(g.shape) < BLUR_MIN_SIDE:
+        if min(g.shape) < BLUR_MIN_SIDE:
             return Pattern(g, m)
         # like Frame.soft(): half size, softened as much (a half-size shrink has
         # softened it a little already)
@@ -839,12 +883,14 @@ class Look:
         pat = Pattern(soft, hm, soft=g.shape,
                       kept=float(now.std()) / max(float(was.std()), 1e-6))
         pat.sharp = (self.gray, self.mask, s)
+        pat.exact = near(f, 1.0)
         return pat
 
     def _add(self, f: float, p: Pattern | None = None) -> bool:
         if not SIZES[0] - 1e-9 <= f <= SIZES[1] + 1e-9 or any(near(f, g) for g, _p in self.pats):
             return False
         self.pats.append((f, p or self.pattern(f)))
+        self.changes += 1
         return True
 
     def keep(self, f: float, p: Pattern | None = None):
@@ -1739,7 +1785,8 @@ class _Capture:
         self.swept: dict[str, int] = {}   # ...and the check it last swept on (SWEEPERS)
         self.checks = 0             # checks made on this capture
         # the last frame checked, and each picture trigger's (Watched, its Looks,
-        # score, box) from it: a frame the same to the pixel needs no matching again
+        # their `changes`, (score, box) at the sizes looked for every check) from
+        # it: a frame the same to the pixel needs no matching again at those sizes
         self.last: tuple | None = None
         self.memo: dict[str, tuple] = {}
         self.reopen_since = 0.0     # > 0: the capture was lost (or never opened); trying again
@@ -1802,6 +1849,7 @@ class Watcher:
         self._lock = threading.Lock()
         self._items: dict[str, Watched] = {}
         self._changed = True              # pictures / default changed: rescale
+        self._sweeps: list[int] | None = None   # this check's sweep turns left (SWEEPERS)
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
         self.interval = DEFAULT_INTERVAL_MS / 1000
@@ -1926,6 +1974,7 @@ class Watcher:
         wins: list | None = None                 # the open windows, when "every copy" is used
         listed = -math.inf
         cost: float | None = None                # a check's time, averaged
+        rounds = 0                               # checks made
         worked = False                           # a screen was captured since Start
         tick_errors: dict = {}                   # source -> a check that failed, logged once
         try:
@@ -1993,6 +2042,11 @@ class Watcher:
                             for c in screens):
                         raise OSError(next(c.error for c in screens if c.error))
                 worked = worked or any(not c.is_window for c in live)
+                # one budget of sweeps for every capture, which take turns to go first
+                self._sweeps = [SWEEPERS]
+                rounds += 1
+                if live:
+                    live = live[rounds % len(live):] + live[:rounds % len(live)]
                 for cap in live:
                     try:
                         self._tick(cap, groups.get(cap.source, []))
@@ -2184,6 +2238,10 @@ class Watcher:
         their spectra. Returns (source size, {id: [Look]})."""
         sw, sh = getattr(grab, "source", None) or (mon.width, mon.height)
         scale = work_scale(sw, [s for i in items for s in i.sides_at((sw, sh))])
+        # the capture is as fine as its smallest picture needs, but a picture big
+        # enough is matched on it shrunk to the usual working size: one small
+        # picture would otherwise make every other one cost twice as much or more
+        base = min(scale, work_scale(sw, []))
         w, h = max(1, round(sw * scale)), max(1, round(sh * scale))
         if (w, h) != (getattr(grab, "w", w), getattr(grab, "h", h)):
             grab.resize(w, h)
@@ -2203,8 +2261,10 @@ class Watcher:
             for k, (g, m) in enumerate(i.pictures):
                 found = ([f * ratio for f in before[k].found]
                          if i.any_size and k < len(before) and isinstance(before[k], Look) else [])
-                look = Look(g, m, scale, i.sizes(k, (sw, sh)), i.any_size, found,
-                            i.tints[k] if k < len(i.tints) else None)
+                sizes = i.sizes(k, (sw, sh))
+                at = base if min(g.shape) * min(sizes) * base >= MIN_SIDE else scale
+                look = Look(g, m, at, sizes, i.any_size, found,
+                            i.tints[k] if k < len(i.tints) else None, at / scale)
                 for _f, p in look.pats:
                     need = spectrum * (1 if p.box else 2)
                     if room >= need:
@@ -2225,7 +2285,9 @@ class Watcher:
         judged = {}
         if not black:
             # a frame the same to the pixel as the last one (colours too, as far as
-            # the grabber gives them): its picture triggers keep their scores
+            # the grabber gives them): its picture triggers keep their scores at the
+            # sizes they're looked for every check, but "any size" still sweeps (a
+            # paused game or a menu standing still must be found at its size too)
             raw = getattr(cap.grab, "raw", None)
             colour = None if raw is None else raw[0][::2, ::2]
             last, cap.last = cap.last, (gray.copy(), None if colour is None else colour.copy())
@@ -2234,16 +2296,15 @@ class Watcher:
                     and (colour is None or np.array_equal(last[1], colour)))
             memo, cap.memo = cap.memo, {}
             # those that swept longest ago are scored first, so they get the turns
-            budget = [SWEEPERS]
+            budget = self._sweeps if self._sweeps is not None else [SWEEPERS]
             for it in sorted(items, key=lambda i: cap.swept.get(i.id, -1)):
                 looks = cap.scaled.get(it.id)
                 got = memo.get(it.id) if same and it.id not in self._quiet else None
-                if got is not None and got[0] is it and got[1] is looks:
-                    judged[it.id] = got[2]
-                else:
-                    judged[it.id] = self._score(cap, gray, it, now, frames, budget)
-                if it.uses_pictures:
-                    cap.memo[it.id] = (it, looks, judged[it.id])
+                prior = None
+                if (got is not None and got[0] is it and got[1] is looks
+                        and got[2] == [lk.changes for lk in looks or []]):
+                    prior = got[3]
+                judged[it.id] = self._score(cap, gray, it, now, frames, budget, prior)
         else:
             cap.last = None
         cap.checks += 1
@@ -2310,49 +2371,79 @@ class Watcher:
 
     @staticmethod
     def _score(cap: _Capture, gray: np.ndarray, it: Watched, now: float,
-               frames: dict, budget: list[int] | None = None
+               frames: dict, budget: list[int] | None = None, prior: tuple | None = None
                ) -> tuple[float | None, tuple[int, int, int, int]]:
         """A trigger's score in one frame (None: nothing to judge yet) and the box
         (y0, y1, x0, x1) it's about: where its best picture is, or its area. With
         "any size" it sweeps a step too when it isn't matched well, if `budget` (the
-        turns left this check, taken one) has a turn left; None: always."""
+        turns left this check, taken one) has a turn left; None: always. `prior` is
+        (score, box) at the sizes looked for every check, from a frame the same as
+        this one (`_Capture.memo`): those aren't matched again."""
         if it.uses_pictures:
             looks = cap.scaled.get(it.id) or []
-            least = (max((lk.pats[0][1].shape[0] for lk in looks), default=2),
-                     max((lk.pats[0][1].shape[1] for lk in looks), default=2))
+            stamp = [lk.changes for lk in looks]
+            least = (max((lk.pats[0][1].size[0] for lk in looks), default=2),
+                     max((lk.pats[0][1].size[1] for lk in looks), default=2))
             box = region_box(it.region, gray.shape, least)
-            y0, y1, x0, x1 = box
-            f = frames.get(box)
-            if f is None:
-                f = frames[box] = Frame(gray[y0:y1, x0:x1])
+            levels: dict = {}
+
+            def level(r: float) -> tuple[Frame, tuple]:
+                """The area looked in on the frame shrunk by `r` (Look.ratio), and its
+                box there; shared by every picture matched on it this check."""
+                got = levels.get(r)
+                if got is None:
+                    g = gray
+                    if r < 0.999:
+                        g = frames.get(("grey", r))
+                        if g is None:
+                            g = frames[("grey", r)] = shrink(gray, r)
+                    on = [lk.pats[0][1].size for lk in looks if lk.ratio == r]
+                    bx = region_box(it.region, g.shape, (max((a for a, _b in on), default=2),
+                                                         max((b for _a, b in on), default=2)))
+                    f = frames.get((r, bx))
+                    if f is None:
+                        f = frames[(r, bx)] = Frame(g[bx[0]:bx[1], bx[2]:bx[3]])
+                    got = levels[r] = (f, bx)
+                return got
             raw = getattr(cap.grab, "raw", None)
             near_ = it.threshold - TINT_NEAR
 
             def judge(p: Pattern, lk: Look) -> tuple[float, tuple]:
-                """The picture's best place at this size: (score, box), the score
-                taken down when the colours there aren't the picture's."""
+                """The picture's best place at this size: (score, box in the
+                capture's frame), the score taken down when the colours there
+                aren't the picture's."""
                 top: tuple = (0.0, box)
                 check = raw is not None and lk.tint is not None
-                for sc, (mx, my) in find_peaks(f, p, PEAKS if check else 1, near_):
+                f, (y0, _y1, x0, _x1) = level(lk.ratio)
+                r = lk.ratio
+                for sc, (mx, my) in find_peaks(f, p, PEAKS if check else 1, near_,
+                                               it.threshold - EXACT_NEAR):
                     b = (y0 + my, y0 + my + p.size[0], x0 + mx, x0 + mx + p.size[1])
+                    if r < 0.999:
+                        b = tuple(round(v / r) for v in b)
                     if check and sc >= near_:
                         sc *= Watcher._tint_factor(raw, b, lk.tint, lk.mask)
                     if sc > top[0]:
                         top = (sc, b)
                 return top
 
-            best, at = 0.0, box
-            for lk in looks:
-                for _s, p in lk.pats:
-                    sc, b = judge(p, lk)
-                    if sc > best:
-                        best, at = sc, b
+            if prior is not None:
+                best, at = prior
+            else:
+                best, at = 0.0, box
+                for lk in looks:
+                    for _s, p in lk.pats:
+                        sc, b = judge(p, lk)
+                        if sc > best:
+                            best, at = sc, b
+            cap.memo[it.id] = (it, cap.scaled.get(it.id), stamp, (best, at))
             if (best < max(it.threshold, SWEEP_DONE) and it.any_size
                     and (budget is None or budget[0] > 0)):
                 if budget is not None:
                     budget[0] -= 1
                 cap.swept[it.id] = cap.checks
-                sc, b = Watcher._sweep(cap, it, looks, judge, f.shape, best)
+                sc, b = Watcher._sweep(cap, it, looks, judge,
+                                       lambda lk: level(lk.ratio)[0].shape, best)
                 if sc > best:
                     best, at = sc, b
             return best, (at if it.mode == "appear" else box)
@@ -2397,28 +2488,25 @@ class Watcher:
             under = mask[(np.arange(y1 - y0) * mh // (y1 - y0))[:, None],
                          np.arange(x1 - x0) * mw // (x1 - x0)]
         oy, ox = y0 - max(0, y0 - 1), x0 - max(0, x0 - 1)
-        best = None
-        for dy in (-1, 0, 1):
-            for dx in (-1, 0, 1):
-                a, c = oy + dy, ox + dx
-                if a < 0 or c < 0 or a + y1 - y0 > rgb.shape[0] or c + x1 - x0 > rgb.shape[1]:
-                    continue
-                got = tint(rgb[a:a + y1 - y0, c:c + x1 - x0], under)
-                if got is not None:
-                    gap = tint_gap(want, got)
-                    best = gap if best is None else min(best, gap)
-        return 1.0 if best is None else tint_factor(best)
+        bh, bw = y1 - y0, x1 - x0
+        views = [rgb[oy + dy:oy + dy + bh, ox + dx:ox + dx + bw] for dy, dx in _NEAR_FIRST
+                 if 0 <= oy + dy and 0 <= ox + dx and oy + dy + bh <= rgb.shape[0]
+                 and ox + dx + bw <= rgb.shape[1]]
+        got = tint(np.stack(views), under) if views and bh > 0 and bw > 0 else None
+        if got is None:
+            return 1.0
+        return tint_factor(float(tint_gaps(want, got).min()))
 
     @staticmethod
     def _sweep(cap: _Capture, it: Watched, looks: list[Look], judge,
-               area: tuple[int, int], beat: float = 0.0) -> tuple[float, tuple]:
+               area, beat: float = 0.0) -> tuple[float, tuple]:
         """One step of a trigger's sweep: its next SWEEP_PER_CHECK sizes, one picture
         at a time in turn, each judged by `judge(pattern, look)` -> (score, box). A
         size within PROMISING of the threshold is tried again either side of it (the
         sweep's steps are wider than a match holds), and if one matches the picture
         is looked for at that size every check from then on, if it did better than
-        `beat` (the best at the sizes already looked for). `area` is the (h, w)
-        looked in. Returns the best (score, box) it tried."""
+        `beat` (the best at the sizes already looked for). `area(look)` is the
+        (h, w) looked in. Returns the best (score, box) it tried."""
         best: tuple = (0.0, None)
         todo = [lk for lk in looks if lk.todo]
         if not todo:
@@ -2426,7 +2514,7 @@ class Watcher:
         turn = cap.turns.get(it.id, 0)
         cap.turns[it.id] = turn + 1
         lk = todo[turn % len(todo)]
-        (gh, gw), (fh, fw) = lk.gray.shape, area
+        (gh, gw), (fh, fw) = lk.gray.shape, area(lk)
         kept = None
         for s in lk.sweep_sizes(SWEEP_PER_CHECK):
             if gh * lk.scale * s > fh or gw * lk.scale * s > fw:
