@@ -24,7 +24,8 @@ class Host(Protocol):
     name: str                 # "Onion Watch", "Onion Board": for words on screen
     # the triggers and how they're watched, as saved: on, interval_ms, monitor /
     # window (the default), triggers (screenwatch.Trigger.to_raw; past the 50th in
-    # more_triggers), categories, profiles, profile. Edited in place.
+    # more_triggers), trigger_categories, categories, profiles, profile.
+    # Edited in place.
     screen: dict
     data_dir: Path            # the trigger pictures are kept in data_dir / "triggers"
     default_sound: str        # a new trigger's sound ("" = none until one is picked)

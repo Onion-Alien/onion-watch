@@ -1409,11 +1409,17 @@ class TriggersTab(QWidget):
         self.triggers: list[Trigger] = []
         saved = [d for k in ("triggers", "more_triggers")
                  for d in (s.get(k) if isinstance(s.get(k), list) else [])]
+        # each trigger's category, kept apart too: an older version saves its
+        # triggers back without one (see _store)
+        cats = s.get("trigger_categories") if isinstance(s.get("trigger_categories"),
+                                                          dict) else {}
         for d in saved:
             t = Trigger.from_raw(d)
             if (t is not None and len(self.triggers) < MAX_TRIGGERS
                     and all(x.id != t.id for x in self.triggers)):
                 t.pending = ""      # an older Onion Board's sound import, long over
+                if "category" not in d:
+                    t.category = profiles.clean_name(cats.get(t.id, ""))
                 self.triggers.append(t)
         self.rows: dict[str, TriggerRow] = {}   # the cards made so far (open categories')
         # the categories and profiles (onionwatch.profiles), and the categories on now
@@ -2671,6 +2677,10 @@ class TriggersTab(QWidget):
         raws = [t.to_raw() for t in self.triggers]
         self.host.screen["triggers"] = raws[:OLD_TRIGGERS]      # (see OLD_TRIGGERS)
         self.host.screen["more_triggers"] = raws[OLD_TRIGGERS:]
+        # older versions drop a field they don't know when they save a trigger: its
+        # category is kept here as well, where they never look
+        self.host.screen["trigger_categories"] = {t.id: t.category for t in self.triggers
+                                                  if t.category}
         self.groups.save(self.host.screen)
         self.host.save()
         self._refresh_counts()

@@ -231,6 +231,24 @@ def test_an_older_version_opening_the_settings_loses_no_triggers(make):
     assert len(make(s).triggers) == 119
 
 
+def test_an_older_version_saving_its_triggers_keeps_their_categories(make):
+    """An older version doesn't know Trigger.category and saves its triggers back
+    without it: the categories come back from where it never looks."""
+    tab = make({"triggers": [raw(1, "Raids"), raw(2), raw(3, "Fishing")]})
+    tab._store()
+    s = tab.host.screen
+    assert s["trigger_categories"] == {"t1": "Raids", "t3": "Fishing"}
+    s["triggers"] = [{k: v for k, v in d.items() if k != "category"} for d in s["triggers"]]
+    s["triggers"].append({"id": "t9", "mode": "change"})     # one it added
+    again = make(s)
+    assert [t.category for t in again.triggers] == ["Raids", "", "Fishing", ""]
+    assert again.groups.names() == ["", "Raids", "Fishing"]
+    # a category this version took away again isn't brought back from the side copy
+    again.move_trigger(again.triggers[0], "")
+    assert "t1" not in s["trigger_categories"]
+    assert make(s).triggers[0].category == ""
+
+
 def test_a_pack_holds_hundreds_now():
     assert packs.MAX_PACK_TRIGGERS >= triggerspanel.MAX_TRIGGERS >= 500
     assert Trigger.from_raw(raw(1, "Raids")).category == "Raids"
