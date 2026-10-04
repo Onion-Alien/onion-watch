@@ -305,3 +305,57 @@ def test_triggers_take_turns_to_sweep():
         swept.append({k for k, v in cap.swept.items() if before.get(k) != v})
     assert all(len(s) == sw.SWEEPERS for s in swept)
     assert set().union(*swept) == {it.id for it in items}     # 5 checks x 2: all ten
+
+
+def test_changed_boxes_are_the_patches_that_changed():
+    rng = np.random.default_rng(3)
+    a = rng.random((200, 320)).astype(np.float32)
+    b = a.copy()
+    b[40:70, 100:150] += 0.5
+    b[150:160, 10:20] -= 0.5
+    boxes = sw.changed_boxes(a, b)
+    assert boxes[0][0] <= 40 and boxes[0][1] >= 70 and boxes[0][2] <= 100 and boxes[0][3] >= 150
+    assert boxes[0][1] - boxes[0][0] <= 48 and boxes[0][3] - boxes[0][2] <= 72   # just about it
+    assert len(boxes) == 2
+    assert sw.changed_boxes(a, a) == []                 # nothing changed
+    assert sw.changed_boxes(a, a + 0.5) == []           # all of it: nothing to narrow down
+
+
+def test_a_thing_turning_up_at_another_size_is_found_at_once(monkeypatch):
+    """A picture shows up 40 % bigger than it was cut, among nine other "any size"
+    triggers. No sweep turns at all: looking at every size where the screen changed
+    finds it on the check it turned up, and its size is kept."""
+    monkeypatch.setattr(sw, "SWEEPERS", 0)
+    level = world()
+    pic, tint = cut(level)
+    rng = np.random.default_rng(4)
+    others = [rng.random(pic.shape).astype(np.float32) for _ in range(9)]
+    h, w = 540, 960
+    grab = Grab(w, h)
+    items = [sw.Watched("t", [(pic, None)], 0.8, 0.0, any_size=True, cuts=[(w, h)],
+                        tints=[tint])]
+    items += [sw.Watched(f"o{i}", [(o, None)], 0.8, 0.0, any_size=True, cuts=[(w, h)])
+              for i, o in enumerate(others)]
+    cap = sw._Capture(0, Monitor(0, 0, w, h, True))
+    cap.grab = grab
+    cap.fitted, cap.scaled = sw.Watcher._fit(grab, cap.mon, items)
+    fired = []
+    watcher = sw.Watcher(lambda tid, *_a: fired.append(tid))
+
+    def frame(rgb):
+        small = scaled(rgb, grab.w / w)[:grab.h, :grab.w]
+        grab.raw = (np.dstack([small[..., ::-1], np.full(small.shape[:2], 255, np.uint8)]),
+                    sw.FMT_BGRA8, 1)
+        return gray(small)
+
+    empty = world(sprites=())
+    shown = empty.copy()
+    big = np.kron(sprite(), np.ones((1, 1, 1), np.uint8))
+    big = scaled(big, 1.4)
+    shown[200:200 + big.shape[0], 300:300 + big.shape[1]] = big
+    for _ in range(3):
+        assert watcher._check(cap, frame(empty), items)["t"] < 0.8
+    assert watcher._check(cap, frame(shown), items)["t"] >= 0.8
+    assert fired == ["t"]
+    assert any(1.25 < f < 1.6 for f in cap.scaled["t"][0].found)
+    assert not cap.hunts or all("t" not in h[2] for h in cap.hunts)

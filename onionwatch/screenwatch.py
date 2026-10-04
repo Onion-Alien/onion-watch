@@ -107,6 +107,21 @@ SWEEP_PER_CHECK = 2     # sizes a trigger sweeps on its turn
 # taking turns costs the same however many triggers and windows there are
 SWEEPERS = 2
 SWEEP_MIN_SIDE = 6      # ...skipping those that shrink a picture below this
+# Something that turns up changes a patch of the frame. Where a frame changed since
+# the last one (grey moved HUNT_LEVEL or more, in cells HUNT_CELL px a side), every
+# "any size" picture not matched well is looked for at every sweep size, but only
+# around the change: a small area, so all sizes cost about what one size over the
+# whole frame does. A frame changed over more than HUNT_MAX_SHARE of it (the scene
+# moving, a new screen) has nothing to narrow it down to. At most HUNT_PER_CHECK
+# sizes a check, all triggers together; what's left waits for the next checks, up to
+# HUNT_CHECKS of them (the patch may have changed again by then).
+HUNT_LEVEL = 0.06
+HUNT_CELL = 8
+HUNT_MAX_SHARE = 0.3
+HUNT_PER_CHECK = 240
+HUNT_CHECKS = 4
+HUNT_BOXES = 6          # changed patches kept per capture: the biggest
+HUNT_ROOM = 1.3         # a picture up to this much bigger than a patch is looked for in it
 PROMISING = 0.15
 SWEEP_DONE = 0.9        # a match scoring less may be at a size a little off: keep sweeping
 BLUR = 1.5
@@ -655,6 +670,40 @@ def find(f: Frame, p: Pattern) -> tuple[float, tuple[int, int]]:
     return find_peaks(f, p)[0]
 
 
+def changed_boxes(a: np.ndarray, b: np.ndarray, cell: int = HUNT_CELL,
+                  level: float = HUNT_LEVEL, most: float = HUNT_MAX_SHARE
+                  ) -> list[tuple[int, int, int, int]]:
+    """The patches where grey frame `b` differs from `a` (same size): boxes (y0, y1,
+    x0, x1), cells next to each other (or one apart) merged, biggest first. None
+    when nothing changed or over `most` of it did."""
+    h, w = a.shape
+    gh, gw = -(-h // cell), -(-w // cell)
+    d = np.zeros((gh * cell, gw * cell), bool)
+    d[:h, :w] = np.abs(b - a) >= level
+    hot = d.reshape(gh, cell, gw, cell).any(axis=(1, 3))
+    share = float(hot.mean())
+    if share == 0.0 or share > most:
+        return []
+    seen = np.zeros_like(hot)
+    boxes = []
+    for y, x in zip(*np.nonzero(hot)):
+        if seen[y, x]:
+            continue
+        stack, y0, y1, x0, x1 = [(y, x)], y, y, x, x
+        seen[y, x] = True
+        while stack:
+            cy, cx = stack.pop()
+            for ny in range(max(0, cy - 2), min(gh, cy + 3)):     # a cell apart: one patch
+                for nx in range(max(0, cx - 2), min(gw, cx + 3)):
+                    if hot[ny, nx] and not seen[ny, nx]:
+                        seen[ny, nx] = True
+                        stack.append((ny, nx))
+                        y0, y1, x0, x1 = min(y0, ny), max(y1, ny), min(x0, nx), max(x1, nx)
+        boxes.append((y0 * cell, min(h, (y1 + 1) * cell), x0 * cell, min(w, (x1 + 1) * cell)))
+    boxes.sort(key=lambda bx: -(bx[1] - bx[0]) * (bx[3] - bx[2]))
+    return boxes
+
+
 def find_peaks(f: Frame, p: Pattern, n: int = 1, floor: float = 1.0,
                check: float = 0.0) -> list[tuple[float, tuple[int, int]]]:
     """The best place, then (up to `n` in all) the next best ones scoring at least
@@ -987,6 +1036,9 @@ _NEAR_FIRST = [(0, 0)] + [(dy, dx) for dy in (-1, 0, 1) for dx in (-1, 0, 1) if 
 # nearest the size it was cut at first: small changes are the likeliest
 SWEEP = sorted((f for f in (SWEEP_STEP ** i for i in range(-40, 41)) if SIZES[0] <= f <= SIZES[1]),
                key=lambda f: abs(math.log(f)))
+# a hunt's first pass (HUNT_*): every other sweep size, the one it was cut at left out
+HUNT_SIZES = [f for f in (SWEEP_STEP ** i for i in range(-40, 41, 2))
+              if SIZES[0] <= f <= SIZES[1] and not near(f, 1.0)]
 
 
 class Look:
@@ -1007,6 +1059,7 @@ class Look:
         self.pats: list[tuple[float, Pattern]] = []
         self.found: list[float] = []
         self.changes = 0                        # bumped whenever `pats` changes
+        self._hunted: dict[float, Pattern] = {}  # hunt_pattern()'s
         for f in sizes:
             self._add(f)
         self.todo = SWEEP if sweep else []
@@ -1073,6 +1126,13 @@ class Look:
         if len(self.found) > MAX_FOUND:
             old = self.found.pop(0)
             self.pats = [(g, q) for g, q in self.pats if g != old]
+
+    def hunt_pattern(self, f: float) -> Pattern:
+        """pattern(f), kept: a hunt looks at every size whenever something changes."""
+        p = self._hunted.get(f)
+        if p is None:
+            p = self._hunted[f] = self.pattern(f)
+        return p
 
     def sweep_sizes(self, n: int) -> list[float]:
         """The next `n` sizes to sweep: ones not already looked for every check, and
@@ -1954,6 +2014,9 @@ class _Capture:
         self.refs: dict[str, tuple[float, np.ndarray]] = {}   # "change" / "still": (when, area)
         self.turns: dict[str, int] = {}   # "any size": which picture each trigger sweeps next
         self.swept: dict[str, int] = {}   # ...and the check it last swept on (SWEEPERS)
+        # "any size": changed patches still to look in at every size (HUNT_*):
+        # [box, the check it changed on, ids of the triggers still to look there]
+        self.hunts: list[list] = []
         self.checks = 0             # checks made on this capture
         # the last frame checked, and each picture trigger's (Watched, its Looks,
         # their `changes`, (score, box) at the sizes looked for every check) from
@@ -2021,6 +2084,7 @@ class Watcher:
         self._items: dict[str, Watched] = {}
         self._changed = True              # pictures / default changed: rescale
         self._sweeps: list[int] | None = None   # this check's sweep turns left (SWEEPERS)
+        self._hunts: list[int] | None = None    # ...and sizes left to hunt (HUNT_PER_CHECK)
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
         self.interval = DEFAULT_INTERVAL_MS / 1000
@@ -2221,6 +2285,7 @@ class Watcher:
                 worked = worked or any(not c.is_window for c in live)
                 # one budget of sweeps for every capture, which take turns to go first
                 self._sweeps = [SWEEPERS]
+                self._hunts = [HUNT_PER_CHECK]
                 rounds += 1
                 if live:
                     live = live[rounds % len(live):] + live[:rounds % len(live)]
@@ -2484,6 +2549,14 @@ class Watcher:
                     and (last[1] is None) == (colour is None)
                     and (colour is None or np.array_equal(last[1], colour)))
             memo, cap.memo = cap.memo, {}
+            if last is not None and not same and last[0].shape == gray.shape:
+                ids = [i.id for i in items if i.any_size and i.uses_pictures]
+                if ids:
+                    for bx in changed_boxes(last[0], gray)[:HUNT_BOXES]:
+                        cap.hunts.append([bx, cap.checks, list(ids)])
+            cap.hunts = [h for h in cap.hunts if h[2] and cap.checks - h[1] < HUNT_CHECKS]
+            del cap.hunts[:-HUNT_BOXES]
+            hunt = self._hunts if self._hunts is not None else [HUNT_PER_CHECK]
             # those that swept longest ago are scored first, so they get the turns
             budget = self._sweeps if self._sweeps is not None else [SWEEPERS]
             for it in sorted(items, key=lambda i: cap.swept.get(i.id, -1)):
@@ -2493,7 +2566,7 @@ class Watcher:
                 if (got is not None and got[0] is it and got[1] is looks
                         and got[2] == [lk.changes for lk in looks or []]):
                     prior = got[3]
-                judged[it.id] = self._score(cap, gray, it, now, frames, budget, prior)
+                judged[it.id] = self._score(cap, gray, it, now, frames, budget, prior, hunt)
         else:
             cap.last = None
         cap.checks += 1
@@ -2560,7 +2633,8 @@ class Watcher:
 
     @staticmethod
     def _score(cap: _Capture, gray: np.ndarray, it: Watched, now: float,
-               frames: dict, budget: list[int] | None = None, prior: tuple | None = None
+               frames: dict, budget: list[int] | None = None, prior: tuple | None = None,
+               hunt: list[int] | None = None
                ) -> tuple[float | None, tuple[int, int, int, int]]:
         """A trigger's score in one frame (None: nothing to judge yet) and the box
         (y0, y1, x0, x1) it's about: where its best picture is, or its area. With
@@ -2597,15 +2671,42 @@ class Watcher:
             raw = getattr(cap.grab, "raw", None)
             near_ = it.threshold - TINT_NEAR
 
-            def judge(p: Pattern, lk: Look) -> tuple[float, tuple]:
+            def around(r: float, bx: tuple, p: Pattern) -> tuple[Frame, tuple] | None:
+                """The area about changed patch `bx` (capture coordinates) that any
+                picture a hunt tries there (HUNT_ROOM) fits in overlapping it, on the
+                frame shrunk by `r`: one Frame for every size and picture."""
+                key = (r, "hunt", bx)
+                got = frames.get(key)
+                if got is None:
+                    level(r)
+                    g = gray if r >= 0.999 else frames[("grey", r)]
+                    gh, gw = g.shape
+                    by0, by1, bx0, bx1 = bx
+                    my = round(((by1 - by0) * HUNT_ROOM + 2 * HUNT_CELL) * r * 0.75)
+                    mx = round(((bx1 - bx0) * HUNT_ROOM + 2 * HUNT_CELL) * r * 0.75)
+                    sub = (max(0, round(by0 * r) - my), min(gh, round(by1 * r) + my),
+                           max(0, round(bx0 * r) - mx), min(gw, round(bx1 * r) + mx))
+                    got = frames[key] = (Frame(g[sub[0]:sub[1], sub[2]:sub[3]]), sub)
+                f, (y0, y1, x0, x1) = got
+                if p.size[0] + 2 > y1 - y0 or p.size[1] + 2 > x1 - x0:
+                    return None
+                return got
+
+            def judge(p: Pattern, lk: Look, area: tuple | None = None) -> tuple[float, tuple]:
                 """The picture's best place at this size: (score, box in the
                 capture's frame), the score taken down when the colours there
-                aren't the picture's."""
+                aren't the picture's. `area`: only about that changed patch."""
                 top: tuple = (0.0, box)
                 check = raw is not None and lk.tint is not None
-                f, (y0, _y1, x0, _x1) = level(lk.ratio)
                 r = lk.ratio
-                if p.proxy is not None:
+                if area is not None:
+                    got = around(r, area, p)
+                    if got is None:
+                        return top
+                    f, (y0, _y1, x0, _x1) = got
+                else:
+                    f, (y0, _y1, x0, _x1) = level(r)
+                if p.proxy is not None and area is None:
                     fc, (cy0, _cy1, cx0, _cx1) = level(lk.ratio * lk.coarse)
                     c = lk.coarse
                     peaks = find_via(f, fc, c, (round(x0 - cx0 / c), round(y0 - cy0 / c)),
@@ -2644,6 +2745,11 @@ class Watcher:
                 cap.swept[it.id] = cap.checks
                 sc, b = Watcher._sweep(cap, it, looks, judge,
                                        lambda lk: level(lk.ratio)[0].shape, best)
+                if sc > best:
+                    best, at = sc, b
+            if (it.any_size and best < it.threshold and cap.hunts
+                    and (hunt is None or hunt[0] > 0)):
+                sc, b = Watcher._hunt(cap, it, looks, judge, best, hunt)
                 if sc > best:
                     best, at = sc, b
             return best, (at if it.mode == "appear" else box)
@@ -2696,6 +2802,53 @@ class Watcher:
         if got is None:
             return 1.0
         return tint_factor(float(tint_gaps(want, got).min()))
+
+    @staticmethod
+    def _hunt(cap: _Capture, it: Watched, looks: list[Look], judge, beat: float,
+              budget: list[int] | None) -> tuple[float, tuple]:
+        """Look for `it` at every sweep size about the changed patches it hasn't been
+        looked for in yet (HUNT_*), while `budget` (sizes left this check) lasts. A
+        size that matches is looked for every check from then on, as the sweep's are."""
+        best: tuple = (0.0, None)
+        kept = None
+        for h in cap.hunts:
+            if it.id not in h[2]:
+                continue
+            # a thing that turned up there fits in the patch (with some room for the
+            # scenery cut with it): sizes too big for it can't be what changed
+            y0, y1, x0, x1 = h[0]
+            todo = [(lk, f) for lk in looks for f in HUNT_SIZES
+                    if min(lk.gray.shape) * lk.scale * f >= SWEEP_MIN_SIDE
+                    and lk.gray.shape[0] * lk.scale * f
+                    <= ((y1 - y0) * HUNT_ROOM + 2 * HUNT_CELL) * lk.ratio
+                    and lk.gray.shape[1] * lk.scale * f
+                    <= ((x1 - x0) * HUNT_ROOM + 2 * HUNT_CELL) * lk.ratio
+                    and not any(near(f, g) for g, _p in lk.pats)]
+            if budget is not None:
+                if budget[0] < len(todo):
+                    break                       # the next check, with a whole budget
+                budget[0] -= len(todo)
+            h[2].remove(it.id)
+            for lk, f in todo:
+                # every other sweep size; one scoring within PROMISING of the
+                # threshold has the sizes either side tried too
+                sc = 0.0
+                for g in (f, f / SWEEP_STEP, f * SWEEP_STEP):
+                    if g != f and (sc < it.threshold - PROMISING or not SIZES[0] <= g <= SIZES[1]
+                                   or any(near(g, q) for q, _p in lk.pats)):
+                        continue
+                    p = lk.hunt_pattern(g)
+                    got = judge(p, lk, h[0]) if p.ok else (0.0, None)
+                    if g == f:
+                        sc = got[0]
+                    if got[0] > best[0]:
+                        best, kept = got, (lk, g, p)
+        if kept is not None and best[0] >= max(it.threshold, beat + 0.01):
+            lk, f, p = kept
+            lk.keep(f, p)
+            log.info("trigger %s: found where the screen changed, at %.0f%% of the size "
+                     "it was cut at", it.id, f * 100)
+        return best
 
     @staticmethod
     def _sweep(cap: _Capture, it: Watched, looks: list[Look], judge,
