@@ -98,6 +98,17 @@ PROMISING = 0.15
 SWEEP_DONE = 0.9        # a match scoring less may be at a size a little off: keep sweeping
 BLUR = 1.5
 BLUR_MIN_SIDE = 16
+# A soft match is checked with the picture itself before it counts. Softening lifts
+# every score, the wrong places' too, and a small picture softened at half size is
+# little more than a blob that some patch of scenery resembles: a 60 px icon in a
+# forest scene scored 0.89 soft where it wasn't, 0.54 sharp. So a soft match scoring
+# SOFT_CHECK or more is looked for sharp where it was found, at its size and
+# CONFIRM_STEP either side (a match between two sweep steps), within CONFIRM_PAD px;
+# unless that scores SOFT_CONFIRM, the sharp score is what counts.
+SOFT_CHECK = 0.7
+SOFT_CONFIRM = 0.7
+CONFIRM_STEP = 1.015
+CONFIRM_PAD = 3
 MAX_FOUND = 3           # sizes the sweep found kept per picture
 SPECTRA_MB = 48         # at most this much of the pictures' spectra is kept between checks
 CPU_SHARE = 0.01        # watching uses about this share of the whole processor, at most
@@ -549,6 +560,10 @@ class Pattern:
         self.key = ("box", th, tw) if self.box else self
         self.keep = keep
         self._spec: tuple | None = None       # (FFT size, picture's, mask's)
+        # a soft one's picture (grey, mask, scale), to check its matches sharp, and
+        # those sharp patterns once made (see SOFT_CONFIRM)
+        self.sharp: tuple | None = None
+        self._sharps: list[Pattern] | None = None
 
     def spectra(self, n: tuple[int, int]) -> tuple[np.ndarray, np.ndarray | None]:
         """(the picture's spectrum, its mask's or None for a box) at FFT size `n`,
@@ -573,6 +588,7 @@ def find_peaks(f: Frame, p: Pattern, n: int = 1, floor: float = 1.0
     """The best place, then (up to `n` in all) the next best ones scoring at least
     `floor`, each at least half the picture away from those before it."""
     k = 2 if p.soft else 1
+    full = f
     if p.soft:
         f = f.soft()
     (th, tw), (sh, sw) = p.shape, f.shape
@@ -596,7 +612,55 @@ def find_peaks(f: Frame, p: Pattern, n: int = 1, floor: float = 1.0
         if len(out) >= n or sc < floor:
             break
         score[max(0, y - th // 2):y + th // 2 + 1, max(0, x - tw // 2):x + tw // 2 + 1] = 0
+    if p.soft and p.sharp is not None:
+        out = sorted(((_confirm(full, p, at, sc), at) for sc, at in out), reverse=True)
     return out
+
+
+def _confirm(full: Frame, p: Pattern, at: tuple[int, int], sc: float) -> float:
+    """A soft match's score once it's checked with the sharp picture where it was
+    found, in the full-size frame (see SOFT_CONFIRM)."""
+    if sc < SOFT_CHECK:
+        return sc
+    if p._sharps is None:
+        gray, mask, s = p.sharp
+        p._sharps = []
+        for k in (-2, -1, 0, 1, 2):
+            f = s * CONFIRM_STEP ** k
+            q = Pattern(resize(gray, f), None if mask is None else shrink_mask(mask, f))
+            if q.ok:
+                p._sharps.append(q)
+    x, y = at
+    fh, fw = full.shape
+    best = 0.0
+    for q in p._sharps:
+        th, tw = q.shape
+        y0, x0 = max(0, y - CONFIRM_PAD), max(0, x - CONFIRM_PAD)
+        y1, x1 = min(fh, y + th + CONFIRM_PAD), min(fw, x + tw + CONFIRM_PAD)
+        if y1 - y0 >= th and x1 - x0 >= tw:
+            best = max(best, _ncc_near(full.s[y0:y1, x0:x1], q))
+    return sc if best >= SOFT_CONFIRM else min(sc, best)
+
+
+def _ncc_near(area: np.ndarray, q: Pattern) -> float:
+    """find_peaks()'s best score for `q` in a small `area`, worked out directly:
+    for a few dozen places that's cheaper than transforms."""
+    th, tw = q.shape
+    win = np.lib.stride_tricks.sliding_window_view(area.astype(np.float64), (th, tw))
+    t = q.t.astype(np.float64)
+    num = np.einsum("ijkl,kl->ij", win, t)
+    if q.m is None:
+        s1 = win.sum(axis=(2, 3))
+        s2 = np.einsum("ijkl,ijkl->ij", win, win)
+    else:
+        m = q.m.astype(np.float64)
+        s1 = np.einsum("ijkl,kl->ij", win, m)
+        s2 = np.einsum("ijkl,ijkl,kl->ij", win, win, m)
+    var = s2 - s1 * s1 / q.count
+    ok = var > q.count * q.flat * q.flat
+    score = np.divide(num, np.sqrt(np.where(ok, var, 1.0)), where=ok,
+                      out=np.zeros_like(num))
+    return float(min(score.max() / q.norm, 1.0)) if score.size else 0.0
 
 
 def match(screen: np.ndarray | Frame, tmpl: np.ndarray,
@@ -772,8 +836,10 @@ class Look:
         # counts as flat by what it had before
         was = g if m is None else g[m]
         now = soft if hm is None else soft[hm]
-        return Pattern(soft, hm, soft=g.shape,
-                       kept=float(now.std()) / max(float(was.std()), 1e-6))
+        pat = Pattern(soft, hm, soft=g.shape,
+                      kept=float(now.std()) / max(float(was.std()), 1e-6))
+        pat.sharp = (self.gray, self.mask, s)
+        return pat
 
     def _add(self, f: float, p: Pattern | None = None) -> bool:
         if not SIZES[0] - 1e-9 <= f <= SIZES[1] + 1e-9 or any(near(f, g) for g, _p in self.pats):
@@ -1672,6 +1738,10 @@ class _Capture:
         self.turns: dict[str, int] = {}   # "any size": which picture each trigger sweeps next
         self.swept: dict[str, int] = {}   # ...and the check it last swept on (SWEEPERS)
         self.checks = 0             # checks made on this capture
+        # the last frame checked, and each picture trigger's (Watched, its Looks,
+        # score, box) from it: a frame the same to the pixel needs no matching again
+        self.last: tuple | None = None
+        self.memo: dict[str, tuple] = {}
         self.reopen_since = 0.0     # > 0: the capture was lost (or never opened); trying again
         self.next_try = 0.0         # ...not before this time
         self.opened = False         # it has captured at some point
@@ -2154,10 +2224,28 @@ class Watcher:
         scores = {}
         judged = {}
         if not black:
+            # a frame the same to the pixel as the last one (colours too, as far as
+            # the grabber gives them): its picture triggers keep their scores
+            raw = getattr(cap.grab, "raw", None)
+            colour = None if raw is None else raw[0][::2, ::2]
+            last, cap.last = cap.last, (gray.copy(), None if colour is None else colour.copy())
+            same = (last is not None and np.array_equal(last[0], gray)
+                    and (last[1] is None) == (colour is None)
+                    and (colour is None or np.array_equal(last[1], colour)))
+            memo, cap.memo = cap.memo, {}
             # those that swept longest ago are scored first, so they get the turns
             budget = [SWEEPERS]
             for it in sorted(items, key=lambda i: cap.swept.get(i.id, -1)):
-                judged[it.id] = self._score(cap, gray, it, now, frames, budget)
+                looks = cap.scaled.get(it.id)
+                got = memo.get(it.id) if same and it.id not in self._quiet else None
+                if got is not None and got[0] is it and got[1] is looks:
+                    judged[it.id] = got[2]
+                else:
+                    judged[it.id] = self._score(cap, gray, it, now, frames, budget)
+                if it.uses_pictures:
+                    cap.memo[it.id] = (it, looks, judged[it.id])
+        else:
+            cap.last = None
         cap.checks += 1
         for it in items:
             gate = it.gate_for(cap.source)
