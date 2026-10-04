@@ -52,8 +52,24 @@ def test_it_imports_only_what_onion_board_ships():
     # sounddevice would be refused (the board ships it, but the module mustn't need it)
     assert build_module.not_allowed(outside | {"sounddevice", "requests"}) == [
         "requests", "sounddevice"]
-    # nor scipy: Onion Board no longer ships it
+    # nor scipy as a must: only scipy.fft, and only tried, with a fallback
     assert build_module.not_allowed(outside | {"scipy.fft"}) == ["scipy.fft"]
+
+
+def test_scipy_fft_is_only_tried_so_the_module_loads_without_it(built):
+    files, _outside = build_module.closure()
+    assert build_module.tried(files) == {"scipy.fft"} == build_module.OPTIONAL
+    with zipfile.ZipFile(built) as z:
+        m = json.loads(z.read("onion-watch/module.json"))
+    assert not any(i.startswith("scipy") for i in m["imports"])
+
+
+def test_an_optional_import_needs_a_fallback(tmp_path):
+    src = tmp_path / "m.py"
+    src.write_text("try:\n    import scipy.fft\nexcept ImportError:\n    pass\n"
+                   "import scipy.signal\n", encoding="utf-8")
+    assert build_module._imports(src, "m") == {"scipy.signal"}
+    assert build_module._imports(src, "m", optional=True) == {"scipy.fft"}
 
 
 def test_the_same_source_builds_the_same_bytes(built, tmp_path):

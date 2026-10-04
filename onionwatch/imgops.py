@@ -1,18 +1,27 @@
-"""The few image operations the matcher needs, in numpy alone (Onion Board, which
-loads the matcher as an add-on, doesn't ship scipy). Each gives what the scipy.fft /
-scipy.ndimage call it replaces gave, for the arguments the matcher uses
-(tests/test_imgops.py holds them to it)."""
+"""The few image operations the matcher needs. The FFTs are scipy.fft's when the
+program has it (Onion Board and the Onion Watch app ship scipy.fft, and nothing else
+of scipy: it does many rows at once, about three times as fast as numpy) and
+numpy's otherwise; the rest is numpy alone, giving what the scipy.ndimage call it
+replaced gave, for the arguments the matcher uses (tests/test_imgops.py holds each
+one to scipy)."""
 from __future__ import annotations
 
 import functools
 
 import numpy as np
 
+try:
+    import scipy.fft as _sfft
+except ImportError:         # an add-on host without it: numpy's, slower, same results
+    _sfft = None
+
 
 def rfft2(a: np.ndarray, n: tuple[int, int]) -> np.ndarray:
-    """The 2-D spectrum of real `a` zero-padded to `n`, as complex64
-    (scipy.fft.rfft2(a, n) of a float32 `a`). Worked out in float64: numpy's float32
+    """The 2-D spectrum of real float32 `a` zero-padded to `n`, as complex64
+    (scipy.fft.rfft2(a, n)). Without scipy it's worked out in float64: numpy's float32
     transforms take twice as long."""
+    if _sfft is not None:
+        return _sfft.rfft2(a, n)
     rows = np.fft.rfft(np.asarray(a, dtype=np.float64), n[1], axis=1)
     return np.fft.fft(rows, n[0], axis=0).astype(np.complex64)
 
@@ -21,10 +30,11 @@ def irfft2(spec: np.ndarray, n: tuple[int, int], keep: tuple[int, int] | None = 
            ) -> np.ndarray:
     """The real (h, w) = `n` image a spectrum from rfft2() is of (scipy.fft.irfft2), or
     only its top-left `keep` (h, w): rows past that aren't transformed at all."""
-    cols = np.fft.ifft(spec, n[0], axis=0)
+    fft = _sfft or np.fft
+    cols = fft.ifft(spec, n[0], axis=0)
     if keep is not None:
         cols = cols[:keep[0]]
-    out = np.fft.irfft(cols, n[1], axis=1)
+    out = fft.irfft(cols, n[1], axis=1)
     return out if keep is None else out[:, :keep[1]]
 
 
