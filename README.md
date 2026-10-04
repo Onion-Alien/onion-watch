@@ -13,7 +13,7 @@ moment the thing appears.
 
 ![Onion Watch watching two copies of a game, one trigger ringing](docs/screenshots/main.png)
 
-**[⬇ Download Onion Watch for Windows](https://github.com/Onion-Alien/onion-watch/releases/latest/download/OnionWatchSetup.exe)**
+**[⬇ Download Onion Watch for Windows](https://github.com/Onion-Alien/onion-watch/releases/latest/download/OnionWatch-Installer.exe)**
 (free, Windows 10 and 11, no account) · [website](https://onion-alien.github.io/onion-watch/) ·
 [all versions](https://github.com/Onion-Alien/onion-watch/releases) ·
 [VirusTotal scan of 0.5.6](https://www.virustotal.com/gui/file/6202091c7157da0ea0dca79a32873580f79dfbc803be4242992dd9f5110881bc):
@@ -185,7 +185,7 @@ To release a new version:
    know, with a message, instead of crashing).
 2. `powershell -ExecutionPolicy Bypass -File build.ps1 -Clean -Scan` builds the app
    (`dist\OnionWatch\OnionWatch.exe`, self-tested), the installer
-   (`dist\OnionWatchSetup.exe`, needs [Inno Setup 6](https://jrsoftware.org/isinfo.php))
+   (`dist\OnionWatch-Installer.exe`, needs [Inno Setup 6](https://jrsoftware.org/isinfo.php))
    and the add-on (`dist\OnionWatch-module.zip`, via `scripts\build_module.py`, which
    fails if the page imports anything Onion Board doesn't ship: it has no pip).
    `-Scan` then checks the installer on VirusTotal (`scripts\vt_scan.py`, needs a free
@@ -210,8 +210,10 @@ To release a new version:
    with one change at a time (an installer takes a minute to build with Inno Setup, a
    new file scans in a few), and scan several samples of a fix before trusting it:
    one clean scan can be luck.
-3. `gh release create vX.Y.Z dist\OnionWatchSetup.exe dist\OnionWatch-module.zip --target main --title "Onion Watch X.Y.Z"`.
-   Keep both file names: the website links to the setup, Onion Board looks for the zip.
+3. `gh release create vX.Y.Z dist\OnionWatch-Installer.exe dist\OnionWatch-module.zip --target main --title "Onion Watch X.Y.Z"`.
+   Keep both file names: the website links to the installer, Onion Board looks for the zip.
+   GitHub lists a release's files by name, so the installer is named to sort first
+   (`OnionWatch-I…` before `OnionWatch-m…`): it's the file people should click.
 
 To try a zip in Onion Board before releasing it, start Onion Board with
 `ONIONBOARD_ONION_WATCH_ZIP` set to the zip's path: its *Get Onion Watch* button

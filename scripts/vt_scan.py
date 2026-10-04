@@ -1,7 +1,7 @@
 """Scan a file on VirusTotal and print the result: how many engines flagged it,
 which ones and what they called it, and the link for the release notes.
 
-    python scripts/vt_scan.py dist\\OnionWatchSetup.exe            # scan, wait, report
+    python scripts/vt_scan.py dist\\OnionWatch-Installer.exe            # scan, wait, report
     python scripts/vt_scan.py FILE --cached                        # an earlier result if VT has one
     python scripts/vt_scan.py FILE --markdown                      # also the release-notes line
 

@@ -1,4 +1,4 @@
-; OnionWatchSetup.exe: one file a non-technical person double-clicks.
+; OnionWatch-Installer.exe: one file a non-technical person double-clicks.
 ;
 ;   - no Python needed: it ships the PyInstaller build (dist\OnionWatch)
 ;   - no admin needed (installs per user)
@@ -45,7 +45,7 @@ WizardImageFile=wizard-1x.bmp,wizard-2x.bmp
 WizardSmallImageFile=wizard-small-1x.bmp,wizard-small-2x.bmp
 UninstallDisplayIcon={app}\{#AppExeName}.exe
 OutputDir=..\dist
-OutputBaseFilename=OnionWatchSetup
+OutputBaseFilename=OnionWatch-Installer
 ; zip, not solid: DON'T go back to lzma. With Compression=lzma2 + SolidCompression=yes
 ; Microsoft's machine-learning scanner on VirusTotal called nearly every build of this
 ; installer Trojan:Win32/Wacatac.B!ml, whatever was inside it (even with no

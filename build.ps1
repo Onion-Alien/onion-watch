@@ -1,6 +1,6 @@
 # Builds Onion Watch for PCs without Python:
 #   dist\OnionWatch\OnionWatch.exe   (one folder)
-#   dist\OnionWatchSetup.exe          (the one file to give people)
+#   dist\OnionWatch-Installer.exe     (the one file to give people)
 #   dist\OnionWatch-module.zip        (the Onion Board add-on, see scripts\build_module.py)
 #
 # Needs the dev tools once:  .venv\Scripts\pip install -r requirements-dev.txt
@@ -80,19 +80,19 @@ $iscc = @("$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe",
           "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
           "$env:ProgramFiles\Inno Setup 6\ISCC.exe") | Where-Object { Test-Path $_ } | Select-Object -First 1
 if (-not $iscc) {
-    Write-Host "Inno Setup 6 not found, so no OnionWatchSetup.exe this time." -ForegroundColor Yellow
+    Write-Host "Inno Setup 6 not found, so no OnionWatch-Installer.exe this time." -ForegroundColor Yellow
     Write-Host "Install it with:  winget install JRSoftware.InnoSetup" -ForegroundColor Yellow
     exit 0
 }
 $version = & $py -c "import onionwatch; print(onionwatch.__version__)"
 & $iscc /Q "/DAppVersion=$version" installer\OnionWatch.iss
 if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed" }
-Write-Host "Built dist\OnionWatchSetup.exe - that's the one file to give people." -ForegroundColor Green
+Write-Host "Built dist\OnionWatch-Installer.exe - that's the one file to give people." -ForegroundColor Green
 
 # -Scan: VirusTotal (scripts\vt_scan.py, needs VT_API_KEY); the line for the release notes
 if ($Scan) {
-    & $py scripts\vt_scan.py dist\OnionWatchSetup.exe --markdown | Out-Host
+    & $py scripts\vt_scan.py dist\OnionWatch-Installer.exe --markdown | Out-Host
     $scanned = $LASTEXITCODE
-    if ($scanned -eq 1) { throw "a virus scanner flagged OnionWatchSetup.exe: don't release it (README -> releasing)" }
+    if ($scanned -eq 1) { throw "a virus scanner flagged OnionWatch-Installer.exe: don't release it (README -> releasing)" }
     if ($scanned -ne 0) { throw "the VirusTotal scan didn't run (see above)" }
 }
