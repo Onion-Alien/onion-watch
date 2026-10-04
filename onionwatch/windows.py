@@ -392,6 +392,9 @@ class WindowGrabber:
     cpu_elsewhere = 0.0025
     color: np.ndarray | None = None
     raw: tuple | None = None    # the last grab's pixels as sampled: (pixels, format, factor)
+    # ...and all of the window's own (BGRA, a view of the bitmap: only good until the
+    # next grab; None when the last grab didn't copy it)
+    full: np.ndarray | None = None
 
     def __init__(self, ref: WindowRef, w: int, h: int, info: WindowInfo | None = None):
         self.ref = ref
@@ -413,6 +416,7 @@ class WindowGrabber:
         self._layout()
 
     def _make(self, size: tuple[int, int]):
+        self.full = None
         if self._bm is not None:
             self._bm.close()
             self._bm = None
@@ -445,6 +449,7 @@ class WindowGrabber:
             self.minimized = True
             return None
         self.minimized = False
+        self.full = None
         size = client_size(self.hwnd)
         if min(size) < 2:
             return None
@@ -458,6 +463,7 @@ class WindowGrabber:
             self.failures += 1      # the watcher says so if it keeps happening
             return self.last
         self.failures = 0
+        self.full = self._bm.pixels
         sample = pick(self._bm.pixels, self.ys, self.xs)
         self.last = gray_2x(sample) if self.factor == 2 else to_gray(sample)
         self.color = frame_rgb(sample, factor=self.factor) if self.want_color else None
@@ -470,6 +476,7 @@ class WindowGrabber:
         return int(u.GetForegroundWindow() or 0) == self.hwnd
 
     def close(self):
+        self.full = None
         if self._bm is not None:
             self._bm.close()
             self._bm = None

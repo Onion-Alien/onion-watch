@@ -180,6 +180,26 @@ STRUCT_BLUR = 1.2
 PROXY_MIN = 4
 COARSE_PEAKS = 6
 COARSE_NEAR = 0.15
+# A look-alike ("WAVE 7" for "WAVE 1") matches almost as well as the thing at the
+# working size: one glyph in a dozen is a few pixels there. Where the grabber has the
+# window's own pixels (`full`) and a place is about to go off at the picture's own
+# size (within TWIN_SIZE), the picture is laid on them (+-TWIN_ALIGN px), both
+# softened by TWIN_BLUR px, and matched in vertical strips TWIN_STRIPS of its height
+# wide (+-1 px each): the thing itself
+# matches near exactly in every strip (their median TWIN_MED or more), a twin in all
+# but the strips its different glyph is in. Two side by side at TWIN_LOW or less
+# (TWIN_RUN on average) and the score drops to their mean. Strips with little in
+# them (grey spread under TWIN_PLAIN: soft scenery, unsure there) or flat on the
+# screen (TWIN_FLAT: covered) don't count.
+TWIN_SIZE = 0.04
+TWIN_ALIGN = 3
+TWIN_STRIPS = (0.2, 0.3)
+TWIN_MED = 0.93
+TWIN_LOW = 0.82
+TWIN_RUN = 0.76
+TWIN_BLUR = 0.7
+TWIN_FLAT = 0.03
+TWIN_PLAIN = 0.12
 # a sharp check of a picture with more pixels than this is done with transforms
 DIRECT_MAX = 4000
 MAX_FOUND = 3           # sizes the sweep found kept per picture
@@ -877,6 +897,60 @@ def _ncc_at(area: np.ndarray, q: Pattern) -> tuple[float, tuple[int, int]]:
     i = int(np.argmax(score))
     y, x = divmod(i, score.shape[1])
     return float(min(score.flat[i] / q.norm, 1.0)), (x, y)
+
+
+def _ncc_masked(a: np.ndarray, t: np.ndarray, m: np.ndarray) -> float:
+    n = float(m.sum())
+    ta = (t - float((t * m).sum()) / n) * m
+    aa = (a - float((a * m).sum()) / n) * m
+    d = float(np.sqrt((ta * ta).sum() * (aa * aa).sum()))
+    return float((ta * aa).sum()) / d if d > 1e-9 else 0.0
+
+
+def one_part_off(area: np.ndarray, gray: np.ndarray, mask: np.ndarray | None) -> float:
+    """The score a place showing `gray` (a picture at its own size, `mask` its
+    cut-out) keeps once it's matched in strips on `area`, the screen's own pixels
+    around it (TWIN_ALIGN px each way): 1.0 unless it's a look-alike (see TWIN_*)."""
+    th, tw = gray.shape
+    if area.shape[0] < th or area.shape[1] < tw:
+        return 1.0
+    m = np.ones(gray.shape, np.float32) if mask is None else mask.astype(np.float32)
+    q = Pattern(gray, mask)
+    if not q.ok:
+        return 1.0
+    _sc, (x, y) = _ncc_at(area, q)
+    # softened a little: fine texture (grass, noise) a pixel's resampling off
+    # disagrees at full detail; a different glyph's strokes still do
+    t = gaussian_filter(gray.astype(np.float32), TWIN_BLUR)
+    a = gaussian_filter(area.astype(np.float32), TWIN_BLUR)
+    for share in TWIN_STRIPS:
+        n = max(1, round(tw / max(4, round(th * share))))
+        parts: list[float | None] = []
+        for i in range(n):
+            x0, x1 = i * tw // n, (i + 1) * tw // n
+            tt, mm = t[:, x0:x1], m[:, x0:x1]
+            if mm.sum() < 6 or float(tt[mm > 0].std()) < TWIN_PLAIN:
+                parts.append(None)          # plain scenery: nothing to tell by
+                continue
+            here = a[y:y + th, x + x0:x + x1]
+            if float(here[mm > 0].std()) < TWIN_FLAT:
+                parts.append(None)          # flat on the screen: covered
+                continue
+            best = -1.0
+            for dy in (-1, 0, 1):
+                for dx in (-1, 0, 1):
+                    yy, xx = y + dy, x + x0 + dx
+                    if 0 <= yy and 0 <= xx and yy + th <= a.shape[0] and xx + x1 - x0 <= a.shape[1]:
+                        best = max(best, _ncc_masked(a[yy:yy + th, xx:xx + x1 - x0], tt, mm))
+            parts.append(best)
+        got = [v for v in parts if v is not None]
+        if len(got) < 3 or float(np.median(got)) < TWIN_MED:
+            continue
+        for u, v in zip(parts, parts[1:]):
+            if (u is not None and v is not None and u <= TWIN_LOW and v <= TWIN_LOW
+                    and (u + v) / 2 <= TWIN_RUN):
+                return max(0.0, (u + v) / 2)
+    return 1.0
 
 
 def find_via(fine: Frame, coarse: Frame, r: float, off: tuple[int, int], p: Pattern,
@@ -2831,6 +2905,7 @@ class Watcher:
                     got = levels[r] = (f, bx)
                 return got
             raw = getattr(cap.grab, "raw", None)
+            full = getattr(cap.grab, "full", None)
             near_ = it.threshold - TINT_NEAR
 
             def around(r: float, bx: tuple, p: Pattern) -> tuple[Frame, tuple] | None:
@@ -2889,6 +2964,8 @@ class Watcher:
                         if f_ < 1.0 and lk.small_tint is not None:
                             f_ = max(f_, Watcher._tint_factor(raw, b, *lk.small_tint))
                         sc *= f_
+                    if full is not None and sc >= it.threshold:
+                        sc = min(sc, Watcher._twin(full, b, lk, gray.shape))
                     if sc > top[0]:
                         top = (sc, b)
                 return top
@@ -2934,6 +3011,23 @@ class Watcher:
         if now - ref[0] >= CHANGE_GAP:
             cap.refs[it.id] = (now, area.copy())
         return score, box
+
+    @staticmethod
+    def _twin(full: np.ndarray, box: tuple, lk: Look, shape: tuple[int, int]) -> float:
+        """one_part_off() for `lk` at `box` (y0, y1, x0, x1 in a frame of `shape`) on
+        `full`, the window's own pixels (BGRA), when the box is the picture's own size
+        there; else 1.0."""
+        fh, fw = full.shape[:2]
+        sy, sx = fh / shape[0], fw / shape[1]
+        y0, y1, x0, x1 = box
+        th, tw = lk.gray.shape
+        if (abs((y1 - y0) * sy / th - 1) > TWIN_SIZE
+                or abs((x1 - x0) * sx / tw - 1) > TWIN_SIZE):
+            return 1.0
+        cy, cx = round((y0 + y1) * sy / 2 - th / 2), round((x0 + x1) * sx / 2 - tw / 2)
+        ay, ax = max(0, cy - TWIN_ALIGN), max(0, cx - TWIN_ALIGN)
+        area = full[ay:min(fh, cy + th + TWIN_ALIGN), ax:min(fw, cx + tw + TWIN_ALIGN)]
+        return one_part_off(to_gray(area), lk.gray, lk.mask)
 
     @staticmethod
     def _tint_factor(raw: tuple, box: tuple, want: np.ndarray,

@@ -141,6 +141,46 @@ def test_thin_text_cut_out_is_matched_sharp_at_its_own_size():
     assert sw.Look(gray, blob, 0.52, [1.0], True).pats[0][1].soft
 
 
+def glyphs(codes, h=40) -> tuple[np.ndarray, np.ndarray]:
+    """A line of blocky white 'glyphs' with a black outline, cut out: one glyph per
+    code (a 5x3 bit pattern), like big game text."""
+    w = len(codes) * 24 + 8
+    ink = np.zeros((h, w), bool)
+    for i, c in enumerate(codes):
+        bits = np.array([(c >> k) & 1 for k in range(15)], bool).reshape(5, 3)
+        ink[5:35, 8 + i * 24:8 + i * 24 + 18] = np.kron(bits, np.ones((6, 6), bool))
+    edge = np.zeros_like(ink)
+    for dy in (-2, 0, 2):
+        for dx in (-2, 0, 2):
+            edge |= np.roll(np.roll(ink, dy, 0), dx, 1)
+    gray = np.where(ink, 1.0, 0.05).astype(np.float32)
+    return gray, edge
+
+
+def test_a_look_alike_with_one_glyph_different_is_told_apart():
+    """'WAVE 7' scored like 'WAVE 1' (0.93-0.95 at the window's own pixels, as much
+    at the working size): one glyph in six. Matched in strips on the window's own
+    pixels, every strip of the thing itself is near exact, a twin's different glyph
+    isn't. Other scenery behind the cut-out, or a flat cover, doesn't count."""
+    word = [0b111101101101111, 0b010010010010111, 0b111001111100111,
+            0b111001111001111, 0b101101111001001]
+    gray, mask = glyphs(word + [0b010110010010111])
+    twin = glyphs(word + [0b111001001001001])[0]
+    rng = np.random.default_rng(3)
+    for _ in range(4):
+        area = (rng.random((gray.shape[0] + 6, gray.shape[1] + 6)) * 0.5 + 0.2
+                ).astype(np.float32)
+        real = area.copy()
+        real[3:-3, 3:-3][mask] = gray[mask]
+        assert sw.one_part_off(real, gray, mask) == 1.0
+        other = area.copy()
+        other[3:-3, 3:-3][mask] = twin[mask]
+        assert sw.one_part_off(other, gray, mask) < 0.75
+        covered = real.copy()
+        covered[3:-3, 3 + 120:3 + 152] = 0.2
+        assert sw.one_part_off(covered, gray, mask) == 1.0
+
+
 def test_a_rectangle_over_smooth_sky_is_not_matched_by_the_sky_alone():
     # a faint figure cut with a lot of sky around it: the sky's gradient alone matches
     # the plain way, but not once the light's slow changes are taken off (structure())

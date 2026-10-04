@@ -69,7 +69,10 @@ to GDI. The copy is shrunk to a few hundred pixels and turned grey. Each picture
 is then found with normalised cross-correlation (an FFT), so a match scores the
 same however bright the game is. Transparent parts of a picture are left out. A
 place that matches in grey also has its colours compared with the picture's, so
-a red potion isn't taken for a blue one.
+a red potion isn't taken for a blue one. When it watches a window, a place about to
+go off at the picture's own size is also compared strip by strip on the window's
+full-size pixels, so text one character apart ("WAVE 7" for "WAVE 1") doesn't set
+it off. Text with something added at the end ("READY?" for "READY") still does.
 
 With **Any size** (on by default) a picture is found even when the game shows it
 bigger or smaller than when it was cut: cut in fullscreen and played in a window,
