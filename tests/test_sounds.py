@@ -101,3 +101,22 @@ def test_the_player_opens_its_output_again_after_the_device_goes():
     assert p.play(tone, tag="c")
     assert SilentOutputStream.opened[-1] is not first and SilentOutputStream.opened[-1].active
     p.close()
+
+
+@pytest.mark.parametrize("rate", [22050, 44100, 96000])
+def test_resampling_gives_what_scipy_did(tmp_path, rate):
+    # decode() resamples with soxr now; it should give what scipy's resample_poly gave,
+    # sample for sample, but for the two filters' slightly different edges
+    signal = pytest.importorskip("scipy.signal")
+    t = np.arange(rate) / rate
+    tone = np.stack([0.4 * np.sin(2 * np.pi * 440 * t) + 0.1 * np.sin(2 * np.pi * 3000 * t),
+                     0.3 * np.sin(2 * np.pi * 660 * t)], axis=1).astype(np.float32)
+    src = tmp_path / f"tone{rate}.wav"
+    sf.write(src, tone, rate, subtype="FLOAT")
+    got = sounds.decode(src)
+    g = np.gcd(rate, RATE)
+    want = signal.resample_poly(tone, RATE // g, rate // g, axis=0).astype(np.float32)
+    assert got.dtype == np.float32 and got.flags.c_contiguous
+    assert got.shape == want.shape == (RATE, 2)
+    edge = RATE // 50
+    np.testing.assert_allclose(got[edge:-edge], want[edge:-edge], rtol=0, atol=1e-3)

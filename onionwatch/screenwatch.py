@@ -60,8 +60,9 @@ from ctypes import wintypes
 from dataclasses import asdict, dataclass, field
 
 import numpy as np
-import scipy.fft as sfft
-from scipy.ndimage import binary_erosion, gaussian_filter, zoom
+
+from onionwatch.imgops import (binary_erosion, gaussian_filter, irfft2, next_fast_len, rfft2,
+                              zoom_linear)
 
 log = logging.getLogger(__name__)
 
@@ -446,10 +447,11 @@ class Frame:
         h, w = self.s.shape
         # the FFTs' size: a correlation over the frame's size is enough, as a
         # picture's valid places never wrap around it
-        self.n = (sfft.next_fast_len(h, True), sfft.next_fast_len(w, True))
+        self.n = (next_fast_len(h), next_fast_len(w))
         self._spec: np.ndarray | None = None
         self._spec2: np.ndarray | None = None
         self._sums: dict = {}
+        self._totals: tuple | None = None
         self._soft: Frame | None = None
 
     def soft(self) -> Frame:
@@ -457,7 +459,7 @@ class Frame:
         size: a quarter of the work for every picture matched on it (kept: they
         share it)."""
         if self._soft is None:
-            self._soft = Frame(gaussian_filter(self.s, BLUR, mode="nearest")[::2, ::2])
+            self._soft = Frame(gaussian_filter(self.s, BLUR, step=2))
         return self._soft
 
     @property
@@ -466,28 +468,48 @@ class Frame:
 
     def spectrum(self) -> np.ndarray:
         if self._spec is None:
-            self._spec = sfft.rfft2(self.s, self.n)
+            self._spec = rfft2(self.s, self.n)
         return self._spec
 
     def corr(self, spec: np.ndarray, pspec: np.ndarray, shape: tuple[int, int]) -> np.ndarray:
         """A correlation over every place a (h, w) picture fits whole."""
         (sh, sw), (th, tw) = self.s.shape, shape
-        return sfft.irfft2(spec * pspec, self.n)[:sh - th + 1, :sw - tw + 1]
+        return irfft2(spec * pspec, self.n, (sh - th + 1, sw - tw + 1))
 
     def sums(self, p: Pattern) -> tuple[np.ndarray, np.ndarray]:
         """The sum and the sum of squares under the picture's opaque part in each
         place: kept for the frame, since pictures of one size share their box."""
         got = self._sums.get(p.key)
         if got is None:
-            if self._spec2 is None:
-                self._spec2 = sfft.rfft2(self.s * self.s, self.n)
-            m = p.mask_spectrum(self.n)
-            got = self._sums[p.key] = (self.corr(self.spectrum(), m, p.shape),
-                                       self.corr(self._spec2, m, p.shape))
+            if p.box:
+                got = self.box_sums(p.shape)
+            else:
+                if self._spec2 is None:
+                    self._spec2 = rfft2(self.s * self.s, self.n)
+                m = p.spectra(self.n)[1]
+                got = (self.corr(self.spectrum(), m, p.shape),
+                       self.corr(self._spec2, m, p.shape))
+            self._sums[p.key] = got
         return got
 
+    def box_sums(self, shape: tuple[int, int]) -> tuple[np.ndarray, np.ndarray]:
+        """sums() for a picture with no see-through part, from the frame's running
+        totals (an integral image of it and of its square, made once): four lookups
+        a place instead of two more transforms, and exact."""
+        if self._totals is None:
+            s = self.s.astype(np.float64)
+            self._totals = (_integral(s), _integral(s * s))
+        th, tw = shape
+        return tuple((ii[th:, tw:] - ii[:-th, tw:] - ii[th:, :-tw] + ii[:-th, :-tw]
+                      ).astype(np.float32) for ii in self._totals)
 
-_boxes: dict = {}               # (FFT size, h, w) -> a box's spectrum, shared by pictures
+
+def _integral(a: np.ndarray) -> np.ndarray:
+    """`a`'s integral image, a row and a column of zeros in front: [y, x] is the sum
+    of a[:y, :x]."""
+    ii = np.zeros((a.shape[0] + 1, a.shape[1] + 1))
+    ii[1:, 1:] = a.cumsum(0).cumsum(1)
+    return ii
 
 
 class Pattern:
@@ -522,22 +544,11 @@ class Pattern:
         conjugated: multiplied by a frame's, they make a correlation."""
         if self._spec is not None and self._spec[0] == n:
             return self._spec[1], self._spec[2]
-        t = np.conj(sfft.rfft2(self.t, n))
-        m = None if self.box else np.conj(sfft.rfft2(self.m, n))
+        t = np.conj(rfft2(self.t, n))
+        m = None if self.box else np.conj(rfft2(self.m, n))
         if self.keep:
             self._spec = (n, t, m)
         return t, m
-
-    def mask_spectrum(self, n: tuple[int, int]) -> np.ndarray:
-        if not self.box:
-            return self.spectra(n)[1]
-        key = (n, *self.shape)
-        got = _boxes.get(key)
-        if got is None:
-            if len(_boxes) > 64:
-                _boxes.clear()
-            got = _boxes[key] = np.conj(sfft.rfft2(np.ones(self.shape, np.float32), n))
-        return got
 
 
 def find(f: Frame, p: Pattern) -> tuple[float, tuple[int, int]]:
@@ -641,8 +652,7 @@ def resize(gray: np.ndarray, scale: float) -> np.ndarray:
         return shrink(gray, scale)
     h, w = gray.shape
     nh, nw = max(1, round(h * scale)), max(1, round(w * scale))
-    return zoom(gray.astype(np.float32), (nh / h, nw / w), order=1, grid_mode=True,
-                mode="nearest")
+    return zoom_linear(gray.astype(np.float32), (nh, nw))
 
 
 def near(a: float, b: float) -> bool:
@@ -746,7 +756,7 @@ class Look:
             hm = binary_erosion(shrink_mask(self.mask, s / 2))
             if int(hm.sum()) < SOFT_MASK_MIN:
                 return Pattern(g, m)
-        soft = gaussian_filter(resize(gray, s / 2), BLUR / 2, mode="nearest")
+        soft = gaussian_filter(resize(gray, s / 2), BLUR / 2)
         # softening takes contrast away, the frame's as much as the picture's: a window
         # counts as flat by what it had before
         was = g if m is None else g[m]
@@ -2099,7 +2109,7 @@ class Watcher:
         except AttributeError:
             pass
         ratio = sh / was[1] if was[1] > 0 else 1.0
-        spectrum = sfft.next_fast_len(h, True) * (sfft.next_fast_len(w, True) // 2 + 1) * 8
+        spectrum = next_fast_len(h) * (next_fast_len(w) // 2 + 1) * 8
         room = SPECTRA_MB * 2 ** 20
         scaled = {}
         for i in items:
