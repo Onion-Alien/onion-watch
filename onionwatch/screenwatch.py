@@ -153,6 +153,7 @@ EXACT_NEAR = 0.25
 # SOFT_MASK_MIN has EXACT_PEAKS of its places checked (its few pixels look like
 # more of the scenery than a bigger picture's do)
 EXACT_MASK_MIN = 40
+THIN_SHARE = 0.5    # ...nor a thin one (thin()): this share of it 1 px wide at half size
 EXACT_PEAKS = 5
 # A rectangle cut around a thing takes some scenery with it, and a smooth part of it
 # (sky, a gradient) can carry a match by itself: a figure cut over sky scored 0.89 on
@@ -927,6 +928,24 @@ def work_scale(screen_w: int, tmpl_sides: list[int]) -> float:
     return min(1.0, scale, cap)
 
 
+def thin(mask: np.ndarray, scale: float) -> bool:
+    """A cut-out mostly of strokes under a pixel wide at `scale` (small text cut out of
+    its scenery): less than THIN_SHARE of it is left once worn away by half a pixel
+    there each side."""
+    r = math.ceil(0.5 / scale)
+    out = mask.astype(bool)
+    total = int(out.sum())
+    for _ in range(r):
+        m = out.copy()
+        m[1:] &= out[:-1]
+        m[:-1] &= out[1:]
+        m[:, 1:] &= out[:, :-1]
+        m[:, :-1] &= out[:, 1:]
+        m[0], m[-1], m[:, 0], m[:, -1] = False, False, False, False
+        out = m
+    return int(out.sum()) < THIN_SHARE * total
+
+
 def shrink_mask(mask: np.ndarray, scale: float) -> np.ndarray:
     """A picture's opaque part at `scale`. Shrunk pixels that were wholly opaque match
     best (the others blend in whatever is behind the picture), but a thin outline has
@@ -1152,7 +1171,9 @@ class Look:
             hm = shrink_mask(self.mask, s / 2)
             if near(f, 1.0):
                 # only finding places to check sharp: a slim figure's few pixels do
-                if int(hm.sum()) < EXACT_MASK_MIN:
+                # ...nor a thin one's, blurred at half size into a smear that looks
+                # like any scenery: the right place isn't among those checked
+                if int(hm.sum()) < EXACT_MASK_MIN or (THIN_SHARE and thin(self.mask, s / 2)):
                     return Pattern(g, m)
             else:
                 hm = binary_erosion(hm)

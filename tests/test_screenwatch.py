@@ -127,6 +127,20 @@ def test_a_cut_out_with_thin_lines_is_still_found():
     assert sw.match(sw.shrink(scene(), 1.0), sw.shrink(gray, scale), m)[0] < 0.6
 
 
+def test_thin_text_cut_out_is_matched_sharp_at_its_own_size():
+    """Small text cut out of its scenery (2-px strokes) was looked for on a half-size
+    blurred copy first: its strokes smeared into something any scenery matched, so
+    the place it was shown at was never checked (a real 'Level Up!' line, missed)."""
+    gray, mask = outline(46, 240, stroke=2)
+    assert sw.thin(mask, 0.26) and not sw.thin(np.ones((46, 240), bool), 0.26)
+    assert not sw.thin(outline(46, 240, stroke=8)[1], 0.26)
+    look = sw.Look(gray, mask, 0.52, [1.0], True)
+    assert not look.pats[0][1].soft
+    blob = np.zeros((46, 240), bool)
+    blob[4:42, 10:230] = True
+    assert sw.Look(gray, blob, 0.52, [1.0], True).pats[0][1].soft
+
+
 def test_a_rectangle_over_smooth_sky_is_not_matched_by_the_sky_alone():
     # a faint figure cut with a lot of sky around it: the sky's gradient alone matches
     # the plain way, but not once the light's slow changes are taken off (structure())
