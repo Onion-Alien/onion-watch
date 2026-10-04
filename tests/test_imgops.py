@@ -1,5 +1,6 @@
 """imgops against the scipy calls it replaced: the same results for the arguments the
-matcher uses. scipy is only a dev dependency now; without it these are skipped."""
+matcher uses. The FFTs are checked both ways: through scipy.fft, and through numpy as
+in a host without it."""
 from __future__ import annotations
 
 import numpy as np
@@ -9,6 +10,14 @@ from onionwatch import imgops
 
 sfft = pytest.importorskip("scipy.fft")
 ndi = pytest.importorskip("scipy.ndimage")
+
+@pytest.fixture(params=["scipy", "numpy"])
+def backend(request, monkeypatch):
+    """imgops's FFTs through scipy.fft, then as a host without it has them."""
+    if request.param == "numpy":
+        monkeypatch.setattr(imgops, "_sfft", None)
+    return request.param
+
 
 SHAPES = [(1, 1), (1, 9), (2, 3), (5, 13), (27, 48), (135, 240), (270, 480)]
 
@@ -30,7 +39,7 @@ def test_next_fast_len_refuses_zero():
 
 
 @pytest.mark.parametrize("shape", [(27, 48), (135, 240), (262, 474)])
-def test_ffts_match_scipys(shape):
+def test_ffts_match_scipys(shape, backend):
     a = _gray(shape) - 128
     n = (sfft.next_fast_len(shape[0], True), sfft.next_fast_len(shape[1], True))
     want, got = sfft.rfft2(a, n), imgops.rfft2(a, n)
@@ -99,7 +108,7 @@ def test_gaussian_filter_every_other_pixel_is_scipys_sliced(shape):
     np.testing.assert_array_equal(imgops.gaussian_filter(a, 1.5, step=2), want)
 
 
-def test_irfft2_kept_corner_is_the_whole_ones():
+def test_irfft2_kept_corner_is_the_whole_ones(backend):
     a = _gray((40, 60)) - 128
     n = (45, 64)
     spec = imgops.rfft2(a, n)

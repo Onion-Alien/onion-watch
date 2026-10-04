@@ -1,7 +1,7 @@
 """Write THIRD-PARTY-NOTICES.txt for the packaged app (build.ps1 runs this).
 
-The PyInstaller build bundles Python, Qt (PySide6, LGPL-3.0), numpy, libsoxr,
-libsndfile, PortAudio and more; their licences require the notices to travel with
+The PyInstaller build bundles Python, Qt (PySide6, LGPL-3.0), numpy, scipy,
+libsoxr, libsndfile, PortAudio and more; their licences require the notices to travel with
 the binaries. This walks the runtime dependencies installed in the current
 environment and copies every licence file each one ships, then adds the texts
 PySide6 doesn't include itself.
@@ -17,7 +17,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-ROOTS = ["PySide6", "numpy", "sounddevice", "soundfile", "soxr"]
+ROOTS = ["PySide6", "numpy", "scipy", "sounddevice", "soundfile", "soxr"]
 LICENSE_FILE = re.compile(r"(?i)^(licen[cs]e|copying|notice|authors)|licen[cs]e")
 SKIP_FILE = re.compile(r"(?i)commercial")  # Qt's commercial terms don't apply to us
 RULE = "=" * 78

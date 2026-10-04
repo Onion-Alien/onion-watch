@@ -11,7 +11,10 @@
 Onion Board unzips it into %APPDATA%\\OnionBoard\\modules\\onion-watch and loads the
 package from there. The built app has no pip, so the module may only import what
 Onion Board ships: the standard library, numpy and PySide6's QtCore / QtGui /
-QtWidgets (ALLOWED_*). Anything else fails the build.
+QtWidgets (ALLOWED_*). Anything else fails the build. It may also try scipy.fft
+(OPTIONAL: Onion Board ships it, for speed) inside a `try` that falls back when the
+import fails; module.json doesn't list it, so a host without it still loads the
+module.
 
 The zip is the same byte for byte for the same source (fixed file times, sorted
 entries), so its SHA-256 only changes when the code does.
@@ -40,18 +43,39 @@ ZIP_NAME = "OnionWatch-module.zip"
 # (any part of them), and these modules
 ALLOWED_PACKAGES = {"numpy"}
 ALLOWED_MODULES = {"PySide6", "PySide6.QtCore", "PySide6.QtGui", "PySide6.QtWidgets"}
+# tried, with a fallback when they're missing (see _optional)
+OPTIONAL = {"scipy.fft"}
 DESCRIPTION = ("Plays a sound when something shows up in a game — a rare spawn, a queue "
                "pop, YOU DIED — watching the game's own window, even while other windows "
                "cover it.")
 FIXED_TIME = (2026, 1, 1, 0, 0, 0)
 
 
-def _imports(path: Path, modname: str) -> set[str]:
-    """Every module `path` imports, anywhere in it, as absolute names."""
+def _optional(tree: ast.AST) -> set[int]:
+    """The import statements (their ids) inside a `try` that catches ImportError:
+    the code runs without what they import."""
+    def catches(h: ast.ExceptHandler) -> bool:
+        names = h.type.elts if isinstance(h.type, ast.Tuple) else [h.type]
+        return any(isinstance(n, ast.Name) and n.id in ("ImportError", "ModuleNotFoundError")
+                   for n in names)
+    out: set[int] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Try) and any(catches(h) for h in node.handlers):
+            out.update(id(sub) for stmt in node.body for sub in ast.walk(stmt)
+                       if isinstance(sub, (ast.Import, ast.ImportFrom)))
+    return out
+
+
+def _imports(path: Path, modname: str, optional: bool = False) -> set[str]:
+    """Every module `path` imports, anywhere in it, as absolute names: the ones it
+    needs, or with `optional` the ones it only tries (see _optional)."""
     tree = ast.parse(path.read_text(encoding="utf-8"), str(path))
     pkg = modname if path.name == "__init__.py" else modname.rpartition(".")[0]
+    tried = _optional(tree)
     found: set[str] = set()
     for node in ast.walk(tree):
+        if (id(node) in tried) != optional:
+            continue
         if isinstance(node, ast.Import):
             found.update(a.name for a in node.names)
         elif isinstance(node, ast.ImportFrom):
@@ -145,9 +169,15 @@ def _add(z: zipfile.ZipFile, name: str, data: bytes):
     z.writestr(info, data)
 
 
+def tried(files: dict[str, Path]) -> set[str]:
+    """The modules from outside the package the module only tries to import."""
+    names = set().union(*(_imports(p, m, optional=True) for m, p in files.items()))
+    return {n for n in names if _file_of(n) is None and n.split(".")[0] != PACKAGE}
+
+
 def build(out: Path) -> Path:
     files, outside = closure()
-    bad = not_allowed(outside)
+    bad = not_allowed(outside) + sorted(tried(files) - OPTIONAL)
     if bad:
         raise SystemExit("the module imports what Onion Board doesn't ship: " + ", ".join(bad))
     entries = {f"{MODULE_ID}/module.json":
