@@ -55,16 +55,16 @@ commit times in UTC.
   - Changing `Host` in a way the other side can't follow means bumping
     `API_VERSION` and a matching change in Onion Board.
   - Keep `Config.screen`'s format readable by both: add fields, don't rename them.
-- Keep the README's code layout table current when adding modules.
+- Keep the code layout table in [docs/CODE.md](docs/CODE.md) current when adding modules.
 
 ## Releasing
 
-Follow README → *Inside Onion Board* → "To release a new version". Build with
+Follow [docs/CODE.md](docs/CODE.md) → *Inside Onion Board* → "To release a new version". Build with
 `build.ps1 -Clean -Scan`, never a plain build. Two things keep Microsoft's false
 `Trojan:Win32/Wacatac.B!ml` off the installer on VirusTotal, and neither may be undone:
 the installer is zip-compressed, not lzma (`installer\OnionWatch.iss`; with solid lzma
 nearly every build was flagged whatever was inside it, even with no exe), and the
 PyInstaller bootloader is compiled on this PC. If the scan still flags it, don't
 release, and don't retry blindly: a verdict can change with any byte, so test one
-change at a time and scan several samples (README has how). Never publish a flagged
+change at a time and scan several samples (docs/CODE.md has how). Never publish a flagged
 installer.

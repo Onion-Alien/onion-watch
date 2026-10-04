@@ -127,10 +127,11 @@ def test_closed_cards_are_tiles_side_by_side_an_open_one_the_whole_width(tab, qa
     tab.show()
     for _ in range(8):
         qapp.processEvents()
-    a, b, c, d = (r.geometry() for r in rows)
-    assert a.y() == b.y() and b.x() > a.right()          # two tiles on a line
-    assert a.width() < c.width() and c.y() > a.bottom()  # the open one under, wider
-    assert d.y() > c.bottom()                            # and the rest after it
+    a, b, c, d = (r.geometry() for r in rows)            # 1000 px: three tiles a line
+    assert a.y() == b.y() and b.x() > a.right()          # tiles side by side
+    assert d.y() == a.y() and d.x() > b.right()          # the one after the open card
+    #                                                      fills the line: none cut short
+    assert a.width() < c.width() and c.y() > a.bottom()  # the open one under it, wider
     assert rows[2].names.y() < rows[2].body.y()          # its header on one line
     assert rows[0].names.y() > rows[0].chk_on.y()        # a tile's name under its switch
     tab.hide()

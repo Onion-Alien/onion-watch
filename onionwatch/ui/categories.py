@@ -27,7 +27,8 @@ class CardGrid(Flow):
     """A category's cards as tiles, as many to a line as fit (like the sound pads):
     a closed card is a tile, all of a line as tall as its tallest. An open card,
     and anything else in it (the "empty" note), has a line of its own, the whole
-    width. The cards stay in their order."""
+    width, under the line it would have been on: the closed cards after it fill that
+    line first, so no line is cut short (like a picture grid opening a preview)."""
 
     def insertWidget(self, i: int, w: QWidget):
         self.addChildWidget(w)
@@ -40,7 +41,7 @@ class CardGrid(Flow):
     def _place(self, rect: QRect, move: bool) -> int:
         cols = self.columns(rect.width())
         cw = max(1, (rect.width() - self._gap * (cols - 1)) // cols)
-        y, line = rect.y(), []
+        y, line, under = rect.y(), [], []   # under: open cards waiting for the line to fill
 
         def put(items, w):
             nonlocal y
@@ -50,21 +51,27 @@ class CardGrid(Flow):
                     it.setGeometry(QRect(rect.x() + k * (w + self._gap), y, w, h))
             y += h + self._gap
 
+        def end_line():
+            nonlocal line, under
+            if line:
+                put(line, cw)
+            for it in under:
+                put([it], rect.width())
+            line, under = [], []
+
         for it in self._items:
             if it.isEmpty():
                 continue
             if getattr(it.widget(), "is_open", True):     # a line of its own
                 if line:
-                    put(line, cw)
-                    line = []
-                put([it], rect.width())
+                    under.append(it)
+                else:
+                    put([it], rect.width())
             else:
                 line.append(it)
                 if len(line) == cols:
-                    put(line, cw)
-                    line = []
-        if line:
-            put(line, cw)
+                    end_line()
+        end_line()
         return max(0, y - self._gap - rect.y())
 
 

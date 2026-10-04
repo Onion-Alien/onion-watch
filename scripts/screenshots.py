@@ -27,6 +27,9 @@ from PySide6.QtGui import (QColor, QFont, QImage, QLinearGradient, QPainter,  # 
 from PySide6.QtWidgets import QApplication  # noqa: E402
 
 
+THEME = "Retro 98"   # the README and website pictures all use this theme
+
+
 class _Mute:
     """A stand-in audio stream: screenshots never make a sound."""
 
@@ -147,7 +150,7 @@ def main(out: Path):
     queue = game_scene(w, h, 5, banner="Dungeon queue ready!",
                        whisper="[Mira] whispers: you there?")
 
-    cfg = Config()
+    cfg = Config(theme=THEME)
     cfg.screen = {"on": False, "interval_ms": 100, "window": acct1.to_raw(), "triggers": []}
     pics = settings.APP_DIR / "triggers"
     pics.mkdir(parents=True, exist_ok=True)
@@ -187,12 +190,9 @@ def main(out: Path):
     tab._label_watch()
     for (*_x, score, _e), row in zip(demo, tab.rows.values()):
         row.show_score(score)
-    first = next(iter(tab.rows.values()))
     queue = list(tab.rows.values())[2]
     queue.set_open(True)                # one card open, to show what's in one
-    # ringing, as the player would say: the bar asks the host what's ringing
-    win.host.ringing = lambda: [first.t.id]
-    win.alarm._on_fired(first.t)
+    # no trigger ringing: the alarm bar is red in every theme and would drown it out
     win.show()
     for _ in range(3):      # rows that wrap settle their height over a few passes
         app.processEvents()
@@ -326,7 +326,7 @@ def main(out: Path):
     # the icon
     theme.logo_pixmap(256).save(str(out / "icon.png"))
     win.quit()
-    empty = MainWindow(Config())
+    empty = MainWindow(Config(theme=THEME))
     empty.resize(860, 720)
     empty.show()
     for _ in range(12):
