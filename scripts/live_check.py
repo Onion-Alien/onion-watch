@@ -221,7 +221,7 @@ def main() -> int:
         took = time.monotonic() - t0
         print(f"banner in covered copy 2 -> played {host.played} after {took:.2f} s, "
               f"match {panel.watcher.scores.get(t.id, 0):.0%}")
-        assert host.played == [("s1", False, t.id)]
+        assert host.played == [("s1", False, f"{t.id}/s1")]   # a one-shot: trigger/sound
 
         # 4. one trigger for every copy, looking only around the banner: the banner
         # shows in both copies, so it goes off in each, and says which
