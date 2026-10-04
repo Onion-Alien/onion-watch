@@ -46,8 +46,14 @@ if ($LASTEXITCODE -ne 0) { throw "make_version_info.py failed" }
 
 $cleanArg = @()
 if ($Clean) { $cleanArg = @("--clean") }
+# Of scipy only scipy.fft is used (onionwatch\imgops.py), with the linalg and special
+# it imports; scipy's __init__ names every subpackage, so the rest is excluded by name.
 & $py -m PyInstaller --noconfirm @cleanArg --windowed `
     --name OnionWatch --icon build\onionwatch.ico --version-file build\version_info.txt `
+    --exclude-module scipy.signal --exclude-module scipy.ndimage `
+    --exclude-module scipy.stats --exclude-module scipy.optimize `
+    --exclude-module scipy.interpolate --exclude-module scipy.integrate `
+    --exclude-module scipy.sparse --exclude-module scipy.spatial `
     --paths . `
     main.py
 if ($LASTEXITCODE -ne 0) { throw "PyInstaller failed" }
