@@ -361,6 +361,39 @@ def test_a_thing_turning_up_at_another_size_is_found_at_once(monkeypatch):
     assert not cap.hunts or all("t" not in h[2] for h in cap.hunts)
 
 
+def test_a_cut_out_with_room_around_it_is_hunted_at_a_size_bigger_than_what_changed(
+        monkeypatch):
+    """The screen changes only where a thing's own pixels are (text: its strokes), but
+    a cut-out has see-through room around them. Sizes were tried only up to a little
+    bigger than the changed patch, so a word drawn 1.6 times the size was never
+    tried at its size there: the room counts now (HUNT_FITS)."""
+    monkeypatch.setattr(sw, "SWEEPERS", 0)
+    level = world()
+    s, m0 = 120, 36                                 # the sprite with 36 px all round
+    piece = level[200 - m0:200 - m0 + s, 300 - m0:300 - m0 + s]
+    mask = np.zeros((s, s), bool)
+    mask[m0:m0 + 48, m0:m0 + 48] = True
+    h, w = 540, 960
+    grab = Grab(w, h)
+    it = sw.Watched("t", [(gray(piece), mask)], 0.8, 0.0, any_size=True, cuts=[(w, h)])
+    cap = sw._Capture(0, Monitor(0, 0, w, h, True))
+    cap.grab = grab
+    cap.fitted, cap.scaled = sw.Watcher._fit(grab, cap.mon, [it])
+    watcher = sw.Watcher(lambda *_a: None)
+
+    def frame(rgb):
+        return gray(scaled(rgb, grab.w / w)[:grab.h, :grab.w])
+
+    empty = world(sprites=())
+    shown = empty.copy()
+    big = scaled(sprite(), 1.4)
+    shown[200:200 + big.shape[0], 300:300 + big.shape[1]] = big
+    for _ in range(2):
+        watcher._check(cap, frame(empty), [it])
+    assert watcher._check(cap, frame(shown), [it])["t"] >= 0.8
+    assert any(1.25 < f < 1.6 for f in cap.scaled["t"][0].found)
+
+
 def test_colours_taken_at_the_matching_size_also_count():
     """A place counts when its colours agree with the picture's at full size or at
     the size it's matched at (tint_at): thin parts of a cut-out (letters' strokes)

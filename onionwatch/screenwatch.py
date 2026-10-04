@@ -126,6 +126,8 @@ HUNT_PER_CHECK = 240
 HUNT_CHECKS = 4
 HUNT_BOXES = 6          # changed patches kept per capture: the biggest
 HUNT_ROOM = 1.3         # a picture up to this much bigger than a patch is looked for in it
+HUNT_FITS = 1.7         # ...and tried at sizes up to this much bigger than the patch (text
+                        # changes only where its strokes are: a cut has room around them)
 PROMISING = 0.15
 SWEEP_DONE = 0.9        # a match scoring less may be at a size a little off: keep sweeping
 BLUR = 1.5
@@ -2983,9 +2985,9 @@ class Watcher:
             todo = [(lk, f) for lk in looks for f in HUNT_SIZES
                     if min(lk.gray.shape) * lk.scale * f >= SWEEP_MIN_SIDE
                     and lk.gray.shape[0] * lk.scale * f
-                    <= ((y1 - y0) * HUNT_ROOM + 2 * HUNT_CELL) * lk.ratio
+                    <= ((y1 - y0) * HUNT_FITS + 2 * HUNT_CELL) * lk.ratio
                     and lk.gray.shape[1] * lk.scale * f
-                    <= ((x1 - x0) * HUNT_ROOM + 2 * HUNT_CELL) * lk.ratio
+                    <= ((x1 - x0) * HUNT_FITS + 2 * HUNT_CELL) * lk.ratio
                     and not any(near(f, g) for g, _p in lk.pats)]
             if budget is not None:
                 if budget[0] < len(todo):
