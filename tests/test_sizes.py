@@ -442,6 +442,49 @@ def test_a_thing_turning_up_at_another_size_is_found_at_once(monkeypatch):
     assert not cap.hunts or all("t" not in h[2] for h in cap.hunts)
 
 
+def test_a_big_changed_patch_is_hunted_over_several_checks_nearest_sizes_first(monkeypatch):
+    """A size looked for about a patch costs by the area it's looked in: about a big
+    patch (a moving game) that's the whole frame, so a check's budget covers only a few
+    sizes there, the ones nearest the picture's own first, and the rest wait for the
+    next checks. A small patch still has all its sizes looked for at once."""
+    from types import SimpleNamespace
+
+    monkeypatch.setattr(sw, "HUNT_PER_CHECK", round(len(sw.HUNT_SIZES) / sw.HUNT_SMALL / 2))
+    tried = []
+    lk = SimpleNamespace(gray=np.zeros((40, 40), np.float32), scale=1.0, ratio=1.0, pats=[],
+                         hunt_pattern=lambda g: SimpleNamespace(ok=True),
+                         keep=lambda *_a: None)
+    it = SimpleNamespace(id="t", threshold=0.8)
+
+    def judge(_p, _lk, _area, _fine=False):
+        return 0.0, None
+
+    def hunt(box, budget):
+        cap = SimpleNamespace(last=(np.zeros((300, 400), np.float32), None),
+                              hunts=[[box, 0, ["t"], {}]])
+        before = len(tried)
+        sw.Watcher._hunt(cap, it, [lk], lambda p, lk_, a, f=False: (
+            tried.append(p) or judge(p, lk_, a, f)), 0.0, budget)
+        return cap.hunts[0], len(tried) - before
+
+    whole = sw.HUNT_SIZES
+    h, n = hunt((0, 300, 0, 400), [sw.HUNT_PER_CHECK])
+    assert 0 < n < len(whole) and "t" in h[2] and h[3]["t"] == n
+    budget = [sw.HUNT_PER_CHECK]
+    cap = SimpleNamespace(last=(np.zeros((300, 400), np.float32), None), hunts=[h])
+    sizes = []
+    lk.hunt_pattern = lambda g: sizes.append(g) or SimpleNamespace(ok=True)
+    sw.Watcher._hunt(cap, it, [lk], judge, 0.0, budget)
+    assert sizes and len(sizes) == min(n, len(whole) - n)   # the next ones
+    assert all(abs(np.log(a)) <= abs(np.log(b)) + 1e-9 for a, b in zip(sizes, sizes[1:]))
+    assert min(abs(np.log(f)) for f in sizes) >= max(
+        abs(np.log(f)) for f in sorted(whole, key=lambda f: abs(np.log(f)))[:n]) - 1e-9
+    if 2 * n >= len(whole):
+        assert "t" not in h[2]                             # all looked for: done there
+    h, n = hunt((100, 140, 150, 200), [sw.HUNT_PER_CHECK])   # small: all at once
+    assert "t" not in h[2] and n == len(whole)
+
+
 def test_a_cut_out_with_room_around_it_is_hunted_at_a_size_bigger_than_what_changed(
         monkeypatch):
     """The screen changes only where a thing's own pixels are (text: its strokes), but

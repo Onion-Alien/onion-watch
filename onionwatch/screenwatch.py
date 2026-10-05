@@ -118,11 +118,18 @@ SWEEP_MIN_SIDE = 6      # ...skipping those that shrink a picture below this
 # whole frame does. A frame changed over more than HUNT_MAX_SHARE of it (the scene
 # moving, a new screen) has nothing to narrow it down to. At most HUNT_PER_CHECK
 # sizes a check, all triggers together; what's left waits for the next checks, up to
-# HUNT_CHECKS of them (the patch may have changed again by then).
+# HUNT_CHECKS of them (the patch may have changed again by then). A size counts as
+# one on an area up to HUNT_SMALL of the frame (an icon's patch with its room), more
+# on a bigger one, (area / HUNT_SMALL) ** HUNT_POW: the area looked in about a patch
+# (HUNT_ROOM) is often the whole frame in a moving game, where 240 sizes each a
+# whole-frame match cost a second a check, and the 1 % pacing spaced checks out to
+# ~11 s. Linear (1.0) halved that; 2.0 also lost a find of a window's "size" round.
 HUNT_LEVEL = 0.06
 HUNT_CELL = 8
 HUNT_MAX_SHARE = 0.3
 HUNT_PER_CHECK = 240
+HUNT_SMALL = 0.15
+HUNT_POW = 1.5
 HUNT_CHECKS = 4
 HUNT_BOXES = 6          # changed patches kept per capture: the biggest
 HUNT_ROOM = 1.3         # a picture up to this much bigger than a patch is looked for in it
@@ -2465,7 +2472,7 @@ class Watcher:
         self._items: dict[str, Watched] = {}
         self._changed = True              # pictures / default changed: rescale
         self._sweeps: list[int] | None = None   # this check's sweep turns left (SWEEPERS)
-        self._hunts: list[int] | None = None    # ...and sizes left to hunt (HUNT_PER_CHECK)
+        self._hunts: list[float] | None = None  # ...and sizes left to hunt (HUNT_PER_CHECK)
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
         self.interval = DEFAULT_INTERVAL_MS / 1000
@@ -2980,7 +2987,7 @@ class Watcher:
                 ids = [i.id for i in items if i.any_size and i.uses_pictures]
                 if ids:
                     for bx in changed_boxes(last[0], gray)[:HUNT_BOXES]:
-                        cap.hunts.append([bx, cap.checks, list(ids)])
+                        cap.hunts.append([bx, cap.checks, list(ids), {}])
             cap.hunts = [h for h in cap.hunts if h[2] and cap.checks - h[1] < HUNT_CHECKS]
             del cap.hunts[:-HUNT_BOXES]
             hunt = self._hunts if self._hunts is not None else [HUNT_PER_CHECK]
@@ -3380,12 +3387,15 @@ class Watcher:
 
     @staticmethod
     def _hunt(cap: _Capture, it: Watched, looks: list[Look], judge, beat: float,
-              budget: list[int] | None) -> tuple[float, tuple]:
+              budget: list[float] | None) -> tuple[float, tuple]:
         """Look for `it` at every sweep size about the changed patches it hasn't been
-        looked for in yet (HUNT_*), while `budget` (sizes left this check) lasts. A
-        size that matches is looked for every check from then on, as the sweep's are."""
+        looked for in yet (HUNT_*), while `budget` (sizes left this check, a size on a
+        big area counting for more) lasts: the sizes nearest its own first, the rest
+        the next checks. A size that matches is looked for every check from then on,
+        as the sweep's are."""
         best: tuple = (0.0, None)
         kept = None
+        fh, fw = cap.last[0].shape if cap.last is not None else (1, 1)
         for h in cap.hunts:
             if it.id not in h[2]:
                 continue
@@ -3399,11 +3409,25 @@ class Watcher:
                     and lk.gray.shape[1] * lk.scale * f
                     <= ((x1 - x0) * HUNT_FITS + 2 * HUNT_CELL) * lk.ratio
                     and not any(near(f, g) for g, _p in lk.pats)]
+            todo.sort(key=lambda t: abs(math.log(t[1])))
+            done = h[3].get(it.id, 0)
+            todo = todo[done:]
             if budget is not None:
-                if budget[0] < len(todo):
+                # around(): the area a size is looked for in, as a share of the frame
+                ah = min(fh, y1 - y0 + 2 * round(((y1 - y0) * HUNT_ROOM + 2 * HUNT_CELL) * 0.75))
+                aw = min(fw, x1 - x0 + 2 * round(((x1 - x0) * HUNT_ROOM + 2 * HUNT_CELL) * 0.75))
+                cost = max(1.0, ah * aw / (fh * fw) / HUNT_SMALL) ** HUNT_POW
+                n = min(len(todo), int(budget[0] / cost))
+                if n == 0 and todo:
                     break                       # the next check, with a whole budget
-                budget[0] -= len(todo)
-            h[2].remove(it.id)
+                budget[0] -= n * cost
+                if n < len(todo):
+                    h[3][it.id] = done + n
+                    todo = todo[:n]
+                else:
+                    h[2].remove(it.id)
+            else:
+                h[2].remove(it.id)
             for lk, f in todo:
                 # every other sweep size; one scoring within HUNT_PROMISING of the
                 # threshold has the sizes either side tried too, and if the best of
