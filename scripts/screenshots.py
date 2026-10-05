@@ -319,7 +319,7 @@ def main(out: Path):
     tab._layout_sections()
     for row in tab.rows.values():
         row.set_open(False)
-    win.resize(1040, 640)   # wide enough that the search box isn't squeezed
+    win.resize(1040, 640)
     app.processEvents()
     for _ in range(3):
         app.processEvents()

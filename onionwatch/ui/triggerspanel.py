@@ -64,6 +64,8 @@ MAX_TRIGGERS = 500      # in all; how many can be on at once is up to the comput
 # under "more_triggers", which those versions never read or write: opening the same
 # settings in one of them (an older Onion Board add-on, say) can't lose any
 OLD_TRIGGERS = 50
+SEARCH_MIN = 200        # px: the search box never gets narrower (it was squeezed to "Sea…")
+SEARCH_ROOM = 260       # px it keeps before the view's controls go to a line of their own
 MAX_SIDE = 8192         # bigger pictures are refused (kept pixel for pixel, never resized)
 CUT_KEY = "OnionWatch cut from"   # a picture's PNG text: the size of what it was cut from
 THUMB = QSize(112, 64)
@@ -288,6 +290,16 @@ class WideCombo(QComboBox):
     def minimumSizeHint(self) -> QSize:
         s = super().minimumSizeHint()
         return QSize(min(s.width(), self.min_width), s.height())
+
+
+def _row_width(widgets: list[QWidget], gap: int = 8, least: bool = True) -> int:
+    """The width the shown `widgets` need side by side, `gap` px apart: the least
+    they can do with, or (`least` False) what they'd like."""
+    shown = [w for w in widgets if not w.isHidden()]
+    return (sum(max(w.minimumWidth(),
+                    (w.minimumSizeHint() if least else w.sizeHint()).width())
+                for w in shown)
+            + gap * max(0, len(shown) - 1))
 
 
 def labelled(text: str, w: QWidget) -> QWidget:
@@ -664,6 +676,50 @@ class FlowBox(QWidget):
         h = self.flow.heightForWidth(max(self.width(), 1))
         if h != self.minimumHeight():
             self.setMinimumHeight(h)
+
+
+class ElidedLabel(QLabel):
+    """One line cut short a whole part at a time ("12 of 40 triggers on · …") where
+    it doesn't fit, never a letter sliced in half at the edge or a lone "1" or "·"
+    (the Profile line's counts in a window too narrow for them)."""
+
+    SEPARATORS = ("  —  ", " · ")
+
+    def _ends(self) -> list[int]:
+        full = self.text()
+        return sorted(i for sep in self.SEPARATORS
+                      for i in range(len(full)) if full.startswith(sep, i))
+
+    def least_width(self) -> int:
+        """How wide it must be to show its first part."""
+        ends = self._ends()
+        text = self.text()[:ends[0]] + " …" if ends else self.text()
+        return self.fontMetrics().horizontalAdvance(text) + 4
+
+    def sizeHint(self):     # (its full width would squeeze everything beside it)
+        return QSize(self.least_width(), super().sizeHint().height())
+
+    def minimumSizeHint(self):
+        return QSize(0, super().minimumSizeHint().height())
+
+    def shown_text(self) -> str:
+        width, fm = self.contentsRect().width(), self.fontMetrics()
+        full = self.text()
+        if fm.horizontalAdvance(full) <= width:
+            return full
+        for end in reversed(self._ends()):
+            text = full[:end] + " …"
+            if fm.horizontalAdvance(text) <= width:
+                return text
+        return ""
+
+    def paintEvent(self, ev):
+        r = self.contentsRect()
+        text = self.shown_text()
+        p = QPainter(self)
+        self.style().drawItemText(p, r, int(self.alignment()), self.palette(),
+                                  self.isEnabled(), text, self.foregroundRole())
+        p.end()
 
 
 class BarFlow(Flow):
@@ -2089,15 +2145,20 @@ class TriggersTab(QWidget):
         self.btn_categories.clicked.connect(lambda: self.edit_categories())
         align_control(self.btn_categories)
         gb.addWidget(self.btn_categories)
-        self.lbl_counts = hint_label("")     # cut short rather than widen a narrow window
-        self.lbl_counts.setWordWrap(False)
-        self.lbl_counts.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
+        self.lbl_counts = ElidedLabel()     # cut short rather than widen a narrow window
+        self.lbl_counts.setObjectName("hint")
+        self.lbl_counts.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         # one line over the list: the search box, always there, then (once there are
         # categories or profiles) the category to search and the profile in charge
         self.search_bar = QWidget()
-        search_layout = QBoxLayout(QBoxLayout.LeftToRight, self.search_bar)
+        bar_layout = QVBoxLayout(self.search_bar)
+        bar_layout.setContentsMargins(0, 0, 0, 0)
+        bar_layout.setSpacing(8)
+        self.search_line = QWidget()
+        search_layout = QBoxLayout(QBoxLayout.LeftToRight, self.search_line)
         search_layout.setContentsMargins(0, 0, 0, 0)
         search_layout.setSpacing(8)
+        bar_layout.addWidget(self.search_line)
         self.search_text = QLineEdit()
         self.search_text.setPlaceholderText("Search triggers")
         self.search_text.setAccessibleName("Search triggers")
@@ -2107,6 +2168,7 @@ class TriggersTab(QWidget):
         self._search_icon = self.search_text.addAction(icons.icon("search", "muted"),
                                                        QLineEdit.LeadingPosition)
         align_control(self.search_text)
+        self.search_text.setMinimumWidth(SEARCH_MIN)
         search_layout.addWidget(self.search_text, 3)
         self.search_scope = WideCombo(min_width=140)
         self.search_scope.setAccessibleName("Search category")
@@ -2123,6 +2185,13 @@ class TriggersTab(QWidget):
         search_layout.addWidget(self.search_summary)
         search_layout.addWidget(self.lbl_counts, 4)
         search_layout.addStretch(1)
+        # how the cards look, and the profile: at the end of the line while the search
+        # box keeps its room there, else on a line of their own under it (_fit_top)
+        self.view_bar = QWidget()
+        view_layout = QBoxLayout(QBoxLayout.LeftToRight, self.view_bar)
+        view_layout.setContentsMargins(0, 0, 0, 0)
+        view_layout.setSpacing(8)
+        search_layout.addWidget(self.view_bar)
         self.cb_per_row = WideCombo(min_width=110)
         self.cb_per_row.setAccessibleName("Cards per row")
         self.cb_per_row.setToolTip("How many closed cards go side by side: as many as fit "
@@ -2137,14 +2206,14 @@ class TriggersTab(QWidget):
         no_wheel(self.cb_per_row)
         align_control(self.cb_per_row)
         self.cb_per_row.currentIndexChanged.connect(self.set_per_row)
-        search_layout.addWidget(self.cb_per_row)
+        view_layout.addWidget(self.cb_per_row)
         self.chk_advanced = QCheckBox("Show more info")
         self.chk_advanced.setToolTip("Closed cards show more: every name in full, and "
                                      "each trigger's settings")
         self.chk_advanced.setChecked(host.screen.get("advanced_cards") is True)
         self.chk_advanced.toggled.connect(self._on_advanced)
-        search_layout.addWidget(self.chk_advanced)
-        search_layout.addWidget(self.groupbar)
+        view_layout.addWidget(self.chk_advanced)
+        view_layout.addWidget(self.groupbar)
         # side by side only sets no minimum: below 600 px resizeEvent stacks it instead
         self.search_bar.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
         v.addWidget(self.search_bar)
@@ -2325,8 +2394,9 @@ class TriggersTab(QWidget):
         """The line over the list: stacked in a narrow window, and only the parts
         there's a use for (the category to search and the profile once there are
         categories, Clear and the count while searching, else what's on)."""
-        stacked = self.width() < 600
-        self.search_bar.layout().setDirection(
+        width = self.width()
+        stacked = width < 600
+        self.search_line.layout().setDirection(
             QBoxLayout.TopToBottom if stacked else QBoxLayout.LeftToRight)
         self.search_text.setMaximumWidth(16777215 if stacked else 360)
         grouped = self._grouped()
@@ -2337,6 +2407,24 @@ class TriggersTab(QWidget):
         self.lbl_counts.setVisible(grouped and not active and not stacked)
         self.groupbar.setVisible(grouped)
         self.btn_categories.setEnabled(self._named_categories())
+        # the view's controls share the search's line only while they, the search box
+        # (SEARCH_ROOM) and the counts' first part fit there at their usual widths (a
+        # layout short of room squeezes the search box first); else they go under it,
+        # one above the other when even a line of their own is too narrow for them
+        line = [self.search_scope, self.btn_clear_search, self.search_summary]
+        view = [self.cb_per_row, self.chk_advanced, self.groupbar]
+        counts = 0 if self.lbl_counts.isHidden() else self.lbl_counts.least_width() + 8
+        wanted = SEARCH_ROOM + 8 + counts + _row_width(line + view, least=False)
+        one_line = not stacked and width >= wanted
+        self.view_bar.layout().setDirection(
+            QBoxLayout.TopToBottom if stacked or width < _row_width(view)
+            else QBoxLayout.LeftToRight)
+        self.search_text.setMinimumWidth(SEARCH_ROOM if one_line else SEARCH_MIN)
+        target = self.search_line.layout() if one_line else self.search_bar.layout()
+        if self.view_bar.parentWidget() is not target.parentWidget():
+            self.view_bar.parentWidget().layout().removeWidget(self.view_bar)
+            target.addWidget(self.view_bar)
+        target.setAlignment(self.view_bar, Qt.Alignment() if stacked else Qt.AlignLeft)
 
     def set_per_row(self, n: int):
         """`n` closed cards to a line (0: as many as fit), kept for the next start."""
