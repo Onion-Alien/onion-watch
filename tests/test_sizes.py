@@ -222,6 +222,49 @@ def test_a_picture_partly_covered_by_a_flat_thing_still_counts(monkeypatch):
     assert sc > 0.97 and 0.1 < share < 0.4
 
 
+def test_a_small_match_counts_only_with_the_things_shape_at_full_size():
+    """A small picture that is mostly flat, with one busy corner, matches any dark
+    place with something bright in that corner at the working size. At full size the
+    corner's shape tells them apart, even when the size found is a few % off."""
+    rng = np.random.default_rng(3)
+    pic = np.full((24, 44), 0.08, np.float32) + rng.normal(0, 0.01, (24, 44)).astype(np.float32)
+    pic[14:22, 2:10] = np.indices((8, 8)).sum(0) % 2 * 0.8 + 0.1      # a checker patch
+    lk = sw.Look(pic, None, 0.375, [1.0], True)
+    screen = np.full((720, 1280), 0.08, np.float32) + rng.normal(0, 0.01, (720, 1280)).astype(np.float32)
+    real = sw.resize(pic, 0.9)
+    rh, rw = real.shape
+    screen[300:300 + rh, 500:500 + rw] = real
+    screen[114:122, 802:810] = 0.85                                   # a bright square
+    full = (lambda y0, y1, x0, x1: screen[y0:y1, x0:x1]), screen.shape
+    shape = (270, 480)
+    k = 0.375
+    # the sweep's size is coarser than 0.9: the real one found at 0.94 of its size
+    s = (round(24 * 0.94 * k), round(44 * 0.94 * k))
+    box = (round(300 * k), round(300 * k) + s[0], round(500 * k), round(500 * k) + s[1])
+    assert sw.Watcher._small_shape(full, box, lk, shape) >= sw.SMALL_SHAPE
+    decoy = (round(100 * k), round(100 * k) + s[0], round(800 * k), round(800 * k) + s[1])
+    assert sw.Watcher._small_shape(full, decoy, lk, shape) < sw.SMALL_SHAPE
+    # kept per place and size: the same pixels aren't worked out again
+    seen: dict = {}
+    a = sw.Watcher._small_shape(full, box, lk, shape, seen, "t")
+    assert len(seen) == 1 and sw.Watcher._small_shape(full, box, lk, shape, seen, "t") == a
+
+
+def test_a_cut_outs_shape_is_judged_on_its_own_pixels():
+    """A cut-out turned up on other scenery: what shows around it isn't the picture's,
+    so only its opaque part is compared."""
+    rng = np.random.default_rng(4)
+    yy, xx = np.indices((40, 40))
+    mask = (yy - 20) ** 2 + (xx - 20) ** 2 < 15 ** 2
+    thing = (np.sin(xx / 2.0) * np.cos(yy / 3.0) * 0.3 + 0.5).astype(np.float32)
+    scenery = rng.random((44, 44)).astype(np.float32)
+    area = scenery.copy()
+    area[2:42, 2:42] = np.where(mask, thing, area[2:42, 2:42])
+    assert sw.cut_structure(area, thing, mask, (2, 2)) > 0.95
+    other = rng.random((44, 44)).astype(np.float32)
+    assert sw.cut_structure(other, thing, mask, (2, 2)) < 0.3
+
+
 def test_a_look_alike_in_other_colours_does_not_count():
     """A teal gem where the orange one was is the same grey: only its colours say
     it's not the same thing. The same gem in a darker scene still counts."""
