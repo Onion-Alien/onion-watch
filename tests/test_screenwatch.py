@@ -803,7 +803,9 @@ def test_a_trigger_with_several_pictures_fires_when_any_of_them_shows(fake_scree
     """Three pictures on one trigger: the second one showing up fires it, and its
     live score is the best of its pictures (the one that's there)."""
     plain = scene()
-    fake_screen.frames = [plain, plain, showing(plain, badge()), showing(plain, badge()), plain]
+    # the badge stays up until the test has seen its score: on a busy PC the watcher
+    # could otherwise check the next (plain) frame before the test thread looks
+    fake_screen.frames = [plain, plain, showing(plain, badge())]
     fired = []
     w = sw.Watcher(fired.append)
     w.interval = 0.001
@@ -811,8 +813,9 @@ def test_a_trigger_with_several_pictures_fires_when_any_of_them_shows(fake_scree
     w.start()
     try:
         assert run_until(lambda: fired)
-        assert w.scores["t"] > 0.99
-        assert run_until(lambda: len(fake_screen.frames) == 1 and w.scores["t"] < 0.6)
+        assert run_until(lambda: w.scores.get("t", 0.0) > 0.99)
+        fake_screen.frames = [plain]
+        assert run_until(lambda: w.scores["t"] < 0.6)
     finally:
         w.stop()
     assert fired == ["t"]
