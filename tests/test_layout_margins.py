@@ -59,3 +59,17 @@ def test_controls_fit_and_share_heights_across_window_sizes(tab, qapp, styled, w
     # Mixed-height labels and checkboxes sit on the same centre line as the buttons.
     assert abs(row.count.mapTo(row, row.count.rect().center()).y()
                - row.btn_cut.mapTo(row, row.btn_cut.rect().center()).y()) <= 1
+
+
+@pytest.mark.parametrize("width", [500, 1100])
+def test_the_ring_list_isnt_cut_off_at_the_bottom(tab, qapp, styled, width):
+    tab._new(as_qimage(banner()), "Rare")
+    row = list(tab.rows.values())[-1]
+    row.chk_ring.setChecked(True)
+    tab.resize(width, 900)
+    tab.show()
+    for _ in range(12):
+        qapp.processEvents()
+    pair = row.ring_box     # was 26 px tall round a 34 px list: its bottom edge gone
+    assert row.until.geometry().bottom() <= pair.height() - 1
+    assert pair.geometry().bottom() <= pair.parentWidget().height() - 1

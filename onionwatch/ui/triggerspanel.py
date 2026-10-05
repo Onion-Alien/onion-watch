@@ -705,6 +705,12 @@ class BarFlow(Flow):
         return y + line - rect.y()
 
 
+def tall(w: QWidget) -> int:
+    """How tall `w` really is: its size hint, or its fixed height (align_control's 34 px)
+    when that's more. The hint alone cut the bottom off the Ring list."""
+    return max(w.sizeHint().height(), w.minimumHeight())
+
+
 class Pair(QWidget):
     """Two labelled controls that read as one ("Look in [game] every [100 ms]"): on
     one line while it's wide enough for both, the second under the first when it
@@ -738,7 +744,7 @@ class Pair(QWidget):
         if self.second.isHidden():
             return self.first.sizeHint()
         a, b = self.first.sizeHint(), self.second.sizeHint()
-        return QSize(a.width() + self.GAP + b.width(), max(a.height(), b.height()))
+        return QSize(a.width() + self.GAP + b.width(), max(tall(self.first), tall(self.second)))
 
     def minimumSizeHint(self) -> QSize:
         if self.second.isHidden():
@@ -751,8 +757,8 @@ class Pair(QWidget):
 
     def heightForWidth(self, w: int) -> int:
         if self.second.isHidden():
-            return self.first.sizeHint().height()
-        a, b = self.first.sizeHint().height(), self.second.sizeHint().height()
+            return tall(self.first)
+        a, b = tall(self.first), tall(self.second)
         return max(a, b) if self._one_line(w) else a + self.STACKED + b
 
     def resizeEvent(self, ev):
@@ -1354,7 +1360,7 @@ class TriggerRow(QFrame):
 
     def _fit_text(self):
         """A closed card keeps its name and its line to one line each, cut short with
-        an …; with Advanced on it's as tall as it takes to read all of them."""
+        an …; with Show more info on it's as tall as it takes to read all of them."""
         whole = bool(self._tile) and self.advanced
         self.title.set_elide(not whole)
         self.state.set_elide(not whole)
@@ -2123,9 +2129,9 @@ class TriggersTab(QWidget):
         align_control(self.cb_per_row)
         self.cb_per_row.currentIndexChanged.connect(self.set_per_row)
         search_layout.addWidget(self.cb_per_row)
-        self.chk_advanced = QCheckBox("Advanced")
-        self.chk_advanced.setToolTip("Bigger closed cards: every name in full, and each "
-                                     "trigger's settings")
+        self.chk_advanced = QCheckBox("Show more info")
+        self.chk_advanced.setToolTip("Closed cards show more: every name in full, and "
+                                     "each trigger's settings")
         self.chk_advanced.setChecked(host.screen.get("advanced_cards") is True)
         self.chk_advanced.toggled.connect(self._on_advanced)
         search_layout.addWidget(self.chk_advanced)

@@ -32,7 +32,7 @@ theme. Triggers made in the old built-in tab carry on as they were. It's one
 codebase: the page talks to whichever program it runs in through a small host
 interface (`onionwatch/host.py`).
 
-Closed cards have a remembered Advanced view (`Config.screen.advanced_cards`).
+Closed cards have a remembered "Show more info" view (`Config.screen.advanced_cards`).
 Each trigger may save `interval_ms`; zero or an absent value inherits the global
 interval. The watcher shares captures and its processor budget, checking only
 triggers whose interval has elapsed. A host may optionally provide
