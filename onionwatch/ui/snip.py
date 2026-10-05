@@ -212,16 +212,18 @@ class AreaDialog(QDialog):
         self.size_label = QLabel()
         self.size_label.setObjectName("muted")
         row.addWidget(self.size_label, 1)
-        self.swatch = QLabel()
+        # the dialog's own from the start: shown or hidden before `row` is laid out, a
+        # parentless one flashed up on the desktop as a little window of its own
+        self.swatch = QLabel(self)
         self.swatch.setFixedSize(22, 22)
-        self.btn_pick = QPushButton("Pick the colour")
+        self.btn_pick = QPushButton("Pick the colour", self)
         self.btn_pick.setCheckable(True)
         self.btn_pick.setToolTip("Then click the colour in the picture")
         self.btn_pick.toggled.connect(self._on_pick)
         for w in (self.swatch, self.btn_pick):
             w.setVisible(self.want_colour)
             row.addWidget(w)
-        self.btn_all = QPushButton("All of it")
+        self.btn_all = QPushButton("All of it", self)
         self.btn_all.setToolTip("Look in the whole window")
         self.btn_all.clicked.connect(self._all)
         self.btn_all.setVisible(not self.want_colour)

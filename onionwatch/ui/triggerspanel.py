@@ -1139,7 +1139,7 @@ class TriggerRow(QFrame):
         self.sound.setToolTip("Add a sound to play: a built-in alert, or a sound file of yours")
         no_wheel(self.sound)
         self.sound.activated.connect(self._on_sound)
-        self.pick = WideCombo()
+        self.pick = WideCombo(self)    # (shown before it's in the row: no flash)
         for key, label in PICKS:
             self.pick.addItem(label, key)
         self.pick.setCurrentIndex(max(self.pick.findData(t.pick), 0))

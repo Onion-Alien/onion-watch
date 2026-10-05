@@ -163,13 +163,15 @@ class PictureViewer(QDialog):
 
         foot = QHBoxLayout()
         foot.setSpacing(8)
-        self.btn_swap = QPushButton("Swap for a file…")
+        # the dialog's own from the start: shown before foot is laid out, a parentless
+        # button flashed up on the desktop as a little window of its own
+        self.btn_swap = QPushButton("Swap for a file…", self)
         self.btn_swap.setToolTip("Put another picture file in this one's place")
         icons.set_icon(self.btn_swap, "folder", size=14)
         self.btn_swap.clicked.connect(self._swap)
         self.btn_swap.setVisible(swap is not None)
         foot.addWidget(self.btn_swap)
-        self.btn_remove = QPushButton("Remove")
+        self.btn_remove = QPushButton("Remove", self)
         self.btn_remove.setObjectName("danger")
         self.btn_remove.setToolTip("Take this picture off the trigger (Undo brings it back)")
         icons.set_icon(self.btn_remove, "trash", size=14)

@@ -110,8 +110,8 @@ class WindowPicker(QDialog):
         self.chk_every.setToolTip("For playing several accounts: one trigger watches all the "
                                   "game's windows, and says which one it was")
         self.chk_every.toggled.connect(self._on_every)
-        self.chk_every.setVisible(multi)
-        v.addWidget(self.chk_every)
+        v.addWidget(self.chk_every)            # in the layout first: shown with no
+        self.chk_every.setVisible(multi)       # parent, it flashed up as a window
         row = QHBoxLayout()
         self.btn_refresh = QPushButton("Refresh")
         icons.set_icon(self.btn_refresh, "reload")
