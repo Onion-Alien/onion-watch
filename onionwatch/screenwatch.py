@@ -145,6 +145,17 @@ HUNT_PROMISING = 0.3    # ...the hunt's (HUNT_SIZES are two sweep steps apart)
 # structure() on the screen's own pixels at full size: the thing does (0.84 there), the
 # scenery that fit at the working size doesn't (0.02-0.62 on game footage).
 FINE_SHAPE = 0.65
+# A match where the picture is small (under SMALL_AREA px on the frame it's matched on)
+# has few pixels to go by: a patch of flat colour with one bright corner or one line in
+# it matches most scenery with a bright thing or a line there (0.97 on game footage).
+# So it counts only if the picture keeps SMALL_SHAPE of structure() on the screen's own
+# pixels at full size, at the size found or up to SMALL_STEPS CONFIRM_STEPs either side
+# (the sweep's sizes are coarser than a shape at full size holds). On game footage real
+# finds keep 0.9 (95 % of them over 0.5), the scenery that fit 0.1-0.4, now and then 0.5
+# (0.6 takes 3 false alarms in 4 away and 1 find in 400; 0.7 a few more of each).
+SMALL_AREA = 900
+SMALL_SHAPE = 0.6
+SMALL_STEPS = 4             # (a cut-out is scored on its opaque part: cut_structure())
 SWEEP_DONE = 0.9        # a match scoring less may be at a size a little off: keep sweeping
 BLUR = 1.5
 BLUR_MIN_SIDE = 16
@@ -883,6 +894,43 @@ def structure(full: Frame, p: Pattern, at: tuple[int, int]) -> float:
         nb = math.sqrt(float((b * b).sum()))
         if nt > 1e-9 and nb > 1e-9:
             best = max(best, float((t * b).sum()) / (nt * nb))
+    return best
+
+
+def _cut_high(a: np.ndarray, m: np.ndarray, k: int) -> np.ndarray:
+    """`a` with its light's slow changes (the mean of the k x k square about each
+    pixel) taken off, those worked out under mask `m` only."""
+    mm = m.astype(np.float64)
+    return a - _box_mean(a * mm, k) / np.maximum(_box_mean(mm, k), 1e-6)
+
+
+def cut_structure(area: np.ndarray, gray: np.ndarray, mask: np.ndarray,
+                  at: tuple[int, int]) -> float:
+    """structure() for a cut-out (`gray` and `mask` at the size it's matched at, in
+    `area` at `at` (x, y) or a pixel off): only its opaque part counts, a pixel in from
+    the edge (where a resized one is part scenery), the light's slow changes taken off
+    under it alone. structure() takes them off the whole box: the scenery around the
+    thing, a new one wherever it turns up, would count as much as the thing."""
+    th, tw = gray.shape
+    k = max(3, min(th, tw) // STRUCT_DIV) | 1
+    inner = binary_erosion(mask)
+    if int(inner.sum()) < MASK_MIN:
+        inner = mask
+    t = _cut_high(gray.astype(np.float64), mask, k)[inner]
+    t = t - t.mean()
+    nt = math.sqrt(float((t * t).sum()))
+    x, y = at
+    best = 0.0
+    for dy in (-1, 0, 1):
+        for dx in (-1, 0, 1):
+            yy, xx = y + dy, x + dx
+            if yy < 0 or xx < 0 or yy + th > area.shape[0] or xx + tw > area.shape[1]:
+                continue
+            b = _cut_high(area[yy:yy + th, xx:xx + tw].astype(np.float64), mask, k)[inner]
+            b = b - b.mean()
+            nb = math.sqrt(float((b * b).sum()))
+            if nt > 1e-9 and nb > 1e-9:
+                best = max(best, float((t * b).sum()) / (nt * nb))
     return best
 
 
@@ -3191,6 +3239,11 @@ class Watcher:
                                                    cap.twins, it.id))
                     if fine and sc >= it.threshold:
                         sc = min(sc, Watcher._fine_shape(twin, b, lk, gray.shape))
+                    if (twin is not None and sc >= it.threshold and not covered
+                            and p.size[0] * p.size[1] < SMALL_AREA):
+                        st = Watcher._small_shape(twin, b, lk, gray.shape, cap.twins, it.id)
+                        if st < SMALL_SHAPE:
+                            sc = min(sc, st)
                     if sc > top[0]:
                         top = (sc, b)
                 return top
@@ -3286,29 +3339,63 @@ class Watcher:
         return score
 
     @staticmethod
-    def _fine_shape(full: tuple | None, box: tuple, lk: Look, shape: tuple[int, int]) -> float:
+    def _fine_shape(full: tuple | None, box: tuple, lk: Look, shape: tuple[int, int],
+                    steps: int = 0, masked: bool = False) -> float:
         """structure() of `lk`'s picture, made the size of `box` (y0, y1, x0, x1 in a
         frame of `shape`), on the capture's pixels at full size (`full`: _full_size's)
-        where it best fits about there (+-CONFIRM_PAD px). 0.0 without them."""
+        where it best fits about there (+-CONFIRM_PAD px). With `steps`, also made up
+        to that many CONFIRM_STEPs smaller and bigger: the best of those. `masked`: a
+        cut-out is scored on its opaque part only (cut_structure()). 0.0 without them."""
         if full is None:
             return 0.0
         cut, (fh, fw) = full
         sy, sx = fh / shape[0], fw / shape[1]
         y0, y1, x0, x1 = box
         th, tw = lk.gray.shape
-        k = ((y1 - y0) * sy / th + (x1 - x0) * sx / tw) / 2
-        q = Pattern(resize(lk.gray, k), None if lk.mask is None else shrink_mask(lk.mask, k))
-        if not q.ok:
-            return 0.0
-        gh, gw = q.shape
-        pad = CONFIRM_PAD + 1
-        cy, cx = round((y0 + y1) * sy / 2 - gh / 2), round((x0 + x1) * sx / 2 - gw / 2)
-        area = cut(max(0, cy - pad), min(fh, cy + gh + pad),
-                   max(0, cx - pad), min(fw, cx + gw + pad))
-        if area is None or area.shape[0] < gh or area.shape[1] < gw:
-            return 0.0
-        _sc, at = _ncc_at(area, q)
-        return structure(Frame(area), q, at)
+        k0 = ((y1 - y0) * sy / th + (x1 - x0) * sx / tw) / 2
+        best = 0.0
+        for i in range(-steps, steps + 1):
+            k = k0 * CONFIRM_STEP ** i
+            q = Pattern(resize(lk.gray, k), None if lk.mask is None else shrink_mask(lk.mask, k))
+            if not q.ok:
+                continue
+            gh, gw = q.shape
+            pad = CONFIRM_PAD + 1 + (steps > 0)
+            cy, cx = round((y0 + y1) * sy / 2 - gh / 2), round((x0 + x1) * sx / 2 - gw / 2)
+            area = cut(max(0, cy - pad), min(fh, cy + gh + pad),
+                       max(0, cx - pad), min(fw, cx + gw + pad))
+            if area is None or area.shape[0] < gh or area.shape[1] < gw:
+                continue
+            _sc, at = _ncc_at(area, q)
+            if masked and not q.box:
+                st = cut_structure(area, resize(lk.gray, k), shrink_mask(lk.mask, k), at)
+            else:
+                st = structure(Frame(area), q, at)
+            best = max(best, st)
+        return best
+
+    @staticmethod
+    def _small_shape(full: tuple, box: tuple, lk: Look, shape: tuple[int, int],
+                     seen: dict | None = None, key: str = "") -> float:
+        """_fine_shape() with SMALL_STEPS either side, for a small match (SMALL_AREA).
+        `seen` (a capture's `twins`) keeps each answer under `key`, the picture and the
+        box's size, as _twin() does: a thing that stays up is worked out again only once
+        its pixels change."""
+        if seen is None:
+            return Watcher._fine_shape(full, box, lk, shape, SMALL_STEPS, True)
+        cut, (fh, fw) = full
+        sy, sx = fh / shape[0], fw / shape[1]
+        y0, y1, x0, x1 = box
+        area = cut(max(0, round(y0 * sy)), min(fh, round(y1 * sy)),
+                   max(0, round(x0 * sx)), min(fw, round(x1 * sx)))
+        px = None if area is None else area.tobytes()
+        k = ("small", key, y1 - y0, x1 - x0)
+        got = seen.get(k)
+        if got is not None and got[0] is lk.gray and got[1] == px:
+            return got[2]
+        score = Watcher._fine_shape(full, box, lk, shape, SMALL_STEPS, True)
+        seen[k] = (lk.gray, px, score)
+        return score
 
     @staticmethod
     def _cover(full: tuple, box: tuple, lk: Look, shape: tuple[int, int],
