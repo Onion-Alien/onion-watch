@@ -6,6 +6,8 @@ import pytest
 import test_categories
 from test_categories import raw, watched
 
+from onionwatch.ui import triggerspanel
+
 make = test_categories.make
 
 
@@ -72,7 +74,8 @@ def test_search_matches_category_window_and_sound_and_updates_after_edits(make):
     assert visible_ids(tab) == {"t1"}
 
 
-def test_changing_query_during_lazy_build_does_not_leak_old_results(make, qapp):
+def test_changing_query_during_lazy_build_does_not_leak_old_results(make, qapp, monkeypatch):
+    monkeypatch.setattr(triggerspanel, "BUILD_NOW", 8)    # still built in lazy steps
     tab = make({"triggers": [raw(i, f"Cat {i % 2}") for i in range(300)]})
     tab.search_text.setText("trigger")
     tab.search_text.setText("trigger 299")

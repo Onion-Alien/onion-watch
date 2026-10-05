@@ -212,9 +212,10 @@ def test_packs_carry_categories(make, tmp_path, monkeypatch):
     assert other.triggers[-1].category == "Fishing"
 
 
-def test_an_older_version_opening_the_settings_loses_no_triggers(make):
+def test_an_older_version_opening_the_settings_loses_no_triggers(make, monkeypatch):
     """Versions before categories load only the first 50 of "triggers" and save just
     those back: the rest are kept where they never look."""
+    monkeypatch.setattr(triggerspanel, "BUILD_NOW", 4)   # it's about the file, not cards
     tab = make({"triggers": [raw(i) for i in range(120)]})
     tab._store()
     s = tab.host.screen

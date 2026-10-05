@@ -253,12 +253,13 @@ def test_waiting_for_a_grab_is_not_counted_but_its_cost_elsewhere_is(monkeypatch
     monkeypatch.setattr(sw, "monitors", lambda: [Monitor(0, 0, 320, 180, True)])
     monkeypatch.setattr(sw, "CPU_SHARE", 0.25)
     monkeypatch.setattr(sw, "CORES", 1)
+    monkeypatch.setattr(sw, "PACE_S", 0.6)   # dozens of checks still fit in the window
     w = sw.Watcher(lambda _t: None, grabber=WaitingGrabber)
     w.interval = 0.001
     w.set_items([sw.Watched("t", [(np.eye(20, dtype=np.float32), None)], 0.8, 0.0)])
     w.start()
     try:
-        time.sleep(3.5)                 # the first check (setting up) falls out of PACE_S
+        time.sleep(1.0)                 # the first check (setting up) falls out of PACE_S
     finally:
         w.stop()
     assert 0.004 <= w.gap < 0.03

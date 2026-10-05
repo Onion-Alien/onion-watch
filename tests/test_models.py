@@ -158,6 +158,11 @@ def watched(pic: tuple) -> sw.Watched:
                       tints=[sw.tint(rgb, m)])
 
 
+# checks each look gets: two whole "any size" sweeps (an idle PC got through about
+# that many in the 2.5 s these tests used to wait at the 1 % processor cap)
+CHECKS = 2 * -(-len(sw.SWEEP) // sw.SWEEP_PER_CHECK)
+
+
 @pytest.fixture
 def watch(monkeypatch):
     monkeypatch.setattr(sw, "monitors", lambda: [Monitor(0, 0, W, H, True)])
@@ -165,19 +170,24 @@ def watch(monkeypatch):
     monkeypatch.setattr(sw, "WORK_WIDTH", W)
     made = []
 
-    def run(pic, frame, seconds=4.0) -> tuple[bool, float]:
-        """Look for the cut-out `pic` (any size) in `frame` (RGB): (went off, best)."""
-        fired = []
+    def run(pic, frame, checks=CHECKS, cap_s=30.0) -> tuple[bool, float]:
+        """Look for the cut-out `pic` (any size) in `frame` (RGB) for `checks` checks:
+        (went off, best). Counted in checks, not seconds, with no processor cap: a
+        busy PC gets through as much of the sweep as an idle one, just later."""
+        fired, ticks = [], []
         w = sw.Watcher(fired.append)
         made.append(w)
         w.interval = 0.005
+        w.cpu_share = 0.0
+        tick = w._tick
+        w._tick = lambda cap, items: (ticks.append(1), tick(cap, items))
         w.set_items([watched(pic)])
         Shot.frame = bgra(frame)
         w.start()
-        best, end = 0.0, time.monotonic() + seconds
-        while not fired and time.monotonic() < end:
+        best, end = 0.0, time.monotonic() + cap_s
+        while not fired and len(ticks) < checks and time.monotonic() < end:
             best = max(best, w.scores.get("t", 0.0))
-            time.sleep(0.01)
+            time.sleep(0.005)
         best = max(best, w.scores.get("t", 0.0))
         w.stop()
         return bool(fired), best
@@ -211,7 +221,7 @@ def test_a_cut_out_model_is_found_in_other_scenes(watch, what, frame):
         landscape(2), creature(90, golem=True, seed=7, colour=SKIN), 300, 180)),
 ])
 def test_scenes_without_the_model_stay_quiet(watch, what, frame):
-    fired, best = watch(BEAST, frame(), seconds=2.5)
+    fired, best = watch(BEAST, frame())
     assert not fired, f"{what}: went off at {best:.2f}"
 
 
@@ -237,7 +247,7 @@ def test_a_slim_figure_does_not_match_empty_scenes(watch):
     slim = creature(64, golem=True, slim=0.35, colour=STONE)
     assert int(slim[1].sum()) < 4 * sw.SOFT_MASK_MIN       # small enough to matter
     for seed in (2, 3, 4):
-        fired, best = watch(slim, landscape(seed, land=(0.5, 0.5, 0.5)), seconds=2.0)
+        fired, best = watch(slim, landscape(seed, land=(0.5, 0.5, 0.5)))
         assert not fired, f"landscape {seed}: went off at {best:.2f}"
     fired, best = watch(slim, place(landscape(2), slim, 300, 180))
     assert fired, f"the figure itself: best {best:.2f}"
