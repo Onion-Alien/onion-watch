@@ -275,6 +275,23 @@ def main(out: Path):
     tab.set_watching(False, remember=False)
     for name in ("Raid bosses", "Dungeons and queues", "Rare spawns", "Fishing"):
         tab.new_category(name)
+    # each category's own colour and picture (the pictures drawn here: an emoji each)
+    from onionwatch.ui import categories as catui
+
+    def emoji_picture(ch: str) -> str:
+        img = QImage(128, 128, QImage.Format_ARGB32)
+        img.fill(Qt.transparent)
+        p = QPainter(img)
+        p.setFont(QFont("Segoe UI Emoji", 64))
+        p.drawText(QRect(0, 0, 128, 128), Qt.AlignCenter, ch)
+        p.end()
+        return catui.save_picture(img, tab.host.data_dir)
+
+    tab.set_category_looks({
+        "Raid bosses": {"color": "#d9675e", "image": emoji_picture("🐉")},
+        "Dungeons and queues": {"color": "#5a90d6", "image": emoji_picture("🏰")},
+        "Rare spawns": {"color": "#dcc060", "image": emoji_picture("💎")},
+        "Fishing": {"color": "#3fb3a5", "image": emoji_picture("🎣")}})
     moves = {"demo0": "Rare spawns", "demo1": "Raid bosses", "demo2": "Dungeons and queues"}
     for t in list(tab.triggers):
         if t.id in moves:
@@ -302,7 +319,7 @@ def main(out: Path):
     tab._layout_sections()
     for row in tab.rows.values():
         row.set_open(False)
-    win.resize(900, 640)
+    win.resize(1040, 640)   # wide enough that the search box isn't squeezed
     app.processEvents()
     for _ in range(3):
         app.processEvents()
