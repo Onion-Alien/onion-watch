@@ -907,6 +907,25 @@ def _ncc_masked(a: np.ndarray, t: np.ndarray, m: np.ndarray) -> float:
     return float((ta * aa).sum()) / d if d > 1e-9 else 0.0
 
 
+def _ncc_shifted(a: np.ndarray, t: np.ndarray, m: np.ndarray, y: int, x: int) -> float:
+    """The best _ncc_masked() of `t` (under `m`) on `a` at (x, y) or a pixel off any
+    way, all the places at once; -1.0 if none fits in `a`."""
+    th, w = t.shape
+    wins = [a[y + dy:y + dy + th, x + dx:x + dx + w]
+            for dy in (-1, 0, 1) for dx in (-1, 0, 1)
+            if 0 <= y + dy and 0 <= x + dx and y + dy + th <= a.shape[0]
+            and x + dx + w <= a.shape[1]]
+    if not wins:
+        return -1.0
+    s = np.stack(wins)
+    n = float(m.sum())
+    ta = (t - float((t * m).sum()) / n) * m
+    aa = (s - ((s * m).sum(axis=(1, 2)) / n)[:, None, None]) * m
+    d = np.sqrt(float((ta * ta).sum()) * (aa * aa).sum(axis=(1, 2)))
+    num = (aa * ta).sum(axis=(1, 2))
+    return float(np.max(np.where(d > 1e-9, num / np.where(d > 1e-9, d, 1.0), 0.0)))
+
+
 def one_part_off(area: np.ndarray, gray: np.ndarray, mask: np.ndarray | None) -> float:
     """The score a place showing `gray` (a picture at its own size, `mask` its
     cut-out) keeps once it's matched in strips on `area`, the screen's own pixels
@@ -936,13 +955,7 @@ def one_part_off(area: np.ndarray, gray: np.ndarray, mask: np.ndarray | None) ->
             if float(here[mm > 0].std()) < TWIN_FLAT:
                 parts.append(None)          # flat on the screen: covered
                 continue
-            best = -1.0
-            for dy in (-1, 0, 1):
-                for dx in (-1, 0, 1):
-                    yy, xx = y + dy, x + x0 + dx
-                    if 0 <= yy and 0 <= xx and yy + th <= a.shape[0] and xx + x1 - x0 <= a.shape[1]:
-                        best = max(best, _ncc_masked(a[yy:yy + th, xx:xx + x1 - x0], tt, mm))
-            parts.append(best)
+            parts.append(_ncc_shifted(a, tt, mm, y, x + x0))
         got = [v for v in parts if v is not None]
         if len(got) < 3 or float(np.median(got)) < TWIN_MED:
             continue
@@ -2201,6 +2214,9 @@ class _Capture:
         self.fitted = (0, 0)        # the source size the pictures are scaled for
         self.scores: dict[str, float] = {}
         self.refs: dict[str, tuple[float, np.ndarray]] = {}   # "change" / "still": (when, area)
+        # the twin check's last answer for each trigger's picture: (the picture, the
+        # pixels it was laid on, score). The same pixels give the same answer (_twin)
+        self.twins: dict[tuple, tuple[np.ndarray, bytes, float]] = {}
         self.turns: dict[str, int] = {}   # "any size": which picture each trigger sweeps next
         self.swept: dict[str, int] = {}   # ...and the check it last swept on (SWEEPERS)
         # "any size": changed patches still to look in at every size (HUNT_*):
@@ -2676,6 +2692,7 @@ class Watcher:
             cap.error = str(e) or type(e).__name__
             cap.scores = {}
             cap.refs = {}
+            cap.twins = {}
             cap.misses = 0
             return
         cap.failing = False
@@ -2965,7 +2982,8 @@ class Watcher:
                             f_ = max(f_, Watcher._tint_factor(raw, b, *lk.small_tint))
                         sc *= f_
                     if full is not None and sc >= it.threshold:
-                        sc = min(sc, Watcher._twin(full, b, lk, gray.shape))
+                        sc = min(sc, Watcher._twin(full, b, lk, gray.shape,
+                                                   cap.twins, it.id))
                     if sc > top[0]:
                         top = (sc, b)
                 return top
@@ -3013,10 +3031,14 @@ class Watcher:
         return score, box
 
     @staticmethod
-    def _twin(full: np.ndarray, box: tuple, lk: Look, shape: tuple[int, int]) -> float:
+    def _twin(full: np.ndarray, box: tuple, lk: Look, shape: tuple[int, int],
+              seen: dict | None = None, key: str = "") -> float:
         """one_part_off() for `lk` at `box` (y0, y1, x0, x1 in a frame of `shape`) on
         `full`, the window's own pixels (BGRA), when the box is the picture's own size
-        there; else 1.0."""
+        there; else 1.0. `seen` (a capture's `twins`) keeps each answer under `key` and
+        the picture: a thing that stays up is checked again only once its pixels
+        change. The pacing spaces checks out by what they cost, so a few ms on every
+        check of something still on screen would make every trigger slower to fire."""
         fh, fw = full.shape[:2]
         sy, sx = fh / shape[0], fw / shape[1]
         y0, y1, x0, x1 = box
@@ -3027,7 +3049,16 @@ class Watcher:
         cy, cx = round((y0 + y1) * sy / 2 - th / 2), round((x0 + x1) * sx / 2 - tw / 2)
         ay, ax = max(0, cy - TWIN_ALIGN), max(0, cx - TWIN_ALIGN)
         area = full[ay:min(fh, cy + th + TWIN_ALIGN), ax:min(fw, cx + tw + TWIN_ALIGN)]
-        return one_part_off(to_gray(area), lk.gray, lk.mask)
+        if seen is None:
+            return one_part_off(to_gray(area), lk.gray, lk.mask)
+        k = (key, th, tw)
+        px = area.tobytes()
+        got = seen.get(k)
+        if got is not None and got[0] is lk.gray and got[1] == px:
+            return got[2]
+        score = one_part_off(to_gray(area), lk.gray, lk.mask)
+        seen[k] = (lk.gray, px, score)
+        return score
 
     @staticmethod
     def _tint_factor(raw: tuple, box: tuple, want: np.ndarray,

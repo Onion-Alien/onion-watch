@@ -181,6 +181,56 @@ def test_a_look_alike_with_one_glyph_different_is_told_apart():
         assert sw.one_part_off(covered, gray, mask) == 1.0
 
 
+def test_the_twin_check_runs_again_only_when_the_pixels_change(monkeypatch):
+    """A thing that stays up is matched every check, and the twin check's few ms on
+    each would space all the checks out (the pacing goes by what they cost): its
+    answer is kept while the window's pixels there stay the same."""
+    word = [0b111101101101111, 0b010010010010111, 0b111001111100111,
+            0b111001111001111, 0b101101111001001]
+    gray, mask = glyphs(word + [0b010110010010111])
+    twin = glyphs(word + [0b111001001001001])[0]
+    th, tw = gray.shape
+    lk = sw.Look(gray, mask, 1.0, [1.0], False)
+    rng = np.random.default_rng(4)
+    scene = (rng.random((120, 240)) * 0.5 + 0.2).astype(np.float32)
+
+    def window(pic):
+        g = scene.copy()
+        g[30:30 + th, 40:40 + tw][mask] = pic[mask]
+        return np.repeat((g * 255).astype(np.uint8)[:, :, None], 4, axis=2)
+
+    calls = []
+    real_one = sw.one_part_off
+    monkeypatch.setattr(sw, "one_part_off", lambda *a: calls.append(1) or real_one(*a))
+    box, seen = (30, 30 + th, 40, 40 + tw), {}
+    full = window(gray)
+    assert sw.Watcher._twin(full, box, lk, full.shape[:2], seen, "t") == 1.0
+    assert sw.Watcher._twin(full.copy(), box, lk, full.shape[:2], seen, "t") == 1.0
+    assert len(calls) == 1
+    other = window(twin)                    # the look-alike comes up in its place
+    assert sw.Watcher._twin(other, box, lk, other.shape[:2], seen, "t") < 0.75
+    assert sw.Watcher._twin(other, box, lk, other.shape[:2], seen, "t") < 0.75
+    assert len(calls) == 2
+    # another picture of the same size isn't given the first one's answer
+    lk2 = sw.Look(gray.copy(), mask, 1.0, [1.0], False)
+    assert sw.Watcher._twin(other, box, lk2, other.shape[:2], seen, "t") < 0.75
+    assert len(calls) == 3
+
+
+def test_strips_are_matched_a_pixel_off_each_way_at_once():
+    rng = np.random.default_rng(6)
+    for _ in range(20):
+        t = rng.random((14, 9)).astype(np.float32)
+        m = (rng.random((14, 9)) > 0.3).astype(np.float32)
+        a = rng.random((20, 30)).astype(np.float32)
+        y, x = int(rng.integers(0, 7)), int(rng.integers(0, 22))
+        want = max((sw._ncc_masked(a[y + dy:y + dy + 14, x + dx:x + dx + 9], t, m)
+                    for dy in (-1, 0, 1) for dx in (-1, 0, 1)
+                    if y + dy >= 0 and x + dx >= 0 and y + dy + 14 <= 20 and x + dx + 9 <= 30),
+                   default=-1.0)
+        assert sw._ncc_shifted(a, t, m, y, x) == pytest.approx(want, abs=1e-6)
+
+
 def test_a_rectangle_over_smooth_sky_is_not_matched_by_the_sky_alone():
     # a faint figure cut with a lot of sky around it: the sky's gradient alone matches
     # the plain way, but not once the light's slow changes are taken off (structure())
