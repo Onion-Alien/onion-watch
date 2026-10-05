@@ -3232,7 +3232,7 @@ class Watcher:
                                                    cap.twins, it.id))
                     if fine and sc >= it.threshold:
                         sc = min(sc, Watcher._fine_shape(twin, b, lk, gray.shape))
-                    if (twin is not None and sc >= it.threshold
+                    if (twin is not None and sc >= it.threshold and not covered
                             and p.size[0] * p.size[1] < SMALL_AREA):
                         st = Watcher._small_shape(twin, b, lk, gray.shape, cap.twins, it.id)
                         if st < SMALL_SHAPE:

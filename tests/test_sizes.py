@@ -230,7 +230,8 @@ def test_a_small_match_counts_only_with_the_things_shape_at_full_size():
     pic = np.full((24, 44), 0.08, np.float32) + rng.normal(0, 0.01, (24, 44)).astype(np.float32)
     pic[14:22, 2:10] = np.indices((8, 8)).sum(0) % 2 * 0.8 + 0.1      # a checker patch
     lk = sw.Look(pic, None, 0.375, [1.0], True)
-    screen = np.full((720, 1280), 0.08, np.float32) + rng.normal(0, 0.01, (720, 1280)).astype(np.float32)
+    screen = (np.full((720, 1280), 0.08, np.float32)
+              + rng.normal(0, 0.01, (720, 1280)).astype(np.float32))
     real = sw.resize(pic, 0.9)
     rh, rw = real.shape
     screen[300:300 + rh, 500:500 + rw] = real
