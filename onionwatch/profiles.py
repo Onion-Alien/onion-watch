@@ -122,10 +122,6 @@ class Category:
         self.text_color = clean_color(d.get("text_color"))
         self.image = clean_picture(d.get("image"))
 
-    def name_color(self) -> str:
-        """The colour its name is drawn in ("": the theme's)."""
-        return self.text_color or (readable_on(self.color) if self.color else "")
-
 
 @dataclass
 class Profile:

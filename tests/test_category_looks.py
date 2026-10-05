@@ -21,7 +21,7 @@ def test_bad_values_are_cleaned():
     assert profiles.clean_picture("abc123.png") == "abc123.png"
     for bad in ("../x.png", "C:\\x.png", "a/b.png", "x.exe", 5):
         assert profiles.clean_picture(bad) == ""
-    assert profiles.readable_on("#fdd835") == "#111111"
+    assert profiles.readable_on("#dcc060") == "#111111"
     assert profiles.readable_on("#212121") == "#ffffff"
 
 
@@ -32,7 +32,7 @@ def test_looks_load_and_save_apart_from_the_categories():
     g = profiles.Groups.load(screen)
     c = g.find("Raid")
     assert (c.color, c.text_color, c.image) == ("#e53935", "", "")
-    assert c.name_color() == "#ffffff"           # automatic: readable on the red
+    assert categories.ink(c) == "#ffffff"        # automatic: readable on the red
     g.save(screen)
     # the categories as an older version knows them: nothing new in there
     assert screen["categories"] == [{"name": "Raid", "on": True, "open": False}]
@@ -52,17 +52,17 @@ def test_an_older_version_saving_its_categories_loses_no_look():
 
 def test_rename_keeps_the_look_and_delete_drops_it_with_undo(make):  # noqa: F811
     tab = make({"triggers": [raw(1, "Old"), raw(2, "Other")]})
-    tab.set_category_looks({"Old": {"color": "#8e24aa", "text_color": "#fdd835"}})
+    tab.set_category_looks({"Old": {"color": "#8e24aa", "text_color": "#dcc060"}})
     assert tab.rename_category("Old", "New")
     assert tab.groups.find("New").color == "#8e24aa"
     looks = tab.host.screen["category_looks"]
-    assert "Old" not in looks and looks["New"]["text_color"] == "#fdd835"
-    assert "#8e24aa" in tab.sections["New"].header.styleSheet()
+    assert "Old" not in looks and looks["New"]["text_color"] == "#dcc060"
+    assert tab.sections["New"].header.styleSheet() == categories.tab_css("#8e24aa")
     assert tab.delete_category("New", ask=False)
     assert "New" not in tab.host.screen["category_looks"]
     tab.undo_bar.btn_undo.click()
     assert tab.groups.find("New").color == "#8e24aa"
-    assert "#8e24aa" in tab.sections["New"].header.styleSheet()
+    assert tab.sections["New"].header.styleSheet() == categories.tab_css("#8e24aa")
 
 
 def test_merging_into_a_plain_category_brings_the_look(make):  # noqa: F811
@@ -76,9 +76,10 @@ def test_the_categories_window_edits_copies_and_shows_them(make, qapp):  # noqa:
     tab = make({"triggers": [raw(1, "Raid"), raw(2, "Quests")]})
     dlg = CategoriesDialog(tab, tab.groups.categories, tab.host.data_dir, "Quests")
     assert dlg.list.currentItem().text() == "Quests"
-    dlg.set_color("#fdd835")
-    assert dlg.color_buttons["#fdd835"].isChecked() and dlg.text_buttons[""].isChecked()
-    assert "#111111" in dlg.preview_name.styleSheet()    # dark text on the yellow
+    dlg.set_color("#dcc060")
+    assert dlg.color_buttons["#dcc060"].isChecked() and dlg.text_buttons[""].isChecked()
+    assert dlg.preview.styleSheet() == categories.tab_css("#dcc060")
+    assert categories.ink(dlg.cats[1]) in dlg.preview_name.styleSheet()
     dlg.set_text_color("#ff00aa")
     assert dlg.set_picture(picture())
     name = dlg.result["Quests"]["image"]
@@ -88,10 +89,10 @@ def test_the_categories_window_edits_copies_and_shows_them(make, qapp):  # noqa:
     assert tab.groups.find("Quests").color == ""         # a copy until OK
     tab.set_category_looks(dlg.result)
     sec = tab.sections["Quests"]
-    assert "#fdd835" in sec.header.styleSheet() and "#ff00aa" in sec.btn_fold.styleSheet()
+    assert "qlineargradient" in sec.header.styleSheet() and "#ff00aa" in sec.btn_fold.styleSheet()
     assert not sec.pic.isHidden() and sec.pic.pixmap().width() == categories.HEADER_PICTURE
     assert tab.host.screen["category_looks"]["Quests"] == {
-        "color": "#fdd835", "text_color": "#ff00aa", "image": name}
+        "color": "#dcc060", "text_color": "#ff00aa", "image": name}
     # back to plain
     dlg = CategoriesDialog(tab, tab.groups.categories, tab.host.data_dir, "Quests")
     dlg.reset()
@@ -112,3 +113,18 @@ def test_the_categories_button_is_there_once_there_is_a_category(make, named):  
     tab.resize(1200, 600)
     tab._fit_top()
     assert tab.btn_categories.isEnabled() == named
+
+
+def test_tabs_are_soft_and_fade_into_the_panel():
+    css = categories.tab_css("#ff0000")
+    start = categories.mix("#ff0000", categories._panel(), categories.TINT_FROM)
+    end = categories.mix("#ff0000", categories._panel(), categories.TINT_TO)
+    assert "#ff0000" not in css and start in css and end in css
+    assert categories.tab_css("") == ""
+    # automatic text reads on the soft yellow; a picked one is kept as it is
+    c = profiles.Category("Q", color="#ffff00")
+    soft = categories.mix("#ffff00", categories._panel(), categories.TINT_FROM)
+    assert categories.ink(c) == profiles.readable_on(soft)
+    c.text_color = "#123456"
+    assert categories.ink(c) == "#123456"
+    assert categories.ink(profiles.Category("Plain")) == ""

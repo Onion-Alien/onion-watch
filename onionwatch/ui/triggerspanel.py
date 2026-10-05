@@ -2641,6 +2641,8 @@ class TriggersTab(QWidget):
         icons.retheme()
         self._search_icon.setIcon(icons.icon("search", "muted"))
         self.undo_bar.restyle()
+        for sec in self.sections.values():
+            sec.retheme()             # category tabs fade into the new panel colour
         self.sounds_changed()         # the chips of sounds that are gone
         for row in self.rows.values():
             row._show_mode()           # the badge of a trigger without pictures

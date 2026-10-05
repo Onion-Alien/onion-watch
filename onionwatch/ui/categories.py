@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (QColorDialog, QComboBox, QDialog, QDialogButtonBo
                                QLineEdit, QListWidget, QListWidgetItem, QMenu, QPushButton,
                                QVBoxLayout, QWidget, QWidgetItem, QSizePolicy)
 
-from onionwatch import profiles
+from onionwatch import profiles, theme
 from onionwatch.profiles import Category, Profile
 from onionwatch.ui import icons
 from onionwatch.ui.panel import Flow, hint_label, section_label
@@ -25,10 +25,46 @@ SMALL_TILE = 210                # ...when a number of cards to a line is asked f
 MAX_PER_ROW = 6                 # the most cards to a line that can be asked for
 PICTURE_PX = 128                # a category's picture is kept at most this big
 HEADER_PICTURE = 26             # px: ...and shown this big in its header
-# the colours to pick from in one click (any other through "Other…")
-SWATCHES = ("#e53935", "#fb8c00", "#fdd835", "#43a047", "#1fb6a6", "#1e88e5",
-            "#3949ab", "#8e24aa", "#d81b60", "#6d4c41", "#546e7a", "#212121")
-TEXT_SWATCHES = ("#ffffff", "#111111", "#fdd835", "#ffb74d", "#80deea", "#f48fb1")
+# the colours to pick from in one click (any other through "Other…"): soft ones
+SWATCHES = ("#d9675e", "#e0915a", "#dcc060", "#6fae6c", "#3fb3a5", "#5a90d6",
+            "#7176c8", "#9a6ccb", "#cf6d98", "#a07f66", "#7d8c99", "#5b6270")
+TEXT_SWATCHES = ("#f4f6f8", "#1b1e24", "#f2d98a", "#f5b98a", "#9fdcd3", "#f2a8c4")
+# a tab fades from this much of its colour (over the panel's) to this much
+TINT_FROM = 0.55
+TINT_TO = 0.06
+
+
+def mix(color: str, base: str, amount: float) -> str:
+    """`amount` of `color` over `base` ("#rrggbb" both), as "#rrggbb"."""
+    a, b = QColor(color), QColor(base)
+    return QColor(round(a.red() * amount + b.red() * (1 - amount)),
+                  round(a.green() * amount + b.green() * (1 - amount)),
+                  round(a.blue() * amount + b.blue() * (1 - amount))).name()
+
+
+def _panel() -> str:
+    return theme.T.get("panel", "#1e2430")
+
+
+def tab_css(color: str, selector: str = "QFrame#transport") -> str:
+    """A category tab's background: its colour, softened, fading into the panel's
+    from left to right ("" for none: the theme's plain panel)."""
+    if not color:
+        return ""
+    a, b = mix(color, _panel(), TINT_FROM), mix(color, _panel(), TINT_TO)
+    return (f"{selector} {{ border-radius:12px; background:qlineargradient(x1:0, y1:0,"
+            f" x2:1, y2:0, stop:0 {a}, stop:0.55 {mix(color, _panel(), 0.22)},"
+            f" stop:1 {b}); }}")
+
+
+def ink(c: Category | None) -> str:
+    """The colour a category's name is drawn in ("": the theme's): the one picked,
+    else (with a colour) black or white, whichever reads best where the name is."""
+    if c is None or not (c.text_color or c.color):
+        return ""
+    if c.text_color:
+        return c.text_color
+    return profiles.readable_on(mix(c.color, _panel(), TINT_FROM))
 
 
 # ---------------------------------------------------------------------- pictures
@@ -84,7 +120,7 @@ def look_icon(c: Category, data_dir, size: int = 20) -> QIcon:
             p = QPainter(pm)
             p.setRenderHint(QPainter.Antialiasing)
             p.setPen(Qt.NoPen)
-            p.setBrush(QColor(c.color))
+            p.setBrush(QColor(mix(c.color, _panel(), 0.8)))
             p.drawRoundedRect(2, 2, size - 4, size - 4, 4, 4)
             p.end()
     return QIcon(pm)
@@ -175,6 +211,7 @@ class CategorySection(QWidget):
     def __init__(self, name: str):
         super().__init__()
         self.ink = ""                   # its name's colour ("": the theme's)
+        self.look: Category | None = None
         from onionwatch.ui.triggerspanel import FlowBox, Switch   # (it imports this one)
         self.name = name
         self.built = False              # its cards have been made
@@ -348,26 +385,23 @@ class CategorySection(QWidget):
     def set_look(self, c: Category | None, data_dir=None):
         """Show category `c`'s look: its header's colour, its name's colour and its
         picture (None: the theme's plain look)."""
-        color = c.color if c else ""
-        self.ink = c.name_color() if c else ""
-        self.header.setStyleSheet(
-            f"QFrame#transport {{ background:{color}; border-radius:12px; }}" if color else "")
+        self.look = c
+        self.ink = ink(c)
+        self.header.setStyleSheet(tab_css(c.color if c else ""))
         self.btn_fold.setStyleSheet(self.FOLD_CSS + (f" color:{self.ink};" if self.ink else ""))
         self.set_open(self.is_open)         # the fold arrow in the name's colour
         pm = picture_pixmap(c.image, data_dir, HEADER_PICTURE) if c else None
         self.pic.setPixmap(pm or QPixmap())
         self.pic.setVisible(pm is not None)
-        self._tint_count()
 
-    def _tint_count(self):
-        """The counts in the name's colour, unless they're a warning."""
-        tinted = self.ink and not self.count.property("tone")
-        self.count.setStyleSheet(f"color:{self.ink};" if tinted else "")
+    def retheme(self):
+        """The theme changed: its tab fades into the new panel colour."""
+        if self.look is not None:
+            self.header.setStyleSheet(tab_css(self.look.color))
 
     def set_counts(self, text: str, tone: str = ""):
         self.count.setText(text)
         self.count.setProperty("tone", tone or None)
-        self._tint_count()
         self.count.style().unpolish(self.count)
         self.count.style().polish(self.count)
 
@@ -719,9 +753,12 @@ class CategoriesDialog(QDialog):
             b.setFixedSize(22, 22)
             b.setToolTip(c)
             b.setAccessibleName(f"Colour {c}")
-            b.setStyleSheet(f"QPushButton {{ background:{c}; border:1px solid #80808080;"
-                            f" border-radius:11px; padding:0; }}"
-                            f" QPushButton:checked {{ border:3px solid palette(highlight); }}")
+            b.setStyleSheet(
+                f"QPushButton {{ border:1px solid {mix(c, _panel(), 0.7)}; border-radius:11px;"
+                f" padding:0; background:qlineargradient(x1:0, y1:0, x2:1, y2:1,"
+                f" stop:0 {mix(c, '#ffffff', 0.85)}, stop:1 {mix(c, _panel(), 0.6)}); }}"
+                f" QPushButton:hover {{ border:1px solid {theme.T.get('text', '#ffffff')}; }}"
+                f" QPushButton:checked {{ border:2px solid {theme.T.get('text', '#ffffff')}; }}")
             b.clicked.connect(lambda _=False, c=c: pick(c))
             row.addWidget(b)
             out[c] = b
@@ -760,12 +797,12 @@ class CategoriesDialog(QDialog):
             for k, b in buttons.items():
                 b.setChecked(k == want)
         self.btn_no_pic.setEnabled(bool(c.image))
-        color, ink = c.color, c.name_color()
-        self.preview.setStyleSheet(
-            f"QFrame#transport {{ background:{color}; border-radius:12px; }}" if color else "")
+        name_ink = ink(c)
+        self.preview.setStyleSheet(tab_css(c.color))
         self.preview_name.setText(profiles.label(c.name))
-        self.preview_name.setStyleSheet("font-weight:700; font-size:10.5pt; background:"
-                                        "transparent;" + (f" color:{ink};" if ink else ""))
+        self.preview_name.setStyleSheet(
+            "font-weight:700; font-size:10.5pt; background:transparent;"
+            + (f" color:{name_ink};" if name_ink else ""))
         pm = picture_pixmap(c.image, self.data_dir, HEADER_PICTURE)
         self.preview_pic.setPixmap(pm or QPixmap())
         self.preview_pic.setVisible(pm is not None)
