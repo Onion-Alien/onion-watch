@@ -197,23 +197,25 @@ def test_the_twin_check_runs_again_only_when_the_pixels_change(monkeypatch):
     def window(pic):
         g = scene.copy()
         g[30:30 + th, 40:40 + tw][mask] = pic[mask]
-        return np.repeat((g * 255).astype(np.uint8)[:, :, None], 4, axis=2)
+        grab = type("Grab", (), {})()
+        grab.full = np.repeat((g * 255).astype(np.uint8)[:, :, None], 4, axis=2)
+        return sw.Watcher._full_size(grab)
 
     calls = []
     real_one = sw.one_part_off
     monkeypatch.setattr(sw, "one_part_off", lambda *a: calls.append(1) or real_one(*a))
     box, seen = (30, 30 + th, 40, 40 + tw), {}
     full = window(gray)
-    assert sw.Watcher._twin(full, box, lk, full.shape[:2], seen, "t") == 1.0
-    assert sw.Watcher._twin(full.copy(), box, lk, full.shape[:2], seen, "t") == 1.0
+    assert sw.Watcher._twin(full, box, lk, full[1], seen, "t") == 1.0
+    assert sw.Watcher._twin(window(gray), box, lk, full[1], seen, "t") == 1.0
     assert len(calls) == 1
     other = window(twin)                    # the look-alike comes up in its place
-    assert sw.Watcher._twin(other, box, lk, other.shape[:2], seen, "t") < 0.75
-    assert sw.Watcher._twin(other, box, lk, other.shape[:2], seen, "t") < 0.75
+    assert sw.Watcher._twin(other, box, lk, other[1], seen, "t") < 0.75
+    assert sw.Watcher._twin(other, box, lk, other[1], seen, "t") < 0.75
     assert len(calls) == 2
     # another picture of the same size isn't given the first one's answer
     lk2 = sw.Look(gray.copy(), mask, 1.0, [1.0], False)
-    assert sw.Watcher._twin(other, box, lk2, other.shape[:2], seen, "t") < 0.75
+    assert sw.Watcher._twin(other, box, lk2, other[1], seen, "t") < 0.75
     assert len(calls) == 3
 
 

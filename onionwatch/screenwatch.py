@@ -182,7 +182,8 @@ COARSE_PEAKS = 6
 COARSE_NEAR = 0.15
 # A look-alike ("WAVE 7" for "WAVE 1") matches almost as well as the thing at the
 # working size: one glyph in a dozen is a few pixels there. Where the grabber has the
-# window's own pixels (`full`) and a place is about to go off at the picture's own
+# full-size pixels (a window's `full`, a screen grabber's full_gray: only the box,
+# read when asked) and a place is about to go off at the picture's own
 # size (within TWIN_SIZE), the picture is laid on them (+-TWIN_ALIGN px), both
 # softened by TWIN_BLUR px, and matched in vertical strips TWIN_STRIPS of its height
 # wide (+-1 px each): the thing itself
@@ -1717,6 +1718,42 @@ class Grabber:
         self.raw = (self.pixels, FMT_BGRA8, self.factor)
         return gray_2x(self.pixels) if self.factor == 2 else to_gray(self.pixels)
 
+    def full_gray(self, y0: int, y1: int, x0: int, x1: int) -> np.ndarray | None:
+        """Grey of the monitor's rectangle (y0, y1, x0, x1 in its own pixels) at full
+        size, for the twin check (Watcher._twin). Copied now, a moment after the last
+        grab: where something just moved it can differ, which can only lower a score
+        for that check. None when it can't be copied."""
+        h, w = y1 - y0, x1 - x0
+        if h < 2 or w < 2 or not self.screen_dc:
+            return None
+        g = self._g
+        dc = g.CreateCompatibleDC(self.screen_dc)
+        if not dc:
+            return None
+        bmp = old = None
+        try:
+            bmi = _BITMAPINFOHEADER()
+            bmi.biSize = ctypes.sizeof(_BITMAPINFOHEADER)
+            bmi.biWidth, bmi.biHeight = w, -h
+            bmi.biPlanes, bmi.biBitCount = 1, 32
+            bits = ctypes.c_void_p()
+            bmp = g.CreateDIBSection(dc, ctypes.byref(bmi), 0, ctypes.byref(bits), None, 0)
+            if not bmp or not bits.value:
+                return None
+            old = g.SelectObject(dc, bmp)
+            s = self.src
+            if not g.StretchBlt(dc, 0, 0, w, h, self.screen_dc, s.left + x0, s.top + y0,
+                                w, h, self.SRCCOPY):
+                return None
+            buf = (ctypes.c_uint8 * (w * h * 4)).from_address(bits.value)
+            return to_gray(np.frombuffer(buf, np.uint8).reshape(h, w, 4))
+        finally:
+            if old:
+                g.SelectObject(dc, old)
+            if bmp:
+                g.DeleteObject(bmp)
+            g.DeleteDC(dc)
+
     def resize(self, w: int, h: int):
         """Copy at a new size from now on."""
         self.close()
@@ -1826,6 +1863,22 @@ def upright(gray: np.ndarray, turns: int) -> np.ndarray:
     """A picture sampled from a duplicated frame, turned `turns` quarter turns
     (np.rot90's k) so it's the way the desktop shows it."""
     return np.ascontiguousarray(np.rot90(gray, turns)) if turns % 4 else gray
+
+
+def frame_box(box: tuple[int, int, int, int], turns: int,
+              shape: tuple[int, int]) -> tuple[int, int, int, int]:
+    """Where `box` (y0, y1, x0, x1 in the upright picture) is in a frame of `shape`
+    (h, w) as it comes, before upright() turns it `turns` quarter turns."""
+    y0, y1, x0, x1 = box
+    h, w = shape
+    t = turns % 4
+    if t == 1:
+        return x0, x1, w - y1, w - y0
+    if t == 2:
+        return h - y1, h - y0, w - x1, w - x0
+    if t == 3:
+        return h - x1, h - x0, y0, y1
+    return box
 
 
 class DupGrabber:
@@ -2084,6 +2137,33 @@ class DupGrabber:
         self.color = (upright(frame_rgb(sample, fmt, self.factor), self.turns)
                       if self.want_color else None)
         return self.last
+
+    def full_gray(self, y0: int, y1: int, x0: int, x1: int) -> np.ndarray | None:
+        """Grey of a rectangle of the last frame given out (y0, y1, x0, x1 in `source`
+        pixels, upright) at full size, for the twin check (Watcher._twin): read again
+        from the staging texture, which still holds that frame. None when it can't be
+        read."""
+        if not self.staging or self._mode is None or self.last is None:
+            return None
+        sw, sh = self._frame
+        fy0, fy1, fx0, fx1 = frame_box((y0, y1, x0, x1), self.turns, (sh, sw))
+        if fy1 - fy0 < 2 or fx1 - fx0 < 2 or fy0 < 0 or fx0 < 0 or fy1 > sh or fx1 > sw:
+            return None
+        m = _MAPPED()
+        hr = self.ctx.call(self.CTX_MAP, self.staging.p, 0, self.MAP_READ, 0, ctypes.byref(m),
+                           argtypes=(ctypes.c_void_p, ctypes.c_uint, ctypes.c_int,
+                                     ctypes.c_uint, ctypes.c_void_p))
+        if hr < 0:
+            return None
+        try:
+            fmt = self._mode[2]
+            buf = (ctypes.c_uint8 * (sh * m.RowPitch)).from_address(m.pData)
+            img = np.frombuffer(buf, np.uint8).reshape(sh, m.RowPitch)
+            piece = frame_view(img, fmt, sw)[fy0:fy1, fx0:fx1].copy()
+        finally:
+            self.ctx.call(self.CTX_UNMAP, self.staging.p, 0, restype=None,
+                          argtypes=(ctypes.c_void_p, ctypes.c_uint))
+        return upright(frame_gray(piece, fmt), self.turns)
 
     def close(self):
         for c in (self.staging, self.dup, self.output1, self.ctx, self.device):
@@ -2922,7 +3002,7 @@ class Watcher:
                     got = levels[r] = (f, bx)
                 return got
             raw = getattr(cap.grab, "raw", None)
-            full = getattr(cap.grab, "full", None)
+            twin = Watcher._full_size(cap.grab)
             near_ = it.threshold - TINT_NEAR
 
             def around(r: float, bx: tuple, p: Pattern) -> tuple[Frame, tuple] | None:
@@ -2981,8 +3061,8 @@ class Watcher:
                         if f_ < 1.0 and lk.small_tint is not None:
                             f_ = max(f_, Watcher._tint_factor(raw, b, *lk.small_tint))
                         sc *= f_
-                    if full is not None and sc >= it.threshold:
-                        sc = min(sc, Watcher._twin(full, b, lk, gray.shape,
+                    if twin is not None and sc >= it.threshold:
+                        sc = min(sc, Watcher._twin(twin, b, lk, gray.shape,
                                                    cap.twins, it.id))
                     if sc > top[0]:
                         top = (sc, b)
@@ -3031,15 +3111,31 @@ class Watcher:
         return score, box
 
     @staticmethod
-    def _twin(full: np.ndarray, box: tuple, lk: Look, shape: tuple[int, int],
+    def _full_size(grab) -> tuple | None:
+        """How the twin check sees `grab`'s pixels at full size: (cut, (h, w)), where
+        cut(y0, y1, x0, x1) gives that box's grey (or None) and (h, w) is the whole
+        size. A window grabber's `full` (all of it, kept from the grab), or a screen
+        grabber's full_gray (the box, read when asked). None: it has neither."""
+        full = getattr(grab, "full", None)
+        if full is not None:
+            return (lambda y0, y1, x0, x1: to_gray(full[y0:y1, x0:x1])), full.shape[:2]
+        cut = getattr(type(grab), "full_gray", None)
+        if cut is None:
+            return None
+        sw, sh = grab.source
+        return cut.__get__(grab), (sh, sw)
+
+    @staticmethod
+    def _twin(full: tuple, box: tuple, lk: Look, shape: tuple[int, int],
               seen: dict | None = None, key: str = "") -> float:
         """one_part_off() for `lk` at `box` (y0, y1, x0, x1 in a frame of `shape`) on
-        `full`, the window's own pixels (BGRA), when the box is the picture's own size
-        there; else 1.0. `seen` (a capture's `twins`) keeps each answer under `key` and
-        the picture: a thing that stays up is checked again only once its pixels
-        change. The pacing spaces checks out by what they cost, so a few ms on every
-        check of something still on screen would make every trigger slower to fire."""
-        fh, fw = full.shape[:2]
+        the capture's pixels at full size (`full`: _full_size's), when the box is the
+        picture's own size there; else 1.0. `seen` (a capture's `twins`) keeps each
+        answer under `key` and the picture: a thing that stays up is checked again
+        only once its pixels change. The pacing spaces checks out by what they cost,
+        so a few ms on every check of something still on screen would make every
+        trigger slower to fire."""
+        cut, (fh, fw) = full
         sy, sx = fh / shape[0], fw / shape[1]
         y0, y1, x0, x1 = box
         th, tw = lk.gray.shape
@@ -3048,15 +3144,17 @@ class Watcher:
             return 1.0
         cy, cx = round((y0 + y1) * sy / 2 - th / 2), round((x0 + x1) * sx / 2 - tw / 2)
         ay, ax = max(0, cy - TWIN_ALIGN), max(0, cx - TWIN_ALIGN)
-        area = full[ay:min(fh, cy + th + TWIN_ALIGN), ax:min(fw, cx + tw + TWIN_ALIGN)]
+        area = cut(ay, min(fh, cy + th + TWIN_ALIGN), ax, min(fw, cx + tw + TWIN_ALIGN))
+        if area is None:
+            return 1.0
         if seen is None:
-            return one_part_off(to_gray(area), lk.gray, lk.mask)
+            return one_part_off(area, lk.gray, lk.mask)
         k = (key, th, tw)
         px = area.tobytes()
         got = seen.get(k)
         if got is not None and got[0] is lk.gray and got[1] == px:
             return got[2]
-        score = one_part_off(to_gray(area), lk.gray, lk.mask)
+        score = one_part_off(area, lk.gray, lk.mask)
         seen[k] = (lk.gray, px, score)
         return score
 
