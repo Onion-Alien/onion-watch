@@ -189,6 +189,39 @@ def test_a_size_found_finely_counts_only_with_the_things_shape_at_full_size():
     # without the full-size pixels a size found finely doesn't count
     assert sw.Watcher._fine_shape(None, (y, y + s, x, x + s), lk, shape) == 0.0
 
+def test_a_picture_partly_covered_by_a_flat_thing_still_counts(monkeypatch):
+    """A window or a dark box over a corner of the thing: those pixels are flat on
+    the screen and nothing like the picture, so they're left out (cover_score) and
+    the rest decides, colours included. Scenery with a flat patch doesn't count,
+    nor does the thing under something that isn't flat."""
+    level = world(sprites=())
+    level[200:296, 300:396] = sprite(cell=16)        # a big one, as covers go
+    pic, tint = cut(level, s=112)
+    covered = level.copy()
+    covered[250:330, 344:430] = (40, 40, 40)          # a dark box over a corner of it
+    full = np.dstack([covered[..., ::-1], np.full(covered.shape[:2], 255, np.uint8)])
+    check, cap = watcher_on(covered, pic, tint, any_size=False)
+    cap.grab.full = full
+    monkeypatch.setattr(sw, "COVER_ON", False)
+    assert check() < 0.8
+    monkeypatch.setattr(sw, "COVER_ON", True)
+    cap.cover_left = 1                               # _check sets it each check
+    assert check() >= 0.9
+    # the same box over grass where the gem isn't, and noise over the gem: no
+    rng = np.random.default_rng(3)
+    for y, x, fill in ((60, 600, (40, 40, 40)), (262, 352, None)):
+        other = (world(sprites=()) if fill is not None else level).copy()
+        other[y:y + 68, x:x + 78] = (fill if fill is not None
+                                     else (rng.random((68, 78, 3)) * 255).astype(np.uint8))
+        check, cap = watcher_on(other, pic, tint, any_size=False)
+        cap.grab.full = np.dstack([other[..., ::-1], np.full(other.shape[:2], 255, np.uint8)])
+        cap.cover_left = 1
+        assert check() < 0.8
+    # pixels flat on the screen where the picture has detail are left out; not the rest
+    sc, share = sw.cover_score(gray(covered)[188:308, 288:408], pic, None)
+    assert sc > 0.97 and 0.1 < share < 0.4
+
+
 def test_a_look_alike_in_other_colours_does_not_count():
     """A teal gem where the orange one was is the same grey: only its colours say
     it's not the same thing. The same gem in a darker scene still counts."""

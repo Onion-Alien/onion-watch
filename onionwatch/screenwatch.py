@@ -936,6 +936,87 @@ def _ncc_shifted(a: np.ndarray, t: np.ndarray, m: np.ndarray, y: int, x: int) ->
     return float(np.max(np.where(d > 1e-9, num / np.where(d > 1e-9, d, 1.0), 0.0)))
 
 
+# A picture partly covered (a window, a box, an overlay over a corner of it): a place
+# scoring COVER_LOW or more but under the line is matched again on the screen's own
+# full-size pixels with what's covered left out (cover_score): pixels flat on the screen
+# (COVER_FLAT, over COVER_K px) that aren't what the picture has there (COVER_RES, light
+# fitted), and COVER_GROW px round them. It counts when COVER_LEAST..COVER_MAX of it is
+# covered, by one flat thing (its grey spread <= COVER_UNI, filling COVER_FILL of its
+# box), the rest scores COVER_SCORE or more, COVER_GAIN more than all of it did, and
+# the rest's colours are the picture's (the colour check on the same pixels both sides).
+# Scenery in other games got through anything looser (HANDOFF-19). It's tried for
+# COVER_PER_CHECK places a check, each trigger at most every COVER_EVERY checks (but
+# every check while it's found covered): a few ms each on a big picture.
+COVER_LOW = 0.3
+COVER_FLAT = 0.03
+COVER_K = 5
+COVER_RES = 0.08
+COVER_GROW = 2
+COVER_LEAST = 0.1
+COVER_MAX = 0.3
+COVER_UNI = 0.02
+COVER_FILL = 0.6
+COVER_SCORE = 0.97
+COVER_GAIN = 0.1
+COVER_PER_CHECK = 2
+COVER_EVERY = 4
+COVER_ON = True
+
+
+def cover_score(area: np.ndarray, gray: np.ndarray, mask: np.ndarray | None,
+                info: dict | None = None) -> tuple[float, float]:
+    """(score, share covered) of `gray` (`mask` its cut-out) on `area`, the screen's
+    full-size pixels about where it was found (the picture's size, a few px of room
+    round it), with the pixels something flat covers left out (see COVER_*). `info`
+    gets: "cov" (those pixels, the picture's size), "plain" (the score with them in),
+    "uni" (the cover's grey spread) and "fill" (how much of its box it fills)."""
+    th, tw = gray.shape
+    if area.shape[0] < th or area.shape[1] < tw:
+        return 0.0, 1.0
+    q = Pattern(gray, mask)
+    if not q.ok:
+        return 0.0, 1.0
+    _sc, (x, y) = _ncc_at(area, q)
+    m = np.ones(gray.shape, bool) if mask is None else mask.astype(bool)
+    t = gray.astype(np.float64)
+    a = area[y:y + th, x:x + tw].astype(np.float64)
+    mu = _box_mean(a, COVER_K)
+    flat = np.sqrt(np.maximum(_box_mean(a * a, COVER_K) - mu * mu, 0.0)) < COVER_FLAT
+    if float((flat & m).sum()) < COVER_LEAST / 3 * float(m.sum()):
+        return 0.0, 0.0                 # nothing flat enough to be a cover
+    use, core, cov = m, m & False, m & False
+    for _ in range(3):
+        # the light fitted on what's left, what disagrees with it where flat left out
+        tt, aa = t[use], a[use]
+        vt = float(tt.var()) if tt.size >= 8 else 0.0
+        if vt < 1e-9:
+            break
+        al = float(((tt - tt.mean()) * (aa - aa.mean())).mean()) / vt
+        be = float(aa.mean()) - al * float(tt.mean())
+        core = m & flat & (np.abs(a - (al * t + be)) > COVER_RES)
+        cov = core
+        for _g in range(COVER_GROW):
+            c = cov.copy()
+            c[1:] |= cov[:-1]
+            c[:-1] |= cov[1:]
+            c[:, 1:] |= cov[:, :-1]
+            c[:, :-1] |= cov[:, 1:]
+            cov = c
+        cov &= m
+        use = m & ~cov
+    n = float(use.sum())
+    share = 1.0 - n / float(m.sum())
+    sc = _ncc_masked(a, t, use.astype(np.float64)) if n >= 8 else 0.0
+    if info is not None:
+        info.update(cov=cov, plain=_ncc_masked(a, t, m.astype(np.float64)),
+                    uni=float(a[core].std()) if core.any() else 0.0, fill=0.0)
+        if core.any():
+            ys, xs = np.nonzero(core)
+            box = m[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
+            info["fill"] = float(core.sum()) / max(1.0, float(box.sum()))
+    return sc, share
+
+
 def one_part_off(area: np.ndarray, gray: np.ndarray, mask: np.ndarray | None) -> float:
     """The score a place showing `gray` (a picture at its own size, `mask` its
     cut-out) keeps once it's matched in strips on `area`, the screen's own pixels
@@ -1262,6 +1343,7 @@ class Look:
         self.tint = tint                        # its colours (see tint()), if known
         # ...also at the size it's matched at (tint_at): (tint, the mask it was taken under)
         self.small_tint: tuple | None = None
+        self.rgb: np.ndarray | None = None      # its own colours (uint8 RGB), if known
         self.pats: list[tuple[float, Pattern]] = []
         self.found: list[float] = []
         self.changes = 0                        # bumped whenever `pats` changes
@@ -2306,6 +2388,8 @@ class _Capture:
         # the twin check's last answer for each trigger's picture: (the picture, the
         # pixels it was laid on, score). The same pixels give the same answer (_twin)
         self.twins: dict[tuple, tuple[np.ndarray, bytes, float]] = {}
+        self.covers: dict[str, tuple] = {}  # (check last tried as covered on, found then)
+        self.cover_left = 0               # ...and the tries left this check (COVER_PER_CHECK)
         self.turns: dict[str, int] = {}   # "any size": which picture each trigger sweeps next
         self.swept: dict[str, int] = {}   # ...and the check it last swept on (SWEEPERS)
         # "any size": changed patches still to look in at every size (HUNT_*):
@@ -2861,6 +2945,7 @@ class Watcher:
                 rgb = i.colours[k] if k < len(i.colours) else None
                 if rgb is not None and rgb.shape[:2] == g.shape:
                     look.small_tint = tint_at(rgb, m, scale)
+                    look.rgb = rgb
                 for _f, p in look.pats:
                     need = spectrum * (1 if p.box else 2)
                     if room >= need:
@@ -2901,6 +2986,7 @@ class Watcher:
             hunt = self._hunts if self._hunts is not None else [HUNT_PER_CHECK]
             # those that swept longest ago are scored first, so they get the turns
             budget = self._sweeps if self._sweeps is not None else [SWEEPERS]
+            cap.cover_left = COVER_PER_CHECK
             for it in sorted(items, key=lambda i: cap.swept.get(i.id, -1)):
                 looks = cap.scaled.get(it.id)
                 got = memo.get(it.id) if same and it.id not in self._quiet else None
@@ -3060,6 +3146,7 @@ class Watcher:
                     peaks = find_peaks(f, p, PEAKS if check else 1, near_,
                                        it.threshold - EXACT_NEAR)
                 for sc, (mx, my) in peaks:
+                    covered = False
                     if p.box and sc >= near_:
                         st = structure(f, p, (mx, my))
                         if st < STRUCT_RATIO * sc:
@@ -3067,7 +3154,27 @@ class Watcher:
                     b = (y0 + my, y0 + my + p.size[0], x0 + mx, x0 + mx + p.size[1])
                     if r < 0.999:
                         b = tuple(round(v / r) for v in b)
-                    if check and sc >= near_:
+                    if (COVER_ON and check and twin is not None and area is None
+                            and COVER_LOW <= sc < it.threshold
+                            and (cap.covers.get(it.id, (0, False))[1]
+                                 or (cap.cover_left > 0 and cap.checks
+                                     - cap.covers.get(it.id, (-COVER_EVERY, False))[0]
+                                     >= COVER_EVERY))):
+                        # partly covered? (cover_score): tried for a few places a check,
+                        # and every check for one found covered last time
+                        if not cap.covers.get(it.id, (0, False))[1]:
+                            cap.cover_left -= 1
+                        cap.covers[it.id] = (cap.checks, False)
+                        info: dict = {}
+                        cs, share = Watcher._cover(twin, b, lk, gray.shape, info)
+                        if (COVER_LEAST <= share <= COVER_MAX and cs >= COVER_SCORE
+                                and cs - info.get("plain", 1.0) >= COVER_GAIN
+                                and info.get("uni", 1.0) <= COVER_UNI
+                                and info.get("fill", 0.0) >= COVER_FILL):
+                            if Watcher._cover_tint(raw, b, lk, info["cov"]) >= 1.0:
+                                sc, covered = cs, True
+                                cap.covers[it.id] = (cap.checks, True)
+                    if check and sc >= near_ and not covered:
                         f_ = Watcher._tint_factor(raw, b, lk.tint, lk.mask)
                         if f_ < 1.0 and lk.small_tint is not None:
                             f_ = max(f_, Watcher._tint_factor(raw, b, *lk.small_tint))
@@ -3195,6 +3302,48 @@ class Watcher:
             return 0.0
         _sc, at = _ncc_at(area, q)
         return structure(Frame(area), q, at)
+
+    @staticmethod
+    def _cover(full: tuple, box: tuple, lk: Look, shape: tuple[int, int],
+               info: dict | None = None) -> tuple[float, float]:
+        """cover_score() of `lk`'s picture, made the size of `box` (y0, y1, x0, x1 in a
+        frame of `shape`), on the capture's pixels at full size (`full`: _full_size's)
+        about there. (0, 1) when they can't be read."""
+        cut, (fh, fw) = full
+        sy, sx = fh / shape[0], fw / shape[1]
+        y0, y1, x0, x1 = box
+        th, tw = lk.gray.shape
+        k = ((y1 - y0) * sy / th + (x1 - x0) * sx / tw) / 2
+        if abs(k - 1) < 0.02:
+            g, m = lk.gray, lk.mask
+        else:
+            g = resize(lk.gray, k)
+            m = None if lk.mask is None else shrink_mask(lk.mask, k)
+        gh, gw = g.shape
+        pad = CONFIRM_PAD + 1
+        cy, cx = round((y0 + y1) * sy / 2 - gh / 2), round((x0 + x1) * sx / 2 - gw / 2)
+        area = cut(max(0, cy - pad), min(fh, cy + gh + pad),
+                   max(0, cx - pad), min(fw, cx + gw + pad))
+        if area is None:
+            return 0.0, 1.0
+        return cover_score(area, g, m, info)
+
+    @staticmethod
+    def _cover_tint(raw: tuple, box: tuple, lk: Look, cov: np.ndarray) -> float:
+        """_tint_factor() at `box` with the covered pixels `cov` (cover_score's, at any
+        size) left out of the picture's colours and the place's alike: the picture's
+        own colours (Look.rgb) taken again without them, when known."""
+        gh, gw = lk.gray.shape
+        if cov.shape != (gh, gw):
+            cov = cov[(np.arange(gh) * cov.shape[0] // gh)[:, None],
+                      np.arange(gw) * cov.shape[1] // gw]
+        m2 = (np.ones((gh, gw), bool) if lk.mask is None else lk.mask.astype(bool)) & ~cov
+        want = lk.tint
+        if lk.rgb is not None:
+            want = tint(lk.rgb.astype(np.float32) * (1 / 255), m2)
+            if want is None:
+                return 0.0
+        return Watcher._tint_factor(raw, box, want, m2)
 
     @staticmethod
     def _tint_factor(raw: tuple, box: tuple, want: np.ndarray,
