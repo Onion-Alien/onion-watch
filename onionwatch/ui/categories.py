@@ -1,15 +1,21 @@
 """The triggers page's categories and profiles (the rules are onionwatch.profiles):
 a category's section in the list (a header to fold it, switch it on or off and
-open its menu, over its trigger cards) and the Profiles window."""
+open its menu, over its trigger cards), the Categories window (each one's colours
+and picture) and the Profiles window."""
 from __future__ import annotations
 
-from PySide6.QtCore import QPoint, QRect, Qt, Signal
-from PySide6.QtWidgets import (QComboBox, QDialog, QDialogButtonBox, QFrame, QHBoxLayout,
+import uuid
+from pathlib import Path
+
+from PySide6.QtCore import QPoint, QRect, QSize, Qt, Signal
+from PySide6.QtGui import QColor, QIcon, QImage, QPainter, QPainterPath, QPixmap
+from PySide6.QtWidgets import (QColorDialog, QComboBox, QDialog, QDialogButtonBox,
+                               QFileDialog, QFrame, QHBoxLayout, QLabel,
                                QLineEdit, QListWidget, QListWidgetItem, QMenu, QPushButton,
                                QVBoxLayout, QWidget, QWidgetItem, QSizePolicy)
 
 from onionwatch import profiles
-from onionwatch.profiles import Profile
+from onionwatch.profiles import Category, Profile
 from onionwatch.ui import icons
 from onionwatch.ui.panel import Flow, hint_label, section_label
 
@@ -17,6 +23,71 @@ NAME = Qt.UserRole              # a list item's category name / profile id / exe
 TILE = 320                      # px: the least a closed card (a tile in the grid) is wide
 SMALL_TILE = 210                # ...when a number of cards to a line is asked for
 MAX_PER_ROW = 6                 # the most cards to a line that can be asked for
+PICTURE_PX = 128                # a category's picture is kept at most this big
+HEADER_PICTURE = 26             # px: ...and shown this big in its header
+# the colours to pick from in one click (any other through "Other…")
+SWATCHES = ("#e53935", "#fb8c00", "#fdd835", "#43a047", "#1fb6a6", "#1e88e5",
+            "#3949ab", "#8e24aa", "#d81b60", "#6d4c41", "#546e7a", "#212121")
+TEXT_SWATCHES = ("#ffffff", "#111111", "#fdd835", "#ffb74d", "#80deea", "#f48fb1")
+
+
+# ---------------------------------------------------------------------- pictures
+def pictures_dir(data_dir) -> Path:
+    """Where categories' pictures are kept (a host's data_dir / "categories")."""
+    return Path(data_dir) / "categories"
+
+
+def save_picture(img: QImage, data_dir) -> str:
+    """Keep `img` as a category picture (at most PICTURE_PX): its name, "" if it
+    couldn't be saved."""
+    if img.isNull():
+        return ""
+    if max(img.width(), img.height()) > PICTURE_PX:
+        img = img.scaled(PICTURE_PX, PICTURE_PX, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+    folder = pictures_dir(data_dir)
+    try:
+        folder.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        return ""
+    name = f"{uuid.uuid4().hex[:12]}.png"
+    return name if img.save(str(folder / name), "PNG") else ""
+
+
+def picture_pixmap(name: str, data_dir, size: int) -> QPixmap | None:
+    """A category's picture, `size` px square with round corners (None: none / gone)."""
+    name = profiles.clean_picture(name)
+    img = QImage(str(pictures_dir(data_dir) / name)) if name and data_dir else QImage()
+    if img.isNull():
+        return None
+    img = img.scaled(size, size, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
+    x, y = (img.width() - size) // 2, (img.height() - size) // 2
+    out = QPixmap(size, size)
+    out.fill(Qt.transparent)
+    p = QPainter(out)
+    p.setRenderHint(QPainter.Antialiasing)
+    path = QPainterPath()
+    path.addRoundedRect(0, 0, size, size, size * 0.2, size * 0.2)
+    p.setClipPath(path)
+    p.drawImage(0, 0, img, x, y, size, size)
+    p.end()
+    return out
+
+
+def look_icon(c: Category, data_dir, size: int = 20) -> QIcon:
+    """A small mark of a category's look for lists: its picture, else its colour
+    (an empty icon when it has neither)."""
+    pm = picture_pixmap(c.image, data_dir, size)
+    if pm is None:
+        pm = QPixmap(size, size)
+        pm.fill(Qt.transparent)
+        if c.color:
+            p = QPainter(pm)
+            p.setRenderHint(QPainter.Antialiasing)
+            p.setPen(Qt.NoPen)
+            p.setBrush(QColor(c.color))
+            p.drawRoundedRect(2, 2, size - 4, size - 4, 4, 4)
+            p.end()
+    return QIcon(pm)
 
 
 def _height(item, w: int) -> int:
@@ -99,9 +170,11 @@ class CategorySection(QWidget):
     card_dropped = Signal(str, str, object)  # trigger id, this category, before which id
     drag_at = Signal(QPoint)             # a card is being dragged here (global position)
     MIME = "application/x-onionwatch-trigger"   # (TriggerRow.MIME)
+    FOLD_CSS = "text-align:left; font-weight:700; font-size:10.5pt; padding-left:2px;"
 
     def __init__(self, name: str):
         super().__init__()
+        self.ink = ""                   # its name's colour ("": the theme's)
         from onionwatch.ui.triggerspanel import FlowBox, Switch   # (it imports this one)
         self.name = name
         self.built = False              # its cards have been made
@@ -114,12 +187,17 @@ class CategorySection(QWidget):
         header_layout.setContentsMargins(8, 6, 10, 6)
         h = header_layout
         h.setSpacing(10)
+        self.pic = QLabel()                 # the category's picture, if it has one
+        self.pic.setFixedSize(HEADER_PICTURE, HEADER_PICTURE)
+        self.pic.setCursor(Qt.PointingHandCursor)
+        self.pic.mousePressEvent = lambda _e: self.btn_fold.click()
+        self.pic.hide()
+        h.addWidget(self.pic)
         self.btn_fold = QPushButton()
         self.btn_fold.setObjectName("fold")
         self.btn_fold.setCheckable(True)
         self.btn_fold.setCursor(Qt.PointingHandCursor)
-        self.btn_fold.setStyleSheet("text-align:left; font-weight:700; font-size:10.5pt;"
-                                    " padding-left:2px;")
+        self.btn_fold.setStyleSheet(self.FOLD_CSS)
         self.btn_fold.toggled.connect(self._on_fold)
         self.btn_fold.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
         h.addWidget(self.btn_fold, 1)
@@ -134,7 +212,8 @@ class CategorySection(QWidget):
         self.btn_menu.setObjectName("small")
         self.btn_menu.setStyleSheet("font-size:11pt; padding:0 10px;")
         self.btn_menu.setAccessibleName("Category menu")
-        self.btn_menu.setToolTip("Rename, turn its triggers on or off, save it to a file…")
+        self.btn_menu.setToolTip("Rename, colours and picture, turn its triggers on or "
+                                 "off, save it to a file…")
         self.btn_menu.clicked.connect(lambda: self.menu_wanted.emit(self.name))
         align_control(self.btn_menu)
         h.addWidget(self.btn_menu)
@@ -252,7 +331,8 @@ class CategorySection(QWidget):
             self.btn_fold.blockSignals(True)
             self.btn_fold.setChecked(on)
             self.btn_fold.blockSignals(False)
-        icons.set_icon(self.btn_fold, "fold_open" if on else "fold", "muted", "muted", size=16)
+        tint = self.ink or "muted"
+        icons.set_icon(self.btn_fold, "fold_open" if on else "fold", tint, tint, size=16)
         self.btn_fold.setToolTip("Fold this category away" if on else
                                  "Show this category's triggers")
         self.body.setVisible(on)
@@ -265,9 +345,29 @@ class CategorySection(QWidget):
         self.switch.setChecked(on)
         self.switch.setToolTip(tip)
 
+    def set_look(self, c: Category | None, data_dir=None):
+        """Show category `c`'s look: its header's colour, its name's colour and its
+        picture (None: the theme's plain look)."""
+        color = c.color if c else ""
+        self.ink = c.name_color() if c else ""
+        self.header.setStyleSheet(
+            f"QFrame#transport {{ background:{color}; border-radius:12px; }}" if color else "")
+        self.btn_fold.setStyleSheet(self.FOLD_CSS + (f" color:{self.ink};" if self.ink else ""))
+        self.set_open(self.is_open)         # the fold arrow in the name's colour
+        pm = picture_pixmap(c.image, data_dir, HEADER_PICTURE) if c else None
+        self.pic.setPixmap(pm or QPixmap())
+        self.pic.setVisible(pm is not None)
+        self._tint_count()
+
+    def _tint_count(self):
+        """The counts in the name's colour, unless they're a warning."""
+        tinted = self.ink and not self.count.property("tone")
+        self.count.setStyleSheet(f"color:{self.ink};" if tinted else "")
+
     def set_counts(self, text: str, tone: str = ""):
         self.count.setText(text)
         self.count.setProperty("tone", tone or None)
+        self._tint_count()
         self.count.style().unpolish(self.count)
         self.count.style().polish(self.count)
 
@@ -510,3 +610,209 @@ class ProfilesDialog(QDialog):
         if not progs:
             menu.addAction("No windows open").setEnabled(False)
         menu.exec(self.btn_pick.mapToGlobal(self.btn_pick.rect().bottomLeft()))
+
+
+class CategoriesDialog(QDialog):
+    """Each category's look: its header's colour, its name's colour and a picture,
+    with how its header will look. Works on copies: `result` (name -> look) once
+    accepted. A picture picked is saved straight away (save_picture), so the copy
+    only carries its name."""
+
+    def __init__(self, parent, cats: list[Category], data_dir, start: str = ""):
+        super().__init__(parent)
+        self.setWindowTitle("Categories")
+        self.resize(760, 460)
+        self.data_dir = data_dir
+        self.cats = [Category(c.name, c.on, c.open, c.color, c.text_color, c.image)
+                     for c in cats]
+        v = QVBoxLayout(self)
+        v.addWidget(hint_label(
+            "Give a category its own colours and a picture, so it's easy to spot in the "
+            "list. Its triggers work just the same."))
+        h = QHBoxLayout()
+        self.list = QListWidget()
+        self.list.setIconSize(QSize(20, 20))
+        self.list.setMinimumWidth(190)
+        for c in self.cats:
+            it = QListWidgetItem(look_icon(c, data_dir), profiles.label(c.name))
+            it.setData(NAME, c.name)
+            self.list.addItem(it)
+        self.list.currentRowChanged.connect(self._show)
+        h.addWidget(self.list, 2)
+
+        f = QVBoxLayout()
+        f.addWidget(section_label("HOW IT LOOKS"))
+        self.preview = QFrame()
+        self.preview.setObjectName("transport")
+        ph = QHBoxLayout(self.preview)
+        ph.setContentsMargins(10, 8, 10, 8)
+        ph.setSpacing(10)
+        self.preview_pic = QLabel()
+        self.preview_pic.setFixedSize(HEADER_PICTURE, HEADER_PICTURE)
+        ph.addWidget(self.preview_pic)
+        self.preview_name = QLabel()
+        ph.addWidget(self.preview_name, 1)
+        f.addWidget(self.preview)
+
+        f.addWidget(section_label("TAB COLOUR"))
+        self.color_buttons = self._swatches(f, SWATCHES, "Theme's", self.set_color,
+                                            "The tab's colour")
+        f.addWidget(section_label("TEXT COLOUR"))
+        self.text_buttons = self._swatches(f, TEXT_SWATCHES, "Automatic",
+                                           self.set_text_color,
+                                           "The name's colour. Automatic: black or white, "
+                                           "whichever reads best on the tab")
+        f.addWidget(section_label("PICTURE"))
+        pr = QHBoxLayout()
+        self.btn_pick = QPushButton("Pick a picture…")
+        icons.set_icon(self.btn_pick, "image", size=14)
+        self.btn_pick.clicked.connect(self._pick_picture)
+        pr.addWidget(self.btn_pick)
+        self.btn_paste = QPushButton("Paste")
+        self.btn_paste.setToolTip("Use the picture you copied")
+        self.btn_paste.clicked.connect(self._paste_picture)
+        pr.addWidget(self.btn_paste)
+        self.btn_no_pic = QPushButton("Remove")
+        self.btn_no_pic.setToolTip("No picture")
+        self.btn_no_pic.clicked.connect(self.remove_picture)
+        pr.addWidget(self.btn_no_pic)
+        pr.addStretch(1)
+        f.addLayout(pr)
+        f.addStretch(1)
+        self.btn_reset = QPushButton("Back to plain")
+        self.btn_reset.setToolTip("No colours and no picture: the theme's look")
+        self.btn_reset.clicked.connect(self.reset)
+        f.addWidget(self.btn_reset, 0, Qt.AlignLeft)
+        self.form = QWidget()
+        self.form.setLayout(f)
+        f.setContentsMargins(0, 0, 0, 0)
+        h.addWidget(self.form, 3)
+        v.addLayout(h, 1)
+        bb = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        bb.accepted.connect(self.accept)
+        bb.rejected.connect(self.reject)
+        v.addWidget(bb)
+        names = [c.name for c in self.cats]
+        self.list.setCurrentRow(names.index(start) if start in names else 0)
+        self._show()
+
+    @property
+    def result(self) -> dict[str, dict]:
+        return {c.name: c.look() for c in self.cats}
+
+    def _swatches(self, layout, colours, plain: str, pick, tip: str) -> dict:
+        """A line of colour buttons, the plain one first and "Other…" last: they
+        call `pick` with a colour ("" for plain). Returns colour -> button."""
+        row = QHBoxLayout()
+        row.setSpacing(4)
+        out = {}
+        b = QPushButton(plain)
+        b.setObjectName("small")
+        b.setCheckable(True)
+        b.setToolTip(tip)
+        b.clicked.connect(lambda: pick(""))
+        row.addWidget(b)
+        out[""] = b
+        for c in colours:
+            b = QPushButton()
+            b.setCheckable(True)
+            b.setFixedSize(22, 22)
+            b.setToolTip(c)
+            b.setAccessibleName(f"Colour {c}")
+            b.setStyleSheet(f"QPushButton {{ background:{c}; border:1px solid #80808080;"
+                            f" border-radius:11px; padding:0; }}"
+                            f" QPushButton:checked {{ border:3px solid palette(highlight); }}")
+            b.clicked.connect(lambda _=False, c=c: pick(c))
+            row.addWidget(b)
+            out[c] = b
+        other = QPushButton("Other…")
+        other.setObjectName("small")
+        other.setToolTip("Any colour")
+        other.clicked.connect(lambda: self._other(pick, out))
+        row.addWidget(other)
+        row.addStretch(1)
+        layout.addLayout(row)
+        return out
+
+    def _other(self, pick, buttons):
+        c = self._current()
+        now = (c.color if buttons is self.color_buttons else c.text_color) if c else ""
+        col = QColorDialog.getColor(QColor(now or "#1fb6a6"), self, "Pick a colour")
+        if col.isValid():
+            pick(col.name())
+
+    def _current(self) -> Category | None:
+        i = self.list.currentRow()
+        return self.cats[i] if 0 <= i < len(self.cats) else None
+
+    def select(self, name: str):
+        names = [c.name for c in self.cats]
+        if name in names:
+            self.list.setCurrentRow(names.index(name))
+
+    def _show(self, _i: int = -1):
+        c = self._current()
+        self.form.setEnabled(c is not None)
+        if c is None:
+            return
+        for want, buttons in ((c.color, self.color_buttons),
+                              (c.text_color, self.text_buttons)):
+            for k, b in buttons.items():
+                b.setChecked(k == want)
+        self.btn_no_pic.setEnabled(bool(c.image))
+        color, ink = c.color, c.name_color()
+        self.preview.setStyleSheet(
+            f"QFrame#transport {{ background:{color}; border-radius:12px; }}" if color else "")
+        self.preview_name.setText(profiles.label(c.name))
+        self.preview_name.setStyleSheet("font-weight:700; font-size:10.5pt; background:"
+                                        "transparent;" + (f" color:{ink};" if ink else ""))
+        pm = picture_pixmap(c.image, self.data_dir, HEADER_PICTURE)
+        self.preview_pic.setPixmap(pm or QPixmap())
+        self.preview_pic.setVisible(pm is not None)
+        it = self.list.currentItem()
+        if it is not None:
+            it.setIcon(look_icon(c, self.data_dir))
+
+    def set_color(self, color: str):
+        c = self._current()
+        if c is not None:
+            c.color = profiles.clean_color(color)
+            self._show()
+
+    def set_text_color(self, color: str):
+        c = self._current()
+        if c is not None:
+            c.text_color = profiles.clean_color(color)
+            self._show()
+
+    def set_picture(self, img: QImage) -> bool:
+        """Give the category picked `img` as its picture."""
+        c = self._current()
+        name = save_picture(img, self.data_dir) if c is not None else ""
+        if name:
+            c.image = name
+            self._show()
+        return bool(name)
+
+    def remove_picture(self):
+        c = self._current()
+        if c is not None:
+            c.image = ""
+            self._show()
+
+    def reset(self):
+        c = self._current()
+        if c is not None:
+            c.color = c.text_color = c.image = ""
+            self._show()
+
+    def _pick_picture(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Pick a picture", "",
+            "Pictures (*.png *.jpg *.jpeg *.bmp *.gif *.webp *.ico);;All files (*)")
+        if path and not self.set_picture(QImage(path)):
+            self.btn_pick.setToolTip("That file couldn't be read as a picture")
+
+    def _paste_picture(self):
+        from PySide6.QtWidgets import QApplication
+        self.set_picture(QApplication.clipboard().image())

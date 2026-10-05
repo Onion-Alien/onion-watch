@@ -45,6 +45,10 @@ The full list. The [README](../README.md) has the short version.
   program you tie it to (any `something.exe`, picked from the open windows or
   typed) has a window open or is in front. The list shows how many triggers and
   pictures are on, and says so when that's more than your computer checks often.
+- **Give a category its own look.** In **Categories** (the palette button, **More →
+  Categories…**, or a category's **⋯ → Colours and picture…**) pick its tab's
+  colour, its name's colour (or Automatic: black or white, whichever reads best) and
+  a picture shown beside its name.
 - **Duplicate** a trigger, and **save triggers to a file** (pictures and all, each
   in its category; or just one category) to move them to another PC or share them;
   sounds go by name.

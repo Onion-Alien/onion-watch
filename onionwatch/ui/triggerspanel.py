@@ -39,7 +39,8 @@ from onionwatch.screenwatch import (INTERVALS_MS, MAX_PICTURES, MAX_SOUNDS, Moni
                                     Trigger, Watched, WindowRef)
 from onionwatch.shuffle import ShuffleBag
 from onionwatch.ui import icons
-from onionwatch.ui.categories import (MAX_PER_ROW, CategorySection, ProfilesDialog,
+from onionwatch.ui.categories import (MAX_PER_ROW, CategoriesDialog, CategorySection,
+                                      ProfilesDialog,
                                       counts_text)
 from onionwatch.ui.history import HistoryDialog
 from onionwatch.ui.panel import Flow, UndoBar, card, hint_label
@@ -2080,6 +2081,14 @@ class TriggersTab(QWidget):
         no_wheel(self.cb_profile)
         self.cb_profile.activated.connect(self._on_profile)
         gb.addWidget(labelled("Profile", self.cb_profile), 0, Qt.AlignLeft)
+        self.btn_categories = QPushButton()
+        self.btn_categories.setAccessibleName("Categories")
+        self.btn_categories.setToolTip("Categories: give each one its own colours and a "
+                                       "picture")
+        icons.set_icon(self.btn_categories, "palette")
+        self.btn_categories.clicked.connect(lambda: self.edit_categories())
+        align_control(self.btn_categories)
+        gb.addWidget(self.btn_categories)
         self.lbl_counts = hint_label("")     # cut short rather than widen a narrow window
         self.lbl_counts.setWordWrap(False)
         self.lbl_counts.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
@@ -2227,6 +2236,8 @@ class TriggersTab(QWidget):
         menu.addAction("What went off…", self.show_history)
         menu.addSeparator()
         menu.addAction("New category…", self.new_category)
+        self.act_categories = menu.addAction(icons.icon("palette"), "Categories…",
+                                             lambda: self.edit_categories())
         menu.addAction("Profiles…", self.edit_profiles)
         menu.addSeparator()
         self.act_export = menu.addAction("Save triggers to a file…", self.export_triggers)
@@ -2237,6 +2248,7 @@ class TriggersTab(QWidget):
 
         def about_to_show():
             self.act_export.setEnabled(bool(self.triggers))
+            self.act_categories.setEnabled(self._named_categories())
             n = len(self._bin())
             self.act_bin.setText(f"Recently deleted ({n})…" if n else "Recently deleted…")
         menu.aboutToShow.connect(about_to_show)
@@ -2324,6 +2336,7 @@ class TriggersTab(QWidget):
         self.search_summary.setVisible(active)
         self.lbl_counts.setVisible(grouped and not active and not stacked)
         self.groupbar.setVisible(grouped)
+        self.btn_categories.setEnabled(self._named_categories())
 
     def set_per_row(self, n: int):
         """`n` closed cards to a line (0: as many as fit), kept for the next start."""
@@ -2961,8 +2974,32 @@ class TriggersTab(QWidget):
         sec.body_layout.set_per_row(self.per_row)
         sec.card_dropped.connect(self.reorder)
         sec.drag_at.connect(self._scroll_for_drag)
+        sec.set_look(self.groups.find(name), self.host.data_dir)
         self.sections[name] = sec
         return sec
+
+    def _named_categories(self) -> bool:
+        """There's a category of the user's own (the Categories window has a use)."""
+        return any(n != profiles.UNCATEGORISED for n in self.groups.names())
+
+    def edit_categories(self, start: str = ""):
+        """The Categories window: each category's colours and picture."""
+        if not start:
+            start = next((n for n in self.groups.names() if n != profiles.UNCATEGORISED),
+                         "")
+        dlg = CategoriesDialog(self, self.groups.categories, self.host.data_dir, start)
+        if dlg.exec():
+            self.set_category_looks(dlg.result)
+
+    def set_category_looks(self, looks: dict):
+        """Give categories their looks (name -> {"color", "text_color", "image"}; a
+        category left out keeps its own) and show them."""
+        for c in self.groups.categories:
+            if c.name in looks:
+                c.set_look(looks[c.name])
+        for name, sec in self.sections.items():
+            sec.set_look(self.groups.find(name), self.host.data_dir)
+        self._save_groups()
 
     def reorder(self, tid: str, category: str, before: str | None = None):
         """A card was dragged: put its trigger in `category`, just before trigger
@@ -3359,6 +3396,8 @@ class TriggersTab(QWidget):
         n = sum(t.category == name for t in self.triggers)
         if named:
             menu.addAction("Rename…", lambda: self._ask_rename(name))
+        menu.addAction(icons.icon("palette"), "Colours and picture…",
+                       lambda: self.edit_categories(name))
         menu.addAction(icons.icon("search"), "Search this category",
                        lambda: self.show_search(name))
         a = menu.addAction("Turn all its triggers on",

@@ -25,10 +25,16 @@ Everything is kept in Config.screen beside the triggers, as plain lists and dict
     profiles    [{"id", "name", "apps": ["game.exe"], "when": "running" | "front",
                   "categories": [names]}]
     profile     "" | "auto" | a profile's id
+    category_looks  {name: {"color", "text_color", "image"}}   how a category's
+                header looks: its strip's colour, its name's colour ("#rrggbb", ""
+                for the theme's) and a picture's file name in category_pictures
+                (data_dir / "categories"). Apart from `categories`, which an older
+                version saves back without what it doesn't know.
 """
 from __future__ import annotations
 
 import ntpath
+import re
 import uuid
 from dataclasses import dataclass, field
 
@@ -56,6 +62,30 @@ def label(name: str) -> str:
     return name or UNCATEGORISED_LABEL
 
 
+_HEX = re.compile(r"#[0-9a-f]{6}")
+_PICTURE = re.compile(r"[0-9a-z_-]{1,40}\.png")
+
+
+def clean_color(text) -> str:
+    """A colour as kept: "#rrggbb" in lower case, "" for none (the theme's)."""
+    if not isinstance(text, str):
+        return ""
+    text = text.strip().lower()
+    return text if _HEX.fullmatch(text) else ""
+
+
+def clean_picture(text) -> str:
+    """A category picture's file name as kept ("" for none): a plain name, never a
+    path, so a settings file can't point it anywhere else."""
+    return text if isinstance(text, str) and _PICTURE.fullmatch(text) else ""
+
+
+def readable_on(color: str) -> str:
+    """Black or white, whichever reads better on `color` ("#rrggbb")."""
+    r, g, b = (int(color[i:i + 2], 16) for i in (1, 3, 5))
+    return "#111111" if 0.299 * r + 0.587 * g + 0.114 * b > 150 else "#ffffff"
+
+
 def exe_name(text) -> str:
     """A program as a profile keeps it: its file name in lower case ("game.exe"),
     from what was typed (a path, quotes, no ".exe"); "" for nothing usable."""
@@ -74,9 +104,27 @@ class Category:
     name: str
     on: bool = True
     open: bool = False          # its section is unfolded in the list
+    color: str = ""             # its header's colour, "#rrggbb" ("": the theme's)
+    text_color: str = ""        # its name's colour ("": readable on `color`, or the theme's)
+    image: str = ""             # a picture by its name (category_pictures), "" for none
 
     def to_raw(self) -> dict:
         return {"name": self.name, "on": self.on, "open": self.open}
+
+    def look(self) -> dict:
+        """Its look as kept in category_looks ({} when it has none)."""
+        d = {"color": self.color, "text_color": self.text_color, "image": self.image}
+        return {k: v for k, v in d.items() if v}
+
+    def set_look(self, d) -> None:
+        d = d if isinstance(d, dict) else {}
+        self.color = clean_color(d.get("color"))
+        self.text_color = clean_color(d.get("text_color"))
+        self.image = clean_picture(d.get("image"))
+
+    def name_color(self) -> str:
+        """The colour its name is drawn in ("": the theme's)."""
+        return self.text_color or (readable_on(self.color) if self.color else "")
 
 
 @dataclass
@@ -126,6 +174,8 @@ class Groups:
         self.categories: list[Category] = []
         self.profiles: list[Profile] = []
         self.mode = ""
+        self._gone: set[str] = set()    # categories renamed or removed here: their
+                                        # looks go too (see save)
 
     # ------------------------------------------------------------------ load / save
     @classmethod
@@ -147,6 +197,9 @@ class Groups:
                                          d.get("open") is True))
         for name in used:
             g.ensure(name)
+        looks = screen.get("category_looks")
+        for c in g.categories if isinstance(looks, dict) else []:
+            c.set_look(looks.get(c.name))
         raw = screen.get("profiles")
         for d in raw if isinstance(raw, list) else []:
             p = Profile.from_raw(d)
@@ -159,6 +212,19 @@ class Groups:
 
     def save(self, screen: dict):
         screen["categories"] = [c.to_raw() for c in self.categories]
+        # the looks of categories an older version renamed or dropped are kept: one
+        # made again by that name gets its look back
+        looks = screen.get("category_looks")
+        looks = ({k: v for k, v in looks.items() if isinstance(k, str) and v}
+                 if isinstance(looks, dict) else {})
+        for c in self.categories:
+            if c.look():
+                looks[c.name] = c.look()
+            else:
+                looks.pop(c.name, None)
+        for name in self._gone - set(self.names()):
+            looks.pop(name, None)
+        screen["category_looks"] = looks
         screen["profiles"] = [p.to_raw() for p in self.profiles]
         screen["profile"] = self.mode
 
@@ -187,9 +253,12 @@ class Groups:
         c = self.find(old)
         if c is None or old == new:
             return False
+        self._gone.add(old)
         other = self.find(new)
         if other is not None:
             self.categories.remove(c)
+            if not other.look():
+                other.set_look(c.look())
         else:
             c.name = new
         for p in self.profiles:
@@ -207,6 +276,7 @@ class Groups:
             return -1
         i = self.categories.index(c)
         self.categories.remove(c)
+        self._gone.add(name)
         for p in self.profiles:
             p.categories = [n for n in p.categories if n != name]
         return i
