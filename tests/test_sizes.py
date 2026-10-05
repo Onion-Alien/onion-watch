@@ -142,6 +142,53 @@ def test_the_sweep_finds_a_size_nothing_predicted_and_keeps_it():
     assert min(check() for _ in range(5)) >= 0.9     # from now on, every check
 
 
+def test_a_size_matching_only_between_the_sweeps_steps_is_found():
+    """Text drawn afresh at another size can match only within a pixel or so of it
+    (WAVE 12 at 85 %: 0.86 there, 0.73 3 % either side). Halfway between sweep steps
+    isn't close enough: the sweep tries finer about its best before giving up."""
+    pic, _tint = cut(world())
+    lk = sw.Look(pic, None, 0.5, [1.0], True)
+    sizes = {}
+    made = lk.pattern
+
+    def pattern(f):
+        p = made(f)
+        sizes[id(p)] = f
+        return p
+
+    lk.pattern = pattern
+    right = 0.853
+
+    def judge(p, _lk, *_a):
+        return 0.86 - 10 * abs(np.log(sizes[id(p)] / right)), (0, 10, 0, 10)
+
+    it = sw.Watched("t", [(pic, None)], 0.8, 0.0, any_size=True)
+    cap = sw._Capture(0, Monitor(0, 0, 960, 540, True))
+    best = max(sw.Watcher._sweep(cap, it, [lk], judge, lambda _lk: (540, 960))[0]
+               for _ in range(len(sw.SWEEP)))
+    assert best >= 0.8
+    assert any(abs(f / right - 1) < 0.01 for f in lk.found)
+
+
+
+def test_a_size_found_finely_counts_only_with_the_things_shape_at_full_size():
+    """Scenery can fit one of the finely tried sizes just well enough at the working
+    size: there the picture is matched again on the screen's own pixels, its light's
+    slow changes taken off. The thing keeps its shape; grass at the same size doesn't."""
+    pic, _tint = cut(world())
+    lk = sw.Look(pic, None, 0.5, [1.0], True)
+    k = 0.85
+    big = gray(scaled(world(), k))
+    full = (lambda y0, y1, x0, x1: big[y0:y1, x0:x1]), big.shape
+    shape = (big.shape[0] // 2, big.shape[1] // 2)
+    s = round(64 * k / 2)
+    y, x = round(192 * k / 2), round(292 * k / 2)
+    assert sw.Watcher._fine_shape(full, (y, y + s, x, x + s), lk, shape) >= sw.FINE_SHAPE
+    for gy, gx in ((20, 30), (100, 300), (170, 200), (60, 400)):
+        assert sw.Watcher._fine_shape(full, (gy, gy + s, gx, gx + s), lk, shape) < 0.3
+    # without the full-size pixels a size found finely doesn't count
+    assert sw.Watcher._fine_shape(None, (y, y + s, x, x + s), lk, shape) == 0.0
+
 def test_a_look_alike_in_other_colours_does_not_count():
     """A teal gem where the orange one was is the same grey: only its colours say
     it's not the same thing. The same gem in a darker scene still counts."""

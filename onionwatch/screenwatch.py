@@ -129,6 +129,15 @@ HUNT_ROOM = 1.3         # a picture up to this much bigger than a patch is looke
 HUNT_FITS = 1.7         # ...and tried at sizes up to this much bigger than the patch (text
                         # changes only where its strokes are: a cut has room around them)
 PROMISING = 0.15
+HUNT_PROMISING = 0.3    # ...the hunt's (HUNT_SIZES are two sweep steps apart)
+# A match still short after that is tried CONFIRM_STEP either side of the best (text
+# drawn afresh can match only within a pixel or so of its size). The finer the sizes
+# tried, the likelier some patch of scenery fits one of them just well enough, and its
+# score can't tell (WAVE 12 at 85 % scored 0.82, scenery 0.80-0.84 and up to 0.94). So a
+# size found that finely counts only if the picture, at that size, keeps FINE_SHAPE of
+# structure() on the screen's own pixels at full size: the thing does (0.84 there), the
+# scenery that fit at the working size doesn't (0.02-0.62 on game footage).
+FINE_SHAPE = 0.65
 SWEEP_DONE = 0.9        # a match scoring less may be at a size a little off: keep sweeping
 BLUR = 1.5
 BLUR_MIN_SIDE = 16
@@ -3026,10 +3035,12 @@ class Watcher:
                     return None
                 return got
 
-            def judge(p: Pattern, lk: Look, area: tuple | None = None) -> tuple[float, tuple]:
+            def judge(p: Pattern, lk: Look, area: tuple | None = None,
+                      fine: bool = False) -> tuple[float, tuple]:
                 """The picture's best place at this size: (score, box in the
                 capture's frame), the score taken down when the colours there
-                aren't the picture's. `area`: only about that changed patch."""
+                aren't the picture's. `area`: only about that changed patch.
+                `fine`: a size tried finely (FINE_SHAPE)."""
                 top: tuple = (0.0, box)
                 check = raw is not None and lk.tint is not None
                 r = lk.ratio
@@ -3064,6 +3075,8 @@ class Watcher:
                     if twin is not None and sc >= it.threshold:
                         sc = min(sc, Watcher._twin(twin, b, lk, gray.shape,
                                                    cap.twins, it.id))
+                    if fine and sc >= it.threshold:
+                        sc = min(sc, Watcher._fine_shape(twin, b, lk, gray.shape))
                     if sc > top[0]:
                         top = (sc, b)
                 return top
@@ -3159,6 +3172,31 @@ class Watcher:
         return score
 
     @staticmethod
+    def _fine_shape(full: tuple | None, box: tuple, lk: Look, shape: tuple[int, int]) -> float:
+        """structure() of `lk`'s picture, made the size of `box` (y0, y1, x0, x1 in a
+        frame of `shape`), on the capture's pixels at full size (`full`: _full_size's)
+        where it best fits about there (+-CONFIRM_PAD px). 0.0 without them."""
+        if full is None:
+            return 0.0
+        cut, (fh, fw) = full
+        sy, sx = fh / shape[0], fw / shape[1]
+        y0, y1, x0, x1 = box
+        th, tw = lk.gray.shape
+        k = ((y1 - y0) * sy / th + (x1 - x0) * sx / tw) / 2
+        q = Pattern(resize(lk.gray, k), None if lk.mask is None else shrink_mask(lk.mask, k))
+        if not q.ok:
+            return 0.0
+        gh, gw = q.shape
+        pad = CONFIRM_PAD + 1
+        cy, cx = round((y0 + y1) * sy / 2 - gh / 2), round((x0 + x1) * sx / 2 - gw / 2)
+        area = cut(max(0, cy - pad), min(fh, cy + gh + pad),
+                   max(0, cx - pad), min(fw, cx + gw + pad))
+        if area is None or area.shape[0] < gh or area.shape[1] < gw:
+            return 0.0
+        _sc, at = _ncc_at(area, q)
+        return structure(Frame(area), q, at)
+
+    @staticmethod
     def _tint_factor(raw: tuple, box: tuple, want: np.ndarray,
                      mask: np.ndarray | None = None) -> float:
         """How much of a score stands, going by the colours of `box` (y0, y1, x0, x1
@@ -3218,19 +3256,31 @@ class Watcher:
                 budget[0] -= len(todo)
             h[2].remove(it.id)
             for lk, f in todo:
-                # every other sweep size; one scoring within PROMISING of the
-                # threshold has the sizes either side tried too
-                sc = 0.0
-                for g in (f, f / SWEEP_STEP, f * SWEEP_STEP):
-                    if g != f and (sc < it.threshold - PROMISING or not SIZES[0] <= g <= SIZES[1]
-                                   or any(near(g, q) for q, _p in lk.pats)):
-                        continue
+                # every other sweep size; one scoring within HUNT_PROMISING of the
+                # threshold has the sizes either side tried too, and if the best of
+                # those is within PROMISING, CONFIRM_STEP either side of it as well
+                top = (0.0, f)
+
+                def tri(g, fine=False, lk=lk, area=h[0]):
+                    nonlocal best, kept, top
+                    if not SIZES[0] <= g <= SIZES[1] or any(near(g, q) for q, _p in lk.pats):
+                        return 0.0
                     p = lk.hunt_pattern(g)
-                    got = judge(p, lk, h[0]) if p.ok else (0.0, None)
-                    if g == f:
-                        sc = got[0]
+                    got = judge(p, lk, area, fine) if p.ok else (0.0, None)
+                    if got[0] > top[0]:
+                        top = (got[0], g)
                     if got[0] > best[0]:
                         best, kept = got, (lk, g, p)
+                    return got[0]
+
+                if tri(f) < it.threshold - HUNT_PROMISING:
+                    continue
+                tri(f / SWEEP_STEP)
+                tri(f * SWEEP_STEP)
+                if it.threshold - PROMISING <= top[0] < it.threshold:
+                    g = top[1]
+                    tri(g / CONFIRM_STEP, True)
+                    tri(g * CONFIRM_STEP, True)
         if kept is not None and best[0] >= max(it.threshold, beat + 0.01):
             lk, f, p = kept
             lk.keep(f, p)
@@ -3269,6 +3319,16 @@ class Watcher:
             for g in (s / SWEEP_STEP ** 0.5, s * SWEEP_STEP ** 0.5):
                 p = lk.pattern(g)
                 sc, at = judge(p, lk)
+                if sc > best[0]:
+                    best, kept = (sc, at), (g, p)
+        if kept is not None and it.threshold - PROMISING <= best[0] < it.threshold:
+            # still short: try finer either side of the best (FINE_SHAPE)
+            f = kept[0]
+            for g in (f / CONFIRM_STEP, f * CONFIRM_STEP):
+                if gh * lk.scale * g > fh or gw * lk.scale * g > fw:
+                    continue
+                p = lk.pattern(g)
+                sc, at = judge(p, lk, None, True)
                 if sc > best[0]:
                     best, kept = (sc, at), (g, p)
         if kept is not None and best[0] >= max(it.threshold, beat + 0.01):
