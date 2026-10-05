@@ -900,7 +900,10 @@ class TriggerRow(QFrame):
             " color:palette(highlight); }"
             "QPushButton#addpic:disabled { border-color:transparent; color:transparent; }")
         self.btn_add_pic.clicked.connect(self._show_add_menu)
-        self.pics = QWidget()           # the strip and its +, side by side
+        # the header's pieces belong to the card from the start: _arrange moves them
+        # between layouts, and a piece shown while it had no parent flashed up on the
+        # desktop as a little blank window of its own (and lagged the app)
+        self.pics = QWidget(self)       # the strip and its +, side by side
         self.pics.setObjectName("labelled")
         self.pics.setStyleSheet("QWidget#labelled { background: transparent; }")
         pics = QHBoxLayout(self.pics)
@@ -908,10 +911,10 @@ class TriggerRow(QFrame):
         pics.setSpacing(4)
         pics.addWidget(self.strip)
         pics.addWidget(self.btn_add_pic)
-        self.badge = Plate()            # instead of the strip, for a trigger without pictures
+        self.badge = Plate(self)          # instead of the strip, for a trigger without pictures
         self.badge.setObjectName("iconlabel")
         self.badge.setAlignment(Qt.AlignCenter)
-        self.names = QWidget()          # under the name: what it does (or what's wrong)...
+        self.names = QWidget(self)        # under the name: what it does (or what's wrong)...
         self.names.setObjectName("labelled")      # see-through, like labelled()'s boxes
         self.names.setStyleSheet("QWidget#labelled { background: transparent; }")
         names = QVBoxLayout(self.names)
@@ -939,7 +942,7 @@ class TriggerRow(QFrame):
         self.name.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)   # up to that
         self.name.textChanged.connect(self._fit_name)
         self._fit_name()
-        self.name_line = QWidget()      # the name takes what it needs, the rest is empty
+        self.name_line = QWidget(self)    # the name takes what it needs, the rest is empty
         self.name_line.setObjectName("labelled")
         self.name_line.setStyleSheet("QWidget#labelled { background: transparent; }")
         line = QHBoxLayout(self.name_line)
@@ -984,7 +987,7 @@ class TriggerRow(QFrame):
         self.sound_summary.setWordWrap(True)
         self.sound_summary.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
         names.addWidget(self.sound_summary)
-        self.details = QLabel()
+        self.details = QLabel(self)
         self.details.setContentsMargins(6, 0, 0, 0)
         self.details.setObjectName("hint")
         self.details.setWordWrap(True)
@@ -992,16 +995,16 @@ class TriggerRow(QFrame):
         self.details.setParent(self)    # under a closed card's header (_arrange)
         self.details.hide()
         # what it's doing right now: a coloured dot and a word, or the live match
-        self.live = QLabel()
+        self.live = QLabel(self)
         self.live.setTextFormat(Qt.RichText)
         self.live.setIndent(0)
         self.live.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         self._live_shown = ""
-        self.chk_on = Switch()
+        self.chk_on = Switch(self)
         self.chk_on.setToolTip("Watch for this trigger (switch it off to keep it but pause it)")
         self.chk_on.setChecked(t.enabled)
         self.chk_on.toggled.connect(self._on_enabled)
-        self.btn_open = QPushButton()
+        self.btn_open = QPushButton(self)
         self.btn_open.setObjectName("fold")
         self.btn_open.setCheckable(True)
         self.btn_open.setFixedSize(28, 28)
@@ -1150,7 +1153,7 @@ class TriggerRow(QFrame):
                                  "always stops it; pick what else does next to it.")
         self.chk_ring.setChecked(t.ring)
         self.chk_ring.toggled.connect(self._on_ring)
-        self.until = WideCombo()
+        self.until = WideCombo(self)   # (shown before it's in its Pair: no flash)
         for key, (label, *_rest) in UNTILS.items():
             self.until.addItem(label, key)
             self.until.setItemData(self.until.count() - 1, UNTILS[key][3], Qt.ToolTipRole)

@@ -323,3 +323,32 @@ def test_a_card_waiting_for_its_window_offers_to_change_it(make, monkeypatch):
     monkeypatch.setattr(tab, "pick_window", lambda current=None: new)
     row.btn_retarget.click()
     assert t.sources == [new] and row.btn_retarget.isHidden()
+
+
+def test_cards_never_flash_up_as_windows_of_their_own(make, qapp):
+    """Building cards (opening the page, a new category, a trigger moved into it) shows
+    no widget of a card while it has no parent: on Windows each one flashed up on the
+    desktop as a little blank window of its own, and lagged the app."""
+    from PySide6.QtCore import QEvent, QObject
+    from PySide6.QtWidgets import QWidget
+    stray = []
+
+    class Spy(QObject):
+        def eventFilter(self, obj, ev):
+            if (ev.type() == QEvent.Show and isinstance(obj, QWidget) and obj.isWindow()
+                    and obj.parent() is None):
+                stray.append(type(obj).__name__)
+            return False
+
+    spy = Spy()
+    qapp.installEventFilter(spy)
+    try:
+        tab = make({"triggers": [raw(1, ring=True), raw(2, mode="appear", ring=True),
+                                 raw(3, mode="appear")]})
+        name = tab.new_category("Flash test")
+        for t in list(tab.triggers):
+            tab.move_trigger(t, name)
+        qapp.processEvents()
+    finally:
+        qapp.removeEventFilter(spy)
+    assert stray == []
