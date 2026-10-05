@@ -14,7 +14,9 @@ from onionwatch.ui import icons
 from onionwatch.ui.panel import Flow, hint_label, section_label
 
 NAME = Qt.UserRole              # a list item's category name / profile id / exe
-TILE = 260                      # px: the least a closed card (a tile in the grid) is wide
+TILE = 320                      # px: the least a closed card (a tile in the grid) is wide
+SMALL_TILE = 210                # ...when a number of cards to a line is asked for
+MAX_PER_ROW = 6                 # the most cards to a line that can be asked for
 
 
 def _height(item, w: int) -> int:
@@ -28,7 +30,10 @@ class CardGrid(Flow):
     a closed card is a tile, all of a line as tall as its tallest. An open card,
     and anything else in it (the "empty" note), has a line of its own, the whole
     width, under the line it would have been on: the closed cards after it fill that
-    line first, so no line is cut short (like a picture grid opening a preview)."""
+    line first, so no line is cut short (like a picture grid opening a preview).
+    `per_row` cards to a line when it's set (as long as they'd still be readable),
+    else as many as fit at their usual width."""
+    per_row = 0
 
     def insertWidget(self, i: int, w: QWidget):
         self.addChildWidget(w)
@@ -36,7 +41,14 @@ class CardGrid(Flow):
         self.invalidate()
 
     def columns(self, width: int) -> int:
+        if self.per_row:
+            return max(1, min(self.per_row, (width + self._gap) // (SMALL_TILE + self._gap)))
         return max(1, (width + self._gap) // (TILE + self._gap))
+
+    def set_per_row(self, n: int):
+        if n != self.per_row:
+            self.per_row = n
+            self.invalidate()
 
     def _place(self, rect: QRect, move: bool) -> int:
         cols = self.columns(rect.width())
@@ -114,13 +126,7 @@ class CategorySection(QWidget):
         self.count = hint_label("")
         self.count.setWordWrap(False)
         h.addWidget(self.count)
-        self.btn_search = QPushButton("Search")
-        self.btn_search.setObjectName("small")
-        self.btn_search.setToolTip("Search within this category")
-        self.btn_search.clicked.connect(lambda: self.search_wanted.emit(self.name))
         from onionwatch.ui.triggerspanel import align_control
-        align_control(self.btn_search)
-        h.addWidget(self.btn_search)
         self.switch = Switch()
         self.switch.clicked.connect(lambda on: self.switched.emit(self.name, on))
         h.addWidget(self.switch)

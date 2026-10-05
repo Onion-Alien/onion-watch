@@ -101,6 +101,11 @@ def _plus(p, fill):
     p.drawLine(QPointF(5, 12), QPointF(19, 12))
 
 
+def _search(p, fill):
+    p.drawEllipse(QPointF(10.5, 10.5), 6, 6)
+    p.drawLine(QPointF(15, 15), QPointF(20, 20))
+
+
 def _gear(p, fill):
     """Six chunky rounded teeth on a ring: reads as a gear even at 16 px."""
     body = QPainterPath()
@@ -427,7 +432,7 @@ SHAPES = {
     "next": _next, "edit": _edit, "trash": _trash, "keyboard": _keyboard,
     "palette": _palette, "gamepad": _gamepad, "image": _image, "radio": _radio,
     "apps": _apps, "triggers": _eye, "fold": _chevron("right"), "fold_open": _chevron("down"),
-    "window": _window, "crop": _crop, "bell": _bell,
+    "window": _window, "crop": _crop, "bell": _bell, "search": _search,
 }
 
 

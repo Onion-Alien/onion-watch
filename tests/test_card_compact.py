@@ -1,10 +1,10 @@
-"""Compact cards: a closed card is a short tile (a small thumbnail, a + to add a
-picture, the switches, the name with the live state beside it, then one line), a
+"""Compact cards: a closed card is a short tile (a small thumbnail, the name over
+one line: how it's doing and what it plays, or what's wrong; the switch), a
 card is dragged to another place or category, picture files dropped on a card are
 added to it, and the check speed of triggers on "Default" is picked under ⚙ (each
 card says what Default is)."""
-from PySide6.QtCore import QMimeData, QPoint, QPointF, Qt, QUrl
-from PySide6.QtGui import QDropEvent, QMouseEvent
+from PySide6.QtCore import QMimeData, QPoint, QPointF, QSize, Qt, QUrl
+from PySide6.QtGui import QDropEvent, QEnterEvent, QMouseEvent
 
 import test_ui
 from test_ui import as_qimage, banner
@@ -35,18 +35,85 @@ def test_a_closed_card_is_a_short_tile(tab, qapp, styled):
     a, b = cards(tab, 2)
     b.set_open(True)
     settle(qapp, tab)
-    assert a.height() <= 120 < b.height()
+    assert a.height() <= 80 < b.height()
     assert a.strip.thumb == TILE_THUMB and len(a.strip.thumbs) == 1
-    assert a.btn_add_pic.isVisibleTo(a)
-    # the live state sits beside the name, with no box of its own
-    assert abs(a.live.geometry().center().y() - a.name_line.geometry().center().y()) <= 2
+    # the name is read, not typed in; the + is on the thumbnail while the mouse is over it
+    assert a.title.isVisibleTo(a) and not a.name.isVisibleTo(a)
+    assert a.title.text() == "Card 0" and b.name.isVisibleTo(b)
+    assert not a.btn_add_pic.isVisibleTo(a) and b.btn_add_pic.isVisibleTo(b)
+    thumb = a.strip.thumbs[0]
+    thumb.enterEvent(QEnterEvent(QPointF(5, 5), QPointF(5, 5), QPointF(5, 5)))
+    assert thumb.plus.isVisibleTo(a) and not thumb.x.isVisibleTo(a)
+    # one line under the name, starting where the name does: how it's doing and what
+    # it plays, or what's wrong
     assert a.live.styleSheet() == "" and "Ready" in a.live.text()
-    # one line under the name: what it plays, or what's wrong
-    assert a.sound_summary.isVisibleTo(a) and not a.state.isVisibleTo(a)
+    assert a.live.isVisibleTo(a) and a.sound_summary.isVisibleTo(a)
+    assert not a.state.isVisibleTo(a)
+    assert abs(a.live.geometry().center().y() - a.names.geometry().center().y()) <= 3
+    assert a.live.mapTo(a, QPoint(0, 0)).x() == a.title.mapTo(a, QPoint(0, 0)).x()
     a.t.sounds.clear()
     a.set_sounds(a._sounds)
+    for _ in range(4):
+        qapp.processEvents()
     assert a.state.isVisibleTo(a) and not a.sound_summary.isVisibleTo(a)
-    assert "sound" in a.state.text()
+    assert not a.live.isVisibleTo(a) and "sound" in a.state.text()
+    assert a.state.mapTo(a, QPoint(0, 0)).x() == a.title.mapTo(a, QPoint(0, 0)).x()
+    tab.hide()
+
+
+def test_a_card_without_a_picture_has_a_slot_to_add_one(tab, qapp):
+    a, = cards(tab, 1)
+    a.t.images.clear()
+    a.refresh_pictures()
+    settle(qapp, tab)
+    assert a.btn_add_pic.isVisibleTo(a) and not a.strip.isVisibleTo(a)
+    assert a.btn_add_pic.size() == TILE_THUMB + QSize(8, 8)
+    tab.hide()
+
+
+def test_cards_per_row_is_picked_and_kept(tab, qapp):
+    rows = cards(tab, 7)
+    settle(qapp, tab, w=1400)
+    grid = tab.sections[""].body_layout
+
+    def across():
+        for _ in range(8):
+            qapp.processEvents()
+        return sum(r.y() == rows[0].y() for r in rows)
+    assert across() == grid.columns(grid.geometry().width()) == 4     # as many as fit
+    tab.cb_per_row.setCurrentIndex(tab.cb_per_row.findData(6))
+    assert across() == 6 and tab.host.screen["cards_per_row"] == 6
+    assert all(not r.btn_open.visibleRegion().isEmpty() for r in rows)
+    tab.cb_per_row.setCurrentIndex(tab.cb_per_row.findData(2))
+    assert across() == 2
+    tab.resize(400, 900)                # too narrow for two: still readable
+    assert across() == 1
+    again = TriggersTab(tab.host)
+    again.shutdown()
+    assert again.per_row == 2 and again.cb_per_row.currentData() == 2
+    tab.host.screen["cards_per_row"] = "lots"       # nonsense in the file: Auto
+    again = TriggersTab(tab.host)
+    again.shutdown()
+    assert again.per_row == 0
+    tab.hide()
+
+
+def test_advanced_cards_show_their_text_in_full(tab, qapp):
+    a, b = cards(tab, 2)
+    a.name.setText("A trigger with a name far too long to fit on one line of a tile")
+    settle(qapp, tab, w=700)
+    short = a.height()
+    assert a.title.wordWrap() is False and a.title.toolTip() == a.name.text()
+    tab.chk_advanced.setChecked(True)
+    for _ in range(8):
+        qapp.processEvents()
+    assert a.title.wordWrap() and a.details.isVisibleTo(a) and a.height() > short
+    assert a.details.mapTo(a, QPoint(0, 0)).x() == a.title.mapTo(a, QPoint(0, 0)).x()
+    assert tab.host.screen["advanced_cards"] is True
+    tab.chk_advanced.setChecked(False)
+    for _ in range(8):
+        qapp.processEvents()
+    assert a.height() == short
     tab.hide()
 
 

@@ -35,7 +35,7 @@ def test_category_search_combines_scope_and_text_and_does_not_change_watching(ma
                              raw(2, "Fishing", name="Health low"),
                              raw(3, "Raids", name="Ready check")]})
     before = watched(tab)
-    tab.sections["Raids"].btn_search.click()
+    tab.sections["Raids"].search_wanted.emit("Raids")     # its ⋯ menu's "Search this category"
     assert tab.search_scope.currentData() == "Raids"
     assert visible_ids(tab) == {"t1", "t3"}
     tab.search_text.setText("health")
@@ -45,8 +45,9 @@ def test_category_search_combines_scope_and_text_and_does_not_change_watching(ma
     assert visible_ids(tab) == {"t1", "t2"}
     tab.search_text.setText("not here")
     assert not visible_ids(tab) and not tab.no_results.isHidden()
-    tab.btn_search.setChecked(False)
-    assert tab.search_bar.isHidden() and tab.no_results.isHidden()
+    tab.close_search_shortcut.activated.emit()      # Esc: the box stays, emptied
+    assert not tab.search_bar.isHidden() and tab.no_results.isHidden()
+    assert tab.search_text.text() == "" and tab.search_scope.currentData() is None
     assert tab._search_ids is None
 
 

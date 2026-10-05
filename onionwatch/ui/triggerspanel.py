@@ -26,8 +26,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
-from PySide6.QtCore import QEvent, QPoint, QRect, QSize, Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QFontMetrics, QIcon, QImage, QKeySequence, QPixmap, QShortcut
+from PySide6.QtCore import QEvent, QPoint, QRect, QRectF, QSize, Qt, QTimer, Signal
+from PySide6.QtGui import (QColor, QFontMetrics, QIcon, QImage, QKeySequence, QPainter,
+                           QPixmap, QShortcut)
 from PySide6.QtWidgets import (QApplication, QBoxLayout, QCheckBox, QComboBox, QDoubleSpinBox,
                                QFileDialog, QFrame, QGridLayout, QHBoxLayout, QLabel,
                                QLineEdit, QMenu, QMessageBox, QPushButton, QScrollArea,
@@ -38,7 +39,8 @@ from onionwatch.screenwatch import (INTERVALS_MS, MAX_PICTURES, MAX_SOUNDS, Moni
                                     Trigger, Watched, WindowRef)
 from onionwatch.shuffle import ShuffleBag
 from onionwatch.ui import icons
-from onionwatch.ui.categories import CategorySection, ProfilesDialog, counts_text
+from onionwatch.ui.categories import (MAX_PER_ROW, CategorySection, ProfilesDialog,
+                                      counts_text)
 from onionwatch.ui.history import HistoryDialog
 from onionwatch.ui.panel import Flow, UndoBar, card, hint_label
 from onionwatch.ui.watching import share_label
@@ -316,17 +318,78 @@ def interval_label(ms: int) -> str:
     return f"{ms} ms" + (" (every frame)" if ms == 16 else "")
 
 
+def paint_plate(widget: QWidget):
+    """The rounded plate a card's picture (or its icon) sits on, in the theme's
+    background colour: painted, so it follows a theme change."""
+    p = QPainter(widget)
+    p.setRenderHint(QPainter.Antialiasing)
+    p.setPen(Qt.NoPen)
+    p.setBrush(QColor(theme.T.get("bg", "#888888")))
+    p.drawRoundedRect(QRectF(widget.rect()), 8, 8)
+    p.end()
+
+
+class Plate(QLabel):
+    """An icon on a plate: what a card shows when its trigger has no pictures."""
+
+    def paintEvent(self, ev):
+        paint_plate(self)
+        super().paintEvent(ev)
+
+
+class ElideLabel(QLabel):
+    """A label that can keep to one line, cut short with an … (set_elide) and the
+    whole text as its tooltip, rather than wrap or be clipped mid-letter."""
+
+    def __init__(self, text: str = ""):
+        super().__init__()
+        self._full = ""
+        self._elide = False
+        self.setText(text)
+
+    def text(self) -> str:
+        return self._full
+
+    def setText(self, text: str):
+        self._full = text
+        self._fit()
+
+    def set_elide(self, on: bool):
+        self._elide = on
+        self.setWordWrap(not on)
+        self._fit()
+
+    def resizeEvent(self, ev):
+        super().resizeEvent(ev)
+        self._fit()
+
+    def _fit(self):
+        text = self._full
+        if self._elide:
+            text = self.fontMetrics().elidedText(text, Qt.ElideRight,
+                                                 max(0, self.contentsRect().width()))
+        if text != QLabel.text(self):
+            QLabel.setText(self, text)
+            self.setToolTip(self._full if text != self._full else "")
+
+
 class Thumb(QWidget):
     """One picture in a card's strip: the thumbnail (click to see it big, with the
-    trigger's other pictures) with a ✕ in its corner while the mouse is over it, and
-    "+3" in the other when the strip shows only it of several."""
+    trigger's other pictures) on a rounded plate, with a ✕ in its corner while the
+    mouse is over it. A closed card's one thumbnail (`tile`) has a + there instead
+    (add a picture), and "+3" in the other corner when there are more."""
     clicked = Signal(int)
     removed = Signal(int)
+    add = Signal()
 
-    def __init__(self, index: int, path: str, size: QSize = THUMB):
+    def __init__(self, index: int, path: str, size: QSize = THUMB, tile: bool = False):
         super().__init__()
         self.index = index
+        self.tile = tile
         self.pic = QPushButton(self)
+        self.pic.setObjectName("thumb")     # just the picture: the plate is painted here
+        self.pic.setStyleSheet("QPushButton#thumb { background:transparent; border:none;"
+                               " padding:0; }")
         self.pic.setFixedSize(size + QSize(8, 8))
         self.pic.setIconSize(size)
         self.pic.setCursor(Qt.PointingHandCursor)
@@ -351,6 +414,20 @@ class Thumb(QWidget):
         self.x.move(self.width() - self.x.width() - 3, 3)
         self.x.clicked.connect(lambda: self.removed.emit(self.index))
         self.x.hide()
+        self.plus = QPushButton("+", self)
+        self.plus.setObjectName("thumbadd")
+        self.plus.setStyleSheet(
+            "QPushButton#thumbadd { background:palette(highlight);"
+            " color:palette(highlighted-text); border:none; border-radius:9px; padding:0;"
+            " font-size:10pt; font-weight:700; }")
+        self.plus.setFixedSize(18, 18)
+        self.plus.setCursor(Qt.PointingHandCursor)
+        self.plus.setAccessibleName("Add a picture")
+        self.plus.setToolTip("Add another picture to this trigger")
+        self.plus.move(self.width() - self.plus.width() - 3, 3)
+        self.plus.clicked.connect(self.add)
+        self.plus.hide()
+        self.can_add = True
         self.more = QLabel(self)
         self.more.setObjectName("thumbmore")
         self.more.setAttribute(Qt.WA_TransparentForMouseEvents)
@@ -370,17 +447,23 @@ class Thumb(QWidget):
             self.pic.setToolTip(self.pic.toolTip() + f"\n{plural(n, 'more picture')}: "
                                 "click to see them all")
 
+    def paintEvent(self, _ev):
+        paint_plate(self)
+
     def enterEvent(self, ev):
-        self.x.show()
-        self.x.raise_()
+        corner = self.plus if self.tile else self.x
+        if corner is self.x or self.can_add:
+            corner.show()
+            corner.raise_()
         super().enterEvent(ev)
 
     def leaveEvent(self, ev):
         self.x.hide()
+        self.plus.hide()
         super().leaveEvent(ev)
 
 
-TILE_THUMB = QSize(64, 36)  # a closed card's (a tile's) one thumbnail
+TILE_THUMB = QSize(60, 36)  # a closed card's (a tile's) one thumbnail
 
 
 class Strip(QScrollArea):
@@ -389,9 +472,11 @@ class Strip(QScrollArea):
     one, small, with "+3" on it for the rest (set_look)."""
     picture_clicked = Signal(int)
     picture_removed = Signal(int)
+    add_wanted = Signal()               # the + on a closed card's thumbnail
 
     def __init__(self):
         super().__init__()
+        self.can_add = True             # there's room for another picture
         self.setFrameShape(QFrame.NoFrame)
         self.setWidgetResizable(True)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
@@ -432,15 +517,22 @@ class Strip(QScrollArea):
         self.thumbs = []
         # one shown of several: the rest are seen by clicking it (the viewer goes round)
         for i, p in enumerate(paths[:1] if self.shown == 1 else paths):
-            th = Thumb(i, p, self.thumb)
+            th = Thumb(i, p, self.thumb, tile=self.shown == 1)
+            th.can_add = self.can_add
             th.clicked.connect(self.picture_clicked)
             th.removed.connect(self.picture_removed)
+            th.add.connect(self.add_wanted)
             self.row.insertWidget(i, th)
             self.thumbs.append(th)
         if self.shown == 1 and self.thumbs:
             self.thumbs[0].set_more(len(paths) - 1)
         self.updateGeometry()
         self._fit_height()
+
+    def set_can_add(self, on: bool):
+        self.can_add = on
+        for th in self.thumbs:
+            th.can_add = on
 
     def sizeHint(self) -> QSize:
         n = min(max(len(self.thumbs), 1), self.shown)
@@ -737,8 +829,8 @@ class TriggerRow(QFrame):
     """One trigger's card: a header (pictures, name, what it does, the live match,
     on / off) that opens to three parts: what to watch for, what happens then, and
     the fine-tuning, folded away behind a line summing it up. Closed, it's a tile in
-    its category's grid (pictures over the name, like a sound pad); open, it's the
-    whole width, the header one line."""
+    its category's grid: the same header, small (a picture, the name over how it's
+    doing and what it plays, the switch); open, it's the whole width."""
     changed = Signal(object)             # row: a setting changed
     pictures_wanted = Signal(object)     # row: "+ Add pictures…" (files)
     paste_wanted = Signal(object)        # row: "Paste picture"
@@ -792,8 +884,10 @@ class TriggerRow(QFrame):
                               "sound. Click one to see it big.")
         self.strip.picture_clicked.connect(lambda i: self.picture_view.emit(self, i))
         self.strip.picture_removed.connect(lambda i: self.picture_removed.emit(self, i))
+        self.strip.add_wanted.connect(self._show_add_menu)
         self.btn_add_pic = QPushButton("+")
-        self.btn_add_pic.setObjectName("addpic")    # a dashed slot after the pictures
+        # a dashed slot after the pictures (open), or where the first one goes
+        self.btn_add_pic.setObjectName("addpic")
         self.btn_add_pic.setAccessibleName("Add a picture")
         self.btn_add_pic.setToolTip("Add a picture: cut it from the window, pick files or "
                                     "paste the one you copied. You can also drop picture "
@@ -801,7 +895,7 @@ class TriggerRow(QFrame):
         self.btn_add_pic.setCursor(Qt.PointingHandCursor)
         self.btn_add_pic.setStyleSheet(
             "QPushButton#addpic { background:transparent; border:1px dashed palette(mid);"
-            " border-radius:6px; padding:0; font-size:12pt; color:palette(window-text); }"
+            " border-radius:8px; padding:0; font-size:12pt; color:palette(window-text); }"
             "QPushButton#addpic:hover { border-color:palette(highlight);"
             " color:palette(highlight); }"
             "QPushButton#addpic:disabled { border-color:transparent; color:transparent; }")
@@ -814,7 +908,7 @@ class TriggerRow(QFrame):
         pics.setSpacing(4)
         pics.addWidget(self.strip)
         pics.addWidget(self.btn_add_pic)
-        self.badge = QLabel()           # instead of the strip, for a trigger without pictures
+        self.badge = Plate()            # instead of the strip, for a trigger without pictures
         self.badge.setObjectName("iconlabel")
         self.badge.setAlignment(Qt.AlignCenter)
         self.names = QWidget()          # under the name: what it does (or what's wrong)...
@@ -852,9 +946,20 @@ class TriggerRow(QFrame):
         line.setContentsMargins(0, 0, 0, 0)
         line.setSpacing(0)
         line.addWidget(self.name, 100)
+        # a closed card's name is just read (a click anywhere on the card opens it)
+        self.title = ElideLabel()
+        self.title.setObjectName("cardtitle")
+        self.title.setStyleSheet("QLabel#cardtitle { font-size:10.5pt; font-weight:700; }")
+        self.title.setContentsMargins(6, 0, 0, 0)
+        self.title.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
+        self.title.set_elide(True)
+        self.name.textChanged.connect(self._show_title)
+        self._show_title()
+        line.addWidget(self.title, 100)
         line.addStretch(1)
-        self.state = QLabel()
+        self.state = ElideLabel()
         self.state.setObjectName("hint")
+        self.state.set_elide(True)      # one line: the whole of it is its tooltip
         self.state.setIndent(0)
         self.state.setContentsMargins(6, 0, 0, 0)  # title's border, padding and text inset
         self.state.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
@@ -873,7 +978,8 @@ class TriggerRow(QFrame):
         state_line.addWidget(self.state, 1)
         state_line.addWidget(self.btn_retarget)
         names.addLayout(state_line)
-        self.sound_summary = QLabel()
+        self.sound_summary = ElideLabel()
+        self.sound_summary.setObjectName("muted")
         self.sound_summary.setContentsMargins(6, 0, 0, 0)
         self.sound_summary.setWordWrap(True)
         self.sound_summary.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
@@ -883,7 +989,7 @@ class TriggerRow(QFrame):
         self.details.setObjectName("hint")
         self.details.setWordWrap(True)
         self.details.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
-        names.addWidget(self.details)
+        self.details.setParent(self)    # under a closed card's header (_arrange)
         self.details.hide()
         # what it's doing right now: a coloured dot and a word, or the live match
         self.live = QLabel()
@@ -902,6 +1008,7 @@ class TriggerRow(QFrame):
         self.btn_open.setAccessibleName("Edit trigger")
         self.btn_open.toggled.connect(self.set_open)
         self._tile: bool | None = None      # how the header is laid out now (_arrange)
+        self._said: bool | None = None      # a tile's line is saying what's wrong
         v.addLayout(top)
 
         self.body = QWidget()
@@ -1162,6 +1269,9 @@ class TriggerRow(QFrame):
                         self.below, self.cb_category):
             align_control(control)
 
+    def _show_title(self, _text: str = ""):
+        self.title.setText(self.name.text().strip() or "No name")
+
     def _fit_name(self, _text: str = ""):
         """The name box as wide as its text (or the hint while it's empty), plus room
         to type, never wider than the card lets it be."""
@@ -1187,57 +1297,79 @@ class TriggerRow(QFrame):
         self.btn_open.setToolTip("Close this trigger" if on else "Open this trigger to change it")
 
     def _arrange(self, tile: bool):
-        """The header as a tile's (a small thumbnail and the switches over the name,
-        then one line: what it plays, or what's wrong) or on one line (the card's
-        open, the whole width: thumbnails, the name over what it does and plays, the
-        live state and the switches)."""
+        """The header as a tile's (a small picture, the name over one line: how it's
+        doing and what it plays, or what's wrong; the switch) or the open card's (the
+        whole width: its pictures, the name to type in over what it does and plays,
+        the live state and the switch)."""
         if tile == self._tile:
             return
         self._tile = tile
         top = self.top
         for widget in (self.pics, self.badge, self.name_line, self.names, self.live,
-                       self.chk_on, self.btn_open):
+                       self.details, self.chk_on, self.btn_open):
             top.removeWidget(widget)
         for col in range(5):
             top.setColumnStretch(col, 0)
         size = TILE_THUMB if tile else THUMB
         self.strip.set_look(size, 1 if tile else STRIP_THUMBS)
         self.badge.setFixedSize(size + QSize(8, 8))
-        self.btn_add_pic.setFixedSize(22 if tile else 28, size.height() + 8)
+        self.btn_open.setFixedSize(20 if tile else 28, 28)
         middle = Qt.AlignVCenter
+        top.addWidget(self.pics, 0, 0, 2, 1, Qt.AlignLeft | middle)
+        top.addWidget(self.badge, 0, 0, 2, 1, Qt.AlignLeft | middle)
         if tile:
-            top.addWidget(self.pics, 0, 0, Qt.AlignLeft | middle)
-            top.addWidget(self.badge, 0, 0, Qt.AlignLeft | middle)
-            top.addWidget(self.chk_on, 0, 1, middle)
-            top.addWidget(self.btn_open, 0, 2, middle)
-            top.addWidget(self.name_line, 1, 0)
-            top.addWidget(self.live, 1, 1, 1, 2, Qt.AlignRight | middle)
-            top.addWidget(self.names, 2, 0, 1, 3)
-            top.setColumnStretch(0, 1)
+            top.addWidget(self.name_line, 0, 1, 1, 2, Qt.AlignBottom)
+            top.addWidget(self.live, 1, 1, Qt.AlignLeft | Qt.AlignTop)
+            top.addWidget(self.names, 1, 2, Qt.AlignTop)    # (_fit_lines moves it)
+            top.addWidget(self.chk_on, 0, 3, 2, 1, middle)
+            top.addWidget(self.btn_open, 0, 4, 2, 1, middle)
+            top.addWidget(self.details, 2, 1, 1, 2)     # under the name, like its line
+            top.setColumnStretch(2, 1)
+            self.setCursor(Qt.PointingHandCursor)
+            self.setToolTip("Click to open it, drag to move it")
         else:
-            top.addWidget(self.pics, 0, 0, 2, 1, Qt.AlignLeft | middle)
-            top.addWidget(self.badge, 0, 0, 2, 1, Qt.AlignLeft | middle)
             top.addWidget(self.name_line, 0, 1, Qt.AlignBottom)
             top.addWidget(self.names, 1, 1, Qt.AlignTop)
             top.addWidget(self.live, 0, 2, 2, 1, middle)
             top.addWidget(self.chk_on, 0, 3, 2, 1, middle)
             top.addWidget(self.btn_open, 0, 4, 2, 1, middle)
             top.setColumnStretch(1, 1)
+            self.unsetCursor()
+            self.setToolTip("")
+        self.title.setVisible(tile)
+        self.name.setVisible(not tile)
+        self.live.setAlignment((Qt.AlignLeft if tile else Qt.AlignRight) | middle)
+        self.live.setContentsMargins(6 if tile else 0, 0, 0, 0)
         self.details.setVisible(tile and self.advanced)
-        self.state.setWordWrap(tile)        # two lines of it, not one cut short
-        self.state.setMaximumHeight(2 * self.state.fontMetrics().lineSpacing() + 2
-                                    if tile else 16777215)
+        self._fit_text()
+        self._said = None
         self._fit_lines()
         self._narrow = None             # re-decided for the new layout
         self._fit_narrow()
+        self._show_thumb()
         self.updateGeometry()
+
+    def _fit_text(self):
+        """A closed card keeps its name and its line to one line each, cut short with
+        an …; with Advanced on it's as tall as it takes to read all of them."""
+        whole = bool(self._tile) and self.advanced
+        self.title.set_elide(not whole)
+        self.state.set_elide(not whole)
+        self.sound_summary.set_elide(bool(self._tile) and not whole)
 
     def _fit_lines(self):
         """A tile has one line under its name: what's wrong (or a note, or a flash)
-        when there's something to say, else what it plays. Open, both."""
+        when there's something to say, else how it's doing and what it plays. Open,
+        all of them."""
         say = bool(self.state.property("tone")) or self.btn_retarget.isVisibleTo(self)
         self.state.setVisible(not self._tile or say)
         self.sound_summary.setVisible(not self._tile or not say)
+        self.live.setVisible(not self._tile or not say)
+        if self._tile and say != self._said:    # under the name, where the state was
+            self._said = say
+            self.top.removeWidget(self.names)
+            self.top.addWidget(self.names, 1, 1 if say else 2, 1, 2 if say else 1,
+                               Qt.AlignTop)
 
     NARROW = 440        # px: below this the header's thumbnails go, for the rest to fit
 
@@ -1274,6 +1406,13 @@ class TriggerRow(QFrame):
         pics = self.t.uses_pictures
         self.pics.setVisible(pics and not self._narrow)
         self.badge.setVisible(not pics and not self._narrow)
+        # the +: with no picture yet it's the slot the first one goes in; after that
+        # it follows the open card's pictures, and is on a closed card's thumbnail
+        some = bool(self.t.images)
+        size = TILE_THUMB if self._tile else THUMB
+        self.strip.setVisible(some)
+        self.btn_add_pic.setVisible(not some or not self._tile)
+        self.btn_add_pic.setFixedSize(28 if some else size.width() + 8, size.height() + 8)
 
     # ------------------------------------------------------------------ click, drag, drop
     MIME = "application/x-onionwatch-trigger"   # a card being dragged: its trigger's id
@@ -1370,7 +1509,7 @@ class TriggerRow(QFrame):
         return menu
 
     def _show_add_menu(self):
-        b = self.btn_add_pic
+        b = self.btn_add_pic if self.btn_add_pic.isVisible() else self.strip
         self._add_menu().exec(b.mapToGlobal(QPoint(0, b.height())))
 
     def _on_tune(self, on: bool):
@@ -1545,6 +1684,8 @@ class TriggerRow(QFrame):
         room = len(t.images) < MAX_PICTURES
         for b in (self.btn_pictures, self.btn_paste, self.btn_cut, self.btn_add_pic):
             b.setEnabled(room)
+        self.strip.set_can_add(room)
+        self._show_thumb()
         self._update_state()
 
     def show_score(self, score: float | None):
@@ -1603,7 +1744,7 @@ class TriggerRow(QFrame):
         n = len(t.sounds)
         retarget = False
         if t.uses_pictures and not t.images:
-            text, tone = "No picture yet — Cut from window…, Add pictures… or Paste", "warn"
+            text, tone = "No picture yet — click + to add one", "warn"
         elif t.mode == "colour" and (not t.colour or t.region is None):
             text, tone = "Pick the bar to measure — Bar and colour…", "warn"
         elif not n:
@@ -1654,6 +1795,7 @@ class TriggerRow(QFrame):
     def set_advanced(self, on: bool):
         self.advanced = on
         self.details.setVisible(on and bool(self._tile))
+        self._fit_text()
         self.updateGeometry()
 
     # ------------------------------------------------------------------ edits
@@ -1929,53 +2071,66 @@ class TriggersTab(QWidget):
         no_wheel(self.cb_profile)
         self.cb_profile.activated.connect(self._on_profile)
         gb.addWidget(labelled("Profile", self.cb_profile), 0, Qt.AlignLeft)
-        self.lbl_counts = hint_label("")     # wraps rather than widen a narrow window
+        self.lbl_counts = hint_label("")     # cut short rather than widen a narrow window
+        self.lbl_counts.setWordWrap(False)
         self.lbl_counts.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
-        gb.addWidget(self.lbl_counts, 1)
-        search_box = FlowBox(gap=8)
-        search_head = search_box.flow
-        search_head.addWidget(self.groupbar)
-        self.chk_advanced = QCheckBox("Advanced")
-        self.chk_advanced.setToolTip("Show each trigger's settings on its closed card")
-        self.chk_advanced.setChecked(host.screen.get("advanced_cards") is True)
-        self.chk_advanced.toggled.connect(self._on_advanced)
-        search_head.addWidget(self.chk_advanced)
-        self.btn_search = QPushButton("Search")
-        self.btn_search.setCheckable(True)
-        self.btn_search.setToolTip("Find triggers in all categories (Ctrl+F)")
-        align_control(self.btn_search)
-        search_head.addWidget(self.btn_search)
-        self.search_summary = hint_label("Find a trigger by name, category, window or sound")
-        v.addWidget(search_box)
+        # one line over the list: the search box, always there, then (once there are
+        # categories or profiles) the category to search and the profile in charge
         self.search_bar = QWidget()
         search_layout = QBoxLayout(QBoxLayout.LeftToRight, self.search_bar)
         search_layout.setContentsMargins(0, 0, 0, 0)
-        search_layout.setSpacing(6)
+        search_layout.setSpacing(8)
         self.search_text = QLineEdit()
-        self.search_text.setPlaceholderText("Search triggers…")
+        self.search_text.setPlaceholderText("Search triggers")
         self.search_text.setAccessibleName("Search triggers")
+        self.search_text.setToolTip("Find a trigger by name, category, window or sound "
+                                    "(Ctrl+F). Esc clears it.")
         self.search_text.setClearButtonEnabled(True)
+        self._search_icon = self.search_text.addAction(icons.icon("search", "muted"),
+                                                       QLineEdit.LeadingPosition)
         align_control(self.search_text)
-        search_layout.addWidget(self.search_text, 1)
-        scope_row = QWidget()
-        scope_line = QHBoxLayout(scope_row)
-        scope_line.setContentsMargins(0, 0, 0, 0)
-        scope_line.setSpacing(6)
+        search_layout.addWidget(self.search_text, 3)
         self.search_scope = WideCombo(min_width=140)
         self.search_scope.setAccessibleName("Search category")
+        self.search_scope.setToolTip("Search every category, or only one")
+        no_wheel(self.search_scope)
         align_control(self.search_scope)
-        scope_line.addWidget(labelled("Search in", self.search_scope))
-        self.btn_clear_search = QPushButton("Clear filters")
+        search_layout.addWidget(self.search_scope)
+        self.btn_clear_search = QPushButton("Clear")
+        self.btn_clear_search.setToolTip("Show every trigger again (Esc)")
         align_control(self.btn_clear_search)
-        scope_line.addWidget(self.btn_clear_search)
-        search_layout.addWidget(scope_row)
+        search_layout.addWidget(self.btn_clear_search)
+        self.search_summary = hint_label("")
+        self.search_summary.setWordWrap(False)
         search_layout.addWidget(self.search_summary)
+        search_layout.addWidget(self.lbl_counts, 4)
+        search_layout.addStretch(1)
+        self.cb_per_row = WideCombo(min_width=110)
+        self.cb_per_row.setAccessibleName("Cards per row")
+        self.cb_per_row.setToolTip("How many closed cards go side by side: as many as fit "
+                                   "at their usual size (Auto), or a number of your own. A "
+                                   "narrow window shows fewer, so they stay readable.")
+        self.cb_per_row.addItem("Auto per row", 0)
+        for k in range(1, MAX_PER_ROW + 1):
+            self.cb_per_row.addItem(f"{k} per row", k)
+        per_row = host.screen.get("cards_per_row")
+        self.per_row = per_row if type(per_row) is int and 0 < per_row <= MAX_PER_ROW else 0
+        self.cb_per_row.setCurrentIndex(self.per_row)
+        no_wheel(self.cb_per_row)
+        align_control(self.cb_per_row)
+        self.cb_per_row.currentIndexChanged.connect(self.set_per_row)
+        search_layout.addWidget(self.cb_per_row)
+        self.chk_advanced = QCheckBox("Advanced")
+        self.chk_advanced.setToolTip("Bigger closed cards: every name in full, and each "
+                                     "trigger's settings")
+        self.chk_advanced.setChecked(host.screen.get("advanced_cards") is True)
+        self.chk_advanced.toggled.connect(self._on_advanced)
+        search_layout.addWidget(self.chk_advanced)
+        search_layout.addWidget(self.groupbar)
         # side by side only sets no minimum: below 600 px resizeEvent stacks it instead
         self.search_bar.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
         v.addWidget(self.search_bar)
-        self.search_bar.hide()
         self._search_ids: set[str] | None = None
-        self.btn_search.toggled.connect(self._toggle_search)
         self.search_text.textChanged.connect(self._apply_search)
         self.search_scope.currentIndexChanged.connect(self._apply_search)
         self.btn_clear_search.clicked.connect(self.clear_search)
@@ -1983,7 +2138,7 @@ class TriggersTab(QWidget):
         self.find_shortcut.activated.connect(self.show_search)
         self.close_search_shortcut = QShortcut(QKeySequence("Escape"), self.search_bar)
         self.close_search_shortcut.setContext(Qt.WidgetWithChildrenShortcut)
-        self.close_search_shortcut.activated.connect(lambda: self.btn_search.setChecked(False))
+        self.close_search_shortcut.activated.connect(self.clear_search)
         self._app_timer = QTimer(self)
         self._app_timer.setInterval(APP_POLL_MS)
         self._app_timer.timeout.connect(self._check_apps)
@@ -2143,24 +2298,41 @@ class TriggersTab(QWidget):
     # ------------------------------------------------------------------ search
     def resizeEvent(self, event):
         super().resizeEvent(event)
+        self._fit_top()
+
+    def _fit_top(self):
+        """The line over the list: stacked in a narrow window, and only the parts
+        there's a use for (the category to search and the profile once there are
+        categories, Clear and the count while searching, else what's on)."""
+        stacked = self.width() < 600
         self.search_bar.layout().setDirection(
-            QBoxLayout.TopToBottom if self.width() < 600 else QBoxLayout.LeftToRight)
-        self.lbl_counts.setVisible(self.width() >= 600)
+            QBoxLayout.TopToBottom if stacked else QBoxLayout.LeftToRight)
+        self.search_text.setMaximumWidth(16777215 if stacked else 360)
+        grouped = self._grouped()
+        active = self._search_ids is not None
+        self.search_scope.setVisible(grouped)
+        self.btn_clear_search.setVisible(active)
+        self.search_summary.setVisible(active)
+        self.lbl_counts.setVisible(grouped and not active and not stacked)
+        self.groupbar.setVisible(grouped)
+
+    def set_per_row(self, n: int):
+        """`n` closed cards to a line (0: as many as fit), kept for the next start."""
+        self.per_row = n if 0 < n <= MAX_PER_ROW else 0
+        self.host.screen["cards_per_row"] = self.per_row
+        self.host.save()
+        if self.cb_per_row.currentIndex() != self.per_row:
+            self.cb_per_row.setCurrentIndex(self.per_row)
+        for sec in self.sections.values():
+            sec.body_layout.set_per_row(self.per_row)
+            sec.body._fit()
 
     def show_search(self, category: str | None = None):
-        self.btn_search.setChecked(True)
+        """Put the cursor in the search box (Ctrl+F), to search `category` if given."""
         if category is not None:
             self.search_scope.setCurrentIndex(max(0, self.search_scope.findData(category)))
         self.search_text.setFocus()
         self.search_text.selectAll()
-
-    def _toggle_search(self, on: bool):
-        self.search_bar.setVisible(on)
-        if on:
-            self.search_text.setFocus()
-        else:
-            self.clear_search()
-            self.btn_search.setFocus()
 
     def clear_search(self):
         self.search_text.blockSignals(True)
@@ -2211,6 +2383,7 @@ class TriggersTab(QWidget):
         self.search_summary.setText(
             f"{len(self._search_ids)} of {len(self.triggers)}" if active else "")
         self.search_summary.setToolTip("Matching triggers; watching is unchanged")
+        self._fit_top()
 
     def _matches_search(self, trigger: Trigger) -> bool:
         return self._search_ids is None or trigger.id in self._search_ids
@@ -2444,6 +2617,7 @@ class TriggersTab(QWidget):
         """The theme changed (onionwatch.theme.T has the new colours): redraw what
         was coloured by hand."""
         icons.retheme()
+        self._search_icon.setIcon(icons.icon("search", "muted"))
         self.undo_bar.restyle()
         self.sounds_changed()         # the chips of sounds that are gone
         for row in self.rows.values():
@@ -2775,6 +2949,7 @@ class TriggersTab(QWidget):
         sec.switched.connect(self._on_switch)
         sec.menu_wanted.connect(self._category_menu)
         sec.search_wanted.connect(self.show_search)
+        sec.body_layout.set_per_row(self.per_row)
         sec.card_dropped.connect(self.reorder)
         sec.drag_at.connect(self._scroll_for_drag)
         self.sections[name] = sec
@@ -2846,7 +3021,6 @@ class TriggersTab(QWidget):
             if c.open:
                 self._build(sec)
         self.empty.setVisible(not self.triggers)
-        self.groupbar.setVisible(self._grouped())
         self._refresh_switches()
         self._refresh_counts()
 
@@ -3176,6 +3350,8 @@ class TriggersTab(QWidget):
         n = sum(t.category == name for t in self.triggers)
         if named:
             menu.addAction("Rename…", lambda: self._ask_rename(name))
+        menu.addAction(icons.icon("search"), "Search this category",
+                       lambda: self.show_search(name))
         a = menu.addAction("Turn all its triggers on",
                            lambda: self.set_category_triggers(name, True))
         a.setEnabled(n > 0)
