@@ -68,6 +68,13 @@ SEARCH_MIN = 200        # px: the search box never gets narrower (it was squeeze
 SEARCH_ROOM = 260       # px it keeps before the view's controls go to a line of their own
 MAX_SIDE = 8192         # bigger pictures are refused (kept pixel for pixel, never resized)
 CUT_KEY = "OnionWatch cut from"   # a picture's PNG text: the size of what it was cut from
+# ...and this one, set: it wasn't cut from the game (a file or a copy from the web), so
+# the size it's drawn at is anyone's guess (see screenwatch.WIDE_SIZES)
+WEB_KEY = "OnionWatch size unknown"
+# such a picture is shrunk to fit within this share of what's watched each way when
+# it's added (a picture from the web is often many times the size it's shown at)
+WEB_FILL = 0.6
+WEB_GUESS = (1920, 1080)          # ...what's watched, when that isn't known
 THUMB = QSize(112, 64)
 STRIP_THUMBS = 3        # thumbnails a card's strip shows before it scrolls
 CHIP_CHARS = 24         # a sound chip's name is cut to this many characters
@@ -206,6 +213,55 @@ def set_cut_size(img: QImage, size: tuple[int, int] | None):
     so with "any size" it's looked for at the size the game draws it now."""
     if size and min(size) > 0:
         img.setText(CUT_KEY, f"{size[0]}x{size[1]}")
+
+
+def is_web(img: QImage) -> bool:
+    """The picture wasn't cut from the game (see WEB_KEY)."""
+    return img.text(WEB_KEY) == "1"
+
+
+def set_web(img: QImage):
+    img.setText(WEB_KEY, "1")
+
+
+def picture_file(path: str) -> QImage:
+    """A picture file to look for. One Onion Watch didn't cut (it says nothing of the
+    size it was cut from) counts as from the web: its size on screen is unknown."""
+    img = QImage(path)
+    if not img.isNull() and cut_size(img) is None:
+        set_web(img)
+    return img
+
+
+def copied_picture() -> QImage:
+    """The picture on the clipboard (null if none): a copied picture, or a picture
+    file copied in Explorer. One copied from a browser or a file (the copy carries a
+    link or a page snippet, where Win+Shift+S gives only the picture) counts as from
+    the web, see picture_file."""
+    mime = QApplication.clipboard().mimeData()
+    img = QApplication.clipboard().image()
+    if img.isNull():
+        exts = {e[1:] for e in PICTURE_EXTS.split()}
+        files = [u.toLocalFile() for u in (mime.urls() if mime is not None else [])
+                 if u.isLocalFile() and Path(u.toLocalFile()).suffix.lower() in exts]
+        return picture_file(files[0]) if files else img
+    if mime is not None and (mime.hasHtml() or mime.hasUrls()) and cut_size(img) is None:
+        set_web(img)
+    return img
+
+
+def fit_web(img: QImage, room: tuple[int, int] | None) -> QImage:
+    """A picture from the web shrunk to fit within WEB_FILL of `room` (w, h) each way
+    (WEB_GUESS when not known), its notes kept; as it is if it fits already."""
+    rw, rh = room or WEB_GUESS
+    f = min(WEB_FILL * rw / max(img.width(), 1), WEB_FILL * rh / max(img.height(), 1))
+    if f >= 1:
+        return img
+    out = img.scaled(max(6, round(img.width() * f)), max(6, round(img.height() * f)),
+                     Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
+    for key in img.textKeys():
+        out.setText(key, img.text(key))
+    return out
 
 
 def picture_of(img: QImage) -> Picture | None:
@@ -984,6 +1040,7 @@ class TriggerRow(QFrame):
     test = Signal(object)
     remove = Signal(object)
     files_dropped = Signal(object, list)   # row, picture files dropped on it
+    picture_dropped = Signal(object, object)  # row, a picture (QImage) dropped on it
 
     def __init__(self, t: Trigger, sounds: list[tuple[str, str]],
                  screens: list[Monitor] = (), open_: bool = False,
@@ -1607,8 +1664,20 @@ class TriggerRow(QFrame):
         return [u.toLocalFile() for u in mime.urls()
                 if u.isLocalFile() and Path(u.toLocalFile()).suffix.lower() in exts]
 
+    @staticmethod
+    def dropped_picture(mime) -> QImage | None:
+        """A picture itself in a drag (one dragged from a browser), if there is one."""
+        if not mime.hasImage():
+            return None
+        img = QImage(mime.imageData())
+        if img.isNull():
+            return None
+        set_web(img)
+        return img
+
     def dragEnterEvent(self, ev):
-        if self.t.uses_pictures and self.picture_files(ev.mimeData()):
+        mime = ev.mimeData()
+        if self.t.uses_pictures and (self.picture_files(mime) or mime.hasImage()):
             ev.acceptProposedAction()
             self.setStyleSheet(CARD_CSS + "QFrame#card { border-color:palette(highlight); }")
         else:
@@ -1627,6 +1696,9 @@ class TriggerRow(QFrame):
         if files:
             ev.acceptProposedAction()
             self.files_dropped.emit(self, files)
+        elif (img := self.dropped_picture(ev.mimeData())) is not None:
+            ev.acceptProposedAction()
+            self.picture_dropped.emit(self, img)
 
     def _add_menu(self) -> QMenu:
         """The header's +: the ways to add a picture."""
@@ -2151,6 +2223,8 @@ class TriggersTab(QWidget):
         self._fell_back: frozenset[str] = frozenset()   # watcher.fell_back as last seen
         self._gray: dict[str, tuple[float, Picture]] = {}   # picture path -> (mtime, picture)
         self._cuts: dict[str, tuple[int, int] | None] = {}  # ...-> the size it was cut from
+        self._wide: dict[str, bool] = {}                    # ...-> not cut from the game
+        self._web_added = 0             # pictures from the web the last _add_pictures took
         self._tints: dict[str, np.ndarray | None] = {}      # ...-> its colours in brief
         self._colours: dict[str, np.ndarray | None] = {}    # ...-> its colours (RGB)
         self._gen = 0                   # bumped to drop sounds still waiting to play
@@ -2864,6 +2938,7 @@ class TriggersTab(QWidget):
                                      unfocused=t.unfocused, any_size=t.any_size,
                                      interval_ms=t.interval_ms,
                                      cuts=[self._cuts.get(path) for _p, path in got],
+                                     wide=[self._wide.get(path, False) for _p, path in got],
                                      tints=[self._tints.get(path) for _p, path in got],
                                      colours=[self._colours.get(path) for _p, path in got]))
         self.watcher.set_items(items)
@@ -2891,6 +2966,7 @@ class TriggersTab(QWidget):
         if pic is not None:
             self._gray[path] = (mtime, pic)
             self._cuts[path] = cut_size(img)
+            self._wide[path] = is_web(img)
             self._tints[path] = picture_tint(img)
             self._colours[path] = picture_rgb(img)
         return pic
@@ -3794,6 +3870,7 @@ class TriggersTab(QWidget):
         row.set_categories(self.groups.names())
         row.set_default_interval(self.default_interval)
         row.files_dropped.connect(self._add_dropped_files)
+        row.picture_dropped.connect(self._add_dropped_picture)
         row.category_wanted.connect(self._move_to)
         row.changed.connect(self._row_changed)
         row.pictures_wanted.connect(self._add_picture_files)
@@ -3928,6 +4005,8 @@ class TriggersTab(QWidget):
             return None
         self.triggers.append(t)
         row = self._add_row(t)
+        if self._web_added:
+            self._web_tip(row)
         self._store()
         QTimer.singleShot(0, row, lambda: self.scroll.ensureWidgetVisible(row))
         row.name.setFocus()
@@ -3965,7 +4044,10 @@ class TriggersTab(QWidget):
         # a pasted or loaded picture doesn't say what it was cut from: most likely
         # what the trigger watches, as it is now
         here = self._source_size(t.source if t.source is not None else self.watcher.default)
+        web = 0
         for i, img in enumerate(imgs):
+            if not img.isNull() and is_web(img):
+                img = fit_web(img, here)
             if not img.isNull() and cut_size(img) is None:
                 set_cut_size(img, here)
             name = names[i] if i < len(names) else f"Picture {len(t.images) + 1}"
@@ -3986,15 +4068,20 @@ class TriggersTab(QWidget):
                 delete_picture(old, self.pictures)
                 self._gray.pop(old, None)
                 self._cuts.pop(old, None)
+                self._wide.pop(old, None)
                 at = None                   # a second picture would only be added
             else:
                 t.images.append(path)
             added += 1
-            for note in self._picture_notes(pic, t) + extra:
+            web += is_web(img)
+            for note in self._picture_notes(pic, t, is_web(img)) + extra:
                 notes.append((name, note))
+        self._web_added = web
         row = self.rows.get(t.id)
         if row is not None:
             row.refresh_pictures()
+            if web:
+                self._web_tip(row)
             if left_out:
                 row.flash(f"A trigger can look for up to {MAX_PICTURES} pictures — "
                           f"{plural(left_out, 'picture')} not added", 4000, "warn")
@@ -4002,6 +4089,13 @@ class TriggersTab(QWidget):
         self._say([(n, "This picture may not be found", note) for n, note in notes],
                   "Some pictures may not be found")
         return added
+
+    @staticmethod
+    def _web_tip(row: TriggerRow):
+        """Said on the card when a picture not cut from the game is added (once the
+        card's been redrawn for it: that sets its line back)."""
+        text = "From the web: looked for at every size. Never found? Cut it from the game."
+        QTimer.singleShot(0, row, lambda: row.flash(text, 9000, "warn"))
 
     def _say(self, items: list[tuple[str, str, str]], title: str):
         """One warning for a list of (picture name, title, text): the picture's own
@@ -4022,7 +4116,7 @@ class TriggersTab(QWidget):
         mon = mons[src] if isinstance(src, int) and 0 <= src < len(mons) else mons[0]
         return mon.width, mon.height
 
-    def _picture_notes(self, pic: Picture, t: Trigger) -> list[str]:
+    def _picture_notes(self, pic: Picture, t: Trigger, web: bool = False) -> list[str]:
         """What may stop a picture being found where it's watched (it's kept anyway:
         it may be meant for a window that isn't open yet)."""
         src = t.source if t.source is not None else self.watcher.default
@@ -4034,7 +4128,8 @@ class TriggersTab(QWidget):
         gray, mask = pic
         h, w = gray.shape
         notes = []
-        smallest = screenwatch.SIZES[0] if t.any_size else 1.0
+        smallest = (screenwatch.WIDE_SIZES[0] if web else
+                    screenwatch.SIZES[0] if t.any_size else 1.0)
         if w * smallest > sw or h * smallest > sh:
             notes.append(f"It's bigger than the {what} being watched ({sw}×{sh}), so it can't "
                          f"be found there. Cut it from that {what} at the size it's shown.")
@@ -4196,10 +4291,10 @@ class TriggersTab(QWidget):
         path, _ = QFileDialog.getOpenFileName(self, "Picture to look for", str(Path.home()),
                                               f"Pictures ({PICTURE_EXTS});;All files (*)")
         if path:
-            self._new(QImage(path), Path(path).stem)
+            self._new(picture_file(path), Path(path).stem)
 
     def add_from_clipboard(self):
-        img = QApplication.clipboard().image()
+        img = copied_picture()
         if img.isNull():
             QMessageBox.information(self, "No picture copied",
                                     "Copy a picture first: press Win+Shift+S, drag around "
@@ -4211,19 +4306,24 @@ class TriggersTab(QWidget):
         """The card's "+ Add pictures…": any number of files onto this trigger."""
         paths, _ = QFileDialog.getOpenFileNames(self, "Pictures to look for", str(Path.home()),
                                                 f"Pictures ({PICTURE_EXTS});;All files (*)")
-        if paths and self._add_pictures(row.t, [QImage(p) for p in paths],
+        if paths and self._add_pictures(row.t, [picture_file(p) for p in paths],
                                         [Path(p).name for p in paths]):
             self._store()
 
     def _add_dropped_files(self, row: TriggerRow, paths: list[str]):
         """Picture files dropped on a card: onto its trigger."""
-        if paths and self._add_pictures(row.t, [QImage(p) for p in paths],
+        if paths and self._add_pictures(row.t, [picture_file(p) for p in paths],
                                         [Path(p).name for p in paths]):
+            self._store()
+
+    def _add_dropped_picture(self, row: TriggerRow, img: QImage):
+        """A picture dragged from a browser and dropped on a card: onto its trigger."""
+        if self._add_pictures(row.t, [img]):
             self._store()
 
     def _paste_picture(self, row: TriggerRow):
         """The card's "Paste picture": the copied picture onto this trigger."""
-        img = QApplication.clipboard().image()
+        img = copied_picture()
         if img.isNull():
             QMessageBox.information(self, "No picture copied",
                                     "Copy a picture first: press Win+Shift+S, drag around "
@@ -4246,6 +4346,8 @@ class TriggersTab(QWidget):
             return
 
         def made_from(img: QImage) -> str:
+            if is_web(img):
+                return "not cut from the game: looked for at any size"
             size = cut_size(img)
             return f"cut from a {size[0]}×{size[1]} view" if size else ""
 
@@ -4270,7 +4372,8 @@ class TriggersTab(QWidget):
         """Swap one of the trigger's pictures for a file."""
         path, _ = QFileDialog.getOpenFileName(self, "Picture to look for", str(Path.home()),
                                               f"Pictures ({PICTURE_EXTS});;All files (*)")
-        if path and self._add_pictures(row.t, [QImage(path)], [Path(path).name], at=index):
+        if path and self._add_pictures(row.t, [picture_file(path)], [Path(path).name],
+                                       at=index):
             self._store()
 
     def _remove_picture(self, row: TriggerRow, index: int):
