@@ -78,6 +78,9 @@ own size is also compared strip by strip on the full-size pixels (a window's who
 copy; for a screen, just that small box, copied when it's needed), so text one
 character apart ("WAVE 7" for "WAVE 1") doesn't set
 it off. Text with something added at the end ("READY?" for "READY") still does.
+A picture partly hidden behind something flat (a box or a panel over a corner of
+it) still counts: the hidden part is left out, found by its grey or, when it's the
+same grey as what it hides (dark grey over dark red), by its colour.
 
 With **Any size** (on by default) a picture is found even when the game shows it
 bigger or smaller than when it was cut: cut in fullscreen and played in a window,
