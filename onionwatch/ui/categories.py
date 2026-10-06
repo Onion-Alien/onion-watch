@@ -240,6 +240,7 @@ class CategorySection(QWidget):
     fold_toggled = Signal(str, bool)     # name, open
     switched = Signal(str, bool)         # name, on (its switch was clicked)
     menu_wanted = Signal(str)            # name: the ⋯ button
+    add_wanted = Signal(str)             # name: the + button (a new trigger in it)
     search_wanted = Signal(str)
     card_dropped = Signal(str, str, object)  # trigger id, this category, before which id
     drag_at = Signal(QPoint)             # a card is being dragged here (global position)
@@ -283,20 +284,29 @@ class CategorySection(QWidget):
         self.switch = Switch()
         self.switch.clicked.connect(lambda on: self.switched.emit(self.name, on))
         h.addWidget(self.switch)
+        self.btn_add = QPushButton()
+        self.btn_add.setObjectName("small")
+        icons.set_icon(self.btn_add, "plus")
+        self.btn_add.setAccessibleName("New trigger in this category")
+        self.btn_add.setToolTip("A new trigger in this category")
+        self.btn_add.clicked.connect(lambda: self.add_wanted.emit(self.name))
+        align_control(self.btn_add)
+        h.addWidget(self.btn_add)
         self.btn_menu = QPushButton("⋯")
         self.btn_menu.setObjectName("small")
         self.btn_menu.setStyleSheet("font-size:11pt; padding:0 10px;")
         self.btn_menu.setAccessibleName("Category menu")
-        self.btn_menu.setToolTip("Rename, colours and picture, turn its triggers on or "
-                                 "off, save it to a file…")
+        self.btn_menu.setToolTip("A new trigger here, rename, colours and picture, turn "
+                                 "its triggers on or off, save it to a file…")
         self.btn_menu.clicked.connect(lambda: self.menu_wanted.emit(self.name))
         align_control(self.btn_menu)
         h.addWidget(self.btn_menu)
         v.addWidget(self.header)
         self.body = FlowBox(gap=8, flow_type=CardGrid)
         self.body_layout = self.body.flow
-        self.empty = hint_label("No triggers in this category yet. Drag one here, or "
-                                "pick it with Category, under a trigger's Fine-tune.")
+        self.empty = hint_label("No triggers in this category yet. Click + to make one "
+                                "here, drag one in, or pick it with Category, under a "
+                                "trigger's Fine-tune.")
         self.body_layout.addWidget(self.empty)
         v.addWidget(self.body)
         # where a dragged card would land: a line in the accent colour

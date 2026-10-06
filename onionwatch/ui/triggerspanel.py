@@ -3159,6 +3159,7 @@ class TriggersTab(QWidget):
         sec.fold_toggled.connect(self._on_fold)
         sec.switched.connect(self._on_switch)
         sec.menu_wanted.connect(self._category_menu)
+        sec.add_wanted.connect(self._category_add_menu)
         sec.search_wanted.connect(self.show_search)
         sec.body_layout.set_per_row(self.per_row)
         sec.card_dropped.connect(self.reorder)
@@ -3580,6 +3581,40 @@ class TriggersTab(QWidget):
         if ts:
             self.export_triggers(ts, profiles.label(name))
 
+    def add_in_category(self, name: str, make):
+        """Make a new trigger (`make`: add_from_cut and co.) in this category: it's
+        opened first, so the new one goes in it and shows."""
+        sec = self.sections.get(name)
+        if sec is not None and not sec.btn_fold.isChecked():
+            sec.btn_fold.setChecked(True)      # opens it (and makes it the last opened)
+        self._last_category = name
+        make()
+
+    def _fill_new_here(self, menu: QMenu, name: str):
+        """The ways to make a trigger, each putting it in this category."""
+        menu.addAction(icons.icon("crop"), "Cut it from the window",
+                       lambda: self.add_in_category(name, self.add_from_cut))
+        menu.addAction(icons.icon("plus"), "From a picture file…",
+                       lambda: self.add_in_category(name, self.add_from_file))
+        a = menu.addAction(icons.icon("image"), "Paste the copied picture",
+                           lambda: self.add_in_category(name, self.add_from_clipboard))
+        a.setEnabled(not QApplication.clipboard().image().isNull())
+        menu.addAction("Without a picture…",
+                       lambda: self.add_in_category(name, self.add_area_trigger))
+
+    def _pop_menu(self, menu: QMenu, under: QWidget):
+        """Show a menu under a button (tests swap this for one that doesn't wait)."""
+        menu.exec(under.mapToGlobal(under.rect().bottomLeft()))
+
+    def _category_add_menu(self, name: str):
+        """A section's + button: the ways to make a new trigger in it."""
+        sec = self.sections.get(name)
+        if sec is None:
+            return
+        menu = QMenu(sec.btn_add)
+        self._fill_new_here(menu, name)
+        self._pop_menu(menu, sec.btn_add)
+
     def _category_menu(self, name: str):
         """A section's ⋯ menu."""
         sec = self.sections.get(name)
@@ -3588,6 +3623,8 @@ class TriggersTab(QWidget):
         menu = QMenu(sec.btn_menu)
         named = name != profiles.UNCATEGORISED
         n = sum(t.category == name for t in self.triggers)
+        self._fill_new_here(menu.addMenu(icons.icon("plus"), "New trigger here"), name)
+        menu.addSeparator()
         if named:
             menu.addAction("Rename…", lambda: self._ask_rename(name))
         menu.addAction(icons.icon("palette"), "Colours and picture…",
@@ -3610,7 +3647,7 @@ class TriggersTab(QWidget):
         if named:
             menu.addAction(icons.icon("trash"), "Delete category…",
                            lambda: self.delete_category(name))
-        menu.exec(sec.btn_menu.mapToGlobal(sec.btn_menu.rect().bottomLeft()))
+        self._pop_menu(menu, sec.btn_menu)
 
     def _ask_rename(self, name: str):
         from PySide6.QtWidgets import QInputDialog
