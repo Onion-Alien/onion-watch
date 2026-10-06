@@ -1100,6 +1100,76 @@ def colour_cover(a: np.ndarray, t: np.ndarray, m: np.ndarray) -> tuple[np.ndarra
     return cov, info
 
 
+# ...and a place whose grey matches but whose colours don't, because what's behind the
+# thing changed (text cut over a dark patch, now over a lit scene: the colour check's
+# cells are mostly that background). For a picture cut as a rectangle (a cut-out has
+# its background left out already), its colours are compared again on the thing alone
+# (matched_colour): all but the background, the part joined to its edges within
+# MATCH_REL of its grey range of the edges' grey (thing_mask), MATCH_LEAST..MATCH_MOST
+# of it. MATCH_KEPT of the thing must have the picture's grey there (light fitted), and
+# its colour, the light fitted as tint_gap does, be off the picture's by MATCH_CRES or
+# less on average. A blue skull where a red one was cut is off on the skull itself.
+MATCH_REL = 0.45
+MATCH_LEAST = 0.03
+MATCH_MOST = 0.5
+MATCH_RES = 0.08
+MATCH_KEPT = 0.9
+MATCH_CRES = 0.1
+MATCH_COLOUR = True
+
+
+def thing_mask(g: np.ndarray) -> np.ndarray | None:
+    """What isn't the background in picture `g` (grey 0..1, a rectangle): the pixels
+    not joined to its edges through pixels within MATCH_REL of its grey range (2-98%)
+    of the edges' median grey. None when it has no contrast to tell by."""
+    lo, hi = np.percentile(g, (2, 98))
+    if hi - lo < 0.05:
+        return None
+    edge = np.concatenate([g[0], g[-1], g[:, 0], g[:, -1]])
+    near_ = np.abs(g - float(np.median(edge))) < MATCH_REL * float(hi - lo)
+    bg = np.zeros(g.shape, bool)
+    bg[0], bg[-1], bg[:, 0], bg[:, -1] = near_[0], near_[-1], near_[:, 0], near_[:, -1]
+    for _ in range(sum(g.shape)):
+        grown = bg.copy()
+        grown[1:] |= bg[:-1]
+        grown[:-1] |= bg[1:]
+        grown[:, 1:] |= bg[:, :-1]
+        grown[:, :-1] |= bg[:, 1:]
+        grown &= near_
+        if (grown == bg).all():
+            break
+        bg = grown
+    return ~bg
+
+
+def matched_colour(a: np.ndarray, rgb: np.ndarray, g: np.ndarray, t: np.ndarray
+                   ) -> tuple[float, float, float]:
+    """`a` / `rgb` the screen's grey / RGB (0..1) where a picture cut as a rectangle
+    was found, `g` / `t` the picture's the same size: (the share of it that's the
+    thing (thing_mask), the share of that whose grey agrees once the light is fitted,
+    its colour gap)."""
+    thing = thing_mask(g)
+    if thing is None:
+        return 0.0, 0.0, 1.0
+    n = int(thing.sum())
+    share = n / thing.size
+    gg, aa = g.astype(np.float64).ravel(), a.astype(np.float64).ravel()
+    G, A = gg - gg.mean(), aa - aa.mean()
+    gain = float((G * A).sum()) / max(float((G * G).sum()), 1e-12)
+    if n < 8 or gain <= 0.0:
+        return share, 0.0, 1.0
+    ok = thing & (np.abs(a - gain * g - (aa.mean() - gain * gg.mean())) <= MATCH_RES)
+    k = int(ok.sum())
+    if k < 8:
+        return share, k / n, 1.0
+    tt, cc = t[ok].astype(np.float64), rgb[ok].astype(np.float64)
+    T, C = tt - tt.mean(0), cc - cc.mean(0)
+    cg = max(float((T * C).sum()) / max(float((T * T).sum()), 1e-12), 0.0)
+    left = C - cg * T
+    left -= left.mean(-1, keepdims=True)                 # colour, not brightness
+    return share, k / n, float(np.abs(left).sum(-1).mean())
+
+
 def cover_score(area: np.ndarray, gray: np.ndarray, mask: np.ndarray | None,
                 info: dict | None = None, cov: np.ndarray | None = None
                 ) -> tuple[float, float]:
@@ -1196,11 +1266,34 @@ def one_part_off(area: np.ndarray, gray: np.ndarray, mask: np.ndarray | None) ->
         got = [v for v in parts if v is not None]
         if len(got) < 3 or float(np.median(got)) < TWIN_MED:
             continue
-        for u, v in zip(parts, parts[1:]):
+        for i, (u, v) in enumerate(zip(parts, parts[1:])):
             if (u is not None and v is not None and u <= TWIN_LOW and v <= TWIN_LOW
                     and (u + v) / 2 <= TWIN_RUN):
+                x0, x1 = i * tw // n, (i + 2) * tw // n
+                if (MATCH_COLOUR and mask is None
+                        and _letters_agree(area[y:y + th, x:x + tw], gray, x0, x1)):
+                    continue                # only what's behind it changed there
                 return max(0.0, (u + v) / 2)
     return 1.0
+
+
+def _letters_agree(a: np.ndarray, g: np.ndarray, x0: int, x1: int) -> bool:
+    """Whether the thing in picture `g` (a rectangle: thing_mask) between columns
+    x0..x1 has the picture's grey on the screen's `a` there (the same size), the light
+    fitted on all of it, for MATCH_KEPT of its pixels: the scene behind a thing
+    changed, not one of its glyphs."""
+    thing = thing_mask(g)
+    if thing is None:
+        return False
+    gg, aa = g.astype(np.float64).ravel(), a.astype(np.float64).ravel()
+    G, A = gg - gg.mean(), aa - aa.mean()
+    gain = float((G * A).sum()) / max(float((G * G).sum()), 1e-12)
+    part = thing[:, x0:x1]
+    n = int(part.sum())
+    if n < 8 or gain <= 0.0:
+        return False
+    off = np.abs(a[:, x0:x1] - gain * g[:, x0:x1] - (aa.mean() - gain * gg.mean()))
+    return int((part & (off <= MATCH_RES)).sum()) >= MATCH_KEPT * n
 
 
 def find_via(fine: Frame, coarse: Frame, r: float, off: tuple[int, int], p: Pattern,
@@ -3399,6 +3492,9 @@ class Watcher:
                                                        gray.shape, fresh(b))
                             if cs >= it.threshold:
                                 sc, covered = cs, True
+                            elif MATCH_COLOUR and Watcher._colour_match(
+                                    cap, it.id, twin, rgb_cut, b, lk, gray.shape, fresh(b)):
+                                sc = grey
                     if twin is not None and sc >= it.threshold:
                         sc = min(sc, Watcher._twin(twin, b, lk, gray.shape,
                                                    cap.twins, it.id))
@@ -3655,6 +3751,65 @@ class Watcher:
             return lambda y0, y1, x0, x1: frame_rgb(full[y0:y1, x0:x1])
         cut = getattr(type(grab), "full_rgb", None)
         return None if cut is None else cut.__get__(grab)
+
+    @staticmethod
+    def _colour_area(full: tuple, box: tuple, lk: Look, shape: tuple[int, int]) -> tuple | None:
+        """The picture's grey, mask and colours made the size of `box` (y0, y1, x0, x1
+        in a frame of `shape`), and the box about it on the capture's pixels at full size
+        (`full`: _full_size's) with CONFIRM_PAD px round it, and its grey: (g, mk, t, b,
+        area), or None."""
+        cut, (fh, fw) = full
+        sy, sx = fh / shape[0], fw / shape[1]
+        y0, y1, x0, x1 = box
+        th, tw = lk.gray.shape
+        k = ((y1 - y0) * sy / th + (x1 - x0) * sx / tw) / 2
+        t = lk.rgb[..., :3].astype(np.float32) * (1 / 255)
+        g, mk = lk.gray, lk.mask
+        if abs(k - 1) >= 0.02:
+            g = resize(lk.gray, k)
+            mk = None if lk.mask is None else shrink_mask(lk.mask, k)
+            t = np.stack([resize(t[..., c], k) for c in range(3)], -1)
+        gh, gw = g.shape
+        if t.shape[:2] != (gh, gw):
+            return None
+        pad = CONFIRM_PAD + 1
+        cy, cx = round((y0 + y1) * sy / 2 - gh / 2), round((x0 + x1) * sx / 2 - gw / 2)
+        b = (max(0, cy - pad), min(fh, cy + gh + pad), max(0, cx - pad), min(fw, cx + gw + pad))
+        area = cut(*b)
+        if area is None or area.shape[0] < gh or area.shape[1] < gw:
+            return None
+        return g, mk, t, b, area
+
+    @staticmethod
+    def _colour_match(cap: _Capture, key: str, full: tuple, rgb_cut, box: tuple, lk: Look,
+                      shape: tuple[int, int], fresh: bool = False) -> bool:
+        """Whether `lk`'s colours agree at `box` on the pixels whose grey is the
+        picture's (matched_colour(), MATCH_*), on the capture's pixels at full size.
+        Kept in `cap.twins` and paced as _colour_cover() is."""
+        got = Watcher._colour_area(full, box, lk, shape)
+        if got is None:
+            return False
+        g, mk, t, b, area = got
+        y0, y1, x0, x1 = box
+        ck, px = ("match", key, y1 - y0, x1 - x0), area.tobytes()
+        seen = cap.twins.get(ck)
+        if seen is not None and seen[0] is lk.gray and seen[1] == px:
+            return seen[2] > 0.0
+        if cap.colour_left > 0:
+            cap.colour_left -= 1
+        elif not (fresh and Watcher._cover_turn(cap, True)):
+            return False
+        ok = False
+        q = Pattern(g, mk)
+        rgb = rgb_cut(*b)
+        if mk is None and q.ok and rgb is not None and rgb.shape[:2] == area.shape:
+            _sc, (x, y) = _ncc_at(area, q)
+            gh, gw = g.shape
+            share, kept, gap = matched_colour(area[y:y + gh, x:x + gw], rgb[y:y + gh, x:x + gw],
+                                              g, t)
+            ok = MATCH_LEAST <= share <= MATCH_MOST and kept >= MATCH_KEPT and gap <= MATCH_CRES
+        cap.twins[ck] = (lk.gray, px, 1.0 if ok else 0.0)
+        return ok
 
     @staticmethod
     def _colour_cover(cap: _Capture, key: str, full: tuple, rgb_cut, raw: tuple, box: tuple,
