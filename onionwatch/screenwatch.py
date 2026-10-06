@@ -198,6 +198,7 @@ STRUCT_RATIO = 0.8
 # by STRUCT_BLUR px first: a capture is picked pixels, a picture smoothly resized,
 # and without it their finest detail disagrees (aliasing) even where the thing is.
 STRUCT_BLUR = 1.2
+STACK_MAX = 3000        # (px: structure() works on a picture's places together up to this)
 # A picture too small for the usual working size makes its capture finer (see
 # Watcher._fit), and is matched there; but it's found first at the usual size with
 # a stand-in (a copy shrunk to it, if that's at least PROXY_MIN px each way): its
@@ -819,7 +820,7 @@ def _confirm(full: Frame, p: Pattern, at: tuple[int, int], sc: float,
     if p._sharps is None:
         gray, mask, s = p.sharp
         p._sharps = []
-        for k in ((0,) if p.exact else (-2, -1, 0, 1, 2)):
+        for k in ((0,) if p.exact else (0, -1, 1, -2, 2)):     # its own size first
             f = s * CONFIRM_STEP ** k
             q = Pattern(resize(gray, f), None if mask is None else shrink_mask(mask, f))
             if q.ok:
@@ -835,16 +836,21 @@ def _confirm(full: Frame, p: Pattern, at: tuple[int, int], sc: float,
             area = full.s[y0:y1, x0:x1]
             best = max(best, _ncc_near(area, q) if th * tw <= DIRECT_MAX
                        else find(Frame(area), q)[0])
+            if best >= SOFT_CONFIRM and not p.exact:
+                break                       # it counts: the other sizes can't change that
     if p.exact:
         return best
     return sc if best >= SOFT_CONFIRM else min(sc, best)
 
 
 def _box_mean(a: np.ndarray, k: int) -> np.ndarray:
-    """Each pixel's mean over the k x k square around it (k odd; the edges carried out)."""
+    """Each pixel's mean over the k x k square around it (k odd; the edges carried out).
+    A stack of them (n, h, w): each one alike."""
     r = k // 2
-    c = np.pad(np.pad(a, r, mode="edge").cumsum(0).cumsum(1), ((1, 0), (1, 0)))
-    return (c[k:, k:] - c[:-k, k:] - c[k:, :-k] + c[:-k, :-k]) * (1.0 / (k * k))
+    lead = ((0, 0),) * (a.ndim - 2)
+    c = np.pad(np.pad(a, lead + ((r, r), (r, r)), mode="edge").cumsum(-2).cumsum(-1),
+               lead + ((1, 0), (1, 0)))
+    return (c[..., k:, k:] - c[..., :-k, k:] - c[..., k:, :-k] + c[..., :-k, :-k]) * (1.0 / (k * k))
 
 
 def structure(full: Frame, p: Pattern, at: tuple[int, int]) -> float:
@@ -881,15 +887,24 @@ def structure(full: Frame, p: Pattern, at: tuple[int, int]) -> float:
         _sc, (bx, by) = _ncc_at(area, p)
         places = [(by + dy, bx + dx) for dy in (-1, 0, 1) for dx in (-1, 0, 1)
                   if 0 <= by + dy <= 2 * pad and 0 <= bx + dx <= 2 * pad]
-    for dy, dx in places:
-        # each place on its own pixels only, as the picture is: what's around it
-        # (other scenery where it turned up) mustn't change its light's slow changes
-        b = area[dy:dy + th, dx:dx + tw]
-        if b.shape != t.shape:
-            continue
+    # each place on its own pixels only, as the picture is: what's around it (other
+    # scenery where it turned up) mustn't change its light's slow changes. A small
+    # picture's places all at once (the same numbers, a third of the time; a big
+    # one's don't fit the processor's cache together, and take longer so)
+    bs = [area[dy:dy + th, dx:dx + tw] for dy, dx in places]
+    bs = [b for b in bs if b.shape == t.shape]
+    if not bs:
+        return best
+    if th * tw <= STACK_MAX:
+        bs = np.stack(bs)
         if blur > 0:
-            b = gaussian_filter(b, blur)
-        b = b - _box_mean(b, k)
+            bs = gaussian_filter(bs, blur)
+        bs = bs - _box_mean(bs, k)
+    else:
+        if blur > 0:
+            bs = [gaussian_filter(b, blur) for b in bs]
+        bs = [b - _box_mean(b, k) for b in bs]
+    for b in bs:
         b = b - b.mean()
         nb = math.sqrt(float((b * b).sum()))
         if nt > 1e-9 and nb > 1e-9:
@@ -943,16 +958,21 @@ def _ncc_near(area: np.ndarray, q: Pattern) -> float:
 def _ncc_at(area: np.ndarray, q: Pattern) -> tuple[float, tuple[int, int]]:
     """_ncc_near(), and where in `area` (x, y) that score is."""
     th, tw = q.shape
-    win = np.lib.stride_tricks.sliding_window_view(area.astype(np.float64), (th, tw))
-    t = q.t.astype(np.float64)
-    num = np.einsum("ijkl,kl->ij", win, t)
+    a = area.astype(np.float64)
+    win = np.lib.stride_tricks.sliding_window_view(a, (th, tw))
     if q.m is None:
-        s1 = win.sum(axis=(2, 3))
-        s2 = np.einsum("ijkl,ijkl->ij", win, win)
+        num = np.einsum("ijkl,kl->ij", win, q.t.astype(np.float64))
+        # each window's sum and sum of squares from running totals: a few passes
+        # over the area, not one over every window's pixels
+        c = np.zeros((2, a.shape[0] + 1, a.shape[1] + 1))
+        c[0, 1:, 1:] = a
+        c[1, 1:, 1:] = a * a
+        c = c.cumsum(1).cumsum(2)
+        s1, s2 = c[:, th:, tw:] - c[:, :-th, tw:] - c[:, th:, :-tw] + c[:, :-th, :-tw]
     else:
         m = q.m.astype(np.float64)
-        s1 = np.einsum("ijkl,kl->ij", win, m)
-        s2 = np.einsum("ijkl,ijkl,kl->ij", win, win, m)
+        num, s1 = np.einsum("ijkl,ckl->cij", win, np.stack([q.t.astype(np.float64), m]))
+        s2 = np.einsum("ijkl,kl->ij", np.lib.stride_tricks.sliding_window_view(a * a, (th, tw)), m)
     var = s2 - s1 * s1 / q.count
     ok = var > q.count * q.flat * q.flat
     score = np.divide(num, np.sqrt(np.where(ok, var, 1.0)), where=ok,
@@ -1273,7 +1293,9 @@ def tint(rgb: np.ndarray, mask: np.ndarray | None = None) -> np.ndarray | None:
     ys = np.linspace(0, h, g + 1).astype(int)[:-1]
     xs = np.linspace(0, w, g + 1).astype(int)[:-1]
     wt = np.ones((h, w), np.float32) if mask is None else mask.astype(np.float32)
-    rgb = rgb[..., :3].astype(np.float32) * wt[..., None]
+    rgb = rgb[..., :3].astype(np.float32, copy=False)
+    if mask is not None:
+        rgb = rgb * wt[..., None]
     sums = np.add.reduceat(np.add.reduceat(rgb, ys, -3), xs, -2)
     n = np.add.reduceat(np.add.reduceat(wt, ys, 0), xs, 1)
     area = np.outer(np.diff(np.append(ys, h)), np.diff(np.append(xs, w)))
@@ -1794,7 +1816,7 @@ def frame_rgb(sample: np.ndarray, fmt: int = FMT_BGRA8, factor: int = 1) -> np.n
     if factor == 2:
         h, w = rgb.shape[0] // 2, rgb.shape[1] // 2
         rgb = rgb[:2 * h, :2 * w].reshape(h, 2, w, 2, 3).mean((1, 3), dtype=np.float32)
-    return rgb.astype(np.float32)
+    return rgb.astype(np.float32, copy=False)
 
 
 class Grabber:
