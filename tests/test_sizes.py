@@ -266,6 +266,24 @@ def test_a_cut_outs_shape_is_judged_on_its_own_pixels():
     assert sw.cut_structure(other, thing, mask, (2, 2)) < 0.3
 
 
+def test_a_cut_out_found_well_under_its_size_must_keep_more_of_its_shape():
+    """Shrunk well under the size it was cut at, a cut-out is a smooth blob that
+    scenery fits: it has to keep CUT_LOW_SHAPE at full size, however big it is on the
+    frame. A rectangle, or a cut-out near its size, is checked as before."""
+    yy, xx = np.indices((120, 160))
+    mask = (yy - 60) ** 2 / 50 ** 2 + (xx - 80) ** 2 / 70 ** 2 < 1
+    gray = (np.sin(xx / 5) * np.cos(yy / 7) * 0.3 + 0.5).astype(np.float32)
+    cut = sw.Look(gray, mask, 0.375, [1.0], True)
+    box = sw.Look(gray, None, 0.375, [1.0], True)
+    low = cut.pattern(0.6)
+    assert low.size[0] * low.size[1] >= sw.SMALL_AREA       # not a small match
+    assert sw.Watcher._shape_bar(low, cut) == sw.CUT_LOW_SHAPE
+    assert sw.Watcher._shape_bar(cut.pattern(1.0), cut) is None
+    assert sw.Watcher._shape_bar(box.pattern(0.6), box) is None
+    small = sw.Look(gray[:40, :50], None, 0.375, [1.0], True)
+    assert sw.Watcher._shape_bar(small.pattern(1.0), small) == sw.SMALL_SHAPE
+
+
 def test_a_look_alike_in_other_colours_does_not_count():
     """A teal gem where the orange one was is the same grey: only its colours say
     it's not the same thing. The same gem in a darker scene still counts."""

@@ -156,6 +156,13 @@ FINE_SHAPE = 0.65
 SMALL_AREA = 900
 SMALL_SHAPE = 0.6
 SMALL_STEPS = 4             # (a cut-out is scored on its opaque part: cut_structure())
+# A cut-out found well under the size it was cut at (under CUT_LOW_K of it) has to
+# keep CUT_LOW_SHAPE, whatever its size on the frame: shrunk that far, a cut-out's
+# few pixels are a smooth blob that some scenery fits, and keeps 0.5-0.7 of its shape
+# by chance (most of the cut-outs' false alarms on game footage were at the sweep's
+# smallest sizes, 0.5-0.65).
+CUT_LOW_K = 0.7
+CUT_LOW_SHAPE = 0.8
 SWEEP_DONE = 0.9        # a match scoring less may be at a size a little off: keep sweeping
 BLUR = 1.5
 BLUR_MIN_SIDE = 16
@@ -3261,10 +3268,11 @@ class Watcher:
                                                    cap.twins, it.id))
                     if fine and sc >= it.threshold:
                         sc = min(sc, Watcher._fine_shape(twin, b, lk, gray.shape))
-                    if (twin is not None and sc >= it.threshold and not covered
-                            and p.size[0] * p.size[1] < SMALL_AREA):
+                    bar = (Watcher._shape_bar(p, lk) if twin is not None
+                           and sc >= it.threshold and not covered else None)
+                    if bar is not None:
                         st = Watcher._small_shape(twin, b, lk, gray.shape, cap.twins, it.id)
-                        if st < SMALL_SHAPE:
+                        if st < bar:
                             sc = min(sc, st)
                     if sc > top[0]:
                         top = (sc, b)
@@ -3378,7 +3386,8 @@ class Watcher:
         best = 0.0
         for i in range(-steps, steps + 1):
             k = k0 * CONFIRM_STEP ** i
-            q = Pattern(resize(lk.gray, k), None if lk.mask is None else shrink_mask(lk.mask, k))
+            g, m = resize(lk.gray, k), None if lk.mask is None else shrink_mask(lk.mask, k)
+            q = Pattern(g, m)
             if not q.ok:
                 continue
             gh, gw = q.shape
@@ -3390,11 +3399,23 @@ class Watcher:
                 continue
             _sc, at = _ncc_at(area, q)
             if masked and not q.box:
-                st = cut_structure(area, resize(lk.gray, k), shrink_mask(lk.mask, k), at)
+                st = cut_structure(area, g, m, at)
             else:
                 st = structure(Frame(area), q, at)
             best = max(best, st)
         return best
+
+    @staticmethod
+    def _shape_bar(p: Pattern, lk: Look) -> float | None:
+        """The shape (_small_shape()) a match of `lk` at `p`'s size has to keep at full
+        size: CUT_LOW_SHAPE for a cut-out well under the size it was cut at, SMALL_SHAPE
+        for a small match; None: it needn't be checked."""
+        if (lk.mask is not None and p.size[1] < CUT_LOW_K * lk.gray.shape[1] * lk.scale
+                and not lk.mask.all()):
+            return CUT_LOW_SHAPE
+        if p.size[0] * p.size[1] < SMALL_AREA:
+            return SMALL_SHAPE
+        return None
 
     @staticmethod
     def _small_shape(full: tuple, box: tuple, lk: Look, shape: tuple[int, int],
