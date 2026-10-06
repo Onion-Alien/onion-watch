@@ -606,3 +606,91 @@ def test_colours_taken_at_the_matching_size_also_count():
 
     assert score([]) < 0.8                  # the wrong full-size tint alone: kept down
     assert score([rgb]) >= 0.9              # its colours at the matching size agree
+
+
+def panel(fill=(150, 30, 30), w=160, h=96) -> np.ndarray:
+    """A popup (RGB uint8): a panel in one colour, a light rim and a few white marks
+    (its writing)."""
+    p = np.empty((h, w, 3), np.float32)
+    p[:] = np.array(fill, np.float32) * np.linspace(0.7, 1.1, h)[:, None, None]
+    p[:2], p[-2:], p[:, :2], p[:, -2:] = 230, 230, 230, 230
+    rng = np.random.default_rng(7)
+    for _ in range(9):
+        x, y = rng.integers(20, w - 30), rng.integers(30, h - 50)
+        p[y:y + 18, x:x + 4] = 255
+        p[y:y + 4, x:x + 14] = 255
+    return np.clip(p, 0, 255).astype(np.uint8)
+
+
+def test_a_dark_box_over_a_coloured_popup_is_told_by_its_colour(monkeypatch):
+    """A dark grey box over a corner of a dark red popup is the popup's grey: grey
+    can't tell where it is (cover_score), so the colours fail and it's missed. By
+    colour it's plain (colour_cover): the rest of the popup decides. A popup in other
+    colours with the same box still doesn't count, nor one with noise over it."""
+    level = world(sprites=())
+    level[200:296, 300:460] = panel()
+    piece = level[192:304, 292:468].copy()
+    pic, tint = gray(piece), sw.tint(piece.astype(np.float32) / 255)
+
+    def watch(rgb):
+        h, w = rgb.shape[:2]
+        grab = Grab(w, h)
+        it = sw.Watched("t", [(pic, None)], 0.8, 0.0, any_size=False, cuts=[(960, 540)],
+                        tints=[tint], colours=[piece])
+        cap = sw._Capture(0, Monitor(0, 0, w, h, True))
+        cap.grab = grab
+        cap.fitted, cap.scaled = sw.Watcher._fit(grab, cap.mon, [it])
+        small = scaled(rgb, grab.w / w)[:grab.h, :grab.w]
+        grab.raw = (np.dstack([small[..., ::-1], np.full(small.shape[:2], 255, np.uint8)]),
+                    sw.FMT_BGRA8, 1)
+        grab.full = np.dstack([rgb[..., ::-1], np.full(rgb.shape[:2], 255, np.uint8)])
+        frame = gray(small)
+
+        def check(tries=1):
+            cap.cover_left, cap.fresh_left, cap.colour_left = tries, 0, tries
+            return sw.Watcher._score(cap, frame, it, 0.0, {})[0]
+        return check, cap
+
+    covered = level.copy()
+    covered[260:300, 400:464] = (48, 52, 60)        # a dark grey box over a corner
+    monkeypatch.setattr(sw, "COLOUR_COVER", False)
+    check, _cap = watch(covered)
+    assert check() < 0.8
+    monkeypatch.setattr(sw, "COLOUR_COVER", True)
+    check, _cap = watch(covered)
+    assert check() >= 0.9
+    assert check(tries=0) >= 0.9        # worked out once while its pixels stay the same
+    other = level.copy()
+    other[200:296, 300:460] = panel(fill=(20, 80, 90))   # the same grey, other colours
+    other[260:300, 400:464] = (48, 52, 60)
+    check, _cap = watch(other)
+    assert check() < 0.8
+    noisy = level.copy()
+    rng = np.random.default_rng(3)
+    noisy[260:300, 400:464] = (rng.random((40, 64, 3)) * 255).astype(np.uint8)
+    check, _cap = watch(noisy)
+    assert check() < 0.8
+
+
+
+def test_a_cover_is_tried_at_once_where_something_just_appeared(monkeypatch):
+    """The tries at a covered place are few a check (COVER_PER_CHECK), and scenery
+    near other triggers can take them all; a place where the frame just changed (a
+    hunt's patch: something was shown) has tries of its own (COVER_FRESH). Each answer
+    is kept while the place's pixels stay the same, at no cost."""
+    level = world(sprites=())
+    level[200:296, 300:396] = sprite(cell=16)
+    pic, tint = cut(level, s=112)
+    covered = level.copy()
+    covered[250:330, 344:430] = (40, 40, 40)
+    check, cap = watcher_on(covered, pic, tint, any_size=False)
+    cap.grab.full = np.dstack([covered[..., ::-1], np.full(covered.shape[:2], 255, np.uint8)])
+    cap.cover_left, cap.fresh_left = 0, 1               # the others took this check's
+    assert check() < 0.8
+    fy, fx = cap.grab.h / 540, cap.grab.w / 960
+    cap.hunts.append([(round(250 * fy), round(330 * fy), round(344 * fx), round(430 * fx)),
+                      cap.checks, ["t"], {}])
+    assert check() >= 0.9
+    assert cap.fresh_left == 0
+    cap.hunts.clear()
+    assert check() >= 0.9                               # kept: the same pixels

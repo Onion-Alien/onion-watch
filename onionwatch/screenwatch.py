@@ -1034,8 +1034,9 @@ def _ncc_shifted(a: np.ndarray, t: np.ndarray, m: np.ndarray, y: int, x: int) ->
 # box), the rest scores COVER_SCORE or more, COVER_GAIN more than all of it did, and
 # the rest's colours are the picture's (the colour check on the same pixels both sides).
 # Scenery in other games got through anything looser (HANDOFF-19). It's tried for
-# COVER_PER_CHECK places a check, each trigger at most every COVER_EVERY checks (but
-# every check while it's found covered): a few ms each on a big picture.
+# COVER_PER_CHECK places a check, COVER_FRESH more about what changed this check (a
+# thing just shown), and any for a trigger found covered last time; each answer kept
+# until its pixels change: a few ms each on a big picture.
 COVER_LOW = 0.3
 COVER_FLAT = 0.03
 COVER_K = 5
@@ -1048,17 +1049,66 @@ COVER_FILL = 0.6
 COVER_SCORE = 0.97
 COVER_GAIN = 0.1
 COVER_PER_CHECK = 2
-COVER_EVERY = 4
+COVER_FRESH = 4         # ...and as many more about what just changed (a hunt's patch)
 COVER_ON = True
+# ...and a place whose grey matches but whose colours don't: the cover told by colour
+# (colour_cover), on the capture's own pixels, the same rules but COVER_GAIN (its grey
+# matched already)
+COVER_CRES = 0.15
+COLOUR_PER_CHECK = 2
+COLOUR_COVER = True
+
+
+def colour_cover(a: np.ndarray, t: np.ndarray, m: np.ndarray) -> tuple[np.ndarray, dict]:
+    """The pixels something flat covers, told by colour: `a` the screen's RGB (0..1)
+    where a picture was found, `t` the picture's own the same size, `m` its opaque
+    part (bool). Pixels flat on the screen (every channel, COVER_K px) whose colour
+    isn't the picture's once the light is fitted (one gain, an offset per channel,
+    as tint_gap) by more than COVER_CRES, and COVER_GROW px round them. A dark grey
+    box over a dark red panel is the panel's grey but not its colour, which grey
+    can't see (cover_score). Returns (those pixels, {"uni": the cover's widest
+    channel spread, "fill": how much of its box it fills})."""
+    flat = np.ones(m.shape, bool)
+    for c in range(3):
+        mu = _box_mean(a[..., c], COVER_K)
+        flat &= np.sqrt(np.maximum(_box_mean(a[..., c] ** 2, COVER_K) - mu * mu, 0.0)) < COVER_FLAT
+    use, core, cov = m, m & False, m & False
+    for _ in range(3):
+        tt, aa = t[use], a[use]
+        if len(tt) < 8:
+            break
+        A, B = tt - tt.mean(0), aa - aa.mean(0)
+        gain = max(float((A * B).sum()) / max(float((A * A).sum()), 1e-12), 0.0)
+        core = m & flat & (np.abs(a - gain * t - (aa.mean(0) - gain * tt.mean(0))).sum(-1)
+                           > COVER_CRES)
+        cov = core
+        for _g in range(COVER_GROW):
+            c = cov.copy()
+            c[1:] |= cov[:-1]
+            c[:-1] |= cov[1:]
+            c[:, 1:] |= cov[:, :-1]
+            c[:, :-1] |= cov[:, 1:]
+            cov = c
+        cov &= m
+        use = m & ~cov
+    info = {"uni": 1.0, "fill": 0.0}
+    if core.any():
+        ys, xs = np.nonzero(core)
+        info["uni"] = float(a[core].std(0).max())
+        info["fill"] = float(core.sum()) / max(1.0, float(m[ys.min():ys.max() + 1,
+                                                              xs.min():xs.max() + 1].sum()))
+    return cov, info
 
 
 def cover_score(area: np.ndarray, gray: np.ndarray, mask: np.ndarray | None,
-                info: dict | None = None) -> tuple[float, float]:
+                info: dict | None = None, cov: np.ndarray | None = None
+                ) -> tuple[float, float]:
     """(score, share covered) of `gray` (`mask` its cut-out) on `area`, the screen's
     full-size pixels about where it was found (the picture's size, a few px of room
     round it), with the pixels something flat covers left out (see COVER_*). `info`
     gets: "cov" (those pixels, the picture's size), "plain" (the score with them in),
-    "uni" (the cover's grey spread) and "fill" (how much of its box it fills)."""
+    "uni" (the cover's grey spread) and "fill" (how much of its box it fills).
+    `cov`: the covered pixels known already (colour_cover's, the picture's size)."""
     th, tw = gray.shape
     if area.shape[0] < th or area.shape[1] < tw:
         return 0.0, 1.0
@@ -1069,6 +1119,13 @@ def cover_score(area: np.ndarray, gray: np.ndarray, mask: np.ndarray | None,
     m = np.ones(gray.shape, bool) if mask is None else mask.astype(bool)
     t = gray.astype(np.float64)
     a = area[y:y + th, x:x + tw].astype(np.float64)
+    if cov is not None:
+        use = m & ~cov
+        n = float(use.sum())
+        if info is not None:
+            info.update(cov=cov & m, plain=_ncc_masked(a, t, m.astype(np.float64)))
+        return (_ncc_masked(a, t, use.astype(np.float64)) if n >= 8 else 0.0,
+                1.0 - n / float(m.sum()))
     mu = _box_mean(a, COVER_K)
     flat = np.sqrt(np.maximum(_box_mean(a * a, COVER_K) - mu * mu, 0.0)) < COVER_FLAT
     if float((flat & m).sum()) < COVER_LEAST / 3 * float(m.sum()):
@@ -1936,6 +1993,15 @@ class Grabber:
         size, for the twin check (Watcher._twin). Copied now, a moment after the last
         grab: where something just moved it can differ, which can only lower a score
         for that check. None when it can't be copied."""
+        px = self._full(y0, y1, x0, x1)
+        return None if px is None else to_gray(px)
+
+    def full_rgb(self, y0: int, y1: int, x0: int, x1: int) -> np.ndarray | None:
+        """full_gray() in colour (frame_rgb)."""
+        px = self._full(y0, y1, x0, x1)
+        return None if px is None else frame_rgb(px)
+
+    def _full(self, y0: int, y1: int, x0: int, x1: int) -> np.ndarray | None:
         h, w = y1 - y0, x1 - x0
         if h < 2 or w < 2 or not self.screen_dc:
             return None
@@ -1959,7 +2025,7 @@ class Grabber:
                                 w, h, self.SRCCOPY):
                 return None
             buf = (ctypes.c_uint8 * (w * h * 4)).from_address(bits.value)
-            return to_gray(np.frombuffer(buf, np.uint8).reshape(h, w, 4))
+            return np.frombuffer(buf, np.uint8).reshape(h, w, 4).copy()
         finally:
             if old:
                 g.SelectObject(dc, old)
@@ -2356,6 +2422,15 @@ class DupGrabber:
         pixels, upright) at full size, for the twin check (Watcher._twin): read again
         from the staging texture, which still holds that frame. None when it can't be
         read."""
+        got = self._full(y0, y1, x0, x1)
+        return None if got is None else upright(frame_gray(*got), self.turns)
+
+    def full_rgb(self, y0: int, y1: int, x0: int, x1: int) -> np.ndarray | None:
+        """full_gray() in colour (frame_rgb)."""
+        got = self._full(y0, y1, x0, x1)
+        return None if got is None else upright(frame_rgb(*got), self.turns)
+
+    def _full(self, y0: int, y1: int, x0: int, x1: int) -> tuple | None:
         if not self.staging or self._mode is None or self.last is None:
             return None
         sw, sh = self._frame
@@ -2376,7 +2451,7 @@ class DupGrabber:
         finally:
             self.ctx.call(self.CTX_UNMAP, self.staging.p, 0, restype=None,
                           argtypes=(ctypes.c_void_p, ctypes.c_uint))
-        return upright(frame_gray(piece, fmt), self.turns)
+        return piece, fmt
 
     def close(self):
         for c in (self.staging, self.dup, self.output1, self.ctx, self.device):
@@ -2524,8 +2599,10 @@ class _Capture:
         # the twin check's last answer for each trigger's picture: (the picture, the
         # pixels it was laid on, score). The same pixels give the same answer (_twin)
         self.twins: dict[tuple, tuple[np.ndarray, bytes, float]] = {}
-        self.covers: dict[str, tuple] = {}  # (check last tried as covered on, found then)
+        self.covers: dict[str, bool] = {}  # found covered when last tried
         self.cover_left = 0               # ...and the tries left this check (COVER_PER_CHECK)
+        self.fresh_left = 0               # ...and about what just changed (COVER_FRESH)
+        self.colour_left = 0              # colour_cover's (COLOUR_PER_CHECK)
         self.turns: dict[str, int] = {}   # "any size": which picture each trigger sweeps next
         self.swept: dict[str, int] = {}   # ...and the check it last swept on (SWEEPERS)
         # "any size": changed patches still to look in at every size (HUNT_*):
@@ -3125,7 +3202,8 @@ class Watcher:
             hunt = self._hunts if self._hunts is not None else [HUNT_PER_CHECK]
             # those that swept longest ago are scored first, so they get the turns
             budget = self._sweeps if self._sweeps is not None else [SWEEPERS]
-            cap.cover_left = COVER_PER_CHECK
+            cap.cover_left, cap.fresh_left = COVER_PER_CHECK, COVER_FRESH
+            cap.colour_left = COLOUR_PER_CHECK
             for it in sorted(items, key=lambda i: cap.swept.get(i.id, -1)):
                 looks = cap.scaled.get(it.id)
                 got = memo.get(it.id) if same and it.id not in self._quiet else None
@@ -3240,6 +3318,7 @@ class Watcher:
                 return got
             raw = getattr(cap.grab, "raw", None)
             twin = Watcher._full_size(cap.grab)
+            rgb_cut = Watcher._full_rgb(cap.grab) if COLOUR_COVER and raw is not None else None
             near_ = it.threshold - TINT_NEAR
 
             def around(r: float, bx: tuple, p: Pattern) -> tuple[Frame, tuple] | None:
@@ -3262,6 +3341,11 @@ class Watcher:
                 if p.size[0] + 2 > y1 - y0 or p.size[1] + 2 > x1 - x0:
                     return None
                 return got
+
+            def fresh(b: tuple) -> bool:
+                """Whether box `b` overlaps a patch that changed this check."""
+                return any(h[1] == cap.checks and h[0][0] < b[1] and b[0] < h[0][1]
+                           and h[0][2] < b[3] and b[2] < h[0][3] for h in cap.hunts)
 
             def judge(p: Pattern, lk: Look, area: tuple | None = None,
                       fine: bool = False) -> tuple[float, tuple]:
@@ -3297,30 +3381,24 @@ class Watcher:
                     if r < 0.999:
                         b = tuple(round(v / r) for v in b)
                     if (COVER_ON and check and twin is not None and area is None
-                            and COVER_LOW <= sc < it.threshold
-                            and (cap.covers.get(it.id, (0, False))[1]
-                                 or (cap.cover_left > 0 and cap.checks
-                                     - cap.covers.get(it.id, (-COVER_EVERY, False))[0]
-                                     >= COVER_EVERY))):
-                        # partly covered? (cover_score): tried for a few places a check,
-                        # and every check for one found covered last time
-                        if not cap.covers.get(it.id, (0, False))[1]:
-                            cap.cover_left -= 1
-                        cap.covers[it.id] = (cap.checks, False)
-                        info: dict = {}
-                        cs, share = Watcher._cover(twin, b, lk, gray.shape, info)
-                        if (COVER_LEAST <= share <= COVER_MAX and cs >= COVER_SCORE
-                                and cs - info.get("plain", 1.0) >= COVER_GAIN
-                                and info.get("uni", 1.0) <= COVER_UNI
-                                and info.get("fill", 0.0) >= COVER_FILL):
-                            if Watcher._cover_tint(raw, b, lk, info["cov"]) >= 1.0:
-                                sc, covered = cs, True
-                                cap.covers[it.id] = (cap.checks, True)
+                            and COVER_LOW <= sc < it.threshold):
+                        cs = Watcher._grey_cover(cap, it.id, twin, raw, b, lk, gray.shape,
+                                                 fresh(b))
+                        if cs > 0.0:
+                            sc, covered = cs, True
                     if check and sc >= near_ and not covered:
                         f_ = Watcher._tint_factor(raw, b, lk.tint, lk.mask)
                         if f_ < 1.0 and lk.small_tint is not None:
                             f_ = max(f_, Watcher._tint_factor(raw, b, *lk.small_tint))
-                        sc *= f_
+                        grey, sc = sc, sc * f_
+                        if (grey >= it.threshold > sc and rgb_cut is not None
+                                and twin is not None and area is None and lk.rgb is not None):
+                            # its grey matches but not its colours: something flat in
+                            # another colour over part of it?
+                            cs = Watcher._colour_cover(cap, it.id, twin, rgb_cut, raw, b, lk,
+                                                       gray.shape, fresh(b))
+                            if cs >= it.threshold:
+                                sc, covered = cs, True
                     if twin is not None and sc >= it.threshold:
                         sc = min(sc, Watcher._twin(twin, b, lk, gray.shape,
                                                    cap.twins, it.id))
@@ -3499,6 +3577,51 @@ class Watcher:
         return score
 
     @staticmethod
+    def _cover_turn(cap: _Capture, fresh: bool) -> bool:
+        """Takes a cover try off this check's (COVER_PER_CHECK, COVER_FRESH): False
+        when none is left."""
+        if fresh and cap.fresh_left > 0:
+            cap.fresh_left -= 1
+        elif cap.cover_left > 0:
+            cap.cover_left -= 1
+        else:
+            return False
+        return True
+
+    @staticmethod
+    def _grey_cover(cap: _Capture, key: str, full: tuple, raw: tuple, box: tuple, lk: Look,
+                    shape: tuple[int, int], fresh: bool = False) -> float:
+        """The score of `lk` at `box` (y0, y1, x0, x1 in a frame of `shape`) partly
+        covered (_cover(), its rules: see COVER_*), or 0.0. Kept in `cap.twins` under
+        `key`, the picture and the box, as _twin() does; worked out for COVER_PER_CHECK
+        places a check (COVER_FRESH more where it just changed: `fresh`), and any for a
+        trigger found covered last time."""
+        cut, (fh, fw) = full
+        sy, sx = fh / shape[0], fw / shape[1]
+        y0, y1, x0, x1 = box
+        area = cut(max(0, round(y0 * sy)), min(fh, round(y1 * sy)),
+                   max(0, round(x0 * sx)), min(fw, round(x1 * sx)))
+        if area is None:
+            return 0.0
+        ck, px = ("cover", key, y1 - y0, x1 - x0), area.tobytes()
+        got = cap.twins.get(ck)
+        if got is not None and got[0] is lk.gray and got[1] == px:
+            return got[2]
+        if not cap.covers.get(key, False) and not Watcher._cover_turn(cap, fresh):
+            return 0.0
+        info: dict = {}
+        cs, share = Watcher._cover(full, box, lk, shape, info)
+        score = 0.0
+        if (COVER_LEAST <= share <= COVER_MAX and cs >= COVER_SCORE
+                and cs - info.get("plain", 1.0) >= COVER_GAIN
+                and info.get("uni", 1.0) <= COVER_UNI and info.get("fill", 0.0) >= COVER_FILL
+                and Watcher._cover_tint(raw, box, lk, info["cov"]) >= 1.0):
+            score = cs
+        cap.covers[key] = score > 0.0
+        cap.twins[ck] = (lk.gray, px, score)
+        return score
+
+    @staticmethod
     def _cover(full: tuple, box: tuple, lk: Look, shape: tuple[int, int],
                info: dict | None = None) -> tuple[float, float]:
         """cover_score() of `lk`'s picture, made the size of `box` (y0, y1, x0, x1 in a
@@ -3522,6 +3645,84 @@ class Watcher:
         if area is None:
             return 0.0, 1.0
         return cover_score(area, g, m, info)
+
+    @staticmethod
+    def _full_rgb(grab):
+        """cut(y0, y1, x0, x1) giving the colours (frame_rgb) of that box of `grab`'s
+        pixels at full size, as _full_size's gives its grey; None: it can't."""
+        full = getattr(grab, "full", None)
+        if full is not None:
+            return lambda y0, y1, x0, x1: frame_rgb(full[y0:y1, x0:x1])
+        cut = getattr(type(grab), "full_rgb", None)
+        return None if cut is None else cut.__get__(grab)
+
+    @staticmethod
+    def _colour_cover(cap: _Capture, key: str, full: tuple, rgb_cut, raw: tuple, box: tuple,
+                      lk: Look, shape: tuple[int, int], fresh: bool = False) -> float:
+        """The score of `lk` made the size of `box` (y0, y1, x0, x1 in a frame of
+        `shape`), on the capture's pixels at full size about there (`full`: _full_size's,
+        `rgb_cut`: _full_rgb's), with what colour_cover() finds covering it left out, if
+        that's one flat thing over COVER_LEAST..COVER_MAX of it, the rest scores
+        COVER_SCORE or more and its colours are the picture's (_cover_tint, on the
+        grab's own pixels `raw`); else 0.0. Kept in `cap.twins` under `key`, the
+        picture and the box, as _twin() does; worked out for COLOUR_PER_CHECK places a
+        check, or a cover try where it just changed (`fresh`, _cover_turn), at most
+        (0.0 for the rest)."""
+        cut, (fh, fw) = full
+        sy, sx = fh / shape[0], fw / shape[1]
+        y0, y1, x0, x1 = box
+        th, tw = lk.gray.shape
+        k = ((y1 - y0) * sy / th + (x1 - x0) * sx / tw) / 2
+        t = lk.rgb[..., :3].astype(np.float32) * (1 / 255)
+        g, mk = lk.gray, lk.mask
+        if abs(k - 1) >= 0.02:
+            g = resize(lk.gray, k)
+            mk = None if lk.mask is None else shrink_mask(lk.mask, k)
+            t = np.stack([resize(t[..., c], k) for c in range(3)], -1)
+        gh, gw = g.shape
+        if t.shape[:2] != (gh, gw):
+            return 0.0
+        pad = CONFIRM_PAD + 1
+        cy, cx = round((y0 + y1) * sy / 2 - gh / 2), round((x0 + x1) * sx / 2 - gw / 2)
+        b = (max(0, cy - pad), min(fh, cy + gh + pad), max(0, cx - pad), min(fw, cx + gw + pad))
+        area = cut(*b)
+        if area is None or area.shape[0] < gh or area.shape[1] < gw:
+            return 0.0
+        ck, px = ("colour", key, y1 - y0, x1 - x0), area.tobytes()
+        got = cap.twins.get(ck)
+        if got is not None and got[0] is lk.gray and got[1] == px:
+            return got[2]
+        if cap.colour_left > 0:
+            cap.colour_left -= 1
+        elif not (fresh and Watcher._cover_turn(cap, True)):
+            return 0.0
+        score = Watcher._colour_rest(area, rgb_cut(*b), raw, box, lk, g, mk, t)
+        cap.twins[ck] = (lk.gray, px, score)
+        return score
+
+    @staticmethod
+    def _colour_rest(area: np.ndarray, rgb: np.ndarray | None, raw: tuple, box: tuple,
+                     lk: Look, g: np.ndarray, mk: np.ndarray | None, t: np.ndarray) -> float:
+        """_colour_cover()'s work: `g`, `mk`, `t` the picture's grey, mask and colours
+        made the size it's matched at, `area` and `rgb` the screen's about there."""
+        gh, gw = g.shape
+        q = Pattern(g, mk)
+        if not q.ok:
+            return 0.0
+        if rgb is None or rgb.shape[:2] != area.shape:
+            return 0.0
+        _sc, (x, y) = _ncc_at(area, q)
+        m = np.ones((gh, gw), bool) if mk is None else mk.astype(bool)
+        cov, info = colour_cover(rgb[y:y + gh, x:x + gw].astype(np.float64),
+                                 t.astype(np.float64), m)
+        share = float(cov.sum()) / max(1.0, float(m.sum()))
+        if not (COVER_LEAST <= share <= COVER_MAX and info["uni"] <= COVER_UNI
+                and info["fill"] >= COVER_FILL):
+            return 0.0
+        cs, _share = cover_score(area, g, mk, None, cov)
+        if cs < COVER_SCORE or Watcher._cover_tint(raw, box, lk, cov) < 1.0:
+            return 0.0
+        return cs
 
     @staticmethod
     def _cover_tint(raw: tuple, box: tuple, lk: Look, cov: np.ndarray) -> float:
