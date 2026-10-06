@@ -1,6 +1,8 @@
 # Builds Onion Watch for PCs without Python:
 #   dist\OnionWatch\OnionWatch.exe   (one folder)
 #   dist\OnionWatch-Installer.exe     (the one file to give people)
+#   dist\OnionWatch-Update.exe        (the same file, for the app's Update now to fetch,
+#                                      so GitHub's counts tell updates from downloads)
 #   dist\OnionWatch-module.zip        (the Onion Board add-on, see scripts\build_module.py)
 #
 # Needs the dev tools once:  .venv\Scripts\pip install -r requirements-dev.txt
@@ -87,6 +89,7 @@ if (-not $iscc) {
 $version = & $py -c "import onionwatch; print(onionwatch.__version__)"
 & $iscc /Q "/DAppVersion=$version" installer\OnionWatch.iss
 if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed" }
+Copy-Item dist\OnionWatch-Installer.exe dist\OnionWatch-Update.exe -Force
 Write-Host "Built dist\OnionWatch-Installer.exe - that's the one file to give people." -ForegroundColor Green
 
 # -Scan: VirusTotal (scripts\vt_scan.py, needs VT_API_KEY); the line for the release notes

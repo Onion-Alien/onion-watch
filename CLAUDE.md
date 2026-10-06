@@ -15,8 +15,11 @@ Like Onion Board, everything here is published, history included:
 - **Never add audio files, binaries, third-party assets or real game
   screenshots.** Alert sounds and tests synthesize audio with numpy; icons, the
   logo and the screenshots' made-up game are drawn in code.
-- The app makes no network requests. Adding one needs a line in `SECURITY.md`
-  and the author's say-so. No telemetry.
+- The app goes online for two things only, both switchable in Settings: the daily
+  update check (`updates.py`) and the anonymous usage count (`usage.py`, the same
+  GoatCounter as Onion Board, paths under `onion-watch/`). Adding anything else
+  needs a line in `SECURITY.md` and the author's say-so. Neither runs inside Onion
+  Board, and the count never carries triggers, pictures, windows or games.
 - **It only looks.** Never add anything that sends input to a game (keys, clicks,
   mouse), reads or writes another process's memory, or injects into one. That
   promise is what keeps the app clear of game rules. Suggest it in chat instead,
