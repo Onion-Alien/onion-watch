@@ -514,6 +514,7 @@ def test_a_big_changed_patch_is_hunted_over_several_checks_nearest_sizes_first(m
     monkeypatch.setattr(sw, "HUNT_PER_CHECK", round(len(sw.HUNT_SIZES) / sw.HUNT_SMALL / 2))
     tried = []
     lk = SimpleNamespace(gray=np.zeros((40, 40), np.float32), scale=1.0, ratio=1.0, pats=[],
+                         hunt_sizes=sw.HUNT_SIZES, lo=sw.SIZES[0], hi=sw.SIZES[1],
                          hunt_pattern=lambda g: SimpleNamespace(ok=True),
                          keep=lambda *_a: None)
     it = SimpleNamespace(id="t", threshold=0.8)

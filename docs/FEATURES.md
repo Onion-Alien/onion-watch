@@ -20,6 +20,12 @@ The full list. The [README](../README.md) has the short version.
   windows) so you can drag a box around the thing to watch for. The **Add** menu
   next to it makes one from a picture file, from a picture you copied with
   Win+Shift+S, or without a picture.
+- **Pictures from the web.** Never seen the thing in the game yet? Use a picture
+  from a web search: save it and add the file, right-click it → Copy image and
+  paste it, or drag it from the browser onto a trigger. Such a picture doesn't say
+  how big the game draws the thing, so it's shrunk to fit the window and searched
+  for at every size, from a few dozen pixels up. It only works if the game draws it
+  the way the picture shows it: once you've seen it in the game, cut it from there.
 - **Ring until you're back.** An alarm keeps playing until you are: until the
   game moves (it waits for the screen to settle first, so a fade-in doesn't count),
   until you switch to the game, until the thing is gone, until you touch the mouse

@@ -102,6 +102,12 @@ SOFT_MASK_MIN = 400
 # so sizes that close count as one. The sweep steps SWEEP_STEP apart, and a step
 # scoring within PROMISING of the threshold is tried again either side of it.
 SIZES = (0.5, 2.0)
+# A picture that wasn't cut from the game (a file from the web: `Watched.wide`) says
+# nothing about the size it's drawn at, so it's swept from WIDE_SIZES[0] to
+# WIDE_SIZES[1] times its own size instead, "any size" or not. It's shrunk when it's
+# added to fit well inside what's watched (the UI's WEB_FILL), so the low end reaches
+# an icon a few dozen pixels high
+WIDE_SIZES = (0.04, 2.0)
 SAME = 0.025
 SWEEP_STEP = 1.06
 SWEEP_PER_CHECK = 2     # sizes a trigger sweeps on its turn
@@ -1403,24 +1409,35 @@ def tint_factor(gap: float) -> float:
 # the box itself, then a pixel off each way (Watcher._tint_factor)
 _NEAR_FIRST = [(0, 0)] + [(dy, dx) for dy in (-1, 0, 1) for dx in (-1, 0, 1) if dy or dx]
 
+
+def _steps(lo: float, hi: float, every: int = 1) -> list[float]:
+    """The sweep's sizes from `lo` to `hi` (every `every`-th one)."""
+    return [f for f in (SWEEP_STEP ** i for i in range(-80, 81, every)) if lo <= f <= hi]
+
+
 # nearest the size it was cut at first: small changes are the likeliest
-SWEEP = sorted((f for f in (SWEEP_STEP ** i for i in range(-40, 41)) if SIZES[0] <= f <= SIZES[1]),
-               key=lambda f: abs(math.log(f)))
+SWEEP = sorted(_steps(*SIZES), key=lambda f: abs(math.log(f)))
+# ...a picture from the web is far likelier to be drawn smaller than it is than bigger
+WIDE_SWEEP = sorted(_steps(*WIDE_SIZES), key=lambda f: abs(math.log(f)) * (3 if f > 1 else 1))
 # a hunt's first pass (HUNT_*): every other sweep size, the one it was cut at left out
-HUNT_SIZES = [f for f in (SWEEP_STEP ** i for i in range(-40, 41, 2))
-              if SIZES[0] <= f <= SIZES[1] and not near(f, 1.0)]
+HUNT_SIZES = [f for f in _steps(*SIZES, 2) if not near(f, 1.0)]
+WIDE_HUNT_SIZES = [f for f in _steps(*WIDE_SIZES, 2) if not near(f, 1.0)]
 
 
 class Look:
     """One picture as a capture looks for it: a Pattern for each size it's looked for
     every check (`pats`: the size it was cut at first, then with "any size" the sizes
     sizes_for() predicts and ones the sweep found), and with "any size" the sweep's
-    place (`todo`, the sizes left to try, and `next`)."""
+    place (`todo`, the sizes left to try, and `next`). A `wide` one (its size on
+    screen unknown) is looked for between WIDE_SIZES rather than SIZES."""
 
     def __init__(self, gray: np.ndarray, mask: np.ndarray | None, scale: float,
                  sizes: list[float], sweep: bool, found: list[float] = (),
-                 tint: np.ndarray | None = None, ratio: float = 1.0, coarse: float = 1.0):
+                 tint: np.ndarray | None = None, ratio: float = 1.0, coarse: float = 1.0,
+                 wide: bool = False):
         self.gray, self.mask, self.scale = gray, mask, scale
+        self.lo, self.hi = WIDE_SIZES if wide else SIZES
+        self.hunt_sizes = WIDE_HUNT_SIZES if wide else HUNT_SIZES
         # the frame it's matched on: the capture's, shrunk by this (see Watcher._fit);
         # and for a picture too small for the usual size, that frame shrunk to the
         # usual size is this much smaller (< 1: its stand-in is found there, PROXY_MIN)
@@ -1435,7 +1452,7 @@ class Look:
         self._hunted: dict[float, Pattern] = {}  # hunt_pattern()'s
         for f in sizes:
             self._add(f)
-        self.todo = SWEEP if sweep else []
+        self.todo = (WIDE_SWEEP if wide else SWEEP) if sweep else []
         self.next = 0
         for f in found:
             self.keep(f)
@@ -1486,7 +1503,7 @@ class Look:
         return pat
 
     def _add(self, f: float, p: Pattern | None = None) -> bool:
-        if not SIZES[0] - 1e-9 <= f <= SIZES[1] + 1e-9 or any(near(f, g) for g, _p in self.pats):
+        if not self.lo - 1e-9 <= f <= self.hi + 1e-9 or any(near(f, g) for g, _p in self.pats):
             return False
         self.pats.append((f, p or self.pattern(f)))
         self.changes += 1
@@ -2400,7 +2417,9 @@ class Watched:
     screens and windows (empty: the default), `source` the one place older code
     gives. Each place has its own Gate, so two game windows showing the same thing
     each go off once. With `any_size` its pictures are looked for at other sizes too
-    (see Look); `cuts` holds the (w, h) each picture was cut from, or None. `tints`,
+    (see Look); `cuts` holds the (w, h) each picture was cut from, or None, and
+    `wide` which ones weren't cut from the game at all (a file from the web), so are
+    looked for over WIDE_SIZES, "any size" or not. `tints`,
     when given, has a place's colours checked too before it counts (see TINT_OK)."""
     id: str
     pictures: list[Picture]
@@ -2416,6 +2435,7 @@ class Watched:
     unfocused: bool = False
     any_size: bool = False
     cuts: list = field(default_factory=list)
+    wide: list = field(default_factory=list)        # each picture's: its size unknown
     tints: list = field(default_factory=list)       # each picture's tint(), or None
     # each picture's own colours (uint8 RGB, its size), or None: when given, its
     # colours are also taken at the size the capture is matched at (see tint_at)
@@ -2440,9 +2460,20 @@ class Watched:
     def cut(self, i: int) -> tuple[int, int] | None:
         return self.cuts[i] if i < len(self.cuts) else None
 
+    def is_wide(self, i: int) -> bool:
+        return i < len(self.wide) and bool(self.wide[i])
+
+    def sweeps(self, i: int) -> bool:
+        """Picture `i` is looked for at other sizes than its own."""
+        return self.any_size or self.is_wide(i)
+
+    @property
+    def sweeping(self) -> bool:
+        return self.any_size or any(self.wide[:len(self.pictures)])
+
     def sizes(self, i: int, now: tuple[int, int]) -> list[float]:
         """The sizes picture `i` is looked for at every check in something `now` big."""
-        return sizes_for(self.cut(i), now) if self.any_size else [1.0]
+        return sizes_for(self.cut(i), now) if self.sweeps(i) else [1.0]
 
     def sides_at(self, now: tuple[int, int]) -> list[int]:
         """Each picture's short side at the smallest size it's looked for at every
@@ -3043,11 +3074,13 @@ class Watcher:
             looks = []
             for k, (g, m) in enumerate(i.pictures):
                 found = ([f * ratio for f in before[k].found]
-                         if i.any_size and k < len(before) and isinstance(before[k], Look) else [])
+                         if i.sweeps(k) and k < len(before) and isinstance(before[k], Look)
+                         else [])
                 sizes = i.sizes(k, (sw, sh))
                 at = base if min(g.shape) * min(sizes) * base >= FINE_SIDE else scale
-                look = Look(g, m, at, sizes, i.any_size, found,
-                            i.tints[k] if k < len(i.tints) else None, at / scale, base / at)
+                look = Look(g, m, at, sizes, i.sweeps(k), found,
+                            i.tints[k] if k < len(i.tints) else None, at / scale, base / at,
+                            wide=i.is_wide(k))
                 rgb = i.colours[k] if k < len(i.colours) else None
                 if rgb is not None and rgb.shape[:2] == g.shape:
                     look.small_tint = tint_at(rgb, m, scale)
@@ -3083,7 +3116,7 @@ class Watcher:
                     and (colour is None or np.array_equal(last[1], colour)))
             memo, cap.memo = cap.memo, {}
             if last is not None and not same and last[0].shape == gray.shape:
-                ids = [i.id for i in items if i.any_size and i.uses_pictures]
+                ids = [i.id for i in items if i.sweeping and i.uses_pictures]
                 if ids:
                     for bx in changed_boxes(last[0], gray)[:HUNT_BOXES]:
                         cap.hunts.append([bx, cap.checks, list(ids), {}])
@@ -3313,7 +3346,7 @@ class Watcher:
                         if sc > best:
                             best, at = sc, b
             cap.memo[it.id] = (it, cap.scaled.get(it.id), stamp, (best, at))
-            if (best < max(it.threshold, SWEEP_DONE) and it.any_size
+            if (best < max(it.threshold, SWEEP_DONE) and it.sweeping
                     and (budget is None or budget[0] > 0)):
                 if budget is not None:
                     budget[0] -= 1
@@ -3322,7 +3355,7 @@ class Watcher:
                                        lambda lk: level(lk.ratio)[0].shape, best)
                 if sc > best:
                     best, at = sc, b
-            if (it.any_size and best < it.threshold and cap.hunts
+            if (it.sweeping and best < it.threshold and cap.hunts
                     and (hunt is None or hunt[0] > 0)):
                 sc, b = Watcher._hunt(cap, it, looks, judge, best, hunt)
                 if sc > best:
@@ -3557,7 +3590,7 @@ class Watcher:
             # a thing that turned up there fits in the patch (with some room for the
             # scenery cut with it): sizes too big for it can't be what changed
             y0, y1, x0, x1 = h[0]
-            todo = [(lk, f) for lk in looks for f in HUNT_SIZES
+            todo = [(lk, f) for lk in looks for f in lk.hunt_sizes
                     if min(lk.gray.shape) * lk.scale * f >= SWEEP_MIN_SIDE
                     and lk.gray.shape[0] * lk.scale * f
                     <= ((y1 - y0) * HUNT_FITS + 2 * HUNT_CELL) * lk.ratio
@@ -3591,7 +3624,7 @@ class Watcher:
 
                 def tri(g, fine=False, lk=lk, area=h[0]):
                     nonlocal best, kept, top
-                    if not SIZES[0] <= g <= SIZES[1] or any(near(g, q) for q, _p in lk.pats):
+                    if not lk.lo <= g <= lk.hi or any(near(g, q) for q, _p in lk.pats):
                         return 0.0
                     p = lk.hunt_pattern(g)
                     got = judge(p, lk, area, fine) if p.ok else (0.0, None)
