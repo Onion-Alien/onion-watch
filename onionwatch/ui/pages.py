@@ -1,7 +1,8 @@
 """The triggers page as both hosts show it: a Triggers / Log tab row over the
 triggers (TriggersTab) or the log of what went off (history.HistoryView), and
 under both the Playing now bar: each trigger whose sound is still going, with its
-own Stop, and Stop all."""
+own Stop, and Stop all; and the Chances button (ui.chances), unless it's switched
+off in Watching settings."""
 from __future__ import annotations
 
 from PySide6.QtCore import QTimer
@@ -9,7 +10,7 @@ from PySide6.QtWidgets import (QFrame, QHBoxLayout, QLabel, QPushButton, QStacke
                                QTabBar, QVBoxLayout, QWidget)
 
 from onionwatch import theme
-from onionwatch.ui import icons
+from onionwatch.ui import chances, icons
 from onionwatch.ui.history import HistoryView
 
 CHECK_MS = 400          # how often the bar looks whether a sound has ended
@@ -35,6 +36,14 @@ class PlayingBar(QFrame):
         self.chips.setSpacing(6)
         h.addLayout(self.chips)
         h.addStretch(1)
+        self.btn_chances = QPushButton("Chances")
+        self.btn_chances.setToolTip("Live chances: how close every trigger is to going "
+                                    "off, right now")
+        icons.set_icon(self.btn_chances, "gauge")
+        self.btn_chances.clicked.connect(self.open_chances)
+        h.addWidget(self.btn_chances)
+        self.chances: chances.ChancesDialog | None = None
+        self.show_chances_button()
         self.btn_stop_all = QPushButton("Stop all")
         self.btn_stop_all.setToolTip("Stop every trigger's sound now (and any still "
                                      "waiting out its wait)")
@@ -82,6 +91,24 @@ class PlayingBar(QFrame):
             more.setObjectName("muted")
             self.chips.addWidget(more)
         self.btn_stop_all.setEnabled(bool(now))
+
+    def show_chances_button(self):
+        """Show or hide the Chances button as Watching settings say."""
+        self.btn_chances.setVisible(chances.show_button(self.panel.host))
+
+    def open_chances(self):
+        """The Live chances window (one; brought to the front if it's open)."""
+        if self.chances is None:
+            self.chances = chances.ChancesDialog(self.panel, self.window())
+            self.chances.finished.connect(self._chances_closed)
+        self.chances.show()
+        self.chances.raise_()
+        self.chances.activateWindow()
+
+    def _chances_closed(self, _r=0):
+        if self.chances is not None:
+            self.chances.deleteLater()
+            self.chances = None
 
     def stop_all(self):
         self.panel.stop_all_playing()
