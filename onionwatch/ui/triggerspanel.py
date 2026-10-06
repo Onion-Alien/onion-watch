@@ -142,6 +142,9 @@ def hit_image(hit: screenwatch.Hit) -> QImage:
         img = QImage(f.data, w, h, w * 3, QImage.Format_RGB888).copy()
     else:
         img = QImage(f.data, w, h, w, QImage.Format_Grayscale8).copy()
+    if w > screenwatch.LOG_PICTURE_W:       # kept small: 50 of them stay in memory
+        img = img.scaledToWidth(screenwatch.LOG_PICTURE_W, Qt.SmoothTransformation)
+        w, h = img.width(), img.height()
     img = img.convertToFormat(QImage.Format_RGB32)
     x, y, bw, bh = hit.box
     p = QPainter(img)
@@ -2178,6 +2181,7 @@ class TriggersTab(QWidget):
                                   else screenwatch.CPU_SHARE)
         most = s.get("max_detect", "off")
         self.watcher.max_detect = most if most in screenwatch.MAX_DETECTS else "off"
+        self.watcher.color_hits = s.get("color_log") is not False
         self.watcher.default = self._saved_default()
 
         v = QVBoxLayout(self)
@@ -3341,6 +3345,12 @@ class TriggersTab(QWidget):
         processor share stays as picked, for when it's off (and older versions)."""
         self.watcher.max_detect = how
         self.host.screen["max_detect"] = how
+        self.host.save()
+
+    def set_color_log(self, on: bool):
+        """The Log's pictures in colour (on) or grey, kept as "color_log"."""
+        self.watcher.color_hits = on
+        self.host.screen["color_log"] = on
         self.host.save()
 
     def watching_text(self) -> str:

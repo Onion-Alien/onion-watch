@@ -1,16 +1,16 @@
 """Watching settings, behind the cog on the Triggers bar: how often triggers left on
 "Default" are checked (screenwatch.INTERVALS_MS; each card can pick its own), how much
 of the processor watching may use (screenwatch.CPU_SHARES), "Max detection"
-(screenwatch.MAX_DETECTS), and how often each trigger is being checked right now. A
-change applies at once and is kept in the host's screen settings ("interval_ms",
-"cpu_share", "max_detect"), so the same choice holds in Onion Watch and in Onion
-Board's Triggers tab. "max_detect" is a key of its own: a version without it keeps
-reading "cpu_share" as before."""
+(screenwatch.MAX_DETECTS), whether the Log's pictures are in colour, and how often each
+trigger is being checked right now. A change applies at once and is kept in the host's
+screen settings ("interval_ms", "cpu_share", "max_detect", "color_log"), so the same
+choice holds in Onion Watch and in Onion Board's Triggers tab. "max_detect" is a key
+of its own: a version without it keeps reading "cpu_share" as before."""
 from __future__ import annotations
 
 from PySide6.QtCore import QTimer
-from PySide6.QtWidgets import (QButtonGroup, QComboBox, QDialog, QDialogButtonBox, QHBoxLayout,
-                               QLabel, QRadioButton, QVBoxLayout)
+from PySide6.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QDialog, QDialogButtonBox,
+                               QHBoxLayout, QLabel, QRadioButton, QVBoxLayout)
 
 from onionwatch import screenwatch
 from onionwatch.ui.panel import card, hint_label
@@ -107,6 +107,16 @@ class WatchingDialog(QDialog):
             bv.addWidget(hint)
         (self.max_radios.get(panel.watcher.max_detect) or self.max_radios["off"]).setChecked(True)
         self.max_group.idToggled.connect(self._picked_max)
+        v.addWidget(box)
+        box, bv = card("LOG PICTURES", "Each alert in the Log shows the window as it was "
+                       "when the trigger went off.")
+        self.color_log = QCheckBox("In colour")
+        self.color_log.setChecked(panel.watcher.color_hits)
+        self.color_log.setToolTip("Off: black and white. Either way it's the picture "
+                                  "watching already took, copied only when a trigger goes "
+                                  "off, so it doesn't slow watching down")
+        self.color_log.toggled.connect(panel.set_color_log)
+        bv.addWidget(self.color_log)
         v.addWidget(box)
         box, bv = card("RIGHT NOW")
         self.now = QLabel()

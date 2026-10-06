@@ -77,3 +77,26 @@ def test_the_log_page_follows_what_went_off(make, tmp_path):  # noqa: F811
     pages.log.save(str(out))
     assert "Rare spawn: showed up in Game, 93%" in out.read_text(encoding="utf-8")
     pages.deleteLater()
+
+
+def test_log_pictures_are_small_colour_copies_of_the_grab():
+    import numpy as np
+    from onionwatch import screenwatch as sw
+    px = np.zeros((1080, 1920, 4), np.uint8)
+    px[..., 2] = 200                                   # BGRA: red
+    out = sw.log_rgb((px, sw.FMT_BGRA8, 2))
+    assert out.shape == (270, 480, 3) and out.dtype == np.uint8
+    assert tuple(out[0, 0]) == (200, 0, 0)
+    assert sw.log_rgb(None) is None
+
+
+def test_colour_log_pictures_can_be_switched_off_and_stay_so(make, qapp):  # noqa: F811
+    from onionwatch.ui.watching import WatchingDialog
+    tab = make({"triggers": [raw(1)]})
+    assert tab.watcher.color_hits                     # on by default
+    dlg = WatchingDialog(tab)
+    dlg.color_log.setChecked(False)
+    assert not tab.watcher.color_hits and tab.host.screen["color_log"] is False
+    dlg.reject()
+    again = make(dict(tab.host.screen))
+    assert not again.watcher.color_hits
