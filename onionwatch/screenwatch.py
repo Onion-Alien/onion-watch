@@ -1108,8 +1108,8 @@ def colour_cover(a: np.ndarray, t: np.ndarray, m: np.ndarray) -> tuple[np.ndarra
 # MATCH_REL of its grey range of the edges' grey (thing_mask), MATCH_LEAST..MATCH_MOST
 # of it. The thing and MATCH_RING px round it must match sharp (MATCH_SHAPE: grey that
 # matched shrunk but not at full size is scenery that looks alike softened), MATCH_KEPT
-# of the thing must have the picture's grey there (light fitted), and its colour, the
-# light fitted as tint_gap does, be off the picture's by MATCH_CRES or less on average.
+# of the thing must have the picture's grey there (light fitted), and its colour (each
+# pixel's off its grey) be off the picture's by MATCH_CRES or less on average.
 # A blue skull where a red one was cut is off on the skull itself.
 MATCH_REL = 0.45
 MATCH_LEAST = 0.03
@@ -1185,11 +1185,11 @@ def matched_colour(a: np.ndarray, rgb: np.ndarray, g: np.ndarray, t: np.ndarray
     k = int(ok.sum())
     if k < 8:
         return share, fit, k / n, 1.0
+    # colour, not brightness: each pixel's colour off its grey, the grey's gain allowed
+    # (not a shift per channel, as tint_gap's: a one-colour thing would lose all of
+    # its colour to that, and a scene tinted as a whole passes the colour check anyway)
     tt, cc = t[ok].astype(np.float64), rgb[ok].astype(np.float64)
-    T, C = tt - tt.mean(0), cc - cc.mean(0)
-    cg = max(float((T * C).sum()) / max(float((T * T).sum()), 1e-12), 0.0)
-    left = C - cg * T
-    left -= left.mean(-1, keepdims=True)                 # colour, not brightness
+    left = (cc - cc.mean(-1, keepdims=True)) - gain * (tt - tt.mean(-1, keepdims=True))
     return share, fit, k / n, float(np.abs(left).sum(-1).mean())
 
 
