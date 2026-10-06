@@ -69,3 +69,26 @@ def test_a_narrow_window_opens_the_card_in_the_list_again(tab, qapp):
         qapp.processEvents()
     assert not tab.split and tab.editor is None and tab.editor_scroll.isHidden()
     assert picked.is_open and not picked.selected        # it opens where it is
+
+
+def test_a_trigger_moved_to_another_category_stays_picked(tab, qapp):
+    first, _second = two(tab)
+    tab.new_category("Raids")
+    wide(tab, qapp)
+    first.set_open(True)
+    ed = tab.editor
+    ed.cb_category.setCurrentIndex(ed.cb_category.findData("Raids"))
+    ed.cb_category.activated.emit(ed.cb_category.currentIndex())
+    tile = tab.rows[first.t.id]         # a new card, in Raids
+    assert tile.selected and tab.editor.t is first.t
+    assert tab.editor.cb_category.currentData() == "Raids"
+
+
+def test_a_duplicate_is_picked_in_the_editor(tab, qapp):
+    first, _second = two(tab)
+    wide(tab, qapp)
+    first.set_open(True)
+    tab.editor.act_dup.trigger()
+    copy = tab.editor.t
+    assert copy is not first.t and copy.name.endswith("(copy)")
+    assert tab.rows[copy.id].selected and not tab.rows[first.t.id].selected

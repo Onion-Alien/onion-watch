@@ -2659,6 +2659,8 @@ class TriggersTab(QWidget):
                 r.chk_on.setChecked(t.enabled)
                 r.chk_on.blockSignals(False)
             r.refresh_pictures()
+        if ed.cb_category.currentData() != t.category:     # moved by its tile, a drag...
+            ed.set_categories(self.groups.names())
         if tile is not None:
             tile.set_sounds(self.host.sounds())
             tile._show_mode()
@@ -3984,7 +3986,10 @@ class TriggersTab(QWidget):
         if not sec.is_open:
             self._set_open(sec, True)
         self._build(sec, need=t)
-        return self.rows.get(t.id) or self._place_row(t, sec, open_)
+        row = self.rows.get(t.id) or self._place_row(t, sec, open_)
+        if open_ and self.split:        # (its card may have been made closed, with others)
+            self._select(row)
+        return row
 
     def _make_row(self, t: Trigger, open_: bool, parent: QWidget | None = None) -> TriggerRow:
         """A card for `t`, opened unless `open_` is false (the cards made for the
@@ -4002,6 +4007,8 @@ class TriggersTab(QWidget):
             row.on_open = self._select
             if open_:
                 self._select(row)
+            elif self.editor is not None and self.editor.t is t:
+                row.set_selected(True)      # made again (moved, found by a search...)
         return row
 
     def _wire(self, row: TriggerRow):
