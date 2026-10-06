@@ -28,6 +28,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from onionwatch import screenwatch
+from onionwatch.i18n import _
 
 TOL = 12            # a channel moving more than this (of 255) counts as a change
 MIN_FRAMES = 3      # frames after the cut needed to learn anything
@@ -75,7 +76,7 @@ def _flood(px: np.ndarray, out: np.ndarray, allowed: np.ndarray, tol: int, drift
     """Spread `out` (in place) through `allowed` pixels to neighbours within `tol` of
     the one spreading and within `drift` of the pixel the spread started from."""
     seed = px.copy()
-    for _ in range(sum(px.shape[:2])):
+    for __ in range(sum(px.shape[:2])):
         before = int(out.sum())
         for a, b, sa, sb, ea, eb, la, lb in (
                 (px[1:], px[:-1], out[1:], out[:-1], seed[1:], seed[:-1],
@@ -107,7 +108,7 @@ def _grow(px: np.ndarray, scenery: np.ndarray) -> np.ndarray:
     edge[0], edge[-1], edge[:, 0], edge[:, -1] = True, True, True, True
     joined = _flood(px, scenery & edge, scenery, 255, 255)
     solid = joined.copy()        # not its rim: a thing's soft outline flickers there
-    for _ in range(GROW_SOLID):
+    for __ in range(GROW_SOLID):
         s = solid.copy()
         s[1:] &= solid[:-1]
         s[:-1] &= solid[1:]
@@ -303,13 +304,18 @@ def notes(f: Fit, threshold: float, what: str = "window") -> list[str]:
     (`f`), for a trigger going off at `threshold`."""
     out = []
     if f.here < threshold:
-        out.append(f"While you were cutting it, it didn't always match itself where it "
-                   f"was ({f.here:.0%}, it needs {threshold:.0%}), so it may be missed when "
-                   "the scene behind it changes. Cut tighter around it, with less scenery.")
+        out.append(_("While you were cutting it, it didn't always match itself where it "
+                     "was ({here:.0%}, it needs {need:.0%}), so it may be missed when the "
+                     "scene behind it changes. Cut tighter around it, with less scenery.",
+                     here=f.here, need=threshold))
     if f.away >= threshold - screenwatch.REARM_MARGIN:
-        out.append(f"Something else in the {what} looks a lot like it ({f.away:.0%}), so "
-                   "it may go off by mistake, or not get ready to go off again. Cut a "
-                   "piece with more of what makes it stand out.")
+        out.append(
+            _("Something else in the window looks a lot like it ({away:.0%}), so it may go "
+              "off by mistake, or not get ready to go off again. Cut a piece with more of "
+              "what makes it stand out.", away=f.away) if what == "window" else
+            _("Something else on the screen looks a lot like it ({away:.0%}), so it may go "
+              "off by mistake, or not get ready to go off again. Cut a piece with more of "
+              "what makes it stand out.", away=f.away))
     return out
 
 

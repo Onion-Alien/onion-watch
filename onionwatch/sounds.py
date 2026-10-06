@@ -17,6 +17,7 @@ from pathlib import Path
 import numpy as np
 
 from onionwatch import settings
+from onionwatch.i18n import _
 
 log = logging.getLogger(__name__)
 
@@ -89,11 +90,11 @@ def _rising() -> np.ndarray:
 
 
 BUILTINS: dict[str, tuple[str, object]] = {
-    "builtin:chime": ("Chime", _chime),
-    "builtin:ping": ("Ping", _ping),
-    "builtin:rising": ("Ready", _rising),
-    "builtin:bell": ("Bell", _bell),
-    "builtin:alarm": ("Alarm", _alarm),
+    "builtin:chime": (_("Chime"), _chime),
+    "builtin:ping": (_("Ping"), _ping),
+    "builtin:rising": (_("Ready"), _rising),
+    "builtin:bell": (_("Bell"), _bell),
+    "builtin:alarm": (_("Alarm"), _alarm),
 }
 DEFAULT_SOUND = "builtin:chime"
 
@@ -118,9 +119,10 @@ def decode(path: str | Path) -> np.ndarray:
         data, rate = sf.read(str(path), dtype="float32", always_2d=True,
                              frames=-1)
     except Exception as e:  # noqa: BLE001 - libsndfile raises its own types
-        raise OSError(f"{Path(path).name} couldn't be read as a sound ({e})") from e
+        raise OSError(_("{name} couldn't be read as a sound ({error})",
+                       name=Path(path).name, error=e)) from e
     if data.size == 0:
-        raise OSError(f"{Path(path).name} has no sound in it")
+        raise OSError(_("{name} has no sound in it", name=Path(path).name))
     data = data[: int(MAX_SECONDS * rate)]
     if data.shape[1] == 1:
         data = np.repeat(data, 2, axis=1)
@@ -155,7 +157,8 @@ class Library:
     def name(self, sid: str) -> str:
         if sid in BUILTINS:
             return BUILTINS[sid][0]
-        return next((e["name"] for e in self.entries if e["id"] == sid), "Removed sound")
+        return next((e["name"] for e in self.entries if e["id"] == sid),
+                    _("Removed sound"))
 
     def add_file(self, path: str | Path) -> str:
         """Copy a sound file in and list it; returns its id. A file already added (the

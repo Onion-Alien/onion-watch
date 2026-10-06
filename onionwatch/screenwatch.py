@@ -68,6 +68,7 @@ from dataclasses import asdict, dataclass, field
 
 import numpy as np
 
+from onionwatch import i18n
 from onionwatch.imgops import (binary_erosion, gaussian_filter, irfft2, next_fast_len, rfft2,
                               zoom_linear)
 
@@ -1754,7 +1755,7 @@ class Hit:
 
 def supported() -> tuple[bool, str]:
     if sys.platform != "win32":
-        return False, "Onion Watch only works on Windows."
+        return False, i18n._("Onion Watch only works on Windows.")
     return True, ""
 
 
@@ -1768,7 +1769,8 @@ class Monitor:
 
     @property
     def label(self) -> str:
-        return f"{self.width}×{self.height}" + ("  (main)" if self.primary else "")
+        return f"{self.width}×{self.height}" + ("  " + i18n._("(main)") if self.primary
+                                               else "")
 
 
 def monitors() -> list[Monitor]:

@@ -16,7 +16,8 @@ from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QFrame, QHBoxLayou
                                QPushButton, QScrollArea, QVBoxLayout, QWidget)
 
 from onionwatch import screenwatch, theme
-from onionwatch.ui import icons
+from onionwatch.ui import fit, icons
+from onionwatch.i18n import _
 
 POLL_MS = 150           # as often as the cards' scores refresh
 THUMB = QSize(64, 40)
@@ -26,8 +27,8 @@ SHOW_KEY = "show_chances"   # host.screen: the Chances button on the Playing now
 # the modes that go off when the score drops below the line, not above it
 BELOW = ("vanish", "still")
 
-WHAT = {"appear": "Shows up", "vanish": "Goes away", "change": "Changes",
-        "still": "Stays still", "colour": "Colour"}
+WHAT = {"appear": _("Shows up"), "vanish": _("Goes away"), "change": _("Changes"),
+        "still": _("Stays still"), "colour": _("Colour")}
 
 
 def goes_below(t) -> bool:
@@ -245,12 +246,13 @@ class ChancesDialog(QDialog):
     """Every trigger's chance right now, closest to going off first. Follows
     `panel` (a TriggersTab) every POLL_MS while it's open."""
 
-    SORTS = ["Closest to going off", "List order", "Name"]
+    SORTS = [_("Closest to going off"), _("List order"), _("Name")]
 
     def __init__(self, panel, parent=None):
         super().__init__(parent)
+        fit.watch(self)          # grows to fit its (translated) text
         self.panel = panel
-        self.setWindowTitle("Live chances")
+        self.setWindowTitle(_("Live chances"))
         self.setMinimumSize(460, 420)
         self.resize(560, 560)
         v = QVBoxLayout(self)
@@ -263,10 +265,10 @@ class ChancesDialog(QDialog):
         head.addWidget(badge)
         words = QVBoxLayout()
         words.setSpacing(0)
-        title = QLabel("Live chances")
+        title = QLabel(_("Live chances"))
         title.setStyleSheet("font-size:14pt; font-weight:700; background:transparent;")
-        sub = QLabel("How sure Onion Watch is, right now, that each trigger's picture "
-                     "is on screen. The tick on each bar is where it goes off.")
+        sub = QLabel(_("How sure Onion Watch is, right now, that each trigger's picture is on "
+                       "screen. The tick on each bar is where it goes off."))
         sub.setObjectName("muted")
         sub.setWordWrap(True)
         words.addWidget(title)
@@ -284,14 +286,14 @@ class ChancesDialog(QDialog):
         v.addLayout(stats)
 
         tools = QHBoxLayout()
-        tools.addWidget(QLabel("Sort:"))
+        tools.addWidget(QLabel(_("Sort:")))
         self.sort = QComboBox()
         self.sort.addItems(self.SORTS)
-        self.sort.setAccessibleName("Sort the triggers")
+        self.sort.setAccessibleName(_("Sort the triggers"))
         self.sort.currentIndexChanged.connect(lambda _i: self.refresh(force=True))
         tools.addWidget(self.sort)
         tools.addStretch(1)
-        self.show_off = QCheckBox("Show ones that are off")
+        self.show_off = QCheckBox(_("Show ones that are off"))
         self.show_off.toggled.connect(lambda _on: self.refresh(force=True))
         tools.addWidget(self.show_off)
         v.addLayout(tools)
@@ -318,7 +320,7 @@ class ChancesDialog(QDialog):
         self.foot = QLabel()
         self.foot.setObjectName("muted")
         foot.addWidget(self.foot, 1)
-        close = QPushButton("Close")
+        close = QPushButton(_("Close"))
         close.clicked.connect(self.accept)
         foot.addWidget(close)
         v.addLayout(foot)
@@ -363,19 +365,19 @@ class ChancesDialog(QDialog):
             hot = score is not None and screenwatch.verdict(
                 t.mode, score, t.number, t.below) is True
             if not on:
-                word, tone = "Off", ""
+                word, tone = _("Off"), ""
             elif not panel.ready(t) or not t.sounds:
-                word, tone = "Not set up", ""
+                word, tone = _("Not set up"), ""
             elif t.id in playing:
-                word, tone = "Playing", "ok"
+                word, tone = _("Playing"), "ok"
             elif not active:
-                word, tone = "Ready", ""
+                word, tone = _("Ready"), ""
             elif panel._first_note(w.where.get(t.id, ()))[0] is not None:
-                word, tone = "Waiting", "warn"
+                word, tone = _("Waiting"), "warn"
             elif cool.get(t.id, 0) > now:
-                word, tone = "Cooldown", "warn"
+                word, tone = _("Cooldown"), "warn"
             elif score is None:
-                word, tone = "Watching", "accent"
+                word, tone = _("Watching"), "accent"
             else:
                 word = f"{max(0, round(score * 100))}%"
                 tone = "ok" if hot else "accent"
@@ -430,19 +432,18 @@ class ChancesDialog(QDialog):
         def stat(n, what, colour):
             return (f'<span style="font-size:15pt; font-weight:700; color:{colour}">{n}</span>'
                     f'<br><span style="color:{muted}; font-size:8pt">{what}</span>')
-        self.stat_on.setText(stat(len(scored) if active else 0, "being checked",
+        self.stat_on.setText(stat(len(scored) if active else 0, _("being checked"),
                                   T.get("text", "#e6e8f0")))
-        self.stat_near.setText(stat(near, "close to the line", theme.status("warn")))
-        self.stat_hot.setText(stat(hot, "over the line now", theme.status("ok")))
+        self.stat_near.setText(stat(near, _("close to the line"), theme.status("warn")))
+        self.stat_hot.setText(stat(hot, _("over the line now"), theme.status("ok")))
         if not panel.triggers:
-            self.empty.setText("No triggers yet. Add one on the Triggers page.")
+            self.empty.setText(_("No triggers yet. Add one on the Triggers page."))
         elif not states:
-            self.empty.setText("Every trigger is off. Tick “Show ones that are off” to "
-                               "see them anyway.")
+            self.empty.setText(_("Every trigger is off. Tick “Show ones that are off” to see "
+                                 "them anyway."))
         else:
             self.empty.setText("")
         self.empty.setVisible(bool(self.empty.text()))
         self.scroll.setVisible(bool(states))
-        self.foot.setText("Watching: live, several times a second." if active else
-                          "Not watching right now: switch watching on to see the "
-                          "chances move.")
+        self.foot.setText(_("Watching: live, several times a second.") if active else
+                          _("Not watching right now: switch watching on to see the chances move."))

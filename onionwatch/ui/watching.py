@@ -14,38 +14,40 @@ from PySide6.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QDialog, QDia
 
 from onionwatch import screenwatch
 from onionwatch.ui.panel import card, hint_label
+from onionwatch.ui import fit
+from onionwatch.i18n import _
 
 # (share, name, what it means); the first is the default, screenwatch.CPU_SHARE
 CHOICES = [
-    (0.01, "Light — up to 1 %",
-     "Best while you play: your game keeps its frame rate. With a lot of pictures on, "
-     "each one is checked less often."),
-    (0.02, "Normal — up to 2 %",
-     "Checks about twice as often as Light when there's a lot to look for."),
-    (0.05, "Fast — up to 5 %",
-     "For dozens of pictures that must be noticed straight away."),
-    (0.0, "As fast as it can",
-     "No limit: checks each trigger as often as its check speed says, whatever it "
-     "costs. A busy game may lose frames."),
+    (0.01, _("Light — up to 1 %"),
+     _("Best while you play: your game keeps its frame rate. With a lot of pictures on, "
+       "each one is checked less often.")),
+    (0.02, _("Normal — up to 2 %"),
+     _("Checks about twice as often as Light when there's a lot to look for.")),
+    (0.05, _("Fast — up to 5 %"),
+     _("For dozens of pictures that must be noticed straight away.")),
+    (0.0, _("As fast as it can"),
+     _("No limit: checks each trigger as often as its check speed says, whatever it "
+       "costs. A busy game may lose frames.")),
 ]
 
 
 # (screenwatch.MAX_DETECTS value, name, what it means); the first is the default
 MAX_CHOICES = [
-    ("off", "Off",
-     "Keeps to the processor use above."),
-    ("away", "While I'm not in the game",
-     "All out only while none of the watched windows is in front and no fullscreen "
-     "window covers a watched screen. Back to the share above once you're in the game."),
-    ("always", "Always",
-     "No limit, and it searches much harder for pictures at other sizes. Can use a "
-     "whole processor core: a busy game may lose frames."),
+    ("off", _("Off"),
+     _("Keeps to the processor use above.")),
+    ("away", _("While I'm not in the game"),
+     _("All out only while none of the watched windows is in front and no fullscreen "
+       "window covers a watched screen. Back to the share above once you're in the game.")),
+    ("always", _("Always"),
+     _("No limit, and it searches much harder for pictures at other sizes. Can use a "
+       "whole processor core: a busy game may lose frames.")),
 ]
 
 
 def share_label(share: float) -> str:
     """"1 %", "5 %", or "no limit"."""
-    return "no limit" if share <= 0 else f"{share * 100:g} %"
+    return _("no limit") if share <= 0 else f"{share * 100:g} %"
 
 
 class WatchingDialog(QDialog):
@@ -53,32 +55,35 @@ class WatchingDialog(QDialog):
 
     def __init__(self, panel, parent=None):
         super().__init__(parent)
+        fit.watch(self)          # grows to fit its (translated) text
         self.panel = panel
-        self.setWindowTitle("Watching")
+        self.setWindowTitle(_("Watching"))
         self.setMinimumWidth(420)
         v = QVBoxLayout(self)
         v.setSpacing(10)
         from onionwatch.ui.triggerspanel import interval_label
-        box, bv = card("CHECK SPEED", "How often each trigger left on “Default” looks. "
-                       "A trigger can have its own speed: “Check every”, on its card.")
+        box, bv = card(_("CHECK SPEED"), _("How often each trigger left on “Default” looks. "
+                                   "A trigger can have its own speed: “Check every”, on its "
+                                   "card."))
         line = QHBoxLayout()
-        line.addWidget(QLabel("Default: every"))
+        line.addWidget(QLabel(_("Default: every")))
         self.speed = QComboBox()
-        self.speed.setAccessibleName("Default check speed")
+        self.speed.setAccessibleName(_("Default check speed"))
         for ms in screenwatch.INTERVALS_MS:
             self.speed.addItem(interval_label(ms), ms)
         self.speed.setCurrentIndex(max(0, self.speed.findData(panel.default_interval)))
-        self.speed.setToolTip("Faster notices sooner: 100 ms is a tenth of a second. "
-                              "Watching still keeps to the processor use below, so with a "
-                              "lot on it may check less often than this.")
+        self.speed.setToolTip(_("Faster notices sooner: 100 ms is a tenth of a second. Watching "
+                                "still keeps to the processor use below, so with a lot on it may "
+                                "check less often than this."))
         self.speed.currentIndexChanged.connect(self._picked_speed)
         line.addWidget(self.speed)
         line.addStretch(1)
         bv.addLayout(line)
         v.addWidget(box)
-        box, bv = card("PROCESSOR USE", "How much of your processor Onion Watch may use to "
-                       "look for your pictures. More lets it check each trigger sooner when "
-                       "a lot are on; less leaves more for your game.")
+        box, bv = card(_("PROCESSOR USE"), _("How much of your processor Onion Watch may use to "
+                                     "look for your pictures. More lets it check each trigger "
+                                     "sooner when a lot are on; less leaves more for your "
+                                     "game."))
         self.group = QButtonGroup(self)
         self.radios: dict[float, QRadioButton] = {}
         for i, (share, name, what) in enumerate(CHOICES):
@@ -93,8 +98,9 @@ class WatchingDialog(QDialog):
         (self.radios.get(current) or self.radios[screenwatch.CPU_SHARE]).setChecked(True)
         self.group.idToggled.connect(self._picked)
         v.addWidget(box)
-        box, bv = card("MAX DETECTION", "Look as hard as it can, for pictures shown "
-                       "bigger or smaller than they were cut too, whatever it costs.")
+        box, bv = card(_("MAX DETECTION"), _("Look as hard as it can, for pictures shown "
+                                     "bigger or smaller than they were cut too, whatever it "
+                                     "costs."))
         self.max_group = QButtonGroup(self)
         self.max_radios: dict[str, QRadioButton] = {}
         for i, (key, name, what) in enumerate(MAX_CHOICES):
@@ -108,25 +114,25 @@ class WatchingDialog(QDialog):
         (self.max_radios.get(panel.watcher.max_detect) or self.max_radios["off"]).setChecked(True)
         self.max_group.idToggled.connect(self._picked_max)
         v.addWidget(box)
-        box, bv = card("LOG PICTURES", "Each alert in the Log shows the window as it was "
-                       "when the trigger went off.")
-        self.color_log = QCheckBox("In colour")
+        box, bv = card(_("LOG PICTURES"), _("Each alert in the Log shows the window as it was "
+                                    "when the trigger went off."))
+        self.color_log = QCheckBox(_("In colour"))
         self.color_log.setChecked(panel.watcher.color_hits)
-        self.color_log.setToolTip("Off: black and white. Either way it's the picture "
-                                  "watching already took, copied only when a trigger goes "
-                                  "off, so it doesn't slow watching down")
+        self.color_log.setToolTip(_("Off: black and white. Either way it's the picture watching "
+                                    "already took, copied only when a trigger goes off, so it "
+                                    "doesn't slow watching down"))
         self.color_log.toggled.connect(panel.set_color_log)
         bv.addWidget(self.color_log)
         v.addWidget(box)
-        box, bv = card("LIVE CHANCES", "A Chances button on the bottom bar opens a "
-                       "window with every trigger's chance of going off, live.")
+        box, bv = card(_("LIVE CHANCES"), _("A Chances button on the bottom bar opens a "
+                                    "window with every trigger's chance of going off, live."))
         from onionwatch.ui import chances
-        self.show_chances = QCheckBox("Show the Chances button")
+        self.show_chances = QCheckBox(_("Show the Chances button"))
         self.show_chances.setChecked(chances.show_button(panel.host))
         self.show_chances.toggled.connect(panel.set_show_chances)
         bv.addWidget(self.show_chances)
         v.addWidget(box)
-        box, bv = card("RIGHT NOW")
+        box, bv = card(_("RIGHT NOW"))
         self.now = QLabel()
         self.now.setWordWrap(True)
         bv.addWidget(self.now)

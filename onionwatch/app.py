@@ -16,6 +16,22 @@ log = logging.getLogger(__name__)
 
 LOG_NAME = "onionwatch.log"
 TRAY_ARG = "--tray"      # start hidden in the tray
+RESTART_ARG = "--restart"   # started by Restart now: the old copy is still closing
+RESTART_WAIT_S = 15.0
+
+
+def restart() -> bool:
+    """Start Onion Watch again once this copy has quit (Settings' Restart now, after
+    the language changed). True if the new copy was started."""
+    from PySide6.QtCore import QProcess
+    frozen = getattr(sys, "frozen", False)
+    args = [a for a in sys.argv[1:] if a not in (TRAY_ARG, RESTART_ARG)]
+    if not frozen:      # pythonw.exe main.py
+        args.insert(0, os.path.abspath(sys.argv[0]))
+    ok = QProcess.startDetached(sys.executable, [*args, RESTART_ARG])
+    ok = ok[0] if isinstance(ok, tuple) else bool(ok)
+    log.info("restarting: %s", "started" if ok else "couldn't start the new copy")
+    return ok
 
 
 def setup_logging() -> None:
@@ -47,7 +63,16 @@ def selftest() -> int:
     for mod in ("numpy", "scipy.fft", "sounddevice", "soundfile", "soxr"):
         __import__(mod)
     _app = QApplication(sys.argv)   # noqa: F841 - kept alive while the imports run
-    from onionwatch import sounds, theme
+    from onionwatch import i18n, sounds, theme
+    langs = [code for code, _name in i18n.available()]
+    if len(langs) < 2:      # the catalogs didn't ship (onionwatch/lang)
+        print(f"FAIL: no language files in {i18n.LANG_DIR}", file=sys.stderr)
+        return 1
+    for code in langs:      # each one can be read
+        if i18n.set_language(code) != code:
+            print(f"FAIL: the {code} language file can't be read", file=sys.stderr)
+            return 1
+    i18n.set_language(i18n.ENGLISH)
     from onionwatch.ui import mainwindow, settingsdialog, snip, windowpicker  # noqa: F401
     theme.app_icon()
     sounds.Library([]).load(sounds.DEFAULT_SOUND)
@@ -84,6 +109,9 @@ def main():
     if "--usage-count" in sys.argv:
         sys.exit(set_usage_count(sys.argv))
     log.info("Onion Watch %s starting", __version__)
+    # the language first: text is made in it from here on, some of it as modules load
+    from onionwatch import i18n
+    i18n.startup(settings.APP_DIR)
     try:
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("OnionWatch.App")
     except Exception:  # noqa: BLE001
@@ -91,7 +119,8 @@ def main():
     app = QApplication(sys.argv)
     app.setApplicationName("Onion Watch")
     app.setQuitOnLastWindowClosed(False)     # the tray keeps it going
-    if not claim_single_instance():
+    i18n.translate_qt_buttons(app)
+    if not claim_single_instance(RESTART_WAIT_S if RESTART_ARG in sys.argv else 0.0):
         log.info("another Onion Watch is running; asked it to come to the front")
         sys.exit(0)
     holder = {}

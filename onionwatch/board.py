@@ -14,8 +14,9 @@ from __future__ import annotations
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QApplication, QVBoxLayout, QWidget
 
-from onionwatch import __version__, theme
+from onionwatch import __version__, i18n, theme
 from onionwatch.host import API_VERSION, missing
+from onionwatch.i18n import _
 
 
 class IncompatibleHost(RuntimeError):
@@ -26,14 +27,22 @@ def check(host) -> None:
     """Refuse a host this version can't run in, with a message for the user."""
     lacks = missing(host)
     if lacks:
-        raise IncompatibleHost(f"it isn't a triggers host (it has no {', '.join(lacks)})")
+        raise IncompatibleHost(_("it isn't a triggers host (it has no {names})",
+                                names=", ".join(lacks)))
     v = getattr(host, "api_version", 0)
     if not isinstance(v, int) or v < API_VERSION:
-        raise IncompatibleHost(f"this Onion Watch ({__version__}) needs a newer "
-                               f"{getattr(host, 'name', 'host')}: update it first")
+        raise IncompatibleHost(_("this Onion Watch ({version}) needs a newer {host}: update it "
+                                "first", version=__version__,
+                                host=getattr(host, "name", "host")))
 
 
 def create(host) -> BoardPanel:
+    # the board's language (its optional host.language(); Windows' on an older board),
+    # set before the page's modules load: some of their text is made as they do
+    i18n.follow_host(host)
+    app = QApplication.instance()
+    if app is not None:
+        i18n.translate_qt_buttons(app)
     check(host)
     return BoardPanel(host)
 

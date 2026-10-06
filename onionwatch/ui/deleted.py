@@ -9,22 +9,21 @@ from PySide6.QtWidgets import (QAbstractItemView, QDialog, QDialogButtonBox, QHB
                                QListWidget, QListWidgetItem, QMessageBox, QPushButton,
                                QVBoxLayout)
 
-from onionwatch.ui import icons
+from onionwatch.ui import fit, icons
 from onionwatch.ui.panel import hint_label
+from onionwatch.i18n import _, ngettext
 
 
 def ago(when: float, now: float | None = None) -> str:
     """"just now", "5 min ago", "3 hours ago", "2 days ago"."""
     s = max(0, (now or time.time()) - when)
     if s < 60:
-        return "just now"
+        return _("just now")
     if s < 3600:
-        return f"{int(s // 60)} min ago"
+        return _("{n} min ago", n=int(s // 60))
     if s < 86400:
-        h = int(s // 3600)
-        return f"{h} hour{'s' if h != 1 else ''} ago"
-    d = int(s // 86400)
-    return f"{d} day{'s' if d != 1 else ''} ago"
+        return ngettext("{n} hour ago", "{n} hours ago", int(s // 3600))
+    return ngettext("{n} day ago", "{n} days ago", int(s // 86400))
 
 
 class DeletedDialog(QDialog):
@@ -34,11 +33,13 @@ class DeletedDialog(QDialog):
 
     def __init__(self, panel, keep_days: int, parent=None):
         super().__init__(parent)
+        fit.watch(self)          # grows to fit its (translated) text
         self.panel = panel
-        self.setWindowTitle("Recently deleted triggers")
+        self.setWindowTitle(_("Recently deleted triggers"))
         lay = QVBoxLayout(self)
-        lay.addWidget(hint_label(f"Triggers you delete are kept here for {keep_days} days, "
-                                 "pictures and all, so you can bring them back."))
+        lay.addWidget(hint_label(_("Triggers you delete are kept here for {keep_days} days, "
+                                   "pictures and all, so you can bring them back.",
+                                   keep_days=keep_days)))
         self.list = QListWidget()
         self.list.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.list.setMinimumSize(360, 240)
@@ -46,12 +47,12 @@ class DeletedDialog(QDialog):
         self.list.itemDoubleClicked.connect(lambda _i: self.bring_back())
         lay.addWidget(self.list, 1)
         row = QHBoxLayout()
-        self.btn_back = QPushButton("Bring back")
+        self.btn_back = QPushButton(_("Bring back"))
         self.btn_back.setObjectName("primary")
         icons.set_icon(self.btn_back, "plus", "on_accent")
         self.btn_back.clicked.connect(self.bring_back)
         row.addWidget(self.btn_back)
-        self.btn_forget = QPushButton("Delete for good")
+        self.btn_forget = QPushButton(_("Delete for good"))
         icons.set_icon(self.btn_forget, "trash", "danger_text")
         self.btn_forget.clicked.connect(self.delete_for_good)
         row.addWidget(self.btn_forget)
@@ -65,13 +66,13 @@ class DeletedDialog(QDialog):
     def fill(self):
         self.list.clear()
         for iid, name, when in self.panel.deleted():
-            li = QListWidgetItem(f"{name}    ·    deleted {ago(when)}")
+            li = QListWidgetItem(_("{name}    ·    deleted {ago}", name=name, ago=ago(when)))
             li.setData(Qt.UserRole, iid)
             self.list.addItem(li)
         if self.list.count():
             self.list.setCurrentRow(0)
         else:
-            li = QListWidgetItem("Nothing here. Deleted triggers show up here.")
+            li = QListWidgetItem(_("Nothing here. Deleted triggers show up here."))
             li.setFlags(Qt.NoItemFlags)
             self.list.addItem(li)
         self._update()
@@ -97,9 +98,11 @@ class DeletedDialog(QDialog):
             return
         n = len(ids)
         if QMessageBox.question(
-                self, "Delete for good",
-                f"Delete {'this trigger' if n == 1 else f'these {n} triggers'} for good? "
-                "This can't be undone.") != QMessageBox.Yes:
+                self, _("Delete for good"),
+                _("Delete this trigger for good? This can't be undone.") if n == 1 else
+                ngettext("Delete these {n} triggers for good? This can't be undone.",
+                         "Delete these {n} triggers for good? This can't be undone.", n)
+            ) != QMessageBox.Yes:
             return
         for iid in ids:
             self.panel.forget_deleted(iid)
