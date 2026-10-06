@@ -1,0 +1,130 @@
+"""The triggers page as both hosts show it: a Triggers / Log tab row over the
+triggers (TriggersTab) or the log of what went off (history.HistoryView), and
+under both the Playing now bar: each trigger whose sound is still going, with its
+own Stop, and Stop all."""
+from __future__ import annotations
+
+from PySide6.QtCore import QTimer
+from PySide6.QtWidgets import (QFrame, QHBoxLayout, QLabel, QPushButton, QStackedWidget,
+                               QTabBar, QVBoxLayout, QWidget)
+
+from onionwatch import theme
+from onionwatch.ui import icons
+from onionwatch.ui.history import HistoryView
+
+CHECK_MS = 400          # how often the bar looks whether a sound has ended
+MAX_SHOWN = 6           # triggers named on the bar; the rest as "+3 more"
+
+
+class PlayingBar(QFrame):
+    """Follows `panel` (a TriggersTab): what's playing now, each with a Stop."""
+
+    def __init__(self, panel, parent=None):
+        super().__init__(parent)
+        self.panel = panel
+        self.setObjectName("transport")
+        h = QHBoxLayout(self)
+        h.setContentsMargins(10, 6, 10, 6)
+        h.setSpacing(8)
+        self.icon = QLabel()
+        h.addWidget(self.icon)
+        self.title = QLabel()
+        self.title.setStyleSheet("font-weight:700; background:transparent;")
+        h.addWidget(self.title)
+        self.chips = QHBoxLayout()
+        self.chips.setSpacing(6)
+        h.addLayout(self.chips)
+        h.addStretch(1)
+        self.btn_stop_all = QPushButton("Stop all")
+        self.btn_stop_all.setToolTip("Stop every trigger's sound now (and any still "
+                                     "waiting out its wait)")
+        icons.set_icon(self.btn_stop_all, "stop")
+        self.btn_stop_all.clicked.connect(self.stop_all)
+        h.addWidget(self.btn_stop_all)
+        self._shown: list[tuple[str, bool]] | None = None
+        self._check = QTimer(self)
+        self._check.timeout.connect(self.update_bar)
+        panel.playing_changed.connect(self.update_bar)
+        panel.ringing_changed.connect(self.update_bar)
+        self.update_bar()
+
+    def update_bar(self):
+        now = self.panel.playing_now()
+        key = [(t.id + t.name, ring) for t, ring in now]
+        if now:
+            self._check.start(CHECK_MS)
+        else:
+            self._check.stop()
+        if key == self._shown:
+            return
+        self._shown = key
+        while self.chips.count():
+            w = self.chips.takeAt(0).widget()
+            if w is not None:
+                w.deleteLater()
+        self.icon.setPixmap(icons.pixmap("volume", 16, theme.T.get(
+            "accent" if now else "muted", "#888888")))
+        self.title.setText("Playing now:" if now else "Nothing playing")
+        self.title.setObjectName("" if now else "muted")
+        self.title.style().unpolish(self.title)
+        self.title.style().polish(self.title)
+        for t, ring in now[:MAX_SHOWN]:
+            b = QPushButton(f"{t.name}{' (ringing)' if ring else ''}")
+            b.setObjectName("small")
+            icons.set_icon(b, "stop", size=12)
+            b.setToolTip(f"Stop {t.name}")
+            b.setAccessibleName(f"Stop {t.name}")
+            b.clicked.connect(lambda _=False, tid=t.id: self.panel.stop_trigger(tid))
+            self.chips.addWidget(b)
+        if len(now) > MAX_SHOWN:
+            more = QLabel(f"+{len(now) - MAX_SHOWN} more")
+            more.setObjectName("muted")
+            self.chips.addWidget(more)
+        self.btn_stop_all.setEnabled(bool(now))
+
+    def stop_all(self):
+        self.panel.stop_all_playing()
+        self.update_bar()
+
+
+class TriggerPages(QWidget):
+    """Triggers | Log over `panel`, the Playing now bar under them. `top`: widgets
+    to put between the tab row and the pages (the alarm bar)."""
+
+    def __init__(self, panel, top=(), parent=None):
+        super().__init__(parent)
+        self.panel = panel
+        v = QVBoxLayout(self)
+        v.setContentsMargins(0, 0, 0, 0)
+        v.setSpacing(8)
+        self.tabs = QTabBar()
+        self.tabs.setDrawBase(False)
+        self.tabs.setExpanding(False)
+        self.tabs.addTab("Triggers")
+        self.tabs.addTab("Log")
+        self.tabs.setTabToolTip(1, "What went off and when, newest first")
+        v.addWidget(self.tabs)
+        for w in top:
+            v.addWidget(w)
+        self.stack = QStackedWidget()
+        self.stack.addWidget(panel)
+        log_page = QWidget()
+        lv = QVBoxLayout(log_page)
+        lv.setContentsMargins(0, 0, 0, 0)
+        self.log = HistoryView(panel, log_page)
+        lv.addWidget(self.log, 1)
+        lv.addLayout(self.log.button_row())
+        self.stack.addWidget(log_page)
+        v.addWidget(self.stack, 1)
+        self.playing = PlayingBar(panel)
+        v.addWidget(self.playing)
+        self.tabs.currentChanged.connect(self.stack.setCurrentIndex)
+        panel.history_changed.connect(self._count)
+        self._count()
+
+    def _count(self):
+        n = len(self.panel.history)
+        self.tabs.setTabText(1, f"Log ({n})" if n else "Log")
+
+    def show_log(self):
+        self.tabs.setCurrentIndex(1)

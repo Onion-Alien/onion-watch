@@ -99,6 +99,7 @@ UNTILS = {
 INPUT_POLL_MS = 100     # how often an "input" ring checks for the mouse or keyboard
 
 
+GUESS_PLAYING_S = 8     # a sound counts as playing this long when the host can't say
 HISTORY = 50            # alerts kept in the history (in memory only)
 APP_POLL_MS = 2000      # how often Automatic profiles look at which programs are open
 BUILD_NOW = 8           # an opened category's cards made at once (the first ones, on
@@ -2108,6 +2109,7 @@ class TriggersTab(QWidget):
     fired = Signal(object)              # a Trigger just went off (its sound started)
     ringing_changed = Signal()          # a sound started or stopped ringing
     history_changed = Signal()          # something went off (TriggersTab.history)
+    playing_changed = Signal()          # a trigger's sound started, or was stopped
     _fired = Signal(str, object)        # from the watcher thread: trigger id, Hit
     _quieted = Signal(str)              # ...a ringing trigger's stop happened (Quieter)
 
@@ -2160,6 +2162,8 @@ class TriggersTab(QWidget):
         self._played: dict[str, set[str]] = {}       # trigger id -> sounds it played (tagged)
         self._ring_sounds: dict[str, list[str]] = {}  # ...-> what its ring is playing
         self._ring_how: dict[str, str] = {}           # ...-> what stops that ring (Trigger.stop)
+        self._live: dict[str, float] = {}             # ...-> when it went off, while it plays
+        self.pages = None               # the Triggers / Log pages it's shown in (ui.pages)
         self._input_poll = QTimer(self)
         self._input_poll.timeout.connect(self._check_input)
         self._hits: dict[str, screenwatch.Hit] = {}     # each trigger's latest, for alerts
@@ -2924,6 +2928,8 @@ class TriggersTab(QWidget):
                 row.flash(("Ringing" if t.ring else "Played") + self._in(tid) + "!", 4000)
             if t.ring:
                 self._watch_ring(t)
+            self._live[t.id] = time.monotonic()
+            self.playing_changed.emit()
             self.fired.emit(t)
 
     def place_name(self, place) -> str:
@@ -4518,7 +4524,56 @@ class TriggersTab(QWidget):
         row.name.selectAll()
 
     def show_history(self):
-        HistoryDialog(self, self).exec()
+        if self.pages is not None:
+            self.pages.show_log()
+        else:
+            HistoryDialog(self, self).exec()
+
+    # ------------------------------------------------------------------ playing now
+    def playing_now(self) -> list[tuple[Trigger, bool]]:
+        """The triggers whose sound is still going, oldest first, each with whether
+        it rings. A host that can say which sounds are playing (Host.playing) says
+        when one ends; with one that can't, a one-shot counts as playing for
+        GUESS_PLAYING_S after it went off."""
+        ringing = set(self.host.ringing())
+        tags = None
+        playing = getattr(self.host, "playing", None)
+        if callable(playing):
+            try:
+                tags = set(playing())
+            except Exception:  # noqa: BLE001 - a host's bug mustn't break the bar
+                log.warning("the host couldn't say what's playing", exc_info=True)
+        out, now = [], time.monotonic()
+        for tid, since in list(self._live.items()):
+            t = next((x for x in self.triggers if x.id == tid), None)
+            ring = tid in ringing
+            if t is not None and (ring or (
+                    any(tag.startswith(tid + "/") for tag in tags) if tags is not None
+                    else now - since < GUESS_PLAYING_S)):
+                out.append((t, ring))
+            else:
+                del self._live[tid]
+        return out
+
+    def stop_trigger(self, tid: str):
+        """Stop what trigger `tid` is playing now, its ring too (Playing now's Stop)."""
+        self._silence(tid, ring=True)
+        if self._live.pop(tid, None) is not None:
+            t = next((x for x in self.triggers if x.id == tid), None)
+            log.info("trigger %r stopped by hand", t.name if t else tid)
+        row = self.rows.get(tid)
+        if row is not None:
+            row.flash("Stopped", 2500)
+        self.playing_changed.emit()
+
+    def stop_all_playing(self):
+        """Stop every trigger's sound, and drop any still waiting out its wait."""
+        self.cancel_pending()
+        for tid in list(self._live):
+            self._silence(tid, ring=True)
+        self._live.clear()
+        self.stop_ringing()
+        self.playing_changed.emit()
 
     # ------------------------------------------------------------------ packs
     def export_triggers(self, triggers: list[Trigger] | None = None, name: str = ""):

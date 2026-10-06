@@ -157,6 +157,11 @@ class Player:
             self._voices = ()
 
     @property
+    def playing(self) -> list[str]:
+        """The tags of every sound playing now."""
+        return [v.tag for v in self._voices if not v.done]
+
+    @property
     def ringing(self) -> list[str]:
         """The tags of the sounds ringing (looping) now."""
         return [v.tag for v in self._voices if v.loop and not v.done]
