@@ -60,7 +60,8 @@ class PlayingBar(QFrame):
         self._shown = key
         while self.chips.count():
             w = self.chips.takeAt(0).widget()
-            if w is not None:
+            if w is not None:       # hidden now: out of the layout, it'd float on top
+                w.hide()
                 w.deleteLater()
         self.icon.setPixmap(icons.pixmap("volume", 16, theme.T.get(
             "accent" if now else "muted", "#888888")))
