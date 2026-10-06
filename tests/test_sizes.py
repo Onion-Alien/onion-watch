@@ -222,6 +222,68 @@ def test_a_picture_partly_covered_by_a_flat_thing_still_counts(monkeypatch):
     assert sc > 0.97 and 0.1 < share < 0.4
 
 
+def test_a_small_match_counts_only_with_the_things_shape_at_full_size():
+    """A small picture that is mostly flat, with one busy corner, matches any dark
+    place with something bright in that corner at the working size. At full size the
+    corner's shape tells them apart, even when the size found is a few % off."""
+    rng = np.random.default_rng(3)
+    pic = np.full((24, 44), 0.08, np.float32) + rng.normal(0, 0.01, (24, 44)).astype(np.float32)
+    pic[14:22, 2:10] = np.indices((8, 8)).sum(0) % 2 * 0.8 + 0.1      # a checker patch
+    lk = sw.Look(pic, None, 0.375, [1.0], True)
+    screen = (np.full((720, 1280), 0.08, np.float32)
+              + rng.normal(0, 0.01, (720, 1280)).astype(np.float32))
+    real = sw.resize(pic, 0.9)
+    rh, rw = real.shape
+    screen[300:300 + rh, 500:500 + rw] = real
+    screen[114:122, 802:810] = 0.85                                   # a bright square
+    full = (lambda y0, y1, x0, x1: screen[y0:y1, x0:x1]), screen.shape
+    shape = (270, 480)
+    k = 0.375
+    # the sweep's size is coarser than 0.9: the real one found at 0.94 of its size
+    s = (round(24 * 0.94 * k), round(44 * 0.94 * k))
+    box = (round(300 * k), round(300 * k) + s[0], round(500 * k), round(500 * k) + s[1])
+    assert sw.Watcher._small_shape(full, box, lk, shape) >= sw.SMALL_SHAPE
+    decoy = (round(100 * k), round(100 * k) + s[0], round(800 * k), round(800 * k) + s[1])
+    assert sw.Watcher._small_shape(full, decoy, lk, shape) < sw.SMALL_SHAPE
+    # kept per place and size: the same pixels aren't worked out again
+    seen: dict = {}
+    a = sw.Watcher._small_shape(full, box, lk, shape, seen, "t")
+    assert len(seen) == 1 and sw.Watcher._small_shape(full, box, lk, shape, seen, "t") == a
+
+
+def test_a_cut_outs_shape_is_judged_on_its_own_pixels():
+    """A cut-out turned up on other scenery: what shows around it isn't the picture's,
+    so only its opaque part is compared."""
+    rng = np.random.default_rng(4)
+    yy, xx = np.indices((40, 40))
+    mask = (yy - 20) ** 2 + (xx - 20) ** 2 < 15 ** 2
+    thing = (np.sin(xx / 2.0) * np.cos(yy / 3.0) * 0.3 + 0.5).astype(np.float32)
+    scenery = rng.random((44, 44)).astype(np.float32)
+    area = scenery.copy()
+    area[2:42, 2:42] = np.where(mask, thing, area[2:42, 2:42])
+    assert sw.cut_structure(area, thing, mask, (2, 2)) > 0.95
+    other = rng.random((44, 44)).astype(np.float32)
+    assert sw.cut_structure(other, thing, mask, (2, 2)) < 0.3
+
+
+def test_a_cut_out_found_well_under_its_size_must_keep_more_of_its_shape():
+    """Shrunk well under the size it was cut at, a cut-out is a smooth blob that
+    scenery fits: it has to keep CUT_LOW_SHAPE at full size, however big it is on the
+    frame. A rectangle, or a cut-out near its size, is checked as before."""
+    yy, xx = np.indices((120, 160))
+    mask = (yy - 60) ** 2 / 50 ** 2 + (xx - 80) ** 2 / 70 ** 2 < 1
+    gray = (np.sin(xx / 5) * np.cos(yy / 7) * 0.3 + 0.5).astype(np.float32)
+    cut = sw.Look(gray, mask, 0.375, [1.0], True)
+    box = sw.Look(gray, None, 0.375, [1.0], True)
+    low = cut.pattern(0.6)
+    assert low.size[0] * low.size[1] >= sw.SMALL_AREA       # not a small match
+    assert sw.Watcher._shape_bar(low, cut) == sw.CUT_LOW_SHAPE
+    assert sw.Watcher._shape_bar(cut.pattern(1.0), cut) is None
+    assert sw.Watcher._shape_bar(box.pattern(0.6), box) is None
+    small = sw.Look(gray[:40, :50], None, 0.375, [1.0], True)
+    assert sw.Watcher._shape_bar(small.pattern(1.0), small) == sw.SMALL_SHAPE
+
+
 def test_a_look_alike_in_other_colours_does_not_count():
     """A teal gem where the orange one was is the same grey: only its colours say
     it's not the same thing. The same gem in a darker scene still counts."""
@@ -440,6 +502,49 @@ def test_a_thing_turning_up_at_another_size_is_found_at_once(monkeypatch):
     assert fired == ["t"]
     assert any(1.25 < f < 1.6 for f in cap.scaled["t"][0].found)
     assert not cap.hunts or all("t" not in h[2] for h in cap.hunts)
+
+
+def test_a_big_changed_patch_is_hunted_over_several_checks_nearest_sizes_first(monkeypatch):
+    """A size looked for about a patch costs by the area it's looked in: about a big
+    patch (a moving game) that's the whole frame, so a check's budget covers only a few
+    sizes there, the ones nearest the picture's own first, and the rest wait for the
+    next checks. A small patch still has all its sizes looked for at once."""
+    from types import SimpleNamespace
+
+    monkeypatch.setattr(sw, "HUNT_PER_CHECK", round(len(sw.HUNT_SIZES) / sw.HUNT_SMALL / 2))
+    tried = []
+    lk = SimpleNamespace(gray=np.zeros((40, 40), np.float32), scale=1.0, ratio=1.0, pats=[],
+                         hunt_pattern=lambda g: SimpleNamespace(ok=True),
+                         keep=lambda *_a: None)
+    it = SimpleNamespace(id="t", threshold=0.8)
+
+    def judge(_p, _lk, _area, _fine=False):
+        return 0.0, None
+
+    def hunt(box, budget):
+        cap = SimpleNamespace(last=(np.zeros((300, 400), np.float32), None),
+                              hunts=[[box, 0, ["t"], {}]])
+        before = len(tried)
+        sw.Watcher._hunt(cap, it, [lk], lambda p, lk_, a, f=False: (
+            tried.append(p) or judge(p, lk_, a, f)), 0.0, budget)
+        return cap.hunts[0], len(tried) - before
+
+    whole = sw.HUNT_SIZES
+    h, n = hunt((0, 300, 0, 400), [sw.HUNT_PER_CHECK])
+    assert 0 < n < len(whole) and "t" in h[2] and h[3]["t"] == n
+    budget = [sw.HUNT_PER_CHECK]
+    cap = SimpleNamespace(last=(np.zeros((300, 400), np.float32), None), hunts=[h])
+    sizes = []
+    lk.hunt_pattern = lambda g: sizes.append(g) or SimpleNamespace(ok=True)
+    sw.Watcher._hunt(cap, it, [lk], judge, 0.0, budget)
+    assert sizes and len(sizes) == min(n, len(whole) - n)   # the next ones
+    assert all(abs(np.log(a)) <= abs(np.log(b)) + 1e-9 for a, b in zip(sizes, sizes[1:]))
+    assert min(abs(np.log(f)) for f in sizes) >= max(
+        abs(np.log(f)) for f in sorted(whole, key=lambda f: abs(np.log(f)))[:n]) - 1e-9
+    if 2 * n >= len(whole):
+        assert "t" not in h[2]                             # all looked for: done there
+    h, n = hunt((100, 140, 150, 200), [sw.HUNT_PER_CHECK])   # small: all at once
+    assert "t" not in h[2] and n == len(whole)
 
 
 def test_a_cut_out_with_room_around_it_is_hunted_at_a_size_bigger_than_what_changed(

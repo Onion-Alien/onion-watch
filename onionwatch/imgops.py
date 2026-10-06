@@ -63,32 +63,43 @@ def gaussian_filter(a: np.ndarray, sigma: float, step: int = 1) -> np.ndarray:
     """`a` (2-D) softened by a Gaussian of `sigma` px, its edge pixels repeated past
     it, in its own dtype (scipy.ndimage.gaussian_filter(a, sigma, mode="nearest")),
     or only every `step`-th row and column of that ([::step, ::step]), worked out
-    without the rest."""
+    without the rest. A stack of them (n, h, w): each one alike, all at once."""
     a = np.asarray(a)
     r = int(4.0 * sigma + 0.5)
     x = np.arange(-r, r + 1, dtype=np.float64)
     k = np.exp(-0.5 / (sigma * sigma) * x * x)
     k /= k.sum()
+    if a.ndim == 3:
+        out = _smooth_rows(a, k, step, 1).astype(a.dtype)
+        return _smooth_rows(out, k, step, 2).astype(a.dtype)
     # one axis at a time (the second on the transpose), in float64 and rounded to
     # the dtype in between, the way scipy does it: the same numbers to the bit
     out = _smooth_rows(a, k, step).astype(a.dtype)
     return np.ascontiguousarray(_smooth_rows(out.T, k, step).astype(a.dtype).T)
 
 
-def _smooth_rows(a: np.ndarray, k: np.ndarray, step: int = 1) -> np.ndarray:
-    """`a` correlated down its first axis with the odd, symmetric kernel `k`, the
-    first and last rows repeated past the edge: every `step`-th row of that."""
+def _smooth_rows(a: np.ndarray, k: np.ndarray, step: int = 1, axis: int = 0) -> np.ndarray:
+    """`a` correlated down its first axis (or `axis`) with the odd, symmetric kernel
+    `k`, the first and last rows repeated past the edge: every `step`-th row of that."""
     r = len(k) // 2
-    n = a.shape[0]
+    n = a.shape[axis]
     end = (n - 1) // step * step + 1      # p[i:i + end:step]: rows i, i + step, ... wanted
-    p = np.empty((n + 2 * r, *a.shape[1:]))
-    p[r:r + n] = a
-    p[:r] = a[0]
-    p[r + n:] = a[-1]
-    out = p[r:r + end:step] * k[r]
+    lead = (slice(None),) * axis
+
+    def rows(s: slice) -> tuple:
+        return (*lead, s)
+
+    shape = list(a.shape)
+    shape[axis] = n + 2 * r
+    p = np.empty(shape)
+    p[rows(slice(r, r + n))] = a
+    p[rows(slice(0, r))] = a[rows(slice(0, 1))]
+    p[rows(slice(r + n, None))] = a[rows(slice(n - 1, n))]
+    out = p[rows(slice(r, r + end, step))] * k[r]
     tmp = np.empty_like(out)
     for j in range(1, r + 1):     # pairs from the centre out, as scipy adds them
-        np.add(p[r - j:r - j + end:step], p[r + j:r + j + end:step], out=tmp)
+        np.add(p[rows(slice(r - j, r - j + end, step))],
+               p[rows(slice(r + j, r + j + end, step))], out=tmp)
         tmp *= k[r + j]
         out += tmp
     return out
