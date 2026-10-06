@@ -389,6 +389,7 @@ class CategorySection(QWidget):
     def __init__(self, name: str):
         super().__init__()
         self.ink = ""                   # its name's colour ("": the theme's)
+        self._tip = ""                  # what clicking its name does (_show_tip)
         self._data_dir = None
         self.look: Category | None = None
         from onionwatch.ui.triggerspanel import FlowBox, Switch   # (it imports this one)
@@ -415,6 +416,12 @@ class CategorySection(QWidget):
         self.btn_fold.setStyleSheet(self.FOLD_CSS)
         self.btn_fold.toggled.connect(self._on_fold)
         self.btn_fold.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
+        fold_resized = self.btn_fold.resizeEvent
+
+        def on_fold_resized(ev):            # its name refitted to its new width
+            fold_resized(ev)
+            self._fit_name()
+        self.btn_fold.resizeEvent = on_fold_resized
         h.addWidget(self.btn_fold, 1)
         self.count = hint_label("")
         self.count.setWordWrap(False)
@@ -541,14 +548,30 @@ class CategorySection(QWidget):
     def is_open(self) -> bool:
         return self.btn_fold.isChecked()
 
+    NARROW = 420    # px: a header this narrow (the list beside the editor) drops its +
+
     def resizeEvent(self, event):
         super().resizeEvent(event)
+        narrow = self.width() < self.NARROW
         self.count.setVisible(self.width() >= 600)
+        # (a new trigger here is in the ⋯ menu too)
+        self.btn_add.setVisible(not narrow)
+        self.header.layout().setSpacing(6 if narrow else 10)
+        self._fit_name()
 
     def set_name(self, name: str):
         self.name = name
-        self.btn_fold.setText(profiles.label(name))
         self.btn_fold.setAccessibleName(f"Category {profiles.label(name)}")
+        self._fit_name()
+
+    def _fit_name(self):
+        """Its name, cut short with an … rather than clipped mid-letter when the
+        header is narrow (the whole of it, and the counts, in the tooltip)."""
+        full = profiles.label(self.name)
+        room = self.btn_fold.width() - self.btn_fold.iconSize().width() - 16
+        text = self.btn_fold.fontMetrics().elidedText(full, Qt.ElideRight, max(room, 40))
+        if self.btn_fold.text() != text:
+            self.btn_fold.setText(text)
 
     def set_open(self, on: bool):
         if self.btn_fold.isChecked() != on:
@@ -557,8 +580,8 @@ class CategorySection(QWidget):
             self.btn_fold.blockSignals(False)
         tint = self.ink or "muted"
         icons.set_icon(self.btn_fold, "fold_open" if on else "fold", tint, tint, size=16)
-        self.btn_fold.setToolTip("Fold this category away" if on else
-                                 "Show this category's triggers")
+        self._tip = "Fold this category away" if on else "Show this category's triggers"
+        self._show_tip()
         self.body.setVisible(on)
 
     def _on_fold(self, on: bool):
@@ -595,8 +618,16 @@ class CategorySection(QWidget):
             self.header.setStyleSheet(tab_css(self.look.color))
             self._show_banner()
 
+    def _show_tip(self):
+        """The fold's tooltip: what a click does, and (the counts can be hidden) its
+        name and numbers."""
+        counts = self.count.text()
+        self.btn_fold.setToolTip(f"{profiles.label(self.name)}"
+                                 + (f": {counts}" if counts else "") + f"\n{self._tip}")
+
     def set_counts(self, text: str, tone: str = ""):
         self.count.setText(text)
+        self._show_tip()
         self.count.setProperty("tone", tone or None)
         self.count.style().unpolish(self.count)
         self.count.style().polish(self.count)
