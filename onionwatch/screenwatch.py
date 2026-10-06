@@ -1106,16 +1106,21 @@ def colour_cover(a: np.ndarray, t: np.ndarray, m: np.ndarray) -> tuple[np.ndarra
 # its background left out already), its colours are compared again on the thing alone
 # (matched_colour): all but the background, the part joined to its edges within
 # MATCH_REL of its grey range of the edges' grey (thing_mask), MATCH_LEAST..MATCH_MOST
-# of it. MATCH_KEPT of the thing must have the picture's grey there (light fitted), and
-# its colour, the light fitted as tint_gap does, be off the picture's by MATCH_CRES or
-# less on average. A blue skull where a red one was cut is off on the skull itself.
+# of it. The thing and MATCH_RING px round it must match sharp (MATCH_SHAPE: grey that
+# matched shrunk but not at full size is scenery that looks alike softened), MATCH_KEPT
+# of the thing must have the picture's grey there (light fitted), and its colour, the
+# light fitted as tint_gap does, be off the picture's by MATCH_CRES or less on average.
+# A blue skull where a red one was cut is off on the skull itself.
 MATCH_REL = 0.45
 MATCH_LEAST = 0.03
 MATCH_MOST = 0.5
 MATCH_RES = 0.08
 MATCH_KEPT = 0.9
 MATCH_CRES = 0.1
+MATCH_RING = 2
+MATCH_SHAPE = 0.9
 MATCH_COLOUR = True
+TWIN_LETTERS = True     # ...and the look-alike strips judged on the thing (_letters_agree)
 # A cut-out's edges, shrunk to the working size, take in whatever is behind it: thin
 # text cut out of a scene that now moves scores under the line there while its own
 # pixels still match. A place of a cut-out at its own size scoring SHARP_LOW or more
@@ -1152,31 +1157,40 @@ def thing_mask(g: np.ndarray) -> np.ndarray | None:
 
 
 def matched_colour(a: np.ndarray, rgb: np.ndarray, g: np.ndarray, t: np.ndarray
-                   ) -> tuple[float, float, float]:
+                   ) -> tuple[float, float, float, float]:
     """`a` / `rgb` the screen's grey / RGB (0..1) where a picture cut as a rectangle
     was found, `g` / `t` the picture's the same size: (the share of it that's the
-    thing (thing_mask), the share of that whose grey agrees once the light is fitted,
-    its colour gap)."""
+    thing (thing_mask), how well the thing and MATCH_RING px round it match, the share
+    of the thing whose grey agrees once the light is fitted, its colour gap)."""
     thing = thing_mask(g)
     if thing is None:
-        return 0.0, 0.0, 1.0
+        return 0.0, 0.0, 0.0, 1.0
     n = int(thing.sum())
     share = n / thing.size
+    ring = thing
+    for _ in range(MATCH_RING):
+        grown = ring.copy()
+        grown[1:] |= ring[:-1]
+        grown[:-1] |= ring[1:]
+        grown[:, 1:] |= ring[:, :-1]
+        grown[:, :-1] |= ring[:, 1:]
+        ring = grown
+    fit = _ncc_masked(a.astype(np.float64), g.astype(np.float64), ring.astype(np.float64))
     gg, aa = g.astype(np.float64).ravel(), a.astype(np.float64).ravel()
     G, A = gg - gg.mean(), aa - aa.mean()
     gain = float((G * A).sum()) / max(float((G * G).sum()), 1e-12)
     if n < 8 or gain <= 0.0:
-        return share, 0.0, 1.0
+        return share, fit, 0.0, 1.0
     ok = thing & (np.abs(a - gain * g - (aa.mean() - gain * gg.mean())) <= MATCH_RES)
     k = int(ok.sum())
     if k < 8:
-        return share, k / n, 1.0
+        return share, fit, k / n, 1.0
     tt, cc = t[ok].astype(np.float64), rgb[ok].astype(np.float64)
     T, C = tt - tt.mean(0), cc - cc.mean(0)
     cg = max(float((T * C).sum()) / max(float((T * T).sum()), 1e-12), 0.0)
     left = C - cg * T
     left -= left.mean(-1, keepdims=True)                 # colour, not brightness
-    return share, k / n, float(np.abs(left).sum(-1).mean())
+    return share, fit, k / n, float(np.abs(left).sum(-1).mean())
 
 
 def cover_score(area: np.ndarray, gray: np.ndarray, mask: np.ndarray | None,
@@ -1279,7 +1293,7 @@ def one_part_off(area: np.ndarray, gray: np.ndarray, mask: np.ndarray | None) ->
             if (u is not None and v is not None and u <= TWIN_LOW and v <= TWIN_LOW
                     and (u + v) / 2 <= TWIN_RUN):
                 x0, x1 = i * tw // n, (i + 2) * tw // n
-                if (MATCH_COLOUR and mask is None
+                if (TWIN_LETTERS and mask is None
                         and _letters_agree(area[y:y + th, x:x + tw], gray, x0, x1)):
                     continue                # only what's behind it changed there
                 return max(0.0, (u + v) / 2)
@@ -3851,9 +3865,10 @@ class Watcher:
         if mk is None and q.ok and rgb is not None and rgb.shape[:2] == area.shape:
             _sc, (x, y) = _ncc_at(area, q)
             gh, gw = g.shape
-            share, kept, gap = matched_colour(area[y:y + gh, x:x + gw], rgb[y:y + gh, x:x + gw],
-                                              g, t)
-            ok = MATCH_LEAST <= share <= MATCH_MOST and kept >= MATCH_KEPT and gap <= MATCH_CRES
+            share, fit, kept, gap = matched_colour(area[y:y + gh, x:x + gw],
+                                                   rgb[y:y + gh, x:x + gw], g, t)
+            ok = (MATCH_LEAST <= share <= MATCH_MOST and fit >= MATCH_SHAPE
+                  and kept >= MATCH_KEPT and gap <= MATCH_CRES)
         cap.twins[ck] = (lk.gray, px, 1.0 if ok else 0.0)
         return ok
 
