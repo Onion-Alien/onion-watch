@@ -4,8 +4,9 @@ window is closed."""
 from __future__ import annotations
 
 import logging
+import threading
 
-from PySide6.QtCore import QByteArray, Qt, QTimer
+from PySide6.QtCore import QByteArray, Qt, QTimer, Signal
 from PySide6.QtGui import QAction, QCloseEvent
 from PySide6.QtWidgets import (QApplication, QHBoxLayout, QLabel, QMainWindow, QMenu,
                                QPushButton, QSystemTrayIcon, QVBoxLayout, QWidget)
@@ -25,6 +26,10 @@ SAVE_DELAY_MS = 400
 
 
 class MainWindow(QMainWindow):
+    # from the update check's thread: (a newer release or None, an error or "", forced)
+    update_found = Signal(object, str, bool)
+    settings_changed = Signal()   # a thread changed cfg: save it on the UI thread
+
     def __init__(self, cfg: Config | None = None, player: Player | None = None):
         super().__init__()
         self.cfg = cfg if cfg is not None else Config.load()
@@ -90,6 +95,9 @@ class MainWindow(QMainWindow):
         else:
             self.resize(860, 720)
         self._on_active(self.triggers.is_active())
+        self.update_found.connect(self._on_update_found)
+        self.settings_changed.connect(self.save_later)
+        self._checking = False
 
     # ------------------------------------------------------------------ settings file
     def save_later(self):
@@ -173,6 +181,37 @@ class MainWindow(QMainWindow):
         self.cfg.theme = theme.apply(QApplication.instance(), name)
         icons.retheme()
         self.save_later()
+
+    # ------------------------------------------------------------------ updates, count
+    def check_updates(self, force: bool = False):
+        """Ask GitHub for a newer version on a thread (onionwatch.updates): the daily
+        check, or Settings' Check now (`force`), which also says when there's nothing
+        new or it failed."""
+        if self._checking:
+            return
+        self._checking = True
+        from onionwatch import updates
+
+        def run():
+            rel, err = None, ""
+            try:
+                rel = updates.check(self.cfg, force)
+            except Exception as e:  # noqa: BLE001 - offline, GitHub down…
+                err = str(e) or type(e).__name__
+            self.update_found.emit(rel, err, force)
+        threading.Thread(target=run, daemon=True, name="update-check").start()
+
+    def _on_update_found(self, rel, err: str, force: bool):
+        self._checking = False
+        self.save_later()   # update_checked moved on
+        if rel is not None:
+            from onionwatch.ui.updatedialog import UpdateDialog
+            UpdateDialog(self, rel).exec()
+
+    def send_usage(self):
+        """The anonymous daily count, if it's switched on and due (onionwatch.usage)."""
+        from onionwatch import usage
+        usage.maybe_send(self.cfg, self.settings_changed.emit)
 
     # ------------------------------------------------------------------ closing
     def closeEvent(self, ev: QCloseEvent):

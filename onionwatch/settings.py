@@ -46,6 +46,18 @@ class Config:
     notify: bool = True         # a Windows notification when a trigger goes off
     tray: bool = True           # closing the window keeps watching from the tray
     geometry: str = ""          # the window's size and place (Qt's saveGeometry, hex)
+    # new versions (onionwatch.updates): ask GitHub once a day; when it last did; a
+    # version the user said to skip
+    update_check: bool = True
+    update_checked: float = 0.0
+    update_skip: str = ""
+    # the anonymous usage count (onionwatch.usage): its switch, this PC's random ID
+    # (made on the first send), when the last daily one went, and the installer's
+    # "Where did you hear about Onion Watch?" (sent once, with the first-start count)
+    usage_count: bool = True
+    stats_id: str = ""
+    stats_sent: float = 0.0
+    stats_heard: str = ""
 
     @classmethod
     def load(cls, folder: Path | None = None) -> Config:
@@ -77,6 +89,11 @@ class Config:
             if ok:
                 setattr(cfg, f.name, float(v) if isinstance(default, float) else v)
         cfg.volume = min(max(cfg.volume, 0.0), 1.0)
+        # settings from before the usage count: they installed an app that sent
+        # nothing, so it starts switched off for them (new installs: on, unless the
+        # installer's Count me in box was unticked)
+        if "usage_count" not in raw:
+            cfg.usage_count = False
         return cfg
 
     def save(self, folder: Path | None = None):

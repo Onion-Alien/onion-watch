@@ -55,10 +55,34 @@ def selftest() -> int:
     return 0
 
 
+def set_usage_count(argv: list[str]) -> int:
+    """`OnionWatch.exe --usage-count on|off [--heard-from <answer>]`: the installer's
+    "Count me in" box (and its "Where did you hear about Onion Watch?" page), saved
+    to config.json before the app's first start, so an unticked box means nothing is
+    ever sent. Other settings are kept; nothing connects; no window. 0 once saved."""
+    i = argv.index("--usage-count")
+    on = argv[i + 1:i + 2] == ["on"]
+    cfg = settings.Config.load()
+    cfg.usage_count = on
+    if on and "--heard-from" in argv:
+        j = argv.index("--heard-from")
+        cfg.stats_heard = " ".join(argv[j + 1:j + 2])[:40]
+    try:
+        cfg.save()
+    except OSError as e:
+        print(f"FAIL: couldn't save the settings ({e})", file=sys.stderr)
+        return 1
+    log.info("--usage-count: %s", "on" if on else "off")
+    print(f"OK: the anonymous usage count is {'on' if on else 'off'}")
+    return 0
+
+
 def main():
     if "--selftest" in sys.argv:
         sys.exit(selftest())
     setup_logging()
+    if "--usage-count" in sys.argv:
+        sys.exit(set_usage_count(sys.argv))
     log.info("Onion Watch %s starting", __version__)
     try:
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("OnionWatch.App")
@@ -85,6 +109,17 @@ def main():
         splash.close()
         raise
     app.aboutToQuit.connect(w.shutdown)
+    # new versions (updates.py) and the anonymous count (usage.py): each at most once a
+    # day, unless switched off, also for a copy left running for days
+    from PySide6.QtCore import QTimer
+    from onionwatch import updates
+    updates.cleanup()   # installers from an earlier update
+    QTimer.singleShot(30_000, w.check_updates)
+    QTimer.singleShot(40_000, w.send_usage)
+    recheck = QTimer(w)
+    recheck.timeout.connect(w.check_updates)
+    recheck.timeout.connect(w.send_usage)
+    recheck.start(6 * 3600 * 1000)
     if TRAY_ARG not in sys.argv or app.instance_server.show_requested:
         w.show()
     splash.close()

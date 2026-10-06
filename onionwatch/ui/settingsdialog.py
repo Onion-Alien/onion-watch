@@ -1,13 +1,16 @@
 """Settings: where the alerts play (speakers or headphones), how loud, whether a
-Windows notification shows too, closing to the tray, and the colour theme. Every
-change applies straight away."""
+Windows notification shows too, closing to the tray, the colour theme, and updates
+and privacy (the daily update check, the anonymous usage count, Send feedback /
+Report a problem). Every change applies straight away."""
 from __future__ import annotations
+
+import webbrowser
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QDialogButtonBox, QHBoxLayout,
                                QLabel, QPushButton, QSlider, QVBoxLayout)
 
-from onionwatch import __version__, theme
+from onionwatch import __version__, feedback, theme
 from onionwatch.sounds import DEFAULT_SOUND
 from onionwatch.ui import icons
 from onionwatch.ui.panel import card, hint_label
@@ -83,15 +86,67 @@ class SettingsDialog(QDialog):
         bv.addWidget(self.theme)
         v.addWidget(box)
 
+        box, bv = card("UPDATES AND PRIVACY")
+        row = QHBoxLayout()
+        self.update_check = QCheckBox("Check for new versions")
+        self.update_check.setChecked(cfg.update_check)
+        self.update_check.toggled.connect(lambda on: self._set("update_check", on))
+        row.addWidget(self.update_check, 1)
+        self.btn_check = QPushButton("Check now")
+        self.btn_check.clicked.connect(self._check_now)
+        row.addWidget(self.btn_check)
+        bv.addLayout(row)
+        self.check_status = hint_label("")
+        self.check_status.hide()
+        bv.addWidget(self.check_status)
+        self.usage = QCheckBox('Count me in: an anonymous "still here"')
+        self.usage.setChecked(cfg.usage_count)
+        self.usage.toggled.connect(lambda on: self._set("usage_count", on))
+        bv.addWidget(self.usage)
+        bv.addWidget(hint_label("Once a day: the version and a random number made on "
+                                "this PC, so we know people use it. Never your triggers, "
+                                "pictures, windows or games."))
+        v.addWidget(box)
+        win.update_found.connect(self._on_checked)
+
         foot = QLabel(f"Onion Watch {__version__} — it only looks at the screen and plays "
                       "sounds; it never clicks, types or reads a game's memory.")
         foot.setObjectName("hint")
         foot.setWordWrap(True)
         v.addWidget(foot)
+        row = QHBoxLayout()
+        self.btn_feedback = QPushButton("Send feedback")
+        self.btn_feedback.setToolTip("Opens a short form in your browser (no account)")
+        self.btn_feedback.clicked.connect(
+            lambda: webbrowser.open(feedback.feedback_url(__version__)))
+        row.addWidget(self.btn_feedback)
+        self.btn_problem = QPushButton("Report a problem")
+        self.btn_problem.setToolTip("Opens a new issue on GitHub in your browser")
+        self.btn_problem.clicked.connect(
+            lambda: webbrowser.open(feedback.problem_url(__version__)))
+        row.addWidget(self.btn_problem)
+        row.addStretch(1)
         buttons = QDialogButtonBox(QDialogButtonBox.Close)
         buttons.rejected.connect(self.reject)
-        v.addWidget(buttons)
+        row.addWidget(buttons)
+        v.addLayout(row)
         self._on_volume(self.volume.value())
+
+    def _check_now(self):
+        self.check_status.setText("Checking…")
+        self.check_status.show()
+        self.win.check_updates(force=True)
+
+    def _on_checked(self, rel, err: str, force: bool):
+        if not force:
+            return
+        if err:
+            self.check_status.setText(f"Couldn't check just now ({err}).")
+        elif rel is None:
+            self.check_status.setText(f"You have the newest version ({__version__}).")
+        else:
+            self.check_status.setText(f"Onion Watch {rel.version} is out.")
+        self.check_status.show()
 
     def _set(self, key: str, value):
         setattr(self.win.cfg, key, value)

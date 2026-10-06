@@ -33,8 +33,10 @@ Version **0.7.2** · Windows 10 / 11 · free, no account, no internet needed ·
 Onion Watch reads pixels and plays sounds. It **never** presses keys, clicks,
 moves the mouse, or reads or changes a game's memory: it sees what you'd see, like
 OBS or a Discord screen share. Some games forbid every third-party tool, so check
-your game's rules. Nothing it captures is saved or sent anywhere, and it makes no
-network requests.
+your game's rules. Nothing it captures is saved or sent anywhere. It goes online
+only to check for a new version once a day and, if you leave *Count me in* ticked,
+to send an anonymous "still here" (the version and a random ID). Both switch off in
+Settings → Updates and privacy.
 
 ## What it does
 
