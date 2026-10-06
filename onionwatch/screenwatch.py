@@ -74,6 +74,7 @@ from onionwatch.imgops import (binary_erosion, gaussian_filter, irfft2, next_fas
 log = logging.getLogger(__name__)
 
 WORK_WIDTH = 480        # the screen is shrunk to about this wide before matching
+LOG_PICTURE_W = 480     # a Hit's picture of the window (the Log) is about this wide
 MIN_SIDE = 12           # a picture's short side, shrunk, can't be less than this and match
 # ...and the screen is shrunk no further than keeps the smallest picture this big:
 # at a dozen pixels a line of small text is a smudge (one cut over a moving scene
@@ -1826,6 +1827,26 @@ def frame_rgb(sample: np.ndarray, fmt: int = FMT_BGRA8, factor: int = 1) -> np.n
     return rgb.astype(np.float32, copy=False)
 
 
+def log_rgb(raw: tuple | None) -> np.ndarray | None:
+    """A grab's raw pixels (Grabber.raw: pixels, format, factor) as a small (h, w, 3)
+    uint8 RGB picture about LOG_PICTURE_W wide, for a Hit (the Log): every n-th
+    pixel, no averaging, so it costs well under a millisecond, and only when a
+    trigger goes off. None when there's nothing to make it from."""
+    if raw is None:
+        return None
+    pixels, fmt, _factor = raw
+    if pixels is None or pixels.ndim != 3 or not pixels.size:
+        return None
+    step = max(1, round(pixels.shape[1] / LOG_PICTURE_W))
+    s = pixels[::step, ::step]
+    if fmt in (FMT_BGRA8, FMT_BGRX8):
+        return np.ascontiguousarray(s[..., 2::-1])
+    try:
+        return (frame_rgb(s, fmt, 1) * 255).astype(np.uint8)
+    except OSError:
+        return None
+
+
 class Grabber:
     """Copies one monitor, shrunk to (w, h), as grey (float32 0..1). The copy is
     taken at twice that size with GDI's plain pixel-dropping shrink (COLORONCOLOR:
@@ -2555,6 +2576,7 @@ class Watcher:
         self.interval = DEFAULT_INTERVAL_MS / 1000
         self.cpu_share = CPU_SHARE          # see CPU_SHARES
         self.max_detect = "off"             # see MAX_DETECTS
+        self.color_hits = True              # a Hit's picture in colour (log_rgb), not grey
         self.heavy = False                  # max detection is on right now
         self.default: int | WindowRef = 0  # where triggers that don't pick are looked for
         self.scores: dict[str, float] = {}
@@ -3103,10 +3125,13 @@ class Watcher:
                 log.debug("trigger %s went off in the window in front: kept quiet", it.id)
                 continue
             y0, y1, x0, x1 = box
-            rgb = getattr(cap.grab, "color", None)
-            pic = rgb if rgb is not None and rgb.shape[:2] == gray.shape else gray
+            pic = log_rgb(getattr(cap.grab, "raw", None)) if self.color_hits else None
+            if pic is None:
+                rgb = getattr(cap.grab, "color", None) if self.color_hits else None
+                pic = rgb if rgb is not None and rgb.shape[:2] == gray.shape else gray
+                pic = (np.clip(pic, 0, 1) * 255).astype(np.uint8)
             hit = Hit(cap.source, (x0 / fw, y0 / fh, (x1 - x0) / fw, (y1 - y0) / fh), score,
-                      (np.clip(pic, 0, 1) * 255).astype(np.uint8))
+                      pic)
             try:
                 if self._hits:
                     self._on_fire(it.id, hit)

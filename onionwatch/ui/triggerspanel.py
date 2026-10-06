@@ -21,7 +21,7 @@ import math
 import os
 import time
 import uuid
-from collections import deque
+from collections import OrderedDict, deque
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -99,10 +99,12 @@ UNTILS = {
 INPUT_POLL_MS = 100     # how often an "input" ring checks for the mouse or keyboard
 
 
+GUESS_PLAYING_S = 8     # a sound counts as playing this long when the host can't say
 HISTORY = 50            # alerts kept in the history (in memory only)
 APP_POLL_MS = 2000      # how often Automatic profiles look at which programs are open
-BUILD_NOW = 60          # an opened category's cards made at once; the rest a few at a
-BUILD_STEP = 20         # ...time, so a category of hundreds doesn't freeze the window
+BUILD_NOW = 8           # an opened category's cards made at once (the first ones, on
+BUILD_STEP_MS = 40      # ...screen); the rest this long at a time, so the window never
+                        # ...freezes, however many there are (a card takes ~20-30 ms)
 SCREEN_LEARN_MS = 1300  # a screen cut's frames for the cut-out: grabbed this long after
 HEAVY_GAP = 0.5         # s: checks spaced out further than this (to keep to the share of
 HEAVY_FOR = 5.0         # ...the processor picked) for this long: say too many pictures are on
@@ -140,6 +142,9 @@ def hit_image(hit: screenwatch.Hit) -> QImage:
         img = QImage(f.data, w, h, w * 3, QImage.Format_RGB888).copy()
     else:
         img = QImage(f.data, w, h, w, QImage.Format_Grayscale8).copy()
+    if w > screenwatch.LOG_PICTURE_W:       # kept small: 50 of them stay in memory
+        img = img.scaledToWidth(screenwatch.LOG_PICTURE_W, Qt.SmoothTransformation)
+        w, h = img.width(), img.height()
     img = img.convertToFormat(QImage.Format_RGB32)
     x, y, bw, bh = hit.box
     p = QPainter(img)
@@ -302,11 +307,13 @@ def _row_width(widgets: list[QWidget], gap: int = 8, least: bool = True) -> int:
             + gap * max(0, len(shown) - 1))
 
 
-def labelled(text: str, w: QWidget) -> QWidget:
-    """`text` and its control kept together on one line of a wrapping row."""
+def labelled(text: str, w: QWidget, in_card: bool = False) -> QWidget:
+    """`text` and its control kept together on one line of a wrapping row
+    (`in_card`: a card's, see-through by the card's style sheet)."""
     box = QWidget()
     box.setObjectName("labelled")   # see-through, whichever program's stylesheet is in use
-    box.setStyleSheet("QWidget#labelled { background: transparent; }")
+    if not in_card:
+        box.setStyleSheet("QWidget#labelled { background: transparent; }")
     h = QHBoxLayout(box)
     h.setContentsMargins(0, 0, 0, 0)
     h.setSpacing(6)
@@ -386,6 +393,36 @@ class ElideLabel(QLabel):
             self.setToolTip(self._full if text != self._full else "")
 
 
+THUMB_CACHE = 400       # thumbnails kept, so a card is made (or opened) without
+_thumbs: OrderedDict = OrderedDict()    # ...reading its pictures from disk again
+
+
+def thumb_pixmap(path: str, size: QSize) -> QPixmap:
+    """`path`'s thumbnail, `size` at most (a null one if it can't be read). Kept for
+    next time, under the file's time and length: a picture changed on disk is read
+    again."""
+    try:
+        st = os.stat(path) if path else None
+    except OSError:
+        st = None
+    if st is None:
+        return QPixmap()
+    key = (path, st.st_mtime_ns, st.st_size, size.width(), size.height())
+    pm = _thumbs.get(key)
+    if pm is not None:
+        _thumbs.move_to_end(key)
+        return pm
+    from onionwatch.ui.viewer import read_image
+    pm = QPixmap.fromImage(read_image(path, THUMB))
+    if pm.isNull():
+        return pm               # not kept: it may be readable in a moment
+    pm = pm.scaled(size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+    _thumbs[key] = pm
+    while len(_thumbs) > THUMB_CACHE:
+        _thumbs.popitem(last=False)
+    return pm
+
+
 class Thumb(QWidget):
     """One picture in a card's strip: the thumbnail (click to see it big, with the
     trigger's other pictures) on a rounded plate, with a ✕ in its corner while the
@@ -401,27 +438,24 @@ class Thumb(QWidget):
         self.tile = tile
         self.pic = QPushButton(self)
         self.pic.setObjectName("thumb")     # just the picture: the plate is painted here
-        self.pic.setStyleSheet("QPushButton#thumb { background:transparent; border:none;"
-                               " padding:0; }")
         self.pic.setFixedSize(size + QSize(8, 8))
         self.pic.setIconSize(size)
         self.pic.setCursor(Qt.PointingHandCursor)
         self.pic.clicked.connect(lambda: self.clicked.emit(self.index))
-        from onionwatch.ui.viewer import read_image
-        pm = QPixmap.fromImage(read_image(path, THUMB)) if path else QPixmap()
+        pm = thumb_pixmap(path, size)
         if pm.isNull():
             self.pic.setIcon(icons.icon("image", "muted"))
             self.pic.setToolTip(f"{Path(path).name}: this picture can't be read — click to "
                                 "open it and swap it for another file")
         else:
-            self.pic.setIcon(pm.scaled(size, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+            self.pic.setIcon(pm)
             self.pic.setToolTip(f"{Path(path).name}\n"
                                 "Click to see it big")
         self.setFixedSize(self.pic.size())
         small = size.height() < THUMB.height()
         self.x = QPushButton("✕", self)
         self.x.setObjectName("danger")
-        self.x.setStyleSheet("padding:0; font-size:7pt;" if small else "padding:0; font-size:8pt;")
+        self.x.setProperty("corner", "small" if small else "big")     # (CARD_CSS)
         self.x.setFixedSize(*((14, 14) if small else (18, 18)))
         self.x.setToolTip("Remove this picture")
         self.x.move(self.width() - self.x.width() - 3, 3)
@@ -429,10 +463,6 @@ class Thumb(QWidget):
         self.x.hide()
         self.plus = QPushButton("+", self)
         self.plus.setObjectName("thumbadd")
-        self.plus.setStyleSheet(
-            "QPushButton#thumbadd { background:palette(highlight);"
-            " color:palette(highlighted-text); border:none; border-radius:9px; padding:0;"
-            " font-size:10pt; font-weight:700; }")
         self.plus.setFixedSize(18, 18)
         self.plus.setCursor(Qt.PointingHandCursor)
         self.plus.setAccessibleName("Add a picture")
@@ -444,9 +474,6 @@ class Thumb(QWidget):
         self.more = QLabel(self)
         self.more.setObjectName("thumbmore")
         self.more.setAttribute(Qt.WA_TransparentForMouseEvents)
-        self.more.setStyleSheet("QLabel#thumbmore { background: rgba(0,0,0,170); color: white;"
-                                " border-radius: 4px; padding: 0 3px; font-size: 7pt;"
-                                " font-weight: 700; }")
         self.more.hide()
 
     def set_more(self, n: int):
@@ -638,10 +665,25 @@ def swatch(colour: str, size: int = 14) -> QIcon:
     return QIcon(pm)
 
 
-def align_control(widget: QWidget):
-    """One readable control size in both the standalone app and the Board module."""
-    widget.setStyleSheet("padding-top:4px; padding-bottom:4px; font-size:9pt;")
-    widget.ensurePolished()
+ALIGN_CSS = "padding-top:4px; padding-bottom:4px; font-size:9pt;"
+
+
+def align_control(widget: QWidget, in_card: bool = False):
+    """One readable control size in both the standalone app and the Board module.
+    `in_card`: a card's control, styled by the card's one style sheet (CARD_CSS)
+    rather than a sheet of its own each, which made a card slow to make."""
+    if in_card:
+        polished = widget.testAttribute(Qt.WA_WState_Polished)
+        widget.setProperty("aligned", True)
+        if polished:            # a property doesn't restyle what's already styled
+            widget.style().unpolish(widget)
+            widget.style().polish(widget)
+        widget.ensurePolished()
+        # as a style sheet of its own would: sizes it worked out unstyled are dropped
+        QApplication.sendEvent(widget, QEvent(QEvent.StyleChange))
+    else:
+        widget.setStyleSheet(ALIGN_CSS)
+        widget.ensurePolished()
     widget.setFixedHeight(max(34, widget.fontMetrics().height() + 16))
     if isinstance(widget, QPushButton):
         widget.setCursor(Qt.PointingHandCursor)
@@ -777,8 +819,7 @@ class Pair(QWidget):
 
     def __init__(self, first: QWidget, second: QWidget, parent=None):
         super().__init__(parent)
-        self.setObjectName("labelled")      # see-through, like labelled()'s boxes
-        self.setStyleSheet("QWidget#labelled { background: transparent; }")
+        self.setObjectName("labelled")      # see-through, like labelled()'s (CARD_CSS)
         self.first, self.second = first, second
         self.box = QBoxLayout(QBoxLayout.LeftToRight, self)
         self.box.setContentsMargins(0, 0, 0, 0)
@@ -857,16 +898,14 @@ def divider() -> QFrame:
     doesn't know about it)."""
     f = QFrame()
     f.setObjectName("carddivider")
-    f.setFixedHeight(1)
-    f.setStyleSheet("QFrame#carddivider { background: palette(mid); border: none; }")
+    f.setFixedHeight(1)         # (coloured by CARD_CSS)
     return f
 
 
 def indented(parent: QVBoxLayout, spacing: int = 8) -> QVBoxLayout:
     """A column under a section's title, set in a little so the title stands out."""
     box = QWidget()
-    box.setObjectName("labelled")
-    box.setStyleSheet("QWidget#labelled { background: transparent; }")
+    box.setObjectName("labelled")   # see-through (CARD_CSS)
     col = QVBoxLayout(box)
     col.setContentsMargins(SECTION_INDENT, 0, 0, 0)
     col.setSpacing(spacing)
@@ -883,9 +922,43 @@ def section_title(icon: str, text: str) -> QPushButton:
     b.setObjectName("fold")
     b.setFocusPolicy(Qt.NoFocus)
     b.setAttribute(Qt.WA_TransparentForMouseEvents)
-    b.setStyleSheet("text-align:left; padding-left:0;")
+    b.setProperty("section", True)      # (CARD_CSS)
     icons.set_icon(b, icon, "section", size=13)
     return b
+
+
+# a card's own looks, in one style sheet on the card rather than one on each of its
+# widgets (a card has dozens: a sheet each made a card slow to make). In the
+# palette's colours: the host's theme (Onion Board's) doesn't know about them
+CARD_CSS = (
+    "QWidget#labelled { background: transparent; }"      # labelled(), indented()...
+    "QFrame#carddivider { background: palette(mid); border: none; }"
+    'QPushButton#fold[section="true"] { text-align:left; padding-left:0; }'
+    f'*[aligned="true"], *[aligned="true"] * {{ {ALIGN_CSS} }}'     # align_control()
+    # a picture in the strip (Thumb): its plate is painted; its ✕, its + and its "+3"
+    "QPushButton#thumb { background:transparent; border:none; padding:0; }"
+    'QPushButton#danger[corner="small"] { padding:0; font-size:7pt; }'
+    'QPushButton#danger[corner="big"] { padding:0; font-size:8pt; }'
+    "QPushButton#thumbadd { background:palette(highlight);"
+    " color:palette(highlighted-text); border:none; border-radius:9px; padding:0;"
+    " font-size:10pt; font-weight:700; }"
+    "QLabel#thumbmore { background: rgba(0,0,0,170); color: white;"
+    " border-radius: 4px; padding: 0 3px; font-size: 7pt; font-weight: 700; }"
+    # the dashed + after the pictures
+    "QPushButton#addpic { background:transparent; border:1px dashed palette(mid);"
+    " border-radius:8px; padding:0; font-size:12pt; color:palette(window-text); }"
+    "QPushButton#addpic:hover { border-color:palette(highlight);"
+    " color:palette(highlight); }"
+    "QPushButton#addpic:disabled { border-color:transparent; color:transparent; }"
+    # the name: a title until you click it (open), or just read (closed)
+    "QLineEdit#cardname { background:transparent; border:1px solid transparent;"
+    " padding:2px 3px; font-size:11pt; font-weight:700; }"
+    "QLineEdit#cardname:hover { border-color:palette(mid); }"
+    "QLineEdit#cardname:focus { background:palette(base);"
+    " border-color:palette(highlight); }"
+    "QLabel#cardtitle { font-size:10.5pt; font-weight:700; }"
+)
+CARD_HOVER = "QFrame#card:hover { border-color:palette(highlight); }"
 
 
 class TriggerRow(QFrame):
@@ -913,8 +986,11 @@ class TriggerRow(QFrame):
     files_dropped = Signal(object, list)   # row, picture files dropped on it
 
     def __init__(self, t: Trigger, sounds: list[tuple[str, str]],
-                 screens: list[Monitor] = (), open_: bool = False):
-        super().__init__()
+                 screens: list[Monitor] = (), open_: bool = False,
+                 parent: QWidget | None = None):
+        super().__init__(parent)
+        if parent is not None:      # until it's laid out, the size a card made on its
+            self.resize(640, 480)   # own starts at: not "too narrow" (_fit_narrow)
         self.setObjectName("card")
         self.t = t
         self.advanced = False
@@ -956,19 +1032,12 @@ class TriggerRow(QFrame):
                                     "paste the one you copied. You can also drop picture "
                                     "files on the card.")
         self.btn_add_pic.setCursor(Qt.PointingHandCursor)
-        self.btn_add_pic.setStyleSheet(
-            "QPushButton#addpic { background:transparent; border:1px dashed palette(mid);"
-            " border-radius:8px; padding:0; font-size:12pt; color:palette(window-text); }"
-            "QPushButton#addpic:hover { border-color:palette(highlight);"
-            " color:palette(highlight); }"
-            "QPushButton#addpic:disabled { border-color:transparent; color:transparent; }")
         self.btn_add_pic.clicked.connect(self._show_add_menu)
         # the header's pieces belong to the card from the start: _arrange moves them
         # between layouts, and a piece shown while it had no parent flashed up on the
         # desktop as a little blank window of its own (and lagged the app)
         self.pics = QWidget(self)       # the strip and its +, side by side
         self.pics.setObjectName("labelled")
-        self.pics.setStyleSheet("QWidget#labelled { background: transparent; }")
         pics = QHBoxLayout(self.pics)
         pics.setContentsMargins(0, 0, 0, 0)
         pics.setSpacing(4)
@@ -979,26 +1048,18 @@ class TriggerRow(QFrame):
         self.badge.setAlignment(Qt.AlignCenter)
         self.names = QWidget(self)        # under the name: what it does (or what's wrong)...
         self.names.setObjectName("labelled")      # see-through, like labelled()'s boxes
-        self.names.setStyleSheet("QWidget#labelled { background: transparent; }")
         names = QVBoxLayout(self.names)
         names.setContentsMargins(0, 0, 0, 0)
         names.setSpacing(2)
         self.name = QLineEdit(t.name)
-        # a title until you click it. Styled here, in the palette's colours, rather than
-        # in the theme: the host's theme (Onion Board's) doesn't know about it
+        # a title until you click it (styled by CARD_CSS)
         self.name.setObjectName("cardname")
-        self.name.setStyleSheet(
-            "QLineEdit#cardname { background:transparent; border:1px solid transparent;"
-            " padding:2px 3px; font-size:11pt; font-weight:700; }"
-            "QLineEdit#cardname:hover { border-color:palette(mid); }"
-            "QLineEdit#cardname:focus { background:palette(base);"
-            " border-color:palette(highlight); }")
         self.name.setToolTip("Click to rename it")
         self.name.setMinimumWidth(50)
         self.name.setPlaceholderText("Name, e.g. Rare spawn")
         self.name.setMaxLength(60)
         self.name.setCursorPosition(0)          # a long name shows its start, not its end
-        self.setStyleSheet("QFrame#card:hover { border-color:palette(highlight); }")
+        self.setStyleSheet(CARD_CSS + CARD_HOVER)
         self.name.editingFinished.connect(self._on_name)
         self.name.editingFinished.connect(lambda: self.name.setCursorPosition(0))
         # as wide as the name, not the whole card: the hover / editing box hugs it
@@ -1007,7 +1068,6 @@ class TriggerRow(QFrame):
         self._fit_name()
         self.name_line = QWidget(self)    # the name takes what it needs, the rest is empty
         self.name_line.setObjectName("labelled")
-        self.name_line.setStyleSheet("QWidget#labelled { background: transparent; }")
         line = QHBoxLayout(self.name_line)
         line.setContentsMargins(0, 0, 0, 0)
         line.setSpacing(0)
@@ -1015,7 +1075,6 @@ class TriggerRow(QFrame):
         # a closed card's name is just read (a click anywhere on the card opens it)
         self.title = ElideLabel()
         self.title.setObjectName("cardtitle")
-        self.title.setStyleSheet("QLabel#cardtitle { font-size:10.5pt; font-weight:700; }")
         self.title.setContentsMargins(6, 0, 0, 0)
         self.title.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
         self.title.set_elide(True)
@@ -1063,6 +1122,8 @@ class TriggerRow(QFrame):
         self.live.setIndent(0)
         self.live.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         self._live_shown = ""
+        self._live_room: QSize | None = None    # a score's size (_fit_live)
+        self._live_score = False            # it's showing a score
         self.chk_on = Switch(self)
         self.chk_on.setToolTip("Watch for this trigger (switch it off to keep it but pause it)")
         self.chk_on.setChecked(t.enabled)
@@ -1108,7 +1169,7 @@ class TriggerRow(QFrame):
             "• a bar runs low: less of its area is one colour (a health bar)")
         no_wheel(self.mode)
         self.mode.activated.connect(self._on_mode)
-        row.addWidget(labelled("When", self.mode))
+        row.addWidget(labelled("When", self.mode, in_card=True))
         self.where = WideCombo(min_width=120)
         self.where.setToolTip("Where to look: game windows (watched even while other windows "
                               "cover them, but not while they're minimized) or whole "
@@ -1116,7 +1177,7 @@ class TriggerRow(QFrame):
                               "a game. “Same as below” is the choice at the bottom.")
         no_wheel(self.where)
         self.where.activated.connect(self._on_where)
-        self.where_box = labelled("in", self.where)
+        self.where_box = labelled("in", self.where, in_card=True)
         row.addWidget(self.where_box)
         self.interval = WideCombo(min_width=100)
         self.interval.addItem("Default", 0)       # its text: set_default_interval
@@ -1129,7 +1190,7 @@ class TriggerRow(QFrame):
                                  "your processor, so with a lot on it may check less often.")
         no_wheel(self.interval)
         self.interval.currentIndexChanged.connect(self._on_interval)
-        row.addWidget(labelled("Check every", self.interval))
+        row.addWidget(labelled("Check every", self.interval, in_card=True))
         self.btn_area = QPushButton()
         self.btn_area.setObjectName("small")
         self.btn_area.clicked.connect(lambda: self.area_wanted.emit(self))
@@ -1153,7 +1214,6 @@ class TriggerRow(QFrame):
 
         self.pictures_box = FlowBox(gap=8)
         self.pictures_box.setObjectName("labelled")
-        self.pictures_box.setStyleSheet("QWidget#labelled { background: transparent; }")
         row = self.pictures_box.flow
         self.count = QLabel()
         self.count.setObjectName("muted")
@@ -1267,7 +1327,7 @@ class TriggerRow(QFrame):
         self.delay.setValue(t.delay)
         self.delay.setToolTip("How long after it goes off to play the sound "
                               "(0 = straight away)")
-        row.addWidget(labelled("Wait", self.delay))
+        row.addWidget(labelled("Wait", self.delay, in_card=True))
         self.cooldown = QDoubleSpinBox()
         self.cooldown.setRange(0.0, 600.0)
         self.cooldown.setDecimals(0)
@@ -1276,7 +1336,7 @@ class TriggerRow(QFrame):
         self.cooldown.setValue(t.cooldown)
         self.cooldown.setToolTip("After playing, ignore this trigger for this long. It also "
                                  "has to stop before it can play again.")
-        row.addWidget(labelled("Not again for", self.cooldown))
+        row.addWidget(labelled("Not again for", self.cooldown, in_card=True))
         self.hold = QDoubleSpinBox()
         self.hold.setRange(0.0, screenwatch.MAX_HOLD)
         self.hold.setDecimals(1)
@@ -1284,7 +1344,7 @@ class TriggerRow(QFrame):
         self.hold.setSuffix(" s")
         self.hold.setValue(t.hold)
         self.lbl_hold = QLabel()
-        self.hold_box = hold = labelled("", self.hold)
+        self.hold_box = hold = labelled("", self.hold, in_card=True)
         hold.layout().insertWidget(0, self.lbl_hold)
         row.addWidget(hold)
         self.threshold = QSpinBox()
@@ -1299,7 +1359,7 @@ class TriggerRow(QFrame):
         no_wheel(self.below)
         self.below.currentIndexChanged.connect(self._on_below)
         self.lbl_number = QLabel()
-        self.match_box = match = labelled("", self.threshold)
+        self.match_box = match = labelled("", self.threshold, in_card=True)
         match.layout().insertWidget(0, self.lbl_number)
         match.layout().insertWidget(1, self.below)
         row.addWidget(match)
@@ -1310,7 +1370,7 @@ class TriggerRow(QFrame):
                                     "be switched on or off at once")
         no_wheel(self.cb_category)
         self.cb_category.activated.connect(self._on_category)
-        row.addWidget(labelled("Category", self.cb_category))
+        row.addWidget(labelled("Category", self.cb_category, in_card=True))
         tune_col.addWidget(self.tune)
         v.addStretch(1)     # a tile taller than it needs (its line's tallest): space below
         for w in (self.delay, self.cooldown, self.hold, self.threshold):
@@ -1323,6 +1383,8 @@ class TriggerRow(QFrame):
         self._show_mode()
         self.set_sounds(sounds)
         self.set_screens(list(screens))
+        if not open_:   # its pictures made once, at the size they're shown (_arrange)
+            self.strip.set_look(TILE_THUMB, 1)
         self.refresh_pictures()
         self._update_state()
         self.show_score(None)
@@ -1333,7 +1395,7 @@ class TriggerRow(QFrame):
                         self.until, self.btn_test, self.btn_dup, self.btn_del,
                         self.delay, self.cooldown, self.hold, self.threshold,
                         self.below, self.cb_category):
-            align_control(control)
+            align_control(control, in_card=True)
 
     def _show_title(self, _text: str = ""):
         self.title.setText(self.name.text().strip() or "No name")
@@ -1406,6 +1468,8 @@ class TriggerRow(QFrame):
         self.name.setVisible(not tile)
         self.live.setAlignment((Qt.AlignLeft if tile else Qt.AlignRight) | middle)
         self.live.setContentsMargins(6 if tile else 0, 0, 0, 0)
+        self._live_room = None          # sized again for its margins
+        self._fit_live()
         self.details.setVisible(tile and self.advanced)
         self._fit_text()
         self._said = None
@@ -1445,6 +1509,7 @@ class TriggerRow(QFrame):
             self._fit_name()
             if hasattr(self, "live"):   # (not yet while it's being made)
                 self._live_shown = ""   # the dot's colour is the theme's
+                self._live_room = None  # ...and its font
                 self.show_score(None)
 
     def showEvent(self, ev):
@@ -1545,12 +1610,12 @@ class TriggerRow(QFrame):
     def dragEnterEvent(self, ev):
         if self.t.uses_pictures and self.picture_files(ev.mimeData()):
             ev.acceptProposedAction()
-            self.setStyleSheet("QFrame#card { border-color:palette(highlight); }")
+            self.setStyleSheet(CARD_CSS + "QFrame#card { border-color:palette(highlight); }")
         else:
             ev.ignore()             # a card being moved: the category takes it
 
     def _unmark(self):
-        self.setStyleSheet("QFrame#card:hover { border-color:palette(highlight); }")
+        self.setStyleSheet(CARD_CSS + CARD_HOVER)
 
     def dragLeaveEvent(self, ev):
         self._unmark()
@@ -1777,6 +1842,26 @@ class TriggerRow(QFrame):
         if text != self._live_shown:        # every POLL_MS on every card: only on a change
             self._live_shown = text
             self.live.setText(text)
+            self._live_score = len(word) <= 4 and word.endswith("%")    # 0% to 100%
+            self._fit_live()
+
+    def _fit_live(self):
+        """The live state's label as big as its text, but a score always as big as
+        the widest one ("100%", bold): a label that can't change size doesn't ask for
+        a new layout, so a score changing every check never moves the card's other
+        parts, or makes the page lay all its cards out again."""
+        live = self.live
+        if self._live_score:
+            if self._live_room is None:     # (again after a theme or the margins change)
+                text = live.text()
+                live.setText('<span>●</span>&nbsp;<b>100%</b>')
+                self._live_room = live.sizeHint()
+                live.setText(text)
+            size = self._live_room          # (a rich text's size is slow to work out)
+        else:
+            size = live.sizeHint()
+        if live.minimumSize() != size or live.maximumSize() != size:
+            live.setFixedSize(size)
 
     def set_note(self, note: tuple[str, str] | None, waiting: WindowRef | None = None):
         """What watching says about this trigger's window or screen (not open,
@@ -2027,6 +2112,7 @@ class TriggersTab(QWidget):
     fired = Signal(object)              # a Trigger just went off (its sound started)
     ringing_changed = Signal()          # a sound started or stopped ringing
     history_changed = Signal()          # something went off (TriggersTab.history)
+    playing_changed = Signal()          # a trigger's sound started, or was stopped
     _fired = Signal(str, object)        # from the watcher thread: trigger id, Hit
     _quieted = Signal(str)              # ...a ringing trigger's stop happened (Quieter)
 
@@ -2079,6 +2165,8 @@ class TriggersTab(QWidget):
         self._played: dict[str, set[str]] = {}       # trigger id -> sounds it played (tagged)
         self._ring_sounds: dict[str, list[str]] = {}  # ...-> what its ring is playing
         self._ring_how: dict[str, str] = {}           # ...-> what stops that ring (Trigger.stop)
+        self._live: dict[str, float] = {}             # ...-> when it went off, while it plays
+        self.pages = None               # the Triggers / Log pages it's shown in (ui.pages)
         self._input_poll = QTimer(self)
         self._input_poll.timeout.connect(self._check_input)
         self._hits: dict[str, screenwatch.Hit] = {}     # each trigger's latest, for alerts
@@ -2093,6 +2181,7 @@ class TriggersTab(QWidget):
                                   else screenwatch.CPU_SHARE)
         most = s.get("max_detect", "off")
         self.watcher.max_detect = most if most in screenwatch.MAX_DETECTS else "off"
+        self.watcher.color_hits = s.get("color_log") is not False
         self.watcher.default = self._saved_default()
 
         v = QVBoxLayout(self)
@@ -2486,8 +2575,26 @@ class TriggersTab(QWidget):
             sec.set_open(matches if active else self.groups.find(name).open)
             if sec.is_open and (active or was_active):
                 self._build(sec)
-        for row in self.rows.values():
-            row.setVisible(self._matches_search(row.t))
+        # a card shown in a shown grid lays the whole grid out there and then, so with
+        # hundreds of cards to show, clearing a search took a quarter of a second. A
+        # grid with several to show hides while they're shown: shown again, it's laid
+        # out once
+        change = [(row, self._matches_search(row.t)) for row in self.rows.values()]
+        change = [(row, on) for row, on in change if row.isHidden() == on]
+        showing: dict[QWidget, int] = {}
+        for row, on in change:
+            body = row.parentWidget()
+            if on and body is not None and not body.isHidden():
+                showing[body] = showing.get(body, 0) + 1
+        focus = QApplication.focusWidget()      # (hidden, it would lose the cursor)
+        bodies = [body for body, n in showing.items()
+                  if n > 1 and not (focus and body.isAncestorOf(focus))]
+        for body in bodies:
+            body.hide()
+        for row, on in change:
+            row.setVisible(on)
+        for body in bodies:
+            body.show()
         self.no_results.setVisible(active and not self._search_ids)
         self.empty.setVisible(not self.triggers and not active)
         self.search_summary.setText(
@@ -2825,6 +2932,8 @@ class TriggersTab(QWidget):
                 row.flash(("Ringing" if t.ring else "Played") + self._in(tid) + "!", 4000)
             if t.ring:
                 self._watch_ring(t)
+            self._live[t.id] = time.monotonic()
+            self.playing_changed.emit()
             self.fired.emit(t)
 
     def place_name(self, place) -> str:
@@ -3060,6 +3169,7 @@ class TriggersTab(QWidget):
         sec.fold_toggled.connect(self._on_fold)
         sec.switched.connect(self._on_switch)
         sec.menu_wanted.connect(self._category_menu)
+        sec.add_wanted.connect(self._category_add_menu)
         sec.search_wanted.connect(self.show_search)
         sec.body_layout.set_per_row(self.per_row)
         sec.card_dropped.connect(self.reorder)
@@ -3082,11 +3192,11 @@ class TriggersTab(QWidget):
             self.set_category_looks(dlg.result)
 
     def set_category_looks(self, looks: dict):
-        """Give categories their looks (name -> {"color", "text_color", "image"}; a
-        category left out keeps its own) and show them."""
+        """Give categories their looks (name -> Category.full_look(); a category
+        left out keeps its own) and show them."""
         for c in self.groups.categories:
             if c.name in looks:
-                c.set_look(looks[c.name])
+                c.set_full_look(looks[c.name])
         for name, sec in self.sections.items():
             sec.set_look(self.groups.find(name), self.host.data_dir)
         self._save_groups()
@@ -3183,7 +3293,7 @@ class TriggersTab(QWidget):
 
     def _build(self, sec: CategorySection, need: Trigger | None = None):
         """Make the cards of `sec`'s triggers: BUILD_NOW now (and `need`), the rest
-        BUILD_STEP at a time after."""
+        a few at a time after (_build_more)."""
         todo = [t for t in self.triggers if t.category == sec.name and t.id not in self.rows
                 and self._matches_search(t)]
         if sec.built and not todo:
@@ -3204,9 +3314,14 @@ class TriggersTab(QWidget):
             return
         todo = [t for t in self.triggers if t.category == sec.name and t.id not in self.rows
                 and self._matches_search(t)]
-        for t in todo[:BUILD_STEP]:
+        until = time.perf_counter() + BUILD_STEP_MS / 1000
+        made = 0
+        for t in todo:
+            if made and time.perf_counter() > until:
+                break
             self._place_row(t, sec)
-        if len(todo) > BUILD_STEP:
+            made += 1
+        if len(todo) > made:
             QTimer.singleShot(0, self, lambda: self._build_more(sec))
 
     def _counts(self) -> tuple[int, int, int]:
@@ -3230,6 +3345,12 @@ class TriggersTab(QWidget):
         processor share stays as picked, for when it's off (and older versions)."""
         self.watcher.max_detect = how
         self.host.screen["max_detect"] = how
+        self.host.save()
+
+    def set_color_log(self, on: bool):
+        """The Log's pictures in colour (on) or grey, kept as "color_log"."""
+        self.watcher.color_hits = on
+        self.host.screen["color_log"] = on
         self.host.save()
 
     def watching_text(self) -> str:
@@ -3476,6 +3597,40 @@ class TriggersTab(QWidget):
         if ts:
             self.export_triggers(ts, profiles.label(name))
 
+    def add_in_category(self, name: str, make):
+        """Make a new trigger (`make`: add_from_cut and co.) in this category: it's
+        opened first, so the new one goes in it and shows."""
+        sec = self.sections.get(name)
+        if sec is not None and not sec.btn_fold.isChecked():
+            sec.btn_fold.setChecked(True)      # opens it (and makes it the last opened)
+        self._last_category = name
+        make()
+
+    def _fill_new_here(self, menu: QMenu, name: str):
+        """The ways to make a trigger, each putting it in this category."""
+        menu.addAction(icons.icon("crop"), "Cut it from the window",
+                       lambda: self.add_in_category(name, self.add_from_cut))
+        menu.addAction(icons.icon("plus"), "From a picture file…",
+                       lambda: self.add_in_category(name, self.add_from_file))
+        a = menu.addAction(icons.icon("image"), "Paste the copied picture",
+                           lambda: self.add_in_category(name, self.add_from_clipboard))
+        a.setEnabled(not QApplication.clipboard().image().isNull())
+        menu.addAction("Without a picture…",
+                       lambda: self.add_in_category(name, self.add_area_trigger))
+
+    def _pop_menu(self, menu: QMenu, under: QWidget):
+        """Show a menu under a button (tests swap this for one that doesn't wait)."""
+        menu.exec(under.mapToGlobal(under.rect().bottomLeft()))
+
+    def _category_add_menu(self, name: str):
+        """A section's + button: the ways to make a new trigger in it."""
+        sec = self.sections.get(name)
+        if sec is None:
+            return
+        menu = QMenu(sec.btn_add)
+        self._fill_new_here(menu, name)
+        self._pop_menu(menu, sec.btn_add)
+
     def _category_menu(self, name: str):
         """A section's ⋯ menu."""
         sec = self.sections.get(name)
@@ -3484,6 +3639,8 @@ class TriggersTab(QWidget):
         menu = QMenu(sec.btn_menu)
         named = name != profiles.UNCATEGORISED
         n = sum(t.category == name for t in self.triggers)
+        self._fill_new_here(menu.addMenu(icons.icon("plus"), "New trigger here"), name)
+        menu.addSeparator()
         if named:
             menu.addAction("Rename…", lambda: self._ask_rename(name))
         menu.addAction(icons.icon("palette"), "Colours and picture…",
@@ -3506,7 +3663,7 @@ class TriggersTab(QWidget):
         if named:
             menu.addAction(icons.icon("trash"), "Delete category…",
                            lambda: self.delete_category(name))
-        menu.exec(sec.btn_menu.mapToGlobal(sec.btn_menu.rect().bottomLeft()))
+        self._pop_menu(menu, sec.btn_menu)
 
     def _ask_rename(self, name: str):
         from PySide6.QtWidgets import QInputDialog
@@ -3626,10 +3783,11 @@ class TriggersTab(QWidget):
         self._build(sec, need=t)
         return self.rows.get(t.id) or self._place_row(t, sec, open_)
 
-    def _make_row(self, t: Trigger, open_: bool) -> TriggerRow:
+    def _make_row(self, t: Trigger, open_: bool, parent: QWidget | None = None) -> TriggerRow:
         """A card for `t`, opened unless `open_` is false (the cards made for the
-        list at start, when there's more than one)."""
-        row = TriggerRow(t, self.host.sounds(), self._mons, open_=open_)
+        list at start, when there's more than one). Made in `parent` (where it goes):
+        moved there afterwards, its every widget would be styled all over again."""
+        row = TriggerRow(t, self.host.sounds(), self._mons, open_=open_, parent=parent)
         row.sound_details = getattr(self.host, "sound_details", row.sound_details)
         row._update_state()
         row.set_advanced(self.chk_advanced.isChecked())
@@ -3657,7 +3815,7 @@ class TriggersTab(QWidget):
 
     def _place_row(self, t: Trigger, sec: CategorySection, open_: bool = False) -> TriggerRow:
         """Put `t`'s card (made if need be) in `sec` where it is in self.triggers."""
-        row = self.rows.get(t.id) or self._make_row(t, open_)
+        row = self.rows.get(t.id) or self._make_row(t, open_, sec.body)
         old = row.parentWidget()
         if old is not None and old.layout() is not None:
             old.layout().removeWidget(row)
@@ -4376,7 +4534,56 @@ class TriggersTab(QWidget):
         row.name.selectAll()
 
     def show_history(self):
-        HistoryDialog(self, self).exec()
+        if self.pages is not None:
+            self.pages.show_log()
+        else:
+            HistoryDialog(self, self).exec()
+
+    # ------------------------------------------------------------------ playing now
+    def playing_now(self) -> list[tuple[Trigger, bool]]:
+        """The triggers whose sound is still going, oldest first, each with whether
+        it rings. A host that can say which sounds are playing (Host.playing) says
+        when one ends; with one that can't, a one-shot counts as playing for
+        GUESS_PLAYING_S after it went off."""
+        ringing = set(self.host.ringing())
+        tags = None
+        playing = getattr(self.host, "playing", None)
+        if callable(playing):
+            try:
+                tags = set(playing())
+            except Exception:  # noqa: BLE001 - a host's bug mustn't break the bar
+                log.warning("the host couldn't say what's playing", exc_info=True)
+        out, now = [], time.monotonic()
+        for tid, since in list(self._live.items()):
+            t = next((x for x in self.triggers if x.id == tid), None)
+            ring = tid in ringing
+            if t is not None and (ring or (
+                    any(tag.startswith(tid + "/") for tag in tags) if tags is not None
+                    else now - since < GUESS_PLAYING_S)):
+                out.append((t, ring))
+            else:
+                del self._live[tid]
+        return out
+
+    def stop_trigger(self, tid: str):
+        """Stop what trigger `tid` is playing now, its ring too (Playing now's Stop)."""
+        self._silence(tid, ring=True)
+        if self._live.pop(tid, None) is not None:
+            t = next((x for x in self.triggers if x.id == tid), None)
+            log.info("trigger %r stopped by hand", t.name if t else tid)
+        row = self.rows.get(tid)
+        if row is not None:
+            row.flash("Stopped", 2500)
+        self.playing_changed.emit()
+
+    def stop_all_playing(self):
+        """Stop every trigger's sound, and drop any still waiting out its wait."""
+        self.cancel_pending()
+        for tid in list(self._live):
+            self._silence(tid, ring=True)
+        self._live.clear()
+        self.stop_ringing()
+        self.playing_changed.emit()
 
     # ------------------------------------------------------------------ packs
     def export_triggers(self, triggers: list[Trigger] | None = None, name: str = ""):
@@ -4390,16 +4597,20 @@ class TriggersTab(QWidget):
                                               "Trigger packs (*.zip)")
         if not path:
             return
+        from onionwatch.ui.categories import pictures_dir as category_pictures_dir
+        names = {t.category for t in triggers}
+        cats = [c for c in self.groups.categories if c.name in names]
         try:
-            packs.write_pack(path, triggers, dict(self.host.sounds()))
+            packs.write_pack(path, triggers, dict(self.host.sounds()), cats,
+                             category_pictures_dir(self.host.data_dir))
         except OSError as e:
             QMessageBox.warning(self, "Couldn't save the triggers", str(e))
             return
         QMessageBox.information(
             self, "Triggers saved",
             f"{plural(len(triggers), 'trigger')} saved to {Path(path).name}, pictures "
-            "and all, each in its category. Sounds go by name: sound files of yours "
-            "aren't in it.")
+            "and all, each in its category with its colours, picture and banner. "
+            "Sounds go by name: sound files of yours aren't in it.")
 
     def import_triggers(self):
         path, _ = QFileDialog.getOpenFileName(self, "Load triggers", str(Path.home()),
@@ -4418,11 +4629,39 @@ class TriggersTab(QWidget):
             for t, _p, _s in found:
                 t.category = name
         added = self.add_pack(found)
+        if added:
+            self.add_pack_looks(packs.read_categories(path))
         if found and not added:
             QMessageBox.information(self, "Too many triggers",
                                     f"You can have up to {MAX_TRIGGERS} triggers.")
         elif not found:
             QMessageBox.information(self, "No triggers", "That file has no triggers in it.")
+
+    def add_pack_looks(self, looks: dict):
+        """Give the categories a pack brought their looks (packs.read_categories),
+        each picture kept like a picked one. A category that already has a look
+        or banner of its own keeps it."""
+        from onionwatch.ui.categories import save_banner, save_picture as save_category_picture
+        changed = {}
+        for name, (look, pic, wide) in looks.items():
+            c = self.groups.find(name)
+            if c is None:
+                continue
+            new = c.full_look()
+            if not c.look():
+                new.update({k: v for k, v in look.items() if k != "banner"})
+                img = QImage()
+                if pic and img.loadFromData(pic):
+                    new["image"] = save_category_picture(img, self.host.data_dir)
+            img = QImage()
+            if not c.banner and wide and img.loadFromData(wide):
+                b = save_banner(img, self.host.data_dir)
+                if b:
+                    new["banner"] = {**look.get("banner", {}), "image": b}
+            if new != c.full_look():
+                changed[name] = new
+        if changed:
+            self.set_category_looks(changed)
 
     def add_pack(self, found) -> int:
         """Add the triggers read from a pack (packs.read_pack): each gets a new id,

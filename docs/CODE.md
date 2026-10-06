@@ -71,8 +71,11 @@ To release a new version:
    with one change at a time (an installer takes a minute to build with Inno Setup, a
    new file scans in a few), and scan several samples of a fix before trusting it:
    one clean scan can be luck.
-3. `gh release create vX.Y.Z dist\OnionWatch-Installer.exe dist\OnionWatch-module.zip --target main --title "Onion Watch X.Y.Z"`.
-   Keep both file names: the website links to the installer, Onion Board looks for the zip.
+3. `gh release create vX.Y.Z dist\OnionWatch-Installer.exe dist\OnionWatch-Update.exe dist\OnionWatch-module.zip --target main --title "Onion Watch X.Y.Z"`.
+   Keep the file names: the website links to the installer, Onion Board looks for the zip,
+   and the app's *Update now* (`onionwatch/updates.py`) fetches `OnionWatch-Update.exe`
+   (the installer uploaded twice, so GitHub's download counts tell updates apart from
+   downloads off the website; without it, the installer).
    GitHub lists a release's files by name, so the installer is named to sort first
    (`OnionWatch-I…` before `OnionWatch-m…`): it's the file people should click.
    Under the notes' one-line headline, put a download line, since GitHub adds two
@@ -96,6 +99,9 @@ then installs that file instead of downloading.
 | `onionwatch/sounds.py` | the built-in alert sounds (made in code) and the added sound files |
 | `onionwatch/player.py` | the output stream that mixes and rings the alerts |
 | `onionwatch/settings.py` | `%APPDATA%\OnionWatch` and `config.json` |
+| `onionwatch/updates.py` | the daily update check and *Update now* (standalone app only) |
+| `onionwatch/usage.py` | the anonymous daily usage count, GoatCounter (standalone app only) |
+| `onionwatch/feedback.py` | Send feedback / Report a problem links |
 | `onionwatch/app.py` | start-up: logging, one copy at a time, the window, `--selftest` |
 | `onionwatch/host.py` | what the triggers page needs from the program it runs in (settings, sounds, playing, theme): the Onion Watch app or Onion Board |
 | `onionwatch/apphost.py` | the Onion Watch app as that host |
@@ -111,7 +117,8 @@ then installs that file instead of downloading.
 | `onionwatch/ui/deleted.py` | Recently deleted triggers (kept 30 days with their pictures, in the saved settings) |
 | `onionwatch/packs.py` | saving triggers to a .zip with their pictures and loading them back |
 | `onionwatch/ui/mainwindow.py` | the window, the tray icon, notifications |
-| `onionwatch/ui/settingsdialog.py` | output device, volume, notifications, tray, theme |
+| `onionwatch/ui/settingsdialog.py` | output device, volume, notifications, tray, theme, updates and privacy |
+| `onionwatch/ui/updatedialog.py` | "a new version is out": Update now / Later / Skip |
 | `onionwatch/ui/watching.py` | the Triggers bar's ⚙: how much of the processor watching may use, "Max detection", and how often each trigger is checked now |
 | `onionwatch/owl.py` | Hoot, the mascot owl, drawn in code (Onion Board's Bun's style), and `OwlWidget`: Hoot animated, waiting for a trigger |
 | `onionwatch/theme.py`, `ui/icons.py`, `ui/panel.py` | themes, the logo, painted icons and layout helpers, shared with Onion Board |

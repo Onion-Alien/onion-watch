@@ -1,4 +1,4 @@
-<p align="right"><img src="https://visitor-badge.laobi.icu/badge?page_id=Onion-Alien.onion-watch" alt="visitors"></p>
+<p align="right"><img src="https://hits.sh/github.com/Onion-Alien/onion-watch.svg?view=total&label=total%20visits&color=6b8e23" alt="total visits"></p>
 
 <p align="center"><img src="docs/art/hoot.png?v=b2c97ddb" width="150" alt="Hoot, the Onion Watch owl"></p>
 
@@ -15,8 +15,8 @@ until you're back.
 ## ⬇️ [Download Onion Watch for Windows](https://github.com/Onion-Alien/onion-watch/releases/latest/download/OnionWatch-Installer.exe)
 
 <!-- release -->
-Version **0.7.2** · Windows 10 / 11 · free, no account, no internet needed ·
-[VirusTotal: 68 of 68 clean](https://www.virustotal.com/gui/file/ca8e302f526f07c05f85eef2132a3aebcac6efd65b69d7f26bf7e410e2fd6658) · [what's new](https://github.com/Onion-Alien/onion-watch/releases/latest)
+Version **0.8.0** · Windows 10 / 11 · free, no account, no internet needed ·
+[VirusTotal: 67 of 67 clean](https://www.virustotal.com/gui/file/1cde36f7f2d7fa763936bc859e051780b91ec849ac82ae467598fb596552dca7) · [what's new](https://github.com/Onion-Alien/onion-watch/releases/latest)
 <!-- /release -->
 
 ![Onion Watch watching a game, one trigger open](docs/screenshots/main.png?v=18d8dcbe)
@@ -33,8 +33,10 @@ Version **0.7.2** · Windows 10 / 11 · free, no account, no internet needed ·
 Onion Watch reads pixels and plays sounds. It **never** presses keys, clicks,
 moves the mouse, or reads or changes a game's memory: it sees what you'd see, like
 OBS or a Discord screen share. Some games forbid every third-party tool, so check
-your game's rules. Nothing it captures is saved or sent anywhere, and it makes no
-network requests.
+your game's rules. Nothing it captures is saved or sent anywhere. It goes online
+only to check for a new version once a day and, if you leave *Count me in* ticked,
+to send an anonymous "still here" (the version and a random ID). Both switch off in
+Settings → Updates and privacy.
 
 ## What it does
 
