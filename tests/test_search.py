@@ -101,6 +101,8 @@ def test_category_controls_fit_in_a_narrow_window(make, qapp):
         if sec.isHidden():
             continue
         for button in sec.header.findChildren(QPushButton):
+            if not button.isVisibleTo(tab):     # (a narrow header's +: in its ⋯ menu)
+                continue
             assert button.mapTo(tab, button.rect().topRight()).x() < tab.width()
 
 

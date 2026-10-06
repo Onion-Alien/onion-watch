@@ -1,6 +1,6 @@
 """Padding the eye notices: the bottom bar's buttons sit inside its margins (also
-on a wrapped second line), and a trigger card's Duplicate / Delete share Fine-tune's
-line instead of taking a row of their own."""
+on a wrapped second line), and a trigger card's Test and ⋯ (Duplicate / Delete) share
+More options' line instead of taking a row of their own."""
 from PySide6.QtWidgets import QWidget
 import pytest
 
@@ -27,14 +27,15 @@ def test_the_bottom_bar_keeps_its_margins_when_it_wraps(tab, qapp):
     assert len({w.y() for w in kids}) > 1     # it did wrap at this width
 
 
-def test_duplicate_and_delete_sit_on_fine_tunes_line(tab, qapp):
+def test_test_and_the_menu_sit_on_more_options_line(tab, qapp):
     tab._new(as_qimage(banner()), "Rare")
     row = list(tab.rows.values())[-1]
     tab.resize(1100, 700)
     tab.show()
     qapp.processEvents()
+    row = tab.editor or row         # a wide window: the trigger is in the editor
     tune_y = row.btn_tune.mapTo(row, row.btn_tune.rect().center()).y()
-    for b in (row.btn_dup, row.btn_del):
+    for b in (row.btn_test, row.btn_menu):
         assert abs(b.mapTo(row, b.rect().center()).y() - tune_y) <= 2
 
 
@@ -49,16 +50,22 @@ def test_controls_fit_and_share_heights_across_window_sizes(tab, qapp, styled, w
     for _ in range(12):
         qapp.processEvents()
     assert tab.width() == width
-    controls = [row.mode, row.where, row.btn_area, row.btn_cut, row.btn_pictures,
-                row.btn_paste, row.sound, row.until, row.btn_test, row.delay,
-                row.cooldown, row.threshold, row.btn_dup, row.btn_del]
+    if tab.editor is not None:      # a wide window: the trigger is in the editor
+        row = tab.editor
+        row.btn_tune.setChecked(True)
+        for _ in range(12):
+            qapp.processEvents()
+    controls = [row.mode, row.where, row.btn_area, row.interval, row.sound, row.until,
+                row.btn_test, row.delay, row.cooldown, row.threshold, row.btn_menu]
     assert len({w.height() for w in controls}) == 1
     for w in controls:
         assert w.mapTo(row, w.rect().topLeft()).x() >= 0
         assert w.mapTo(row, w.rect().topRight()).x() < row.width()
-    # Mixed-height labels and checkboxes sit on the same centre line as the buttons.
-    assert abs(row.count.mapTo(row, row.count.rect().center()).y()
-               - row.btn_cut.mapTo(row, row.btn_cut.rect().center()).y()) <= 1
+    # Mixed-height labels and checkboxes sit on the same centre line as the buttons
+    # (when there's room for them on one line).
+    if width >= 900:
+        assert abs(row.chk_size.mapTo(row, row.chk_size.rect().center()).y()
+                   - row.btn_area.mapTo(row, row.btn_area.rect().center()).y()) <= 1
 
 
 @pytest.mark.parametrize("width", [500, 1100])

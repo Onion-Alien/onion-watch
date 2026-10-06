@@ -484,10 +484,10 @@ def test_the_delete_button_asks_first(tab, monkeypatch):
     monkeypatch.setattr(box, "exec", lambda self: box.Cancel)
     tab._new(as_qimage(banner()), "Keep me")
     row = tab.rows[tab.triggers[0].id]
-    row.btn_del.click()
+    row.act_del.trigger()
     assert [t.name for t in tab.triggers] == ["Keep me"]
     monkeypatch.setattr(box, "exec", lambda self: box.Yes)
-    row.btn_del.click()
+    row.act_del.trigger()
     assert tab.triggers == [] and tab.deleted()[0][1] == "Keep me"
 
 
