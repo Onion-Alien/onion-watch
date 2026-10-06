@@ -12,12 +12,14 @@ sent it to keep or look up).
 On unless switched off: the installer's "Count me in" box, or Settings > Updates and
 privacy. Copies from before it existed start with it off (settings.Config.load):
 they were installed as an app that sent nothing. A copy running from source never
-sends anything, and inside Onion Board (as its Triggers tab) this module isn't used
-at all: the board counts itself."""
+sends anything, and neither does one on a PC with ONIONBOARD_NO_STATS set (the
+developer's own PCs and test VMs, the same switch Onion Board obeys). Inside Onion
+Board (as its Triggers tab) this module isn't used at all: the board counts itself."""
 from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 import sys
 import threading
@@ -48,8 +50,9 @@ TIMEOUT_S = 15
 
 
 def enabled() -> bool:
-    """Could anything be sent at all: the installed app, with a key."""
-    return bool(TOKEN) and bool(getattr(sys, "frozen", False))
+    """Could anything be sent at all: the installed app, with a key, not on a dev PC."""
+    return (bool(TOKEN) and bool(getattr(sys, "frozen", False))
+            and not os.environ.get("ONIONBOARD_NO_STATS"))
 
 
 def install_id(cfg) -> str:
