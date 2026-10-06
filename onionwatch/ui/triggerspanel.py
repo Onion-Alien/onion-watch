@@ -1190,6 +1190,7 @@ class TriggerRow(QFrame):
         self._live_shown = ""
         self._live_room: QSize | None = None    # a score's size (_fit_live)
         self._live_score = False            # it's showing a score
+        self._score: float | None = None    # the score shown (show_score)
         self.chk_on = Switch(self)
         self.chk_on.setToolTip("Watch for this trigger (switch it off to keep it but pause it)")
         self.chk_on.setChecked(t.enabled)
@@ -1550,7 +1551,7 @@ class TriggerRow(QFrame):
             if hasattr(self, "live"):   # (not yet while it's being made)
                 self._live_shown = ""   # the dot's colour is the theme's
                 self._live_room = None  # ...and its font
-                self.show_score(None)
+                self.show_score(self._score)    # (the score it had: a restyle isn't news)
 
     def showEvent(self, ev):
         super().showEvent(ev)
@@ -1881,6 +1882,7 @@ class TriggerRow(QFrame):
     def show_score(self, score: float | None):
         """The live state, a coloured dot and a word: Off, Waiting, Cooldown, Ready,
         Watching, or while watching how well it matches (bold once it would go off)."""
+        self._score = score
         T = theme.T
         muted, accent = T.get("muted", "#888888"), T.get("accent", "#1fb6a6")
         bold = False
@@ -2613,9 +2615,8 @@ class TriggersTab(QWidget):
         ed.set_categories(self.groups.names())
         ed.set_default_interval(self.default_interval)
         ed.set_open(True)
-        if self.is_active():
-            ed.watching = self.is_on(t)
-            ed.show_score(self.watcher.scores.get(t.id))
+        ed.watching = row.watching
+        ed.show_score(row._score)       # what its tile shows, until the next check
         self.editor = ed
         self.editor_pane.layout().insertWidget(0, ed)
         self.editor_empty.hide()
