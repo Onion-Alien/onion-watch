@@ -42,6 +42,7 @@ from onionwatch.ui import icons
 from onionwatch.ui.categories import (MAX_PER_ROW, CategoriesDialog, CategorySection,
                                       ProfilesDialog,
                                       counts_text)
+from onionwatch.ui.chances import LiveLabel, goes_below
 from onionwatch.ui.history import HistoryDialog
 from onionwatch.ui.panel import Flow, UndoBar, card, hint_label
 from onionwatch.ui.watching import share_label
@@ -1183,7 +1184,7 @@ class TriggerRow(QFrame):
         self.details.setParent(self)    # under a closed card's header (_arrange)
         self.details.hide()
         # what it's doing right now: a coloured dot and a word, or the live match
-        self.live = QLabel(self)
+        self.live = LiveLabel(self)
         self.live.setTextFormat(Qt.RichText)
         self.live.setIndent(0)
         self.live.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
@@ -1885,7 +1886,7 @@ class TriggerRow(QFrame):
         self._score = score
         T = theme.T
         muted, accent = T.get("muted", "#888888"), T.get("accent", "#1fb6a6")
-        bold = False
+        bold, meter = False, None
         if not self.t.enabled:
             word, dot = "Off", T.get("off", muted)
         elif self.note:
@@ -1898,6 +1899,8 @@ class TriggerRow(QFrame):
             bold = screenwatch.verdict(self.t.mode, score, self.t.number, self.t.below) is True
             word = f"{max(0, round(score * 100))}%"
             dot = theme.status("ok") if bold else accent
+            meter = (score, self.t.number, bold, goes_below(self.t))
+        self.live.set_meter(meter)
         text = (f'<span style="color:{dot}">●</span>&nbsp;'
                 + (f"<b>{word}</b>" if bold else word))
         if text != self._live_shown:        # every POLL_MS on every card: only on a change
@@ -1914,11 +1917,8 @@ class TriggerRow(QFrame):
         live = self.live
         if self._live_score:
             if self._live_room is None:     # (again after a theme or the margins change)
-                text = live.text()
-                live.setText('<span>●</span>&nbsp;<b>100%</b>')
-                self._live_room = live.sizeHint()
-                live.setText(text)
-            size = self._live_room          # (a rich text's size is slow to work out)
+                self._live_room = live.meter_size()
+            size = self._live_room
         else:
             size = live.sizeHint()
         if live.minimumSize() != size or live.maximumSize() != size:
@@ -2197,6 +2197,7 @@ class TriggersTab(QWidget):
                     t.category = profiles.clean_name(cats.get(t.id, ""))
                 self.triggers.append(t)
         self.rows: dict[str, TriggerRow] = {}   # the cards made so far (open categories')
+        self.cooldowns: dict[str, float] = {}   # trigger id -> its cooldown's end (monotonic)
         # the categories and profiles (onionwatch.profiles), and the categories on now
         self.groups = profiles.Groups.load(s, [t.category for t in self.triggers])
         self.groups.ensure(profiles.UNCATEGORISED)
@@ -3113,6 +3114,7 @@ class TriggersTab(QWidget):
         t = next((t for t in self.triggers if t.id == tid), None)
         if t is None or not self.is_active() or not self._playable(t):
             return
+        self.cooldowns[tid] = time.monotonic() + t.cooldown
         for row in self._views(tid):
             row.cooldown_until = time.monotonic() + t.cooldown
         if hit is not None:
@@ -3558,6 +3560,13 @@ class TriggersTab(QWidget):
         self.watcher.color_hits = on
         self.host.screen["color_log"] = on
         self.host.save()
+
+    def set_show_chances(self, on: bool):
+        """The Chances button on the Playing now bar, shown or not ("show_chances")."""
+        self.host.screen["show_chances"] = on
+        self.host.save()
+        if self.pages is not None:
+            self.pages.playing.show_chances_button()
 
     def watching_text(self) -> str:
         """How often each trigger is checked now, for the Watching dialog."""

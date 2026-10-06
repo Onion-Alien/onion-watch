@@ -372,6 +372,19 @@ def _eye(p, fill):
     fill(dot)
 
 
+def _gauge(p, fill):
+    """Live chances: a dial with its needle."""
+    p.drawArc(QRectF(3, 6, 18, 18), 0, 180 * 16)
+    for a in (150, 90, 30):
+        r = math.radians(a)
+        p.drawLine(QPointF(12 + 6.6 * math.cos(r), 15 - 6.6 * math.sin(r)),
+                   QPointF(12 + 8.2 * math.cos(r), 15 - 8.2 * math.sin(r)))
+    p.drawLine(QPointF(12, 15), QPointF(16.2, 9.4))
+    hub = QPainterPath()
+    hub.addEllipse(QPointF(12, 15), 1.8, 1.8)
+    fill(hub)
+
+
 def _window(p, fill):
     """A window: frame and title bar."""
     p.drawRoundedRect(QRectF(3, 4.5, 18, 15), 2.5, 2.5)
@@ -433,6 +446,7 @@ SHAPES = {
     "palette": _palette, "gamepad": _gamepad, "image": _image, "radio": _radio,
     "apps": _apps, "triggers": _eye, "fold": _chevron("right"), "fold_open": _chevron("down"),
     "window": _window, "crop": _crop, "bell": _bell, "search": _search,
+    "gauge": _gauge,
 }
 
 

@@ -118,6 +118,14 @@ class WatchingDialog(QDialog):
         self.color_log.toggled.connect(panel.set_color_log)
         bv.addWidget(self.color_log)
         v.addWidget(box)
+        box, bv = card("LIVE CHANCES", "A Chances button on the bottom bar opens a "
+                       "window with every trigger's chance of going off, live.")
+        from onionwatch.ui import chances
+        self.show_chances = QCheckBox("Show the Chances button")
+        self.show_chances.setChecked(chances.show_button(panel.host))
+        self.show_chances.toggled.connect(panel.set_show_chances)
+        bv.addWidget(self.show_chances)
+        v.addWidget(box)
         box, bv = card("RIGHT NOW")
         self.now = QLabel()
         self.now.setWordWrap(True)
