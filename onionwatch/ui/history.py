@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (QDialog, QDialogButtonBox, QFileDialog, QHBoxLayo
 from onionwatch.ui.panel import hint_label
 from onionwatch.ui.windowpicker import thumbnail
 
-THUMB = QSize(256, 144)
+THUMB = QSize(160, 90)     # the window as it was, beside each line
 WHAT = {"appear": "showed up", "vanish": "went away", "change": "changed",
         "still": "stood still", "colour": "bar"}
 
@@ -80,7 +80,9 @@ class HistoryView(QWidget):
     def refresh(self):
         self.list.clear()
         for a in reversed(self.panel.history):
-            it = QListWidgetItem(QIcon(thumbnail(a.picture, THUMB)), alert_text(a))
+            # no picture (a check that kept none): no empty space for one either
+            it = (QListWidgetItem(QIcon(thumbnail(a.picture, THUMB)), alert_text(a))
+                  if not a.picture.isNull() else QListWidgetItem(alert_text(a)))
             self.list.addItem(it)
         self.empty.setVisible(not self.panel.history)
         self.btn_clear.setEnabled(bool(self.panel.history))
