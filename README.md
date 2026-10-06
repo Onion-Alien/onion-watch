@@ -1,4 +1,4 @@
-<p align="right"><img src="https://visitor-badge.laobi.icu/badge?page_id=Onion-Alien.onion-watch" alt="visitors"></p>
+<p align="right"><img src="https://hits.sh/github.com/Onion-Alien/onion-watch.svg?view=total&label=total%20visits&color=6b8e23" alt="total visits"></p>
 
 <p align="center"><img src="docs/art/hoot.png?v=b2c97ddb" width="150" alt="Hoot, the Onion Watch owl"></p>
 
