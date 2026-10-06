@@ -72,9 +72,13 @@ def test_hundreds_of_triggers_open_fast_and_build_when_opened(make, qapp):
     assert "300 triggers on" in tab.lbl_counts.text()
     tab.sections["Cat 1"].btn_fold.click()
     assert len(tab.rows) == triggerspanel.BUILD_NOW
-    for _ in range(20):
+    qapp.processEvents()
+    assert len(tab.rows) < 100                      # the rest a few at a time...
+    for _ in range(200):
+        if len(tab.rows) == 100:
+            break
         qapp.processEvents()
-    assert len(tab.rows) == 100                     # the rest a few at a time
+    assert len(tab.rows) == 100                     # ...until they're all made
     assert all(tab.rows[t.id].parentWidget() is tab.sections["Cat 1"].body
                for t in tab.triggers if t.category == "Cat 1")
     saved = {c["name"]: c for c in tab.host.screen["categories"]}
