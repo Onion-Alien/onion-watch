@@ -1116,6 +1116,15 @@ MATCH_RES = 0.08
 MATCH_KEPT = 0.9
 MATCH_CRES = 0.1
 MATCH_COLOUR = True
+# A cut-out's edges, shrunk to the working size, take in whatever is behind it: thin
+# text cut out of a scene that now moves scores under the line there while its own
+# pixels still match. A place of a cut-out at its own size scoring SHARP_LOW or more
+# but under the line is matched again on the screen's full-size pixels (+-CONFIRM_PAD
+# px) under the picture's own mask, and takes that score if higher; for SHARP_PER_CHECK
+# places a check, each answer kept until its pixels change.
+SHARP_LOW = 0.65
+SHARP_PER_CHECK = 2
+SHARP_ON = True
 
 
 def thing_mask(g: np.ndarray) -> np.ndarray | None:
@@ -2696,6 +2705,7 @@ class _Capture:
         self.cover_left = 0               # ...and the tries left this check (COVER_PER_CHECK)
         self.fresh_left = 0               # ...and about what just changed (COVER_FRESH)
         self.colour_left = 0              # colour_cover's (COLOUR_PER_CHECK)
+        self.sharp_left = 0               # _sharp()'s (SHARP_PER_CHECK)
         self.turns: dict[str, int] = {}   # "any size": which picture each trigger sweeps next
         self.swept: dict[str, int] = {}   # ...and the check it last swept on (SWEEPERS)
         # "any size": changed patches still to look in at every size (HUNT_*):
@@ -3297,6 +3307,7 @@ class Watcher:
             budget = self._sweeps if self._sweeps is not None else [SWEEPERS]
             cap.cover_left, cap.fresh_left = COVER_PER_CHECK, COVER_FRESH
             cap.colour_left = COLOUR_PER_CHECK
+            cap.sharp_left = SHARP_PER_CHECK
             for it in sorted(items, key=lambda i: cap.swept.get(i.id, -1)):
                 looks = cap.scaled.get(it.id)
                 got = memo.get(it.id) if same and it.id not in self._quiet else None
@@ -3473,6 +3484,9 @@ class Watcher:
                     b = (y0 + my, y0 + my + p.size[0], x0 + mx, x0 + mx + p.size[1])
                     if r < 0.999:
                         b = tuple(round(v / r) for v in b)
+                    if (SHARP_ON and lk.mask is not None and twin is not None and area is None
+                            and SHARP_LOW <= sc < it.threshold):
+                        sc = max(sc, Watcher._sharp(cap, it.id, twin, b, lk, gray.shape))
                     if (COVER_ON and check and twin is not None and area is None
                             and COVER_LOW <= sc < it.threshold):
                         cs = Watcher._grey_cover(cap, it.id, twin, raw, b, lk, gray.shape,
@@ -3751,6 +3765,38 @@ class Watcher:
             return lambda y0, y1, x0, x1: frame_rgb(full[y0:y1, x0:x1])
         cut = getattr(type(grab), "full_rgb", None)
         return None if cut is None else cut.__get__(grab)
+
+    @staticmethod
+    def _sharp(cap: _Capture, key: str, full: tuple, box: tuple, lk: Look,
+               shape: tuple[int, int]) -> float:
+        """`lk`'s cut-out matched on the capture's pixels at full size (`full`:
+        _full_size's) about `box` (y0, y1, x0, x1 in a frame of `shape`) under its own
+        mask, when the box is its own size there (TWIN_SIZE); else 0.0. Kept in
+        `cap.twins` as _twin() does; SHARP_PER_CHECK new places a check."""
+        cut, (fh, fw) = full
+        sy, sx = fh / shape[0], fw / shape[1]
+        y0, y1, x0, x1 = box
+        th, tw = lk.gray.shape
+        if (abs((y1 - y0) * sy / th - 1) > TWIN_SIZE
+                or abs((x1 - x0) * sx / tw - 1) > TWIN_SIZE):
+            return 0.0
+        pad = CONFIRM_PAD + 1
+        cy, cx = round((y0 + y1) * sy / 2 - th / 2), round((x0 + x1) * sx / 2 - tw / 2)
+        area = cut(max(0, cy - pad), min(fh, cy + th + pad),
+                   max(0, cx - pad), min(fw, cx + tw + pad))
+        if area is None or area.shape[0] < th or area.shape[1] < tw:
+            return 0.0
+        ck, px = ("sharp", key, y1 - y0, x1 - x0), area.tobytes()
+        got = cap.twins.get(ck)
+        if got is not None and got[0] is lk.gray and got[1] == px:
+            return got[2]
+        if cap.sharp_left <= 0:
+            return 0.0
+        cap.sharp_left -= 1
+        q = Pattern(lk.gray, lk.mask)
+        score = _ncc_at(area, q)[0] if q.ok else 0.0
+        cap.twins[ck] = (lk.gray, px, score)
+        return score
 
     @staticmethod
     def _colour_area(full: tuple, box: tuple, lk: Look, shape: tuple[int, int]) -> tuple | None:
