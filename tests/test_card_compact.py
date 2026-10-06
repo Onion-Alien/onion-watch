@@ -33,6 +33,7 @@ def settle(qapp, tab, w=1000, h=900):
 
 def test_a_closed_card_is_a_short_tile(tab, qapp, styled):
     a, b = cards(tab, 2)
+    tab.set_list_view(False)        # an open card in the list (the list view: test_split)
     b.set_open(True)
     settle(qapp, tab)
     assert a.height() <= 80 < b.height()
@@ -73,6 +74,8 @@ def test_a_card_without_a_picture_has_a_slot_to_add_one(tab, qapp):
 
 def test_cards_per_row_is_picked_and_kept(tab, qapp):
     rows = cards(tab, 7)
+    tab.cb_per_row.setCurrentIndex(tab.cb_per_row.findData(0))
+    tab.cb_per_row.activated.emit(tab.cb_per_row.currentIndex())    # cards, not a list
     settle(qapp, tab, w=1400)
     grid = tab.sections[""].body_layout
 
@@ -82,9 +85,11 @@ def test_cards_per_row_is_picked_and_kept(tab, qapp):
         return sum(r.y() == rows[0].y() for r in rows)
     assert across() == grid.columns(grid.geometry().width()) == 4     # as many as fit
     tab.cb_per_row.setCurrentIndex(tab.cb_per_row.findData(6))
+    tab.cb_per_row.activated.emit(tab.cb_per_row.currentIndex())
     assert across() == 6 and tab.host.screen["cards_per_row"] == 6
     assert all(not r.btn_open.visibleRegion().isEmpty() for r in rows)
     tab.cb_per_row.setCurrentIndex(tab.cb_per_row.findData(2))
+    tab.cb_per_row.activated.emit(tab.cb_per_row.currentIndex())
     assert across() == 2
     tab.resize(400, 900)                # too narrow for two: still readable
     assert across() == 1

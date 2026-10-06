@@ -33,6 +33,7 @@ def test_test_and_the_menu_sit_on_more_options_line(tab, qapp):
     tab.resize(1100, 700)
     tab.show()
     qapp.processEvents()
+    row = tab.editor or row         # a wide window: the trigger is in the editor
     tune_y = row.btn_tune.mapTo(row, row.btn_tune.rect().center()).y()
     for b in (row.btn_test, row.btn_menu):
         assert abs(b.mapTo(row, b.rect().center()).y() - tune_y) <= 2
@@ -49,6 +50,11 @@ def test_controls_fit_and_share_heights_across_window_sizes(tab, qapp, styled, w
     for _ in range(12):
         qapp.processEvents()
     assert tab.width() == width
+    if tab.editor is not None:      # a wide window: the trigger is in the editor
+        row = tab.editor
+        row.btn_tune.setChecked(True)
+        for _ in range(12):
+            qapp.processEvents()
     controls = [row.mode, row.where, row.btn_area, row.interval, row.sound, row.until,
                 row.btn_test, row.delay, row.cooldown, row.threshold, row.btn_menu]
     assert len({w.height() for w in controls}) == 1

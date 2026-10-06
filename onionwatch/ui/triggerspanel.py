@@ -66,6 +66,9 @@ MAX_TRIGGERS = 500      # in all; how many can be on at once is up to the comput
 OLD_TRIGGERS = 50
 SEARCH_MIN = 200        # px: the search box never gets narrower (it was squeezed to "Sea…")
 SEARCH_ROOM = 260       # px it keeps before the view's controls go to a line of their own
+LIST_VIEW = -1          # the View list's "List and editor"
+SPLIT_MIN = 760         # px: from this wide, the list on the left and one trigger's editor
+LIST_WIDTH = 300        # ...on the right; the list is this wide
 MAX_SIDE = 8192         # bigger pictures are refused (kept pixel for pixel, never resized)
 CUT_KEY = "OnionWatch cut from"   # a picture's PNG text: the size of what it was cut from
 # ...and this one, set: it wasn't cut from the game (a file or a copy from the web), so
@@ -1015,6 +1018,8 @@ CARD_CSS = (
     "QLabel#cardtitle { font-size:10.5pt; font-weight:700; }"
 )
 CARD_HOVER = "QFrame#card:hover { border-color:palette(highlight); }"
+# the trigger the editor on the right is showing, in the list
+CARD_SELECTED = "QFrame#card { border:2px solid palette(highlight); }"
 
 
 class TriggerRow(QFrame):
@@ -1063,6 +1068,10 @@ class TriggerRow(QFrame):
         self._sounds: list[tuple[str, str]] = []   # the sounds as last given
         self._narrow = False            # too narrow for the header's thumbnail
         self._press: QPoint | None = None   # where a press on the header began (a drag?)
+        # with the list beside an editor: opening the card shows it there instead
+        self.on_open = None
+        self.pinned = False             # it's that editor: always open, not dragged
+        self.selected = False           # it's the one the editor is showing
         self.setAcceptDrops(True)           # picture files dropped on it are added
         v = QVBoxLayout(self)
         v.setContentsMargins(10, 6, 10, 6)
@@ -1439,7 +1448,13 @@ class TriggerRow(QFrame):
         return not self.body.isHidden()
 
     def set_open(self, on: bool):
-        """Show the whole card, or just its header."""
+        """Show the whole card, or just its header (or, beside the editor, show it
+        there and stay a tile)."""
+        if on and self.on_open is not None:
+            self.on_open(self)
+            on = False
+        if self.pinned:
+            on = True
         self.body.setVisible(on)
         self._arrange(not on)
         if self.btn_open.isChecked() != on:
@@ -1569,7 +1584,7 @@ class TriggerRow(QFrame):
     MIME = "application/x-onionwatch-trigger"   # a card being dragged: its trigger's id
 
     def _on_header(self, pos) -> bool:
-        return not self.is_open or pos.y() < self.body.y()
+        return not self.pinned and (not self.is_open or pos.y() < self.body.y())
 
     def mousePressEvent(self, ev):
         """A press on the header (not on one of its controls): a click opens or closes
@@ -1647,7 +1662,13 @@ class TriggerRow(QFrame):
             ev.ignore()             # a card being moved: the category takes it
 
     def _unmark(self):
-        self.setStyleSheet(CARD_CSS + CARD_HOVER)
+        self.setStyleSheet(CARD_CSS + (CARD_SELECTED if self.selected else CARD_HOVER))
+
+    def set_selected(self, on: bool):
+        """Mark it as the one the editor beside the list is showing."""
+        if on != self.selected:
+            self.selected = on
+            self._unmark()
 
     def dragLeaveEvent(self, ev):
         self._unmark()
@@ -2322,19 +2343,24 @@ class TriggersTab(QWidget):
         view_layout.setSpacing(8)
         search_layout.addWidget(self.view_bar)
         self.cb_per_row = WideCombo(min_width=110)
-        self.cb_per_row.setAccessibleName("Cards per row")
-        self.cb_per_row.setToolTip("How many closed cards go side by side: as many as fit "
-                                   "at their usual size (Auto), or a number of your own. A "
-                                   "narrow window shows fewer, so they stay readable.")
+        self.cb_per_row.setAccessibleName("View")
+        self.cb_per_row.setToolTip("List and editor: the triggers in a list, the one you "
+                                   "pick beside it (in a window wide enough). Or cards side "
+                                   "by side that open where they are: as many as fit at "
+                                   "their usual size (Auto), or a number of your own.")
+        self.cb_per_row.addItem("List and editor", LIST_VIEW)
         self.cb_per_row.addItem("Auto per row", 0)
         for k in range(1, MAX_PER_ROW + 1):
             self.cb_per_row.addItem(f"{k} per row", k)
         per_row = host.screen.get("cards_per_row")
         self.per_row = per_row if type(per_row) is int and 0 < per_row <= MAX_PER_ROW else 0
-        self.cb_per_row.setCurrentIndex(self.per_row)
+        # (a key of its own: an older version reads cards_per_row, and knows no list)
+        self.list_view = host.screen.get("view") != "cards"
+        self.cb_per_row.setCurrentIndex(self.cb_per_row.findData(
+            LIST_VIEW if self.list_view else self.per_row))
         no_wheel(self.cb_per_row)
         align_control(self.cb_per_row)
-        self.cb_per_row.currentIndexChanged.connect(self.set_per_row)
+        self.cb_per_row.activated.connect(self._on_view)
         view_layout.addWidget(self.cb_per_row)
         self.chk_advanced = QCheckBox("Show more info")
         self.chk_advanced.setToolTip("Closed cards show more: every name in full, and "
@@ -2384,7 +2410,32 @@ class TriggersTab(QWidget):
         v.addWidget(self.no_results)
         self.list_layout.addStretch(1)
         self.scroll.setWidget(self.list)
-        v.addWidget(self.scroll, 1)
+        # a wide window: the list on the left, the trigger picked in it on the right
+        # (_set_split). Narrower, the list is the whole width and a card opens in it
+        self.body = QWidget()
+        bh = QHBoxLayout(self.body)
+        bh.setContentsMargins(0, 0, 0, 0)
+        bh.setSpacing(10)
+        bh.addWidget(self.scroll, 1)
+        self.editor_scroll = QScrollArea()
+        self.editor_scroll.setWidgetResizable(True)
+        self.editor_scroll.setFrameShape(QFrame.NoFrame)
+        self.editor_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.editor_pane = QWidget()
+        ep = QVBoxLayout(self.editor_pane)
+        ep.setContentsMargins(0, 0, 0, 0)
+        ep.setSpacing(8)
+        self.editor_empty = hint_label("Pick a trigger on the left to change it, or click "
+                                       "Cut picture… below to make one.")
+        self.editor_empty.setAlignment(Qt.AlignCenter)
+        ep.addWidget(self.editor_empty)
+        ep.addStretch(1)
+        self.editor_scroll.setWidget(self.editor_pane)
+        self.editor_scroll.hide()
+        bh.addWidget(self.editor_scroll, 1)
+        self.editor: TriggerRow | None = None   # the trigger shown on the right
+        self.split = False
+        v.addWidget(self.body, 1)
 
         f = QFrame()
         f.setObjectName("transport")
@@ -2518,6 +2569,100 @@ class TriggersTab(QWidget):
     def resizeEvent(self, event):
         super().resizeEvent(event)
         self._fit_top()
+        self._set_split(self.list_view and self.width() >= SPLIT_MIN)
+
+    # ------------------------------------------------------------------ list and editor
+    def _set_split(self, on: bool):
+        """The list on the left and the picked trigger's editor on the right (a wide
+        window), or the list alone with cards opening in it."""
+        if on == self.split:
+            return
+        self.split = on
+        self.scroll.setMaximumWidth(LIST_WIDTH if on else 16777215)
+        self.scroll.setMinimumWidth(LIST_WIDTH if on else 0)
+        self.body.layout().setStretch(0, 0 if on else 1)
+        self.editor_scroll.setVisible(on)
+        picked = self.editor.t.id if self.editor is not None else None
+        for row in self.rows.values():
+            row.on_open = self._select if on else None
+            if on and row.is_open:
+                picked = picked or row.t.id
+                row.set_open(False)
+        if on:
+            if picked is None and self.triggers:
+                picked = self.triggers[0].id
+            if picked in self.rows:
+                self._select(self.rows[picked])
+        else:
+            self._drop_editor()
+            if picked in self.rows:
+                self.rows[picked].set_open(True)
+
+    def _select(self, row: TriggerRow):
+        """Show `row`'s trigger in the editor on the right."""
+        t = row.t
+        if self.editor is not None and self.editor.t is t:
+            return
+        self._drop_editor()
+        ed = TriggerRow(t, self.host.sounds(), self._mons, open_=True,
+                        parent=self.editor_pane)
+        ed.pinned = True
+        ed.btn_open.hide()
+        ed.setStyleSheet(CARD_CSS)
+        self._wire(ed)
+        ed.set_categories(self.groups.names())
+        ed.set_default_interval(self.default_interval)
+        ed.set_open(True)
+        if self.is_active():
+            ed.watching = self.is_on(t)
+            ed.show_score(self.watcher.scores.get(t.id))
+        self.editor = ed
+        self.editor_pane.layout().insertWidget(0, ed)
+        self.editor_empty.hide()
+        for r in self.rows.values():
+            r.set_selected(r.t is t)
+
+    def _drop_editor(self):
+        ed, self.editor = self.editor, None
+        if ed is not None:
+            self.editor_pane.layout().removeWidget(ed)
+            ed.setParent(None)
+            ed.deleteLater()
+        for r in self.rows.values():
+            r.set_selected(False)
+        self.editor_empty.show()
+
+    def _cards(self) -> list[TriggerRow]:
+        """Every card made: the list's, and the editor."""
+        return [*self.rows.values(), *([self.editor] if self.editor is not None else [])]
+
+    def _views(self, tid: str) -> list[TriggerRow]:
+        """The cards showing trigger `tid`: its one in the list, and the editor."""
+        return [r for r in (self.rows.get(tid), self.editor)
+                if r is not None and r.t.id == tid]
+
+    def _sync_views(self):
+        """After an edit, the list's card and the editor show the same trigger: the
+        one that wasn't edited catches up."""
+        ed = self.editor
+        if ed is None:
+            return
+        tile = self.rows.get(ed.t.id)
+        t = ed.t
+        for r in (tile, ed):
+            if r is None:
+                continue
+            if r.name.text() != t.name and not r.name.hasFocus():
+                r.name.setText(t.name)
+            if r.chk_on.isChecked() != t.enabled:
+                r.chk_on.blockSignals(True)
+                r.chk_on.setChecked(t.enabled)
+                r.chk_on.blockSignals(False)
+            r.refresh_pictures()
+        if tile is not None:
+            tile.set_sounds(self.host.sounds())
+            tile._show_mode()
+            tile._update_state()
 
     def _fit_top(self):
         """The line over the list: stacked in a narrow window, and only the parts
@@ -2555,13 +2700,33 @@ class TriggersTab(QWidget):
             target.addWidget(self.view_bar)
         target.setAlignment(self.view_bar, Qt.Alignment() if stacked else Qt.AlignLeft)
 
+    def _on_view(self, i: int):
+        n = self.cb_per_row.itemData(i)
+        if n == LIST_VIEW:
+            self.set_list_view(True)
+        else:
+            self.set_list_view(False)
+            self.set_per_row(n)
+
+    def set_list_view(self, on: bool):
+        """The list beside an editor, or cards that open where they are; kept for the
+        next start."""
+        self.list_view = on
+        self.host.screen["view"] = "list" if on else "cards"
+        self.host.save()
+        want = self.cb_per_row.findData(LIST_VIEW if on else self.per_row)
+        if self.cb_per_row.currentIndex() != want:
+            self.cb_per_row.setCurrentIndex(want)
+        self._set_split(on and self.width() >= SPLIT_MIN)
+
     def set_per_row(self, n: int):
         """`n` closed cards to a line (0: as many as fit), kept for the next start."""
         self.per_row = n if 0 < n <= MAX_PER_ROW else 0
         self.host.screen["cards_per_row"] = self.per_row
         self.host.save()
-        if self.cb_per_row.currentIndex() != self.per_row:
-            self.cb_per_row.setCurrentIndex(self.per_row)
+        want = self.cb_per_row.findData(LIST_VIEW if self.list_view else self.per_row)
+        if self.cb_per_row.currentIndex() != want:
+            self.cb_per_row.setCurrentIndex(want)
         for sec in self.sections.values():
             sec.body_layout.set_per_row(self.per_row)
             sec.body._fit()
@@ -2791,7 +2956,7 @@ class TriggersTab(QWidget):
             self.cancel_pending()
             if remember and self.host.ringing():
                 self.stop_ringing()     # you switched it off: you're here
-            for row in self.rows.values():
+            for row in self._cards():
                 row.show_score(None)
                 row.set_note(None)
         if remember:
@@ -2865,8 +3030,7 @@ class TriggersTab(QWidget):
         self.host.stop_tag(tid)
         t = next((t for t in self.triggers if t.id == tid), None)
         log.info("trigger %r stopped ringing by itself", t.name if t else tid)
-        row = self.rows.get(tid)
-        if row is not None:
+        for row in self._views(tid):
             row.flash("Stopped ringing — you're back", 4000)
         self.ringing_changed.emit()
 
@@ -2879,7 +3043,7 @@ class TriggersTab(QWidget):
         for sec in self.sections.values():
             sec.retheme()             # category tabs fade into the new panel colour
         self.sounds_changed()         # the chips of sounds that are gone
-        for row in self.rows.values():
+        for row in self._cards():
             row._show_mode()           # the badge of a trigger without pictures
             row.show_score(self.watcher.scores.get(row.t.id) if self.is_active() else None)
 
@@ -2946,8 +3110,7 @@ class TriggersTab(QWidget):
         t = next((t for t in self.triggers if t.id == tid), None)
         if t is None or not self.is_active() or not self._playable(t):
             return
-        row = self.rows.get(tid)
-        if row is not None:
+        for row in self._views(tid):
             row.cooldown_until = time.monotonic() + t.cooldown
         if hit is not None:
             self._hits[tid] = hit
@@ -2955,8 +3118,7 @@ class TriggersTab(QWidget):
             self.history_changed.emit()
         gen = self._gen
         if t.delay > 0:
-            row = self.rows.get(tid)
-            if row is not None:
+            for row in self._views(tid):
                 row.flash(f"Seen{self._in(tid)}! Playing in {t.delay:g} s…",
                           int(t.delay * 1000) + 1500)
             QTimer.singleShot(int(t.delay * 1000), self, lambda: self._fire(tid, gen))
@@ -2969,8 +3131,7 @@ class TriggersTab(QWidget):
             return
         if self._play_trigger(t):
             log.info("trigger %r matched", t.name)
-            row = self.rows.get(tid)
-            if row is not None:
+            for row in self._views(tid):
                 row.flash(("Ringing" if t.ring else "Played") + self._in(tid) + "!", 4000)
             if t.ring:
                 self._watch_ring(t)
@@ -3060,8 +3221,8 @@ class TriggersTab(QWidget):
             # a trigger's own screen went away (or came back) while watching
             self._fell_back = w.fell_back
             self._fill_sources()
-        for tid, row in self.rows.items():
-            row.set_note(*self._first_note(w.where.get(tid, ())))
+        for row in self._cards():
+            row.set_note(*self._first_note(w.where.get(row.t.id, ())))
         heavy = w.gap > HEAVY_GAP and w.gap > w.interval * 1.05
         if not heavy:
             self._heavy_since = None
@@ -3071,9 +3232,9 @@ class TriggersTab(QWidget):
             return
         if self._gap_text() != self._gap_shown:
             self._refresh_counts()
-        for tid, row in self.rows.items():
+        for row in self._cards():
             row.watching = w.running and self.is_on(row.t)
-            row.show_score(w.scores.get(tid))
+            row.show_score(w.scores.get(row.t.id))
         self._show_warning()
 
     def _first_note(self, places) -> tuple[tuple[str, str] | None, WindowRef | None]:
@@ -3154,7 +3315,7 @@ class TriggersTab(QWidget):
         self.watcher.interval = ms / 1000
         self.host.screen["interval_ms"] = ms
         self.host.save()
-        for row in self.rows.values():
+        for row in self._cards():
             row.set_default_interval(ms)
 
     def _on_advanced(self, on: bool):
@@ -3169,7 +3330,7 @@ class TriggersTab(QWidget):
         mons = screenwatch.monitors()
         d = self.watcher.default
         fill_sources(self.cb_where, mons, [d])
-        for row in self.rows.values():
+        for row in self._cards():
             row.set_screens(mons)
         if mons != self._mons and self.watcher.running:
             self.watcher.rescan()
@@ -3522,7 +3683,7 @@ class TriggersTab(QWidget):
         Category lists and the profiles follow."""
         self._layout_sections()
         names = self.groups.names()
-        for row in self.rows.values():
+        for row in self._cards():
             row.set_categories(names)
         self._apply_active(force=True)
         self._save_groups()
@@ -3803,7 +3964,7 @@ class TriggersTab(QWidget):
     # ------------------------------------------------------------------ the list
     def sounds_changed(self):
         sounds = self.host.sounds()
-        for row in self.rows.values():
+        for row in self._cards():
             row.set_sounds(sounds)
         # a sound taken off the board (or the app) stops wherever a trigger played it
         have = {sid for sid, _name in sounds}
@@ -3829,12 +3990,24 @@ class TriggersTab(QWidget):
         """A card for `t`, opened unless `open_` is false (the cards made for the
         list at start, when there's more than one). Made in `parent` (where it goes):
         moved there afterwards, its every widget would be styled all over again."""
-        row = TriggerRow(t, self.host.sounds(), self._mons, open_=open_, parent=parent)
-        row.sound_details = getattr(self.host, "sound_details", row.sound_details)
-        row._update_state()
+        split = self.split
+        row = TriggerRow(t, self.host.sounds(), self._mons, open_=open_ and not split,
+                         parent=parent)
+        self._wire(row)
         row.set_advanced(self.chk_advanced.isChecked())
         row.set_categories(self.groups.names())
         row.set_default_interval(self.default_interval)
+        self.rows[t.id] = row
+        if split:
+            row.on_open = self._select
+            if open_:
+                self._select(row)
+        return row
+
+    def _wire(self, row: TriggerRow):
+        """Connect a card (the list's, or the editor) to the tab."""
+        row.sound_details = getattr(self.host, "sound_details", row.sound_details)
+        row._update_state()
         row.files_dropped.connect(self._add_dropped_files)
         row.picture_dropped.connect(self._add_dropped_picture)
         row.category_wanted.connect(self._move_to)
@@ -3853,8 +4026,6 @@ class TriggersTab(QWidget):
         row.hear.connect(lambda sid, r=row: self._hear(r.t, sid))
         row.test.connect(lambda r: self._play_trigger(r.t, test=True))
         row.remove.connect(self.ask_remove)
-        self.rows[t.id] = row
-        return row
 
     def _place_row(self, t: Trigger, sec: CategorySection, open_: bool = False) -> TriggerRow:
         """Put `t`'s card (made if need be) in `sec` where it is in self.triggers."""
@@ -3947,6 +4118,7 @@ class TriggersTab(QWidget):
                                                   if t.category}
         self.groups.save(self.host.screen)
         self.host.save()
+        self._sync_views()
         self._refresh_counts()
         if self._search_ids is not None:
             self._apply_search()
@@ -4423,6 +4595,11 @@ class TriggersTab(QWidget):
         for d in (self._played, self._ring_sounds, self._ring_how):
             d.pop(t.id, None)
         self._drop_row(t.id)
+        if self.editor is not None and self.editor.t.id == t.id:
+            self._drop_editor()         # the editor moves on to the next one
+            nxt = self.triggers[min(index, len(self.triggers) - 1)] if self.triggers else None
+            if nxt is not None and nxt.id in self.rows:
+                self._select(self.rows[nxt.id])
         for path in t.images:
             self._gray.pop(path, None)   # the file stays, in the bin
         self._layout_sections()
@@ -4640,8 +4817,7 @@ class TriggersTab(QWidget):
         if self._live.pop(tid, None) is not None:
             t = next((x for x in self.triggers if x.id == tid), None)
             log.info("trigger %r stopped by hand", t.name if t else tid)
-        row = self.rows.get(tid)
-        if row is not None:
+        for row in self._views(tid):
             row.flash("Stopped", 2500)
         self.playing_changed.emit()
 
