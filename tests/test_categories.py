@@ -357,3 +357,23 @@ def test_cards_never_flash_up_as_windows_of_their_own(make, qapp):
     finally:
         qapp.removeEventFilter(spy)
     assert stray == []
+
+
+def test_a_new_trigger_from_a_categorys_plus_or_menu_goes_in_it(make, monkeypatch):
+    tab = make({"triggers": [raw(1), raw(2, "Raids")], "categories": [{"name": "Raids"}]})
+    tab.new_category("Empty one")
+    sec = tab.sections["Empty one"]
+    assert not sec.btn_add.isHidden()
+    shown = []
+    tab._pop_menu = lambda m, _b: shown.append(m)
+    tab._category_add_menu("Empty one")
+    names = [a.text() for a in shown[-1].actions()]
+    assert names[0] == "Cut it from the window" and "Without a picture…" in names
+    tab._category_menu("Raids")
+    first = shown[-1].actions()[0]
+    assert first.text() == "New trigger here" and first.menu() is not None
+    # picking "Without a picture" in the empty one's + menu puts it there, opened
+    tab._last_category = "Raids"
+    next(a for a in shown[-2].actions() if a.text() == "Without a picture…").trigger()
+    assert tab.triggers[-1].category == "Empty one"
+    assert sec.is_open and tab.rows[tab.triggers[-1].id].parentWidget() is sec.body

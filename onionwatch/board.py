@@ -1,7 +1,8 @@
 """Onion Watch inside Onion Board: the add-on module's entry point (module.json's
 "entry"). Onion Board loads the `onionwatch` package from the module's folder,
 imports this and calls create(host) with itself as the host (onionwatch.host.Host).
-What comes back is the whole Triggers tab: the alarm bar over the triggers page.
+What comes back is the whole Triggers tab: Triggers / Log pages with the alarm
+bar over them and the Playing now bar under them (ui.pages).
 
 The board has no tray icon or settings window of Onion Watch's own: sounds are
 the board's, played through the board (into the mic / cable mix), and the
@@ -49,6 +50,7 @@ class BoardPanel(QWidget):
     def __init__(self, host):
         super().__init__()
         from onionwatch.ui.alarmbar import AlarmBar
+        from onionwatch.ui.pages import TriggerPages
         from onionwatch.ui.triggerspanel import TriggersTab
         self.host = host
         theme.use_palette(host.palette())
@@ -58,8 +60,9 @@ class BoardPanel(QWidget):
         self.panel = TriggersTab(host)
         self.btn_more = self.panel.btn_more   # the board adds "Remove Onion Watch…" to it
         self.alarm = AlarmBar(self.panel)
-        v.addWidget(self.alarm)
-        v.addWidget(self.panel, 1)
+        self.pages = TriggerPages(self.panel, top=[self.alarm])
+        self.panel.pages = self.pages
+        v.addWidget(self.pages, 1)
         self.panel.active_changed.connect(self.active_changed)
         self.panel.fired.connect(self._on_fired)
 

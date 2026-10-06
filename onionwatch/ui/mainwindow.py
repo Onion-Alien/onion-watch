@@ -18,6 +18,7 @@ from onionwatch.settings import Config
 from onionwatch.sounds import Library
 from onionwatch.ui import icons
 from onionwatch.ui.alarmbar import AlarmBar
+from onionwatch.ui.pages import TriggerPages
 from onionwatch.ui.triggerspanel import TriggersTab
 
 log = logging.getLogger(__name__)
@@ -82,8 +83,9 @@ class MainWindow(QMainWindow):
         self.triggers.active_changed.connect(self._on_active)
         # the alarm bar: shown while a trigger rings, with the one button that matters
         self.alarm = AlarmBar(self.triggers)
-        rv.addWidget(self.alarm)
-        rv.addWidget(self.triggers, 1)
+        self.pages = TriggerPages(self.triggers, top=[self.alarm])
+        self.triggers.pages = self.pages
+        rv.addWidget(self.pages, 1)
 
         self._make_tray()
         self.alarm.changed.connect(self.act_stop.setEnabled)

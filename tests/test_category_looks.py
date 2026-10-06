@@ -128,3 +128,73 @@ def test_tabs_are_soft_and_fade_into_the_panel():
     c.text_color = "#123456"
     assert categories.ink(c) == "#123456"
     assert categories.ink(profiles.Category("Plain")) == ""
+
+
+def test_a_banner_is_kept_apart_so_older_versions_keep_it():
+    screen = {"categories": [{"name": "Raid"}],
+              "category_banners": {"Raid": {"image": "abc.png", "x": 1.7, "y": "no",
+                                            "height": "huge"},
+                                   "Gone": {"image": "def.png"}}}
+    g = profiles.Groups.load(screen)
+    c = g.find("Raid")
+    assert (c.banner, c.banner_x, c.banner_y, c.banner_height) == ("abc.png", 1.0, 0.5,
+                                                                   "medium")
+    g.save(screen)
+    assert screen["category_banners"]["Raid"] == {"image": "abc.png", "x": 1.0, "y": 0.5,
+                                                  "height": "medium"}
+    assert "Gone" in screen["category_banners"]     # an older version's rename: kept
+    # an older version rewrites category_looks with what it knows: the banner stays
+    screen["category_looks"] = {"Raid": {"color": "#1e88e5"}}
+    assert profiles.Groups.load(screen).find("Raid").banner == "abc.png"
+
+
+def test_a_banner_shows_across_the_header_and_drags_into_place(make, qapp):  # noqa: F811
+    tab = make({"triggers": [raw(1, "Raid"), raw(2)]})
+    dlg = CategoriesDialog(tab, tab.groups.categories, tab.host.data_dir, "Raid")
+    assert dlg.set_banner(picture("#00ff00", 1600, 200))
+    c = dlg._current()
+    assert c.banner and (c.banner_x, c.banner_y) == (0.5, 0.5)
+    dlg.cb_banner_height.setCurrentIndex(dlg.cb_banner_height.findData("tall"))
+    # dragging the preview's picture right shows more of its left
+    pv = dlg.preview
+    pv.resize(400, profiles.BANNER_HEIGHTS["tall"])
+    from PySide6.QtCore import QPointF
+    from PySide6.QtGui import QMouseEvent
+    from PySide6.QtCore import QEvent, Qt
+
+    def mouse(kind, x):
+        return QMouseEvent(kind, QPointF(x, 20), QPointF(x, 20), Qt.LeftButton,
+                           Qt.LeftButton, Qt.NoModifier)
+    pv.mousePressEvent(mouse(QEvent.MouseButtonPress, 100))
+    pv.mouseMoveEvent(mouse(QEvent.MouseMove, 160))
+    pv.mouseReleaseEvent(mouse(QEvent.MouseButtonRelease, 160))
+    assert c.banner_x < 0.5 and c.banner_y == 0.5
+    tab.set_category_looks(dlg.result)
+    dlg.deleteLater()
+    saved = tab.host.screen["category_banners"]["Raid"]
+    assert saved["height"] == "tall" and saved["x"] < 0.5
+    head = tab.sections["Raid"].header
+    assert head.img is not None and head.maximumHeight() == profiles.BANNER_HEIGHTS["tall"]
+
+
+def test_a_pack_carries_its_categories_looks_and_banners(make, tmp_path):  # noqa: F811
+    from onionwatch import packs
+    a = make({"triggers": [raw(1, "Raid"), raw(2, "Plain")]})
+    dlg = CategoriesDialog(a, a.groups.categories, a.host.data_dir, "Raid")
+    dlg.set_color("#8e24aa")
+    dlg.set_picture(picture("#ff0000", 64, 64))
+    dlg.set_banner(picture("#0000ff", 1200, 150))
+    dlg._current().banner_x = 0.2
+    a.set_category_looks(dlg.result)
+    dlg.deleteLater()
+    path = tmp_path / "p.zip"
+    packs.write_pack(path, a.triggers, {}, a.groups.categories,
+                     categories.pictures_dir(a.host.data_dir))
+    looks = packs.read_categories(path)
+    assert set(looks) == {"Raid"} and looks["Raid"][1] and looks["Raid"][2]
+    b = make({"triggers": []})
+    assert b.add_pack(packs.read_pack(path)) == 2
+    b.add_pack_looks(looks)
+    c = b.groups.find("Raid")
+    assert c.color == "#8e24aa" and c.image and c.banner and c.banner_x == 0.2
+    assert categories.banner_image(c, b.host.data_dir) is not None

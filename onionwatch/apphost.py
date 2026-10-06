@@ -54,6 +54,9 @@ class AppHost:
     def ringing(self) -> list[str]:
         return self.player.ringing
 
+    def playing(self) -> list[str]:
+        return self.player.playing
+
     def palette(self) -> dict[str, str]:
         return dict(theme.T)
 

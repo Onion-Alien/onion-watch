@@ -99,6 +99,7 @@ UNTILS = {
 INPUT_POLL_MS = 100     # how often an "input" ring checks for the mouse or keyboard
 
 
+GUESS_PLAYING_S = 8     # a sound counts as playing this long when the host can't say
 HISTORY = 50            # alerts kept in the history (in memory only)
 APP_POLL_MS = 2000      # how often Automatic profiles look at which programs are open
 BUILD_NOW = 8           # an opened category's cards made at once (the first ones, on
@@ -2108,6 +2109,7 @@ class TriggersTab(QWidget):
     fired = Signal(object)              # a Trigger just went off (its sound started)
     ringing_changed = Signal()          # a sound started or stopped ringing
     history_changed = Signal()          # something went off (TriggersTab.history)
+    playing_changed = Signal()          # a trigger's sound started, or was stopped
     _fired = Signal(str, object)        # from the watcher thread: trigger id, Hit
     _quieted = Signal(str)              # ...a ringing trigger's stop happened (Quieter)
 
@@ -2160,6 +2162,8 @@ class TriggersTab(QWidget):
         self._played: dict[str, set[str]] = {}       # trigger id -> sounds it played (tagged)
         self._ring_sounds: dict[str, list[str]] = {}  # ...-> what its ring is playing
         self._ring_how: dict[str, str] = {}           # ...-> what stops that ring (Trigger.stop)
+        self._live: dict[str, float] = {}             # ...-> when it went off, while it plays
+        self.pages = None               # the Triggers / Log pages it's shown in (ui.pages)
         self._input_poll = QTimer(self)
         self._input_poll.timeout.connect(self._check_input)
         self._hits: dict[str, screenwatch.Hit] = {}     # each trigger's latest, for alerts
@@ -2924,6 +2928,8 @@ class TriggersTab(QWidget):
                 row.flash(("Ringing" if t.ring else "Played") + self._in(tid) + "!", 4000)
             if t.ring:
                 self._watch_ring(t)
+            self._live[t.id] = time.monotonic()
+            self.playing_changed.emit()
             self.fired.emit(t)
 
     def place_name(self, place) -> str:
@@ -3159,6 +3165,7 @@ class TriggersTab(QWidget):
         sec.fold_toggled.connect(self._on_fold)
         sec.switched.connect(self._on_switch)
         sec.menu_wanted.connect(self._category_menu)
+        sec.add_wanted.connect(self._category_add_menu)
         sec.search_wanted.connect(self.show_search)
         sec.body_layout.set_per_row(self.per_row)
         sec.card_dropped.connect(self.reorder)
@@ -3181,11 +3188,11 @@ class TriggersTab(QWidget):
             self.set_category_looks(dlg.result)
 
     def set_category_looks(self, looks: dict):
-        """Give categories their looks (name -> {"color", "text_color", "image"}; a
-        category left out keeps its own) and show them."""
+        """Give categories their looks (name -> Category.full_look(); a category
+        left out keeps its own) and show them."""
         for c in self.groups.categories:
             if c.name in looks:
-                c.set_look(looks[c.name])
+                c.set_full_look(looks[c.name])
         for name, sec in self.sections.items():
             sec.set_look(self.groups.find(name), self.host.data_dir)
         self._save_groups()
@@ -3580,6 +3587,40 @@ class TriggersTab(QWidget):
         if ts:
             self.export_triggers(ts, profiles.label(name))
 
+    def add_in_category(self, name: str, make):
+        """Make a new trigger (`make`: add_from_cut and co.) in this category: it's
+        opened first, so the new one goes in it and shows."""
+        sec = self.sections.get(name)
+        if sec is not None and not sec.btn_fold.isChecked():
+            sec.btn_fold.setChecked(True)      # opens it (and makes it the last opened)
+        self._last_category = name
+        make()
+
+    def _fill_new_here(self, menu: QMenu, name: str):
+        """The ways to make a trigger, each putting it in this category."""
+        menu.addAction(icons.icon("crop"), "Cut it from the window",
+                       lambda: self.add_in_category(name, self.add_from_cut))
+        menu.addAction(icons.icon("plus"), "From a picture file…",
+                       lambda: self.add_in_category(name, self.add_from_file))
+        a = menu.addAction(icons.icon("image"), "Paste the copied picture",
+                           lambda: self.add_in_category(name, self.add_from_clipboard))
+        a.setEnabled(not QApplication.clipboard().image().isNull())
+        menu.addAction("Without a picture…",
+                       lambda: self.add_in_category(name, self.add_area_trigger))
+
+    def _pop_menu(self, menu: QMenu, under: QWidget):
+        """Show a menu under a button (tests swap this for one that doesn't wait)."""
+        menu.exec(under.mapToGlobal(under.rect().bottomLeft()))
+
+    def _category_add_menu(self, name: str):
+        """A section's + button: the ways to make a new trigger in it."""
+        sec = self.sections.get(name)
+        if sec is None:
+            return
+        menu = QMenu(sec.btn_add)
+        self._fill_new_here(menu, name)
+        self._pop_menu(menu, sec.btn_add)
+
     def _category_menu(self, name: str):
         """A section's ⋯ menu."""
         sec = self.sections.get(name)
@@ -3588,6 +3629,8 @@ class TriggersTab(QWidget):
         menu = QMenu(sec.btn_menu)
         named = name != profiles.UNCATEGORISED
         n = sum(t.category == name for t in self.triggers)
+        self._fill_new_here(menu.addMenu(icons.icon("plus"), "New trigger here"), name)
+        menu.addSeparator()
         if named:
             menu.addAction("Rename…", lambda: self._ask_rename(name))
         menu.addAction(icons.icon("palette"), "Colours and picture…",
@@ -3610,7 +3653,7 @@ class TriggersTab(QWidget):
         if named:
             menu.addAction(icons.icon("trash"), "Delete category…",
                            lambda: self.delete_category(name))
-        menu.exec(sec.btn_menu.mapToGlobal(sec.btn_menu.rect().bottomLeft()))
+        self._pop_menu(menu, sec.btn_menu)
 
     def _ask_rename(self, name: str):
         from PySide6.QtWidgets import QInputDialog
@@ -4481,7 +4524,56 @@ class TriggersTab(QWidget):
         row.name.selectAll()
 
     def show_history(self):
-        HistoryDialog(self, self).exec()
+        if self.pages is not None:
+            self.pages.show_log()
+        else:
+            HistoryDialog(self, self).exec()
+
+    # ------------------------------------------------------------------ playing now
+    def playing_now(self) -> list[tuple[Trigger, bool]]:
+        """The triggers whose sound is still going, oldest first, each with whether
+        it rings. A host that can say which sounds are playing (Host.playing) says
+        when one ends; with one that can't, a one-shot counts as playing for
+        GUESS_PLAYING_S after it went off."""
+        ringing = set(self.host.ringing())
+        tags = None
+        playing = getattr(self.host, "playing", None)
+        if callable(playing):
+            try:
+                tags = set(playing())
+            except Exception:  # noqa: BLE001 - a host's bug mustn't break the bar
+                log.warning("the host couldn't say what's playing", exc_info=True)
+        out, now = [], time.monotonic()
+        for tid, since in list(self._live.items()):
+            t = next((x for x in self.triggers if x.id == tid), None)
+            ring = tid in ringing
+            if t is not None and (ring or (
+                    any(tag.startswith(tid + "/") for tag in tags) if tags is not None
+                    else now - since < GUESS_PLAYING_S)):
+                out.append((t, ring))
+            else:
+                del self._live[tid]
+        return out
+
+    def stop_trigger(self, tid: str):
+        """Stop what trigger `tid` is playing now, its ring too (Playing now's Stop)."""
+        self._silence(tid, ring=True)
+        if self._live.pop(tid, None) is not None:
+            t = next((x for x in self.triggers if x.id == tid), None)
+            log.info("trigger %r stopped by hand", t.name if t else tid)
+        row = self.rows.get(tid)
+        if row is not None:
+            row.flash("Stopped", 2500)
+        self.playing_changed.emit()
+
+    def stop_all_playing(self):
+        """Stop every trigger's sound, and drop any still waiting out its wait."""
+        self.cancel_pending()
+        for tid in list(self._live):
+            self._silence(tid, ring=True)
+        self._live.clear()
+        self.stop_ringing()
+        self.playing_changed.emit()
 
     # ------------------------------------------------------------------ packs
     def export_triggers(self, triggers: list[Trigger] | None = None, name: str = ""):
@@ -4495,16 +4587,20 @@ class TriggersTab(QWidget):
                                               "Trigger packs (*.zip)")
         if not path:
             return
+        from onionwatch.ui.categories import pictures_dir as category_pictures_dir
+        names = {t.category for t in triggers}
+        cats = [c for c in self.groups.categories if c.name in names]
         try:
-            packs.write_pack(path, triggers, dict(self.host.sounds()))
+            packs.write_pack(path, triggers, dict(self.host.sounds()), cats,
+                             category_pictures_dir(self.host.data_dir))
         except OSError as e:
             QMessageBox.warning(self, "Couldn't save the triggers", str(e))
             return
         QMessageBox.information(
             self, "Triggers saved",
             f"{plural(len(triggers), 'trigger')} saved to {Path(path).name}, pictures "
-            "and all, each in its category. Sounds go by name: sound files of yours "
-            "aren't in it.")
+            "and all, each in its category with its colours, picture and banner. "
+            "Sounds go by name: sound files of yours aren't in it.")
 
     def import_triggers(self):
         path, _ = QFileDialog.getOpenFileName(self, "Load triggers", str(Path.home()),
@@ -4523,11 +4619,39 @@ class TriggersTab(QWidget):
             for t, _p, _s in found:
                 t.category = name
         added = self.add_pack(found)
+        if added:
+            self.add_pack_looks(packs.read_categories(path))
         if found and not added:
             QMessageBox.information(self, "Too many triggers",
                                     f"You can have up to {MAX_TRIGGERS} triggers.")
         elif not found:
             QMessageBox.information(self, "No triggers", "That file has no triggers in it.")
+
+    def add_pack_looks(self, looks: dict):
+        """Give the categories a pack brought their looks (packs.read_categories),
+        each picture kept like a picked one. A category that already has a look
+        or banner of its own keeps it."""
+        from onionwatch.ui.categories import save_banner, save_picture as save_category_picture
+        changed = {}
+        for name, (look, pic, wide) in looks.items():
+            c = self.groups.find(name)
+            if c is None:
+                continue
+            new = c.full_look()
+            if not c.look():
+                new.update({k: v for k, v in look.items() if k != "banner"})
+                img = QImage()
+                if pic and img.loadFromData(pic):
+                    new["image"] = save_category_picture(img, self.host.data_dir)
+            img = QImage()
+            if not c.banner and wide and img.loadFromData(wide):
+                b = save_banner(img, self.host.data_dir)
+                if b:
+                    new["banner"] = {**look.get("banner", {}), "image": b}
+            if new != c.full_look():
+                changed[name] = new
+        if changed:
+            self.set_category_looks(changed)
 
     def add_pack(self, found) -> int:
         """Add the triggers read from a pack (packs.read_pack): each gets a new id,
