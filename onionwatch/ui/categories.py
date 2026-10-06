@@ -7,8 +7,9 @@ from __future__ import annotations
 import uuid
 from pathlib import Path
 
-from PySide6.QtCore import QPoint, QRect, QSize, Qt, Signal
-from PySide6.QtGui import QColor, QIcon, QImage, QPainter, QPainterPath, QPixmap
+from PySide6.QtCore import QPoint, QRect, QRectF, QSize, Qt, Signal
+from PySide6.QtGui import (QColor, QIcon, QImage, QLinearGradient, QPainter, QPainterPath,
+                           QPixmap)
 from PySide6.QtWidgets import (QColorDialog, QComboBox, QDialog, QDialogButtonBox,
                                QFileDialog, QFrame, QHBoxLayout, QLabel,
                                QLineEdit, QListWidget, QListWidgetItem, QMenu, QPushButton,
@@ -25,6 +26,8 @@ SMALL_TILE = 210                # ...when a number of cards to a line is asked f
 MAX_PER_ROW = 6                 # the most cards to a line that can be asked for
 PICTURE_PX = 128                # a category's picture is kept at most this big
 HEADER_PICTURE = 26             # px: ...and shown this big in its header
+BANNER_PX = 2400                # a banner is kept at most this wide (and 800 high)
+BANNER_HEIGHT_NAMES = {"slim": "Slim", "medium": "Medium", "tall": "Tall"}
 # the colours to pick from in one click (any other through "Other…"): soft ones
 SWATCHES = ("#d9675e", "#e0915a", "#dcc060", "#6fae6c", "#3fb3a5", "#5a90d6",
             "#7176c8", "#9a6ccb", "#cf6d98", "#a07f66", "#7d8c99", "#5b6270")
@@ -57,6 +60,12 @@ def tab_css(color: str, selector: str = "QFrame#transport") -> str:
             f" stop:1 {b}); }}")
 
 
+def fade_color(c: Category | None) -> str:
+    """What a banner fades into at the header's ends: where the tab's colour is
+    strongest (the panel's, with none), so ink() reads the same over it."""
+    return mix(c.color, _panel(), TINT_FROM) if c is not None and c.color else _panel()
+
+
 def ink(c: Category | None) -> str:
     """The colour a category's name is drawn in ("": the theme's): the one picked,
     else (with a colour) black or white, whichever reads best where the name is."""
@@ -87,6 +96,136 @@ def save_picture(img: QImage, data_dir) -> str:
         return ""
     name = f"{uuid.uuid4().hex[:12]}.png"
     return name if img.save(str(folder / name), "PNG") else ""
+
+
+def save_banner(img: QImage, data_dir) -> str:
+    """Keep `img` as a category banner (at most BANNER_PX wide): its name, "" if it
+    couldn't be saved."""
+    if img.isNull():
+        return ""
+    if img.width() > BANNER_PX or img.height() > BANNER_PX // 3:
+        img = img.scaled(BANNER_PX, BANNER_PX // 3, Qt.KeepAspectRatio,
+                         Qt.SmoothTransformation)
+    folder = pictures_dir(data_dir)
+    try:
+        folder.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        return ""
+    name = f"{uuid.uuid4().hex[:12]}.png"
+    return name if img.save(str(folder / name), "PNG") else ""
+
+
+def banner_image(c: Category | None, data_dir) -> QImage | None:
+    """A category's banner picture (None: none, or its file is gone)."""
+    name = profiles.clean_picture(c.banner) if c is not None else ""
+    if not name or not data_dir:
+        return None
+    img = QImage(str(pictures_dir(data_dir) / name))
+    return None if img.isNull() else img
+
+
+def cover_rect(img: QSize, box: QSize, x: float, y: float) -> QRectF:
+    """Where to draw a picture of size `img` so it covers `box`, keeping its point
+    (x, y) (fractions) in view as far as it can: the rest is cut off."""
+    k = max(box.width() / max(1, img.width()), box.height() / max(1, img.height()))
+    w, h = img.width() * k, img.height() * k
+    return QRectF(-(w - box.width()) * x, -(h - box.height()) * y, w, h)
+
+
+class BannerFrame(QFrame):
+    """A category header's strip (QFrame#transport, so its colour comes from
+    tab_css): with a banner, the picture across the whole of it, faded into the tab
+    colour at both ends so the name and switch stay readable. `draggable`: dragging
+    it moves which part shows (moved(x, y), the Categories window's preview)."""
+    moved = Signal(float, float)
+
+    def __init__(self, draggable: bool = False):
+        super().__init__()
+        self.setObjectName("transport")
+        self.img: QImage | None = None
+        self.x = self.y = 0.5
+        self.fade = _panel()
+        self.draggable = draggable
+        self._scaled: tuple[QSize, QPixmap] | None = None
+        self._drag: tuple[QPoint, float, float] | None = None
+
+    def set_banner(self, img: QImage | None, x: float = 0.5, y: float = 0.5,
+                   height: str = "", fade: str = ""):
+        self.img, self.x, self.y = img, x, y
+        self.fade = fade or _panel()
+        self._scaled = None
+        h = profiles.BANNER_HEIGHTS.get(height or profiles.DEFAULT_BANNER_HEIGHT)
+        if img is not None:
+            self.setMinimumHeight(h)
+            self.setMaximumHeight(h)
+        else:
+            self.setMinimumHeight(0)
+            self.setMaximumHeight(16777215)
+        if self.draggable:
+            self.setCursor(Qt.OpenHandCursor if img is not None else Qt.ArrowCursor)
+            self.setToolTip("Drag the picture to pick the part that shows"
+                            if img is not None else "")
+        self.update()
+
+    def _pixmap(self, rect: QRectF) -> QPixmap:
+        """The picture scaled to `rect`'s size (kept while the size stays)."""
+        size = QSize(round(rect.width()), round(rect.height()))
+        if self._scaled is None or self._scaled[0] != size:
+            self._scaled = (size, QPixmap.fromImage(self.img.scaled(
+                size, Qt.IgnoreAspectRatio, Qt.SmoothTransformation)))
+        return self._scaled[1]
+
+    def paintEvent(self, e):
+        super().paintEvent(e)
+        if self.img is None:
+            return
+        p = QPainter(self)
+        p.setRenderHint(QPainter.Antialiasing)
+        p.setRenderHint(QPainter.SmoothPixmapTransform)
+        clip = QPainterPath()
+        clip.addRoundedRect(QRectF(self.rect()), 12, 12)
+        p.setClipPath(clip)
+        r = cover_rect(self.img.size(), self.size(), self.x, self.y)
+        p.drawPixmap(r.topLeft(), self._pixmap(r))
+        # the ends fade into the tab's colour: the name on the left, the counts,
+        # switch and buttons on the right stay readable over any picture
+        g = QLinearGradient(0, 0, self.width(), 0)
+        c = QColor(self.fade)
+        for at, alpha in ((0.0, 225), (0.3, 120), (0.5, 0), (0.62, 0), (0.8, 150),
+                          (1.0, 225)):
+            c.setAlpha(alpha)
+            g.setColorAt(at, c)
+        p.fillRect(self.rect(), g)
+        p.end()
+
+    def mousePressEvent(self, e):
+        if self.draggable and self.img is not None and e.button() == Qt.LeftButton:
+            self._drag = (e.position().toPoint(), self.x, self.y)
+            self.setCursor(Qt.ClosedHandCursor)
+            return
+        super().mousePressEvent(e)
+
+    def mouseMoveEvent(self, e):
+        if self._drag is None:
+            return super().mouseMoveEvent(e)
+        start, x0, y0 = self._drag
+        d = e.position().toPoint() - start
+        r = cover_rect(self.img.size(), self.size(), x0, y0)
+        spare_w, spare_h = r.width() - self.width(), r.height() - self.height()
+        # the picture follows the mouse: dragging it right shows more of its left
+        x = min(1.0, max(0.0, x0 - d.x() / spare_w)) if spare_w > 0.5 else x0
+        y = min(1.0, max(0.0, y0 - d.y() / spare_h)) if spare_h > 0.5 else y0
+        if (x, y) != (self.x, self.y):
+            self.x, self.y = x, y
+            self.update()
+            self.moved.emit(x, y)
+
+    def mouseReleaseEvent(self, e):
+        if self._drag is not None:
+            self._drag = None
+            self.setCursor(Qt.OpenHandCursor)
+            return
+        super().mouseReleaseEvent(e)
 
 
 def picture_pixmap(name: str, data_dir, size: int) -> QPixmap | None:
@@ -250,6 +389,7 @@ class CategorySection(QWidget):
     def __init__(self, name: str):
         super().__init__()
         self.ink = ""                   # its name's colour ("": the theme's)
+        self._data_dir = None
         self.look: Category | None = None
         from onionwatch.ui.triggerspanel import FlowBox, Switch   # (it imports this one)
         self.name = name
@@ -257,8 +397,7 @@ class CategorySection(QWidget):
         v = QVBoxLayout(self)
         v.setContentsMargins(0, 0, 0, 0)
         v.setSpacing(6)
-        self.header = QFrame()
-        self.header.setObjectName("transport")   # a panel-coloured strip, like the bar
+        self.header = BannerFrame()   # a panel-coloured strip, like the bar (QFrame#transport)
         header_layout = QHBoxLayout(self.header)
         header_layout.setContentsMargins(8, 6, 10, 6)
         h = header_layout
@@ -441,11 +580,20 @@ class CategorySection(QWidget):
         pm = picture_pixmap(c.image, data_dir, HEADER_PICTURE) if c else None
         self.pic.setPixmap(pm or QPixmap())
         self.pic.setVisible(pm is not None)
+        self._data_dir = data_dir
+        self._show_banner()
+
+    def _show_banner(self):
+        c = self.look
+        img = banner_image(c, self._data_dir)
+        self.header.set_banner(img, c.banner_x if c else 0.5, c.banner_y if c else 0.5,
+                               c.banner_height if c else "", fade_color(c))
 
     def retheme(self):
         """The theme changed: its tab fades into the new panel colour."""
         if self.look is not None:
             self.header.setStyleSheet(tab_css(self.look.color))
+            self._show_banner()
 
     def set_counts(self, text: str, tone: str = ""):
         self.count.setText(text)
@@ -703,14 +851,32 @@ class CategoriesDialog(QDialog):
     def __init__(self, parent, cats: list[Category], data_dir, start: str = ""):
         super().__init__(parent)
         self.setWindowTitle("Categories")
-        self.resize(760, 460)
+        self.resize(900, 560)
         self.data_dir = data_dir
-        self.cats = [Category(c.name, c.on, c.open, c.color, c.text_color, c.image)
-                     for c in cats]
+        self.cats = [c.copy() for c in cats]
         v = QVBoxLayout(self)
         v.addWidget(hint_label(
-            "Give a category its own colours and a picture, so it's easy to spot in the "
-            "list. Its triggers work just the same."))
+            "Give a category its own colours, a picture and a banner, so it's easy to "
+            "spot in the list. Its triggers work just the same."))
+        # how it looks, across the whole window (as wide as it can be, like the
+        # real header): with a banner, drag it to pick the part that shows
+        self.preview = BannerFrame(draggable=True)
+        self.preview.moved.connect(self._banner_moved)
+        ph = QHBoxLayout(self.preview)
+        ph.setContentsMargins(10, 8, 10, 8)
+        ph.setSpacing(10)
+        self.preview_pic = QLabel()
+        self.preview_pic.setFixedSize(HEADER_PICTURE, HEADER_PICTURE)
+        self.preview_pic.setAttribute(Qt.WA_TransparentForMouseEvents)
+        ph.addWidget(self.preview_pic)
+        self.preview_name = QLabel()
+        self.preview_name.setAttribute(Qt.WA_TransparentForMouseEvents)
+        ph.addWidget(self.preview_name, 1)
+        self.preview_hint = QLabel("Drag the picture to move it")
+        self.preview_hint.setObjectName("muted")
+        self.preview_hint.setAttribute(Qt.WA_TransparentForMouseEvents)
+        ph.addWidget(self.preview_hint)
+        v.addWidget(self.preview)
         h = QHBoxLayout()
         self.list = QListWidget()
         self.list.setIconSize(QSize(20, 20))
@@ -723,19 +889,6 @@ class CategoriesDialog(QDialog):
         h.addWidget(self.list, 2)
 
         f = QVBoxLayout()
-        f.addWidget(section_label("HOW IT LOOKS"))
-        self.preview = QFrame()
-        self.preview.setObjectName("transport")
-        ph = QHBoxLayout(self.preview)
-        ph.setContentsMargins(10, 8, 10, 8)
-        ph.setSpacing(10)
-        self.preview_pic = QLabel()
-        self.preview_pic.setFixedSize(HEADER_PICTURE, HEADER_PICTURE)
-        ph.addWidget(self.preview_pic)
-        self.preview_name = QLabel()
-        ph.addWidget(self.preview_name, 1)
-        f.addWidget(self.preview)
-
         f.addWidget(section_label("TAB COLOUR"))
         self.color_buttons = self._swatches(f, SWATCHES, "Theme's", self.set_color,
                                             "The tab's colour")
@@ -760,9 +913,34 @@ class CategoriesDialog(QDialog):
         pr.addWidget(self.btn_no_pic)
         pr.addStretch(1)
         f.addLayout(pr)
+        f.addWidget(section_label("BANNER"))
+        br = QHBoxLayout()
+        self.btn_pick_banner = QPushButton("Pick a banner…")
+        icons.set_icon(self.btn_pick_banner, "image", size=14)
+        self.btn_pick_banner.setToolTip("A wide picture across the whole header. Any size: "
+                                        "drag it above to pick the part that shows")
+        self.btn_pick_banner.clicked.connect(self._pick_banner)
+        br.addWidget(self.btn_pick_banner)
+        self.btn_paste_banner = QPushButton("Paste")
+        self.btn_paste_banner.setToolTip("Use the picture you copied as the banner")
+        self.btn_paste_banner.clicked.connect(self._paste_banner)
+        br.addWidget(self.btn_paste_banner)
+        self.btn_no_banner = QPushButton("Remove")
+        self.btn_no_banner.setToolTip("No banner")
+        self.btn_no_banner.clicked.connect(self.remove_banner)
+        br.addWidget(self.btn_no_banner)
+        self.cb_banner_height = QComboBox()
+        self.cb_banner_height.setToolTip("How tall the header is with its banner")
+        self.cb_banner_height.setAccessibleName("Banner height")
+        for key, label in BANNER_HEIGHT_NAMES.items():
+            self.cb_banner_height.addItem(label, key)
+        self.cb_banner_height.currentIndexChanged.connect(self._banner_height)
+        br.addWidget(self.cb_banner_height)
+        br.addStretch(1)
+        f.addLayout(br)
         f.addStretch(1)
         self.btn_reset = QPushButton("Back to plain")
-        self.btn_reset.setToolTip("No colours and no picture: the theme's look")
+        self.btn_reset.setToolTip("No colours, picture or banner: the theme's look")
         self.btn_reset.clicked.connect(self.reset)
         f.addWidget(self.btn_reset, 0, Qt.AlignLeft)
         self.form = QWidget()
@@ -780,7 +958,7 @@ class CategoriesDialog(QDialog):
 
     @property
     def result(self) -> dict[str, dict]:
-        return {c.name: c.look() for c in self.cats}
+        return {c.name: c.full_look() for c in self.cats}
 
     def _swatches(self, layout, colours, plain: str, pick, tip: str) -> dict:
         """A line of colour buttons, the plain one first and "Other…" last: they
@@ -854,6 +1032,15 @@ class CategoriesDialog(QDialog):
         pm = picture_pixmap(c.image, self.data_dir, HEADER_PICTURE)
         self.preview_pic.setPixmap(pm or QPixmap())
         self.preview_pic.setVisible(pm is not None)
+        img = banner_image(c, self.data_dir)
+        self.preview.set_banner(img, c.banner_x, c.banner_y, c.banner_height, fade_color(c))
+        self.preview_hint.setVisible(img is not None)
+        self.btn_no_banner.setEnabled(bool(c.banner))
+        self.cb_banner_height.setEnabled(bool(c.banner))
+        self.cb_banner_height.blockSignals(True)
+        self.cb_banner_height.setCurrentIndex(max(0, self.cb_banner_height.findData(
+            c.banner_height)))
+        self.cb_banner_height.blockSignals(False)
         it = self.list.currentItem()
         if it is not None:
             it.setIcon(look_icon(c, self.data_dir))
@@ -888,8 +1075,46 @@ class CategoriesDialog(QDialog):
     def reset(self):
         c = self._current()
         if c is not None:
-            c.color = c.text_color = c.image = ""
+            c.color = c.text_color = c.image = c.banner = ""
             self._show()
+
+    def set_banner(self, img: QImage) -> bool:
+        """Give the category picked `img` as its banner, shown from its middle."""
+        c = self._current()
+        name = save_banner(img, self.data_dir) if c is not None else ""
+        if name:
+            c.banner, c.banner_x, c.banner_y = name, 0.5, 0.5
+            self._show()
+        return bool(name)
+
+    def remove_banner(self):
+        c = self._current()
+        if c is not None:
+            c.banner = ""
+            self._show()
+
+    def _banner_moved(self, x: float, y: float):
+        c = self._current()
+        if c is not None:
+            c.banner_x, c.banner_y = x, y
+
+    def _banner_height(self, _i: int):
+        c = self._current()
+        key = self.cb_banner_height.currentData()
+        if c is not None and key in profiles.BANNER_HEIGHTS:
+            c.banner_height = key
+            self._show()
+
+    def _pick_banner(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Pick a banner", "",
+            "Pictures (*.png *.jpg *.jpeg *.bmp *.gif *.webp);;All files (*)")
+        if path and not self.set_banner(QImage(path)):
+            self.btn_pick_banner.setToolTip("That file couldn't be read as a picture")
+
+    def _paste_banner(self):
+        from PySide6.QtWidgets import QApplication
+        self.set_banner(QApplication.clipboard().image())
 
     def _pick_picture(self):
         path, _ = QFileDialog.getOpenFileName(

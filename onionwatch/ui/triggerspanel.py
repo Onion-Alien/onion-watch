@@ -3182,11 +3182,11 @@ class TriggersTab(QWidget):
             self.set_category_looks(dlg.result)
 
     def set_category_looks(self, looks: dict):
-        """Give categories their looks (name -> {"color", "text_color", "image"}; a
-        category left out keeps its own) and show them."""
+        """Give categories their looks (name -> Category.full_look(); a category
+        left out keeps its own) and show them."""
         for c in self.groups.categories:
             if c.name in looks:
-                c.set_look(looks[c.name])
+                c.set_full_look(looks[c.name])
         for name, sec in self.sections.items():
             sec.set_look(self.groups.find(name), self.host.data_dir)
         self._save_groups()
@@ -4532,16 +4532,20 @@ class TriggersTab(QWidget):
                                               "Trigger packs (*.zip)")
         if not path:
             return
+        from onionwatch.ui.categories import pictures_dir as category_pictures_dir
+        names = {t.category for t in triggers}
+        cats = [c for c in self.groups.categories if c.name in names]
         try:
-            packs.write_pack(path, triggers, dict(self.host.sounds()))
+            packs.write_pack(path, triggers, dict(self.host.sounds()), cats,
+                             category_pictures_dir(self.host.data_dir))
         except OSError as e:
             QMessageBox.warning(self, "Couldn't save the triggers", str(e))
             return
         QMessageBox.information(
             self, "Triggers saved",
             f"{plural(len(triggers), 'trigger')} saved to {Path(path).name}, pictures "
-            "and all, each in its category. Sounds go by name: sound files of yours "
-            "aren't in it.")
+            "and all, each in its category with its colours, picture and banner. "
+            "Sounds go by name: sound files of yours aren't in it.")
 
     def import_triggers(self):
         path, _ = QFileDialog.getOpenFileName(self, "Load triggers", str(Path.home()),
@@ -4560,11 +4564,39 @@ class TriggersTab(QWidget):
             for t, _p, _s in found:
                 t.category = name
         added = self.add_pack(found)
+        if added:
+            self.add_pack_looks(packs.read_categories(path))
         if found and not added:
             QMessageBox.information(self, "Too many triggers",
                                     f"You can have up to {MAX_TRIGGERS} triggers.")
         elif not found:
             QMessageBox.information(self, "No triggers", "That file has no triggers in it.")
+
+    def add_pack_looks(self, looks: dict):
+        """Give the categories a pack brought their looks (packs.read_categories),
+        each picture kept like a picked one. A category that already has a look
+        or banner of its own keeps it."""
+        from onionwatch.ui.categories import save_banner, save_picture as save_category_picture
+        changed = {}
+        for name, (look, pic, wide) in looks.items():
+            c = self.groups.find(name)
+            if c is None:
+                continue
+            new = c.full_look()
+            if not c.look():
+                new.update({k: v for k, v in look.items() if k != "banner"})
+                img = QImage()
+                if pic and img.loadFromData(pic):
+                    new["image"] = save_category_picture(img, self.host.data_dir)
+            img = QImage()
+            if not c.banner and wide and img.loadFromData(wide):
+                b = save_banner(img, self.host.data_dir)
+                if b:
+                    new["banner"] = {**look.get("banner", {}), "image": b}
+            if new != c.full_look():
+                changed[name] = new
+        if changed:
+            self.set_category_looks(changed)
 
     def add_pack(self, found) -> int:
         """Add the triggers read from a pack (packs.read_pack): each gets a new id,

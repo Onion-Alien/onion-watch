@@ -30,6 +30,12 @@ Everything is kept in Config.screen beside the triggers, as plain lists and dict
                 for the theme's) and a picture's file name in category_pictures
                 (data_dir / "categories"). Apart from `categories`, which an older
                 version saves back without what it doesn't know.
+    category_banners  {name: {"image", "x", "y", "height"}}   a wide picture across
+                a category's header: its file in category_pictures, the point of it
+                to keep in view (x, y: 0..1, dragged in the Categories window) and
+                the header's height (BANNER_HEIGHTS). Its own key, so an older
+                version (which rewrites category_looks with only what it knows)
+                leaves it be.
 """
 from __future__ import annotations
 
@@ -80,6 +86,15 @@ def clean_picture(text) -> str:
     return text if isinstance(text, str) and _PICTURE.fullmatch(text) else ""
 
 
+BANNER_HEIGHTS = {"slim": 44, "medium": 72, "tall": 110}   # px: a banner header's height
+DEFAULT_BANNER_HEIGHT = "medium"
+
+
+def _fraction(v, default: float = 0.5) -> float:
+    ok = isinstance(v, (int, float)) and not isinstance(v, bool) and v == v
+    return min(1.0, max(0.0, float(v))) if ok else default
+
+
 def readable_on(color: str) -> str:
     """Black or white, whichever reads better on `color` ("#rrggbb")."""
     r, g, b = (int(color[i:i + 2], 16) for i in (1, 3, 5))
@@ -107,6 +122,10 @@ class Category:
     color: str = ""             # its header's colour, "#rrggbb" ("": the theme's)
     text_color: str = ""        # its name's colour ("": readable on `color`, or the theme's)
     image: str = ""             # a picture by its name (category_pictures), "" for none
+    banner: str = ""            # a wide picture across its header (category_banners)
+    banner_x: float = 0.5       # ...the point of it kept in view, 0..1 each way
+    banner_y: float = 0.5
+    banner_height: str = DEFAULT_BANNER_HEIGHT
 
     def to_raw(self) -> dict:
         return {"name": self.name, "on": self.on, "open": self.open}
@@ -121,6 +140,38 @@ class Category:
         self.color = clean_color(d.get("color"))
         self.text_color = clean_color(d.get("text_color"))
         self.image = clean_picture(d.get("image"))
+
+    def banner_look(self) -> dict:
+        """Its banner as kept in category_banners ({} when it has none)."""
+        if not self.banner:
+            return {}
+        return {"image": self.banner, "x": round(self.banner_x, 4),
+                "y": round(self.banner_y, 4), "height": self.banner_height}
+
+    def set_banner(self, d) -> None:
+        d = d if isinstance(d, dict) else {}
+        self.banner = clean_picture(d.get("image"))
+        self.banner_x, self.banner_y = _fraction(d.get("x")), _fraction(d.get("y"))
+        h = d.get("height")
+        self.banner_height = h if h in BANNER_HEIGHTS else DEFAULT_BANNER_HEIGHT
+
+    def full_look(self) -> dict:
+        """Its look and banner together (the Categories window, packs): look()'s
+        keys plus "banner" (banner_look()) when it has one."""
+        d = self.look()
+        if self.banner:
+            d["banner"] = self.banner_look()
+        return d
+
+    def set_full_look(self, d) -> None:
+        d = d if isinstance(d, dict) else {}
+        self.set_look(d)
+        self.set_banner(d.get("banner"))
+
+    def copy(self) -> Category:
+        c = Category(self.name, self.on, self.open)
+        c.set_full_look(self.full_look())
+        return c
 
 
 @dataclass
@@ -196,6 +247,9 @@ class Groups:
         looks = screen.get("category_looks")
         for c in g.categories if isinstance(looks, dict) else []:
             c.set_look(looks.get(c.name))
+        banners = screen.get("category_banners")
+        for c in g.categories if isinstance(banners, dict) else []:
+            c.set_banner(banners.get(c.name))
         raw = screen.get("profiles")
         for d in raw if isinstance(raw, list) else []:
             p = Profile.from_raw(d)
@@ -221,6 +275,17 @@ class Groups:
         for name in self._gone - set(self.names()):
             looks.pop(name, None)
         screen["category_looks"] = looks
+        banners = screen.get("category_banners")
+        banners = ({k: v for k, v in banners.items() if isinstance(k, str) and v}
+                   if isinstance(banners, dict) else {})
+        for c in self.categories:
+            if c.banner:
+                banners[c.name] = c.banner_look()
+            else:
+                banners.pop(c.name, None)
+        for name in self._gone - set(self.names()):
+            banners.pop(name, None)
+        screen["category_banners"] = banners
         screen["profiles"] = [p.to_raw() for p in self.profiles]
         screen["profile"] = self.mode
 
@@ -255,6 +320,8 @@ class Groups:
             self.categories.remove(c)
             if not other.look():
                 other.set_look(c.look())
+            if not other.banner:
+                other.set_banner(c.banner_look())
         else:
             c.name = new
         for p in self.profiles:
