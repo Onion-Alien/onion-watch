@@ -142,6 +142,44 @@ class CardGrid(Flow):
     else as many as fit at their usual width."""
     per_row = 0
 
+    def __init__(self, parent=None, gap: int = 6):
+        super().__init__(parent, gap)
+        # each card's height at a width, and the whole grid's: worked out once, not
+        # each of the several times a layout pass asks. Forgotten whenever anything
+        # in it changes (a card's size or contents, one added or taken away)
+        self._tall: dict[tuple[int, int], int] = {}
+        self._grid_tall: dict[int, int] = {}
+
+    def _forget(self):
+        if hasattr(self, "_tall"):      # (QLayout's own __init__ invalidates)
+            self._tall.clear()
+            self._grid_tall.clear()
+
+    def invalidate(self):
+        self._forget()
+        super().invalidate()
+
+    def addItem(self, item):
+        self._forget()
+        super().addItem(item)
+
+    def takeAt(self, i):
+        self._forget()
+        return super().takeAt(i)
+
+    def heightForWidth(self, w):
+        h = self._grid_tall.get(w)
+        if h is None:
+            h = self._grid_tall[w] = super().heightForWidth(w)
+        return h
+
+    def _height(self, item, w: int) -> int:
+        key = (id(item), w)
+        h = self._tall.get(key)
+        if h is None:
+            h = self._tall[key] = _height(item, w)
+        return h
+
     def insertWidget(self, i: int, w: QWidget):
         self.addChildWidget(w)
         self._items.insert(max(0, min(i, len(self._items))), QWidgetItem(w))
@@ -164,7 +202,7 @@ class CardGrid(Flow):
 
         def put(items, w):
             nonlocal y
-            h = max(_height(it, w) for it in items)
+            h = max(self._height(it, w) for it in items)
             if move:
                 for k, it in enumerate(items):
                     it.setGeometry(QRect(rect.x() + k * (w + self._gap), y, w, h))
