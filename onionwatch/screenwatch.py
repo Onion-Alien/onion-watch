@@ -68,6 +68,7 @@ from dataclasses import asdict, dataclass, field
 
 import numpy as np
 
+from onionwatch import i18n
 from onionwatch.imgops import (binary_erosion, gaussian_filter, irfft2, next_fast_len, rfft2,
                               zoom_linear)
 
@@ -360,10 +361,10 @@ class WindowRef:
 
     @property
     def label(self) -> str:
-        name = self.title or self.exe or "Window"
+        name = self.title or self.exe or i18n._("Window")
         if self.every:
-            return f"{name} (every copy)"
-        return name + (f" (copy {self.nth + 1})" if self.nth else "")
+            return i18n._("{name} (every copy)", name=name)
+        return i18n._("{name} (copy {n})", name=name, n=self.nth + 1) if self.nth else name
 
     @classmethod
     def from_raw(cls, d) -> WindowRef | None:
@@ -1870,7 +1871,7 @@ class Hit:
 
 def supported() -> tuple[bool, str]:
     if sys.platform != "win32":
-        return False, "Onion Watch only works on Windows."
+        return False, i18n._("Onion Watch only works on Windows.")
     return True, ""
 
 
@@ -1884,7 +1885,8 @@ class Monitor:
 
     @property
     def label(self) -> str:
-        return f"{self.width}×{self.height}" + ("  (main)" if self.primary else "")
+        return f"{self.width}×{self.height}" + ("  " + i18n._("(main)") if self.primary
+                                               else "")
 
 
 def monitors() -> list[Monitor]:

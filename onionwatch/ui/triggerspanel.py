@@ -48,6 +48,7 @@ from onionwatch.ui.panel import Flow, UndoBar, card, hint_label
 from onionwatch.ui.watching import share_label
 from onionwatch.ui.windowpicker import places_label
 from onionwatch.wheelguard import no_wheel
+from onionwatch.i18n import _, ngettext
 
 log = logging.getLogger(__name__)
 
@@ -82,30 +83,30 @@ WEB_GUESS = (1920, 1080)          # ...what's watched, when that isn't known
 THUMB = QSize(112, 64)
 STRIP_THUMBS = 3        # thumbnails a card's strip shows before it scrolls
 CHIP_CHARS = 24         # a sound chip's name is cut to this many characters
-PICKS = (("random", "Random"), ("order", "In order"), ("all", "All at once"))
-MODES = (("appear", "it shows up"), ("vanish", "it goes away"),
-         ("change", "the area changes"), ("still", "the area stops changing"),
-         ("colour", "a bar runs low"))
+PICKS = (("random", _("Random")), ("order", _("In order")), ("all", _("All at once")))
+MODES = (("appear", _("it shows up")), ("vanish", _("it goes away")),
+         ("change", _("the area changes")), ("still", _("the area stops changing")),
+         ("colour", _("a bar runs low")))
 LEVELS = {"change": 0.05, "still": 0.01, "colour": 0.30}   # a new mode's starting level
 # what stops a ringing trigger by itself (Trigger.stop): its words on the card, on
 # its state line and in the alert, and a tooltip
 UNTILS = {
-    "moves": ("until the game moves", "Rings until the game moves",
-              "Ringing until the game moves.",
-              "Stops once anything moves where it looks (you're back and playing), or "
-              "when it goes away. It waits for the screen to settle first, so a fade-in "
-              "doesn't stop it. A bar: once it's back over its line."),
-    "focus": ("until I switch to the game", "Rings until you switch to the game",
-              "Ringing until you switch to it.",
-              "Stops when you alt-tab back to its window. Watching a whole screen: when "
-              "you switch to any other window."),
-    "gone": ("until it's gone", "Rings until it's gone", "Ringing until it's gone.",
-             "Stops when the picture goes away (or the bar is back, or the area settles)."),
-    "input": ("until I touch mouse or keys", "Rings until you touch the mouse or keyboard",
-              "Ringing until you touch the mouse or keyboard.",
-              "Stops as soon as you move the mouse or press a key, anywhere."),
-    "manual": ("until I click Stop", "Rings until stopped", "Ringing until you stop it.",
-               "Only the Stop button on the red bar (or the tray icon) stops it."),
+    "moves": (_("until the game moves"), _("Rings until the game moves"),
+              _("Ringing until the game moves."),
+              _("Stops once anything moves where it looks (you're back and playing), or "
+                "when it goes away. It waits for the screen to settle first, so a fade-in "
+                "doesn't stop it. A bar: once it's back over its line.")),
+    "focus": (_("until I switch to the game"), _("Rings until you switch to the game"),
+              _("Ringing until you switch to it."),
+              _("Stops when you alt-tab back to its window. Watching a whole screen: when "
+                "you switch to any other window.")),
+    "gone": (_("until it's gone"), _("Rings until it's gone"), _("Ringing until it's gone."),
+             _("Stops when the picture goes away (or the bar is back, or the area settles).")),
+    "input": (_("until I touch mouse or keys"), _("Rings until you touch the mouse or keyboard"),
+              _("Ringing until you touch the mouse or keyboard."),
+              _("Stops as soon as you move the mouse or press a key, anywhere.")),
+    "manual": (_("until I click Stop"), _("Rings until stopped"), _("Ringing until you stop it."),
+               _("Only the Stop button on the red bar (or the tray icon) stops it.")),
 }
 INPUT_POLL_MS = 100     # how often an "input" ring checks for the mouse or keyboard
 
@@ -301,7 +302,7 @@ def save_picture(img: QImage, name: str, folder: Path) -> str:
     tmp = folder / f"{name}.saving"
     if not img.save(str(tmp), "PNG"):
         tmp.unlink(missing_ok=True)
-        raise OSError(f"couldn't save the picture to {path}")
+        raise OSError(_("couldn't save the picture to {path}", path=path))
     os.replace(tmp, path)
     return str(path)
 
@@ -389,13 +390,22 @@ def flatness(gray: np.ndarray, mask: np.ndarray | None = None) -> float:
     return float(px.std()) if px.size >= 16 else 0.0
 
 
-def plural(n: int, word: str) -> str:
-    return f"{n} {word}" + ("" if n == 1 else "s")
+def picture_filter() -> str:
+    """A file dialog's filter for the pictures it can add."""
+    return _("Pictures") + f" ({PICTURE_EXTS});;" + _("All files") + " (*)"
+
+
+def pictures(n: int) -> str:
+    return ngettext("{n} picture", "{n} pictures", n)
+
+
+def triggers(n: int) -> str:
+    return ngettext("{n} trigger", "{n} triggers", n)
 
 
 def interval_label(ms: int) -> str:
     """A check speed in a list: "250 ms", "16 ms (every frame)"."""
-    return f"{ms} ms" + (" (every frame)" if ms == 16 else "")
+    return _("{ms} ms (every frame)", ms=ms) if ms == 16 else _("{ms} ms", ms=ms)
 
 
 def paint_plate(widget: QWidget):
@@ -505,19 +515,18 @@ class Thumb(QWidget):
         pm = thumb_pixmap(path, size)
         if pm.isNull():
             self.pic.setIcon(icons.icon("image", "muted"))
-            self.pic.setToolTip(f"{Path(path).name}: this picture can't be read — click to "
-                                "open it and swap it for another file")
+            self.pic.setToolTip(_("{name}: this picture can't be read — click to open it and "
+                                  "swap it for another file", name=Path(path).name))
         else:
             self.pic.setIcon(pm)
-            self.pic.setToolTip(f"{Path(path).name}\n"
-                                "Click to see it big")
+            self.pic.setToolTip(_("{name}\nClick to see it big", name=Path(path).name))
         self.setFixedSize(self.pic.size())
         small = size.height() < THUMB.height()
         self.x = QPushButton("✕", self)
         self.x.setObjectName("danger")
         self.x.setProperty("corner", "small" if small else "big")     # (CARD_CSS)
         self.x.setFixedSize(*((14, 14) if small else (18, 18)))
-        self.x.setToolTip("Remove this picture")
+        self.x.setToolTip(_("Remove this picture"))
         self.x.move(self.width() - self.x.width() - 3, 3)
         self.x.clicked.connect(lambda: self.removed.emit(self.index))
         self.x.hide()
@@ -525,8 +534,8 @@ class Thumb(QWidget):
         self.plus.setObjectName("thumbadd")
         self.plus.setFixedSize(18, 18)
         self.plus.setCursor(Qt.PointingHandCursor)
-        self.plus.setAccessibleName("Add a picture")
-        self.plus.setToolTip("Add another picture to this trigger")
+        self.plus.setAccessibleName(_("Add a picture"))
+        self.plus.setToolTip(_("Add another picture to this trigger"))
         self.plus.move(self.width() - self.plus.width() - 3, 3)
         self.plus.clicked.connect(self.add)
         self.plus.hide()
@@ -544,8 +553,9 @@ class Thumb(QWidget):
             self.more.adjustSize()
             self.more.move(self.width() - self.more.width() - 4,
                            self.height() - self.more.height() - 4)
-            self.pic.setToolTip(self.pic.toolTip() + f"\n{plural(n, 'more picture')}: "
-                                "click to see them all")
+            self.pic.setToolTip(self.pic.toolTip() + "\n" + ngettext(
+                "{n} more picture: click to see them all",
+                "{n} more pictures: click to see them all", n))
 
     def paintEvent(self, _ev):
         paint_plate(self)
@@ -657,7 +667,7 @@ class Strip(QScrollArea):
 
 
 def fill_sources(cb: QComboBox, mons: list[Monitor], places: list,
-                 default_label: str = "", pick_label: str = "Pick a window…") -> None:
+                 default_label: str = "", pick_label: str = "") -> None:
     """Fill a "Look in" list: "Same as below" (when `default_label`), each screen,
     the chosen window(s), then `pick_label`. The current choice is selected: the
     places when there are some (one screen, or its windows and screens in a few
@@ -669,22 +679,22 @@ def fill_sources(cb: QComboBox, mons: list[Monitor], places: list,
         cb.addItem(default_label, DEFAULT)
     one = places[0] if len(places) == 1 and not isinstance(places[0], WindowRef) else None
     for i, m in enumerate(mons):
-        cb.addItem(icons.icon("apps", "muted"), f"Screen {i + 1}: {m.label}", i)
+        cb.addItem(icons.icon("apps", "muted"), _("Screen {n}", n=i + 1) + f": {m.label}", i)
         if one == i:
             current = cb.count() - 1
     if not mons and not default_label:
-        cb.addItem(icons.icon("apps", "muted"), "Main screen", 0)
+        cb.addItem(icons.icon("apps", "muted"), _("Main screen"), 0)
     if one is not None and not 0 <= one < len(mons) and mons:
-        cb.addItem(f"Screen {one + 1} (not plugged in)", one)
+        cb.addItem(_("Screen {n} (not plugged in)", n=one + 1), one)
         current = cb.count() - 1
     if places and one is None:
         cb.addItem(icons.icon("window"), places_label(places), PLACES)
         cb.setItemData(cb.count() - 1, "\n".join(
-            p.label if isinstance(p, WindowRef) else f"Screen {p + 1}" for p in places),
+            p.label if isinstance(p, WindowRef) else _("Screen {n}", n=p + 1) for p in places),
             Qt.ToolTipRole)
         current = cb.count() - 1
     cb.insertSeparator(cb.count())
-    cb.addItem(icons.icon("window", "muted"), pick_label, PICK_WINDOW)
+    cb.addItem(icons.icon("window", "muted"), pick_label or _("Pick a window…"), PICK_WINDOW)
     cb.setCurrentIndex(current)
     cb.blockSignals(False)
 
@@ -693,8 +703,8 @@ def source_label(src, mons: list[Monitor]) -> str:
     if isinstance(src, WindowRef):
         return src.label
     if isinstance(src, int) and len(mons) > 1:
-        return f"screen {src + 1}"
-    return "the screen"
+        return _("screen {n}", n=src + 1)
+    return _("the screen")
 
 
 def retarget(src, old: WindowRef, new: WindowRef):
@@ -1059,7 +1069,7 @@ class TriggerRow(QFrame):
         self.advanced = False
         self.watching = False
         self.cooldown_until = 0.0
-        self.sound_details = lambda _sid: "Volume / hotkey: sound settings"
+        self.sound_details = lambda _sid: _("Volume / hotkey: sound settings")
         self.missing: list[str] = []    # its sounds that are no longer in the library
         self.fallback = False           # its own screen isn't there: the default is watched
         self.note: tuple[str, str] | None = None   # (text, tone) from watching: not open…
@@ -1086,18 +1096,18 @@ class TriggerRow(QFrame):
         top.setHorizontalSpacing(8)
         top.setVerticalSpacing(2)
         self.strip = Strip()
-        self.strip.setToolTip("The pictures to look for: any of them showing up plays the "
-                              "sound. Click one to see it big.")
+        self.strip.setToolTip(_("The pictures to look for: any of them showing up plays the "
+                                "sound. Click one to see it big."))
         self.strip.picture_clicked.connect(lambda i: self.picture_view.emit(self, i))
         self.strip.picture_removed.connect(lambda i: self.picture_removed.emit(self, i))
         self.strip.add_wanted.connect(self._show_add_menu)
         self.btn_add_pic = QPushButton("+")
         # a dashed slot after the pictures (open), or where the first one goes
         self.btn_add_pic.setObjectName("addpic")
-        self.btn_add_pic.setAccessibleName("Add a picture")
-        self.btn_add_pic.setToolTip("Add a picture: cut it from the window, pick files or "
-                                    "paste the one you copied. You can also drop picture "
-                                    "files on the card.")
+        self.btn_add_pic.setAccessibleName(_("Add a picture"))
+        self.btn_add_pic.setToolTip(_("Add a picture: cut it from the window, pick files or "
+                                      "paste the one you copied. You can also drop picture files "
+                                      "on the card."))
         self.btn_add_pic.setCursor(Qt.PointingHandCursor)
         self.btn_add_pic.clicked.connect(self._show_add_menu)
         # the header's pieces belong to the card from the start: _arrange moves them
@@ -1121,9 +1131,9 @@ class TriggerRow(QFrame):
         self.name = QLineEdit(t.name)
         # a title until you click it (styled by CARD_CSS)
         self.name.setObjectName("cardname")
-        self.name.setToolTip("Click to rename it")
+        self.name.setToolTip(_("Click to rename it"))
         self.name.setMinimumWidth(50)
-        self.name.setPlaceholderText("Name, e.g. Rare spawn")
+        self.name.setPlaceholderText(_("Name, e.g. Rare spawn"))
         self.name.setMaxLength(60)
         self.name.setCursorPosition(0)          # a long name shows its start, not its end
         self.setStyleSheet(CARD_CSS + CARD_HOVER)
@@ -1157,11 +1167,11 @@ class TriggerRow(QFrame):
         self.state.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
         # on "Waiting for <game> to open": point everything that looked in that
         # window at another one (the game's program was renamed, a new launcher...)
-        self.btn_retarget = QPushButton("Change window…")
+        self.btn_retarget = QPushButton(_("Change window…"))
         self.btn_retarget.setObjectName("small")
         self.btn_retarget.setToolTip(
-            "Pick the window to look in instead. Every trigger, the default Look in and "
-            "the profiles that used this window (or its program) move to the new one.")
+            _("Pick the window to look in instead. Every trigger, the default Look in and the "
+              "profiles that used this window (or its program) move to the new one."))
         self.btn_retarget.clicked.connect(
             lambda: self.waiting is not None and self.retarget_wanted.emit(self.waiting))
         self.btn_retarget.setVisible(False)
@@ -1193,14 +1203,14 @@ class TriggerRow(QFrame):
         self._live_score = False            # it's showing a score
         self._score: float | None = None    # the score shown (show_score)
         self.chk_on = Switch(self)
-        self.chk_on.setToolTip("Watch for this trigger (switch it off to keep it but pause it)")
+        self.chk_on.setToolTip(_("Watch for this trigger (switch it off to keep it but pause it)"))
         self.chk_on.setChecked(t.enabled)
         self.chk_on.toggled.connect(self._on_enabled)
         self.btn_open = QPushButton(self)
         self.btn_open.setObjectName("fold")
         self.btn_open.setCheckable(True)
         self.btn_open.setFixedSize(28, 28)
-        self.btn_open.setAccessibleName("Edit trigger")
+        self.btn_open.setAccessibleName(_("Edit trigger"))
         self.btn_open.toggled.connect(self.set_open)
         self._tile: bool | None = None      # how the header is laid out now (_arrange)
         self._said: bool | None = None      # a tile's line is saying what's wrong
@@ -1228,46 +1238,44 @@ class TriggerRow(QFrame):
             self.mode.addItem(label, key)
         self.mode.setCurrentIndex(max(self.mode.findData(t.mode), 0))
         self.mode.setToolTip(
-            "What sets it off:\n"
-            "• it shows up: one of its pictures appears\n"
-            "• it goes away: its picture disappears (a buff running out, a bobber)\n"
-            "• the area changes: anything moves in its area (a chat line, the minimap)\n"
-            "• the area stops changing: nothing moves for a while (stuck, idle, "
-            "disconnected)\n"
-            "• a bar runs low: less of its area is one colour (a health bar)")
+            _("What sets it off:\n• it shows up: one of its pictures appears\n• it goes away: "
+              "its picture disappears (a buff running out, a bobber)\n• the area changes: "
+              "anything moves in its area (a chat line, the minimap)\n• the area stops changing: "
+              "nothing moves for a while (stuck, idle, disconnected)\n• a bar runs low: less of "
+              "its area is one colour (a health bar)"))
         no_wheel(self.mode)
         self.mode.activated.connect(self._on_mode)
-        row.addWidget(labelled("When", self.mode, in_card=True))
+        row.addWidget(labelled(_("When"), self.mode, in_card=True))
         self.where = WideCombo(min_width=120)
-        self.where.setToolTip("Where to look: game windows (watched even while other windows "
-                              "cover them, but not while they're minimized) or whole "
-                              "screens. “Pick windows…” can tick several, or every copy of "
-                              "a game. “Same as below” is the choice at the bottom.")
+        self.where.setToolTip(_("Where to look: game windows (watched even while other windows "
+                                "cover them, but not while they're minimized) or whole screens. "
+                                "“Pick windows…” can tick several, or every copy of a game. "
+                                "“Same as below” is the choice at the bottom."))
         no_wheel(self.where)
         self.where.activated.connect(self._on_where)
-        self.where_box = labelled("in", self.where, in_card=True)
+        self.where_box = labelled(_("in"), self.where, in_card=True)
         row.addWidget(self.where_box)
         bv.addWidget(sentence)
         self._watch_row = row
         self.sounds_box = FlowBox(gap=8)
         self.sounds_row = self.sounds_box.flow
-        self.lbl_play = QLabel("then play")
+        self.lbl_play = QLabel(_("then play"))
         self.chips: list[QFrame] = []
         self.sound = QComboBox()
-        narrow(self.sound, 10)
-        self.sound.setToolTip("Add a sound to play: a built-in alert, or a sound file of yours")
+        narrow(self.sound, max(10, len(_("+ Add sound…")) - 1))   # its resting words show
+        self.sound.setToolTip(_("Add a sound to play: a built-in alert, or a sound file of yours"))
         no_wheel(self.sound)
         self.sound.activated.connect(self._on_sound)
         self.pick = WideCombo(self)    # (shown before it's in the row: no flash)
         for key, label in PICKS:
             self.pick.addItem(label, key)
         self.pick.setCurrentIndex(max(self.pick.findData(t.pick), 0))
-        self.pick.setToolTip("With several sounds: play one at random (each once before any "
-                             "repeats), take them in turn, or play them all at once")
+        self.pick.setToolTip(_("With several sounds: play one at random (each once before any "
+                               "repeats), take them in turn, or play them all at once"))
         no_wheel(self.pick)
         self.pick.currentIndexChanged.connect(self._on_pick)
-        self.btn_test = QPushButton("Test", self)
-        self.btn_test.setToolTip("Play now, as the trigger would, to check it")
+        self.btn_test = QPushButton(_("Test"), self)
+        self.btn_test.setToolTip(_("Play now, as the trigger would, to check it"))
         icons.set_icon(self.btn_test, "play", size=14)
         self.btn_test.clicked.connect(lambda: self.test.emit(self))
         bv.addWidget(self.sounds_box)
@@ -1276,11 +1284,11 @@ class TriggerRow(QFrame):
         bv.addSpacing(2)
         tune = QHBoxLayout()
         tune.setSpacing(12)
-        self.btn_tune = QPushButton("More options")
+        self.btn_tune = QPushButton(_("More options"))
         self.btn_tune.setObjectName("fold")
         self.btn_tune.setCheckable(True)
-        self.btn_tune.setToolTip("Where in the window, how alike, how long, how often, "
-                                 "ringing, and when to keep quiet")
+        self.btn_tune.setToolTip(_("Where in the window, how alike, how long, how often, "
+                                   "ringing, and when to keep quiet"))
         icons.set_icon(self.btn_tune, "setup", "section", "section", size=13)
         self.btn_tune.toggled.connect(self._on_tune)
         tune.addWidget(self.btn_tune)
@@ -1293,15 +1301,15 @@ class TriggerRow(QFrame):
         self.btn_menu = QPushButton("⋯")
         self.btn_menu.setObjectName("small")
         self.btn_menu.setFixedWidth(34)
-        self.btn_menu.setAccessibleName("More actions")
-        self.btn_menu.setToolTip("Duplicate or delete this trigger")
+        self.btn_menu.setAccessibleName(_("More actions"))
+        self.btn_menu.setToolTip(_("Duplicate or delete this trigger"))
         menu = QMenu(self.btn_menu)
-        self.act_dup = menu.addAction("Duplicate",
+        self.act_dup = menu.addAction(_("Duplicate"),
                                       lambda: self.duplicate.emit(self))
-        self.act_dup.setToolTip("Make a copy of this trigger (pictures, sounds and all)")
-        self.act_del = menu.addAction(icons.icon("trash"), "Delete",
+        self.act_dup.setToolTip(_("Make a copy of this trigger (pictures, sounds and all)"))
+        self.act_del = menu.addAction(icons.icon("trash"), _("Delete"),
                                       lambda: self.remove.emit(self))
-        self.act_del.setToolTip("Delete this trigger (Recently deleted keeps it a while)")
+        self.act_del.setToolTip(_("Delete this trigger (Recently deleted keeps it a while)"))
         self.btn_menu.clicked.connect(        # (not setMenu: no arrow on a ⋯)
             lambda: menu.exec(self.btn_menu.mapToGlobal(QPoint(0, self.btn_menu.height()))))
         tune.addWidget(self.btn_menu)
@@ -1316,29 +1324,29 @@ class TriggerRow(QFrame):
         self.btn_area.clicked.connect(lambda: self.area_wanted.emit(self))
         row.addWidget(self.btn_area)
         self.interval = WideCombo(min_width=100)
-        self.interval.addItem("Default", 0)       # its text: set_default_interval
+        self.interval.addItem(_("Default"), 0)       # its text: set_default_interval
         for ms in sorted(set(INTERVALS_MS) | {t.interval_ms} - {0}):
             self.interval.addItem(interval_label(ms), ms)
         self.interval.setCurrentIndex(max(0, self.interval.findData(t.interval_ms)))
-        self.interval.setToolTip("How often this trigger is checked. Default is the speed set "
-                                 "under ⚙ (Watching settings, on the bottom bar), for every "
-                                 "trigger left on Default. Watching keeps to its share of "
-                                 "your processor, so with a lot on it may check less often.")
+        self.interval.setToolTip(_("How often this trigger is checked. Default is the speed set "
+                                   "under ⚙ (Watching settings, on the bottom bar), for every "
+                                   "trigger left on Default. Watching keeps to its share of your "
+                                   "processor, so with a lot on it may check less often."))
         no_wheel(self.interval)
         self.interval.currentIndexChanged.connect(self._on_interval)
-        row.addWidget(labelled("Check every", self.interval, in_card=True))
-        self.chk_size = QCheckBox("Any size")
+        row.addWidget(labelled(_("Check every"), self.interval, in_card=True))
+        self.chk_size = QCheckBox(_("Any size"))
         self.chk_size.setToolTip(
-            "Find the pictures even when the game shows them bigger or smaller than when "
-            "they were cut: cut in fullscreen, played in a window, or another UI scale.\n"
-            "Untick it if a picture only ever shows at one size and it goes off by mistake.")
+            _("Find the pictures even when the game shows them bigger or smaller than when they "
+              "were cut: cut in fullscreen, played in a window, or another UI scale.\nUntick it "
+              "if a picture only ever shows at one size and it goes off by mistake."))
         self.chk_size.setChecked(t.any_size)
         self.chk_size.toggled.connect(self._on_size)
         row.addWidget(self.chk_size)
-        self.chk_ring = QCheckBox("Ring")
-        self.chk_ring.setToolTip("Keep playing the sound over and over — for when you're "
-                                 "away from the keyboard. The Stop button on the red bar "
-                                 "always stops it; pick what else does next to it.")
+        self.chk_ring = QCheckBox(_("Ring"))
+        self.chk_ring.setToolTip(_("Keep playing the sound over and over — for when you're away "
+                                   "from the keyboard. The Stop button on the red bar always "
+                                   "stops it; pick what else does next to it."))
         self.chk_ring.setChecked(t.ring)
         self.chk_ring.toggled.connect(self._on_ring)
         self.until = WideCombo(self)   # (shown before it's in its Pair: no flash)
@@ -1346,7 +1354,7 @@ class TriggerRow(QFrame):
             self.until.addItem(label, key)
             self.until.setItemData(self.until.count() - 1, UNTILS[key][3], Qt.ToolTipRole)
         self.until.setCurrentIndex(max(self.until.findData(t.stop), 0))
-        self.until.setToolTip("What stops the ringing by itself")
+        self.until.setToolTip(_("What stops the ringing by itself"))
         self.until.setVisible(t.ring)
         no_wheel(self.until)
         self.until.currentIndexChanged.connect(self._on_until)
@@ -1358,18 +1366,17 @@ class TriggerRow(QFrame):
         self.delay.setSingleStep(0.5)
         self.delay.setSuffix(" s")
         self.delay.setValue(t.delay)
-        self.delay.setToolTip("How long after it goes off to play the sound "
-                              "(0 = straight away)")
-        row.addWidget(labelled("Wait", self.delay, in_card=True))
+        self.delay.setToolTip(_("How long after it goes off to play the sound (0 = straight away)"))
+        row.addWidget(labelled(_("Wait"), self.delay, in_card=True))
         self.cooldown = QDoubleSpinBox()
         self.cooldown.setRange(0.0, 600.0)
         self.cooldown.setDecimals(0)
         self.cooldown.setSingleStep(1.0)
         self.cooldown.setSuffix(" s")
         self.cooldown.setValue(t.cooldown)
-        self.cooldown.setToolTip("After playing, ignore this trigger for this long. It also "
-                                 "has to stop before it can play again.")
-        row.addWidget(labelled("Not again for", self.cooldown, in_card=True))
+        self.cooldown.setToolTip(_("After playing, ignore this trigger for this long. It also "
+                                   "has to stop before it can play again."))
+        row.addWidget(labelled(_("Not again for"), self.cooldown, in_card=True))
         self.hold = QDoubleSpinBox()
         self.hold.setRange(0.0, screenwatch.MAX_HOLD)
         self.hold.setDecimals(1)
@@ -1387,8 +1394,8 @@ class TriggerRow(QFrame):
         self.below.addItem("below", True)
         self.below.addItem("above", False)
         self.below.setCurrentIndex(0 if t.below else 1)
-        self.below.setToolTip("Go off when less of the area is the colour (a bar running "
-                              "low), or when more of it is")
+        self.below.setToolTip(_("Go off when less of the area is the colour (a bar running low), "
+                                "or when more of it is"))
         no_wheel(self.below)
         self.below.currentIndexChanged.connect(self._on_below)
         self.lbl_number = QLabel()
@@ -1397,18 +1404,18 @@ class TriggerRow(QFrame):
         match.layout().insertWidget(1, self.below)
         row.addWidget(match)
         self._in: dict = {match: row, hold: row, self.btn_area: row}   # box -> its Flow now
-        self.chk_quiet = QCheckBox("Not while I'm in that window")
-        self.chk_quiet.setToolTip("Stay quiet while the window it went off in is the one "
-                                  "you're using: you can see it yourself")
+        self.chk_quiet = QCheckBox(_("Not while I'm in that window"))
+        self.chk_quiet.setToolTip(_("Stay quiet while the window it went off in is the one "
+                                    "you're using: you can see it yourself"))
         self.chk_quiet.setChecked(t.unfocused)
         self.chk_quiet.toggled.connect(self._on_quiet)
         row.addWidget(self.chk_quiet)
         self.cb_category = WideCombo(min_width=120)
-        self.cb_category.setToolTip("The category this trigger is in: a whole category can "
-                                    "be switched on or off at once")
+        self.cb_category.setToolTip(_("The category this trigger is in: a whole category can be "
+                                      "switched on or off at once"))
         no_wheel(self.cb_category)
         self.cb_category.activated.connect(self._on_category)
-        row.addWidget(labelled("Category", self.cb_category, in_card=True))
+        row.addWidget(labelled(_("Category"), self.cb_category, in_card=True))
         tune_col.addWidget(self.tune)
         v.addStretch(1)     # a tile taller than it needs (its line's tallest): space below
         for w in (self.delay, self.cooldown, self.hold, self.threshold):
@@ -1434,7 +1441,7 @@ class TriggerRow(QFrame):
             align_control(control, in_card=True)
 
     def _show_title(self, _text: str = ""):
-        self.title.setText(self.name.text().strip() or "No name")
+        self.title.setText(self.name.text().strip() or _("No name"))
 
     def _fit_name(self, _text: str = ""):
         """The name box as wide as its text (or the hint while it's empty), plus room
@@ -1464,7 +1471,8 @@ class TriggerRow(QFrame):
             self.btn_open.setChecked(on)
             self.btn_open.blockSignals(False)
         icons.set_icon(self.btn_open, "fold_open" if on else "fold", "muted", "muted", size=16)
-        self.btn_open.setToolTip("Close this trigger" if on else "Open this trigger to change it")
+        self.btn_open.setToolTip(_("Close this trigger") if on else _("Open this trigger to change "
+                                                                   "it"))
 
     def _arrange(self, tile: bool):
         """The header as a tile's (a small picture, the name over one line: how it's
@@ -1496,7 +1504,7 @@ class TriggerRow(QFrame):
             top.addWidget(self.details, 2, 1, 1, 2)     # under the name, like its line
             top.setColumnStretch(2, 1)
             self.setCursor(Qt.PointingHandCursor)
-            self.setToolTip("Click to open it, drag to move it")
+            self.setToolTip(_("Click to open it, drag to move it"))
         else:
             top.addWidget(self.name_line, 0, 1, Qt.AlignBottom)
             top.addWidget(self.names, 1, 1, Qt.AlignTop)
@@ -1689,10 +1697,11 @@ class TriggerRow(QFrame):
     def _add_menu(self) -> QMenu:
         """The header's +: the ways to add a picture."""
         menu = QMenu(self)
-        menu.addAction(icons.icon("crop"), "Cut from window…", lambda: self.cut_wanted.emit(self))
-        menu.addAction(icons.icon("plus"), "Picture files…",
+        menu.addAction(icons.icon("crop"), _("Cut from window…"),
+                       lambda: self.cut_wanted.emit(self))
+        menu.addAction(icons.icon("plus"), _("Picture files…"),
                        lambda: self.pictures_wanted.emit(self))
-        paste = menu.addAction(icons.icon("image"), "Paste the copied picture",
+        paste = menu.addAction(icons.icon("image"), _("Paste the copied picture"),
                                lambda: self.paste_wanted.emit(self))
         paste.setEnabled(not QApplication.clipboard().image().isNull())
         return menu
@@ -1707,25 +1716,23 @@ class TriggerRow(QFrame):
     def _tune_summary(self) -> str:
         """More options in a line: "Match 80 % · any size · plays at once · …"."""
         t = self.t
-        name = {"appear": "Match", "vanish": "Match", "change": "Changes over",
-                "still": "Moves under", "colour": "Colour below" if t.below
-                else "Colour above"}[t.mode]
         parts = []
         if t.uses_pictures:     # (otherwise the level is in the When line)
-            parts += [f"{name} {round(t.number * 100)} %",
-                      "any size" if t.any_size else "one size"]
+            parts += [_("Match {n} %", n=round(t.number * 100)),
+                      _("any size") if t.any_size else _("one size")]
         if t.hold and t.mode != "still":
-            parts.append(f"must last {t.hold:g} s")
-        parts.append(f"waits {t.delay:g} s" if t.delay else "plays at once")
-        parts.append(f"not again for {t.cooldown:g} s")
+            parts.append(_("must last {s:g} s", s=t.hold))
+        parts.append(_("waits {s:g} s", s=t.delay) if t.delay else _("plays at once"))
+        parts.append(_("not again for {s:g} s", s=t.cooldown))
         if t.ring:
-            parts.append(UNTILS[t.stop][1].lower())
+            until = UNTILS[t.stop][1]
+            parts.append(until[:1].lower() + until[1:])
         if t.uses_pictures and t.region is not None:
-            parts.append("part of the window")
+            parts.append(_("part of the window"))
         if t.unfocused:
-            parts.append("quiet while you're in it")
+            parts.append(_("quiet while you're in it"))
         if t.category:
-            parts.append(f"in {t.category}")
+            parts.append(_("in {category}", category=t.category))
         return " · ".join(parts)
 
     # ------------------------------------------------------------------ view
@@ -1761,43 +1768,44 @@ class TriggerRow(QFrame):
             self.threshold.setRange(1, 99)
             self.threshold.setValue(round(t.level * 100))
         self.threshold.blockSignals(False)
-        self.lbl_number.setText({"appear": "Match", "vanish": "Match",
-                                 "change": "Changes over", "still": "Moves under",
-                                 "colour": "Colour"}[t.mode])
+        self.lbl_number.setText({"appear": _("Match"), "vanish": _("Match"),
+                                 "change": _("Changes over"), "still": _("Moves under"),
+                                 "colour": _("Colour")}[t.mode])
         self.threshold.setToolTip({
-            "appear": "How alike the picture must be to count. Lower it if the picture is "
-                      "missed, raise it if it plays by mistake — the live number helps.",
-            "vanish": "How alike the picture must be to count as there; it's gone once it "
-                      "drops below this.",
-            "change": "How much of the area must change at once to count. Raise it if small "
-                      "animations set it off.",
-            "still": "Anything moving less than this much of the area counts as nothing "
-                     "happening.",
-            "colour": "How much of the area is the colour, as a share: a bar that's full "
-                      "reads about 100 %, half empty about 50 %.",
+            "appear": _("How alike the picture must be to count. Lower it if the picture is "
+                        "missed, raise it if it plays by mistake — the live number helps."),
+            "vanish": _("How alike the picture must be to count as there; it's gone once it "
+                        "drops below this."),
+            "change": _("How much of the area must change at once to count. Raise it if small "
+                        "animations set it off."),
+            "still": _("Anything moving less than this much of the area counts as nothing "
+                       "happening."),
+            "colour": _("How much of the area is the colour, as a share: a bar that's full "
+                        "reads about 100 %, half empty about 50 %."),
         }[t.mode])
-        self.live.setToolTip("Right now: how well it matches (the best of its pictures)"
-                             if pics else "Right now, in the place closest to going off")
-        self.lbl_hold.setText("Still for" if t.mode == "still" else "Must last")
+        self.live.setToolTip(_("Right now: how well it matches (the best of its pictures)")
+                             if pics else _("Right now, in the place closest to going off"))
+        self.lbl_hold.setText(_("Still for") if t.mode == "still" else _("Must last"))
         self.hold.setToolTip(
-            "How long nothing may change before it plays" if t.mode == "still" else
-            "It only counts once it has gone on this long, so a flicker or a loading "
-            "screen doesn't set it off (0 = at once)")
+            _("How long nothing may change before it plays") if t.mode == "still" else
+            _("It only counts once it has gone on this long, so a flicker or a loading screen "
+              "doesn't set it off (0 = at once)"))
         self._label_area()
 
     def _label_area(self):
         t = self.t
         colour = t.mode == "colour"
         if colour:
-            self.btn_area.setText("Bar and colour…" if t.region is None or not t.colour
-                                  else "Bar: set")
+            self.btn_area.setText(_("Bar and colour…") if t.region is None or not t.colour
+                                  else _("Bar: set"))
             self.btn_area.setIcon(swatch(t.colour) if t.colour else QIcon())
-            self.btn_area.setToolTip("Drag a box around the bar to measure and check its colour")
+            self.btn_area.setToolTip(_("Drag a box around the bar to measure and check its colour"))
         else:
-            self.btn_area.setText("Whole window…" if t.region is None else "Part of the window…")
+            self.btn_area.setText(_("Whole window…") if t.region is None
+                                  else _("Part of the window…"))
             self.btn_area.setIcon(QIcon())
-            self.btn_area.setToolTip("Look in only part of each window: drag a box around it. "
-                                     "Fewer false alarms, quicker checks.")
+            self.btn_area.setToolTip(_("Look in only part of each window: drag a box around it. "
+                                       "Fewer false alarms, quicker checks."))
 
     def set_sounds(self, sounds: list[tuple[str, str]]):
         """The sounds on offer: fill the "+ Add sound" list and redraw the chips."""
@@ -1805,18 +1813,18 @@ class TriggerRow(QFrame):
         cb = self.sound
         cb.blockSignals(True)
         cb.clear()
-        cb.addItem("+ Add sound…", ADD)
+        cb.addItem(_("+ Add sound…"), ADD)
         for sid, name in sounds:
             cb.addItem(name, sid)
         cb.insertSeparator(cb.count())
-        cb.addItem(icons.icon("folder"), "Choose a sound file…", FILE)
+        cb.addItem(icons.icon("folder"), _("Choose a sound file…"), FILE)
         cb.setCurrentIndex(0)
         cb.blockSignals(False)
         names = dict(sounds)
         self.missing = [sid for sid in self.t.sounds if sid not in names]
         old, self.chips = self.chips, []
         for sid in self.t.sounds:
-            self.chips.append(self._chip(names.get(sid, "Removed sound"), sid,
+            self.chips.append(self._chip(names.get(sid, _("Removed sound")), sid,
                                          warn=sid not in names))
         self.pick.setVisible(len(self.t.sounds) > 1)
         self._layout_sounds()
@@ -1847,17 +1855,17 @@ class TriggerRow(QFrame):
         name = QPushButton(text if len(text) <= CHIP_CHARS else text[:CHIP_CHARS - 1] + "…")
         name.setObjectName("chipname")
         if warn:
-            name.setToolTip("This sound file is gone — pick another")
+            name.setToolTip(_("This sound file is gone — pick another"))
             name.setStyleSheet(f"color:{theme.status('warn')};")
         else:
-            name.setToolTip(f"{text} — click to hear it")
-            name.clicked.connect(lambda _=False, s=sid: self.hear.emit(s))
+            name.setToolTip(_("{text} — click to hear it", text=text))
+            name.clicked.connect(lambda __=False, s=sid: self.hear.emit(s))
         h.addWidget(name)
         x = QPushButton("✕")
         x.setObjectName("chipstop")
         x.setFixedSize(22, 22)
-        x.setToolTip("Take this sound off the trigger")
-        x.clicked.connect(lambda _=False, s=sid: self._remove_sound(s))
+        x.setToolTip(_("Take this sound off the trigger"))
+        x.clicked.connect(lambda __=False, s=sid: self._remove_sound(s))
         h.addWidget(x)
         return chip
 
@@ -1866,7 +1874,7 @@ class TriggerRow(QFrame):
         t = self.t
         self._mons = list(mons)
         self._screens = len(mons)
-        fill_sources(self.where, mons, t.sources, "Same as below", "Pick windows…")
+        fill_sources(self.where, mons, t.sources, _("Same as below"), _("Pick windows…"))
         self.fallback = any(not 0 <= m < len(mons) for m in t.screens)
         self._update_state()
 
@@ -1888,13 +1896,13 @@ class TriggerRow(QFrame):
         muted, accent = T.get("muted", "#888888"), T.get("accent", "#1fb6a6")
         bold, meter = False, None
         if not self.t.enabled:
-            word, dot = "Off", T.get("off", muted)
+            word, dot = _("Off"), T.get("off", muted)
         elif self.note:
-            word, dot = "Waiting", theme.status("warn")
+            word, dot = _("Waiting"), theme.status("warn")
         elif self.watching and time.monotonic() < self.cooldown_until:
-            word, dot = "Cooldown", theme.status("warn")
+            word, dot = _("Cooldown"), theme.status("warn")
         elif score is None:
-            word, dot = ("Watching", accent) if self.watching else ("Ready", muted)
+            word, dot = (_("Watching"), accent) if self.watching else (_("Ready"), muted)
         else:
             bold = screenwatch.verdict(self.t.mode, score, self.t.number, self.t.below) is True
             word = f"{max(0, round(score * 100))}%"
@@ -1944,11 +1952,13 @@ class TriggerRow(QFrame):
         t = self.t
         n = round(t.number * 100)
         return {
-            "appear": f"{t.delay:g} s after it shows up" if t.delay else "as soon as it shows up",
-            "vanish": "when its picture goes away",
-            "change": "when something changes in its area",
-            "still": f"when nothing has moved for {t.hold:g} s",
-            "colour": f"when the colour is {'below' if t.below else 'above'} {n}% of the bar",
+            "appear": _("{s:g} s after it shows up", s=t.delay) if t.delay
+            else _("as soon as it shows up"),
+            "vanish": _("when its picture goes away"),
+            "change": _("when something changes in its area"),
+            "still": _("when nothing has moved for {s:g} s", s=t.hold),
+            "colour": _("when the colour is below {n}% of the bar", n=n) if t.below
+            else _("when the colour is above {n}% of the bar", n=n),
         }[t.mode]
 
     def _update_state(self):
@@ -1956,35 +1966,37 @@ class TriggerRow(QFrame):
         n = len(t.sounds)
         retarget = False
         if t.uses_pictures and not t.images:
-            text, tone = "No picture yet — click + to add one", "warn"
+            text, tone = _("No picture yet — click + to add one"), "warn"
         elif t.mode == "colour" and (not t.colour or t.region is None):
-            text, tone = "Pick the bar to measure — Bar and colour…", "warn"
+            text, tone = _("Pick the bar to measure — Bar and colour…"), "warn"
         elif not n:
-            text, tone = "Pick the sound to play", "warn"
+            text, tone = _("Pick the sound to play"), "warn"
         elif len(self.missing) == n:
-            text, tone = ("Its sound file is gone — pick another" if n == 1 else
-                          "Its sound files are gone — pick others"), "warn"
+            text, tone = (_("Its sound file is gone — pick another") if n == 1 else
+                          _("Its sound files are gone — pick others")), "warn"
         elif self.fallback:
-            where = "the screen picked below" if self._screens > 1 else "the main screen"
-            text, tone = (f"Screen {t.monitor + 1} isn't plugged in, so it's looked for "
-                          f"on {where}"), "warn"
+            text = (_("Screen {n} isn't plugged in, so it's looked for on the screen picked "
+                      "below", n=t.monitor + 1) if self._screens > 1 else
+                    _("Screen {n} isn't plugged in, so it's looked for on the main screen",
+                      n=t.monitor + 1))
+            tone = "warn"
         elif self.note is not None:
             text, tone = self.note
             retarget = self.waiting is not None
         else:
-            how = UNTILS[t.stop][1] if t.ring else "Plays"
+            how = UNTILS[t.stop][1] if t.ring else _("Plays")
             what = self._what()
             if n > 1:
-                sounds = {"random": f"one of its {n} sounds at random",
-                          "order": f"its {n} sounds in turn",
-                          "all": f"all {n} sounds at once"}[t.pick]
-                text = f"{how}: {sounds}, {what}"
+                sounds = {"random": _("one of its {n} sounds at random", n=n),
+                          "order": _("its {n} sounds in turn", n=n),
+                          "all": _("all {n} sounds at once", n=n)}[t.pick]
+                text = _("{how}: {sounds}, {what}", how=how, sounds=sounds, what=what)
             else:
-                text = f"{how} {what}"
+                text = _("{how} {what}", how=how, what=what)
             if len(t.sources) > 1 or any(isinstance(s, WindowRef) and s.every
                                          for s in t.sources):
-                text += f", in {places_label(t.sources).lower()}" if len(t.sources) > 1 \
-                    else f", in {t.sources[0].label}"
+                place = places_label(t.sources) if len(t.sources) > 1 else t.sources[0].label
+                text += _(", in {place}", place=place)
             tone = ""
         self.state.setText(text)
         theme.set_tone(self.state, tone)
@@ -1992,15 +2004,17 @@ class TriggerRow(QFrame):
         self._fit_lines()
         self.tune_text.setText(self._tune_summary())
         sounds = dict(self._sounds)
-        self.sound_summary.setText("♪ " + (", ".join(sounds.get(s, "Removed sound")
-                                                    for s in t.sounds) or "Choose a sound"))
-        where = places_label(t.sources) if t.sources else "Default window / screen"
-        interval = f"{t.interval_ms} ms" if t.interval_ms else "default"
+        self.sound_summary.setText("♪ " + (", ".join(sounds.get(s, _("Removed sound"))
+                                                    for s in t.sounds) or _("Choose a sound")))
+        where = places_label(t.sources) if t.sources else _("Default window / screen")
+        interval = f"{t.interval_ms} ms" if t.interval_ms else _("default")
         self.details.setText(
-            f"Look in: {where}\n"
-            f"{dict(MODES)[t.mode]} · check every {interval}\n"
-            f"Cooldown: {t.cooldown:g} s · {'Any size' if t.any_size else 'Original size'}\n"
-            f"Area: {'custom' if t.region else 'whole view'} · {plural(len(t.images), 'picture')}\n"
+            _("Look in: {where}\n{mode} · check every {interval}\nCooldown: {cooldown:g} s · "
+              "{size}\nArea: {area} · {pictures}\n",
+              where=where, mode=dict(MODES)[t.mode], interval=interval, cooldown=t.cooldown,
+              size=_("Any size") if t.any_size else _("Original size"),
+              area=_("custom") if t.region else _("whole view"),
+              pictures=pictures(len(t.images)))
             + "\n".join(self.sound_details(sid) for sid in t.sounds))
         self.details.setVisible(self.advanced and bool(self._tile))
 
@@ -2018,10 +2032,10 @@ class TriggerRow(QFrame):
 
     def set_default_interval(self, ms: int):
         """Say what "Default" is now (the speed picked under ⚙)."""
-        self.interval.setItemText(0, f"Default ({ms} ms)")
+        self.interval.setItemText(0, _("Default ({ms} ms)", ms=ms))
 
     def _on_name(self):
-        name = self.name.text().strip() or "Trigger"
+        name = self.name.text().strip() or _("Trigger")
         if name != self.t.name:
             self.t.name = name
             self.changed.emit(self)
@@ -2034,7 +2048,7 @@ class TriggerRow(QFrame):
         for n in names if self.t.category in names else [*names, self.t.category]:
             cb.addItem(profiles.label(n), n)
         cb.insertSeparator(cb.count())
-        cb.addItem("New category…", NEW_CATEGORY)
+        cb.addItem(_("New category…"), NEW_CATEGORY)
         cb.setCurrentIndex(max(0, cb.findData(self.t.category)))
         cb.blockSignals(False)
 
@@ -2109,7 +2123,7 @@ class TriggerRow(QFrame):
         if not sid or sid == ADD or sid in self.t.sounds:
             return
         if len(self.t.sounds) >= MAX_SOUNDS:
-            self.flash(f"A trigger can play up to {MAX_SOUNDS} sounds", 4000, "warn")
+            self.flash(_("A trigger can play up to {n} sounds", n=MAX_SOUNDS), 4000, "warn")
             return
         self.t.sounds.append(sid)
         self.set_sounds(self._sounds)
@@ -2251,13 +2265,13 @@ class TriggersTab(QWidget):
         v = QVBoxLayout(self)
         v.setContentsMargins(0, 0, 0, 0)
         v.setSpacing(8)
-        head, hv = card("Play a sound when something shows up in your game",
-                        "Pick the game window, cut out the thing to watch for — a rare "
-                        "spawn's name, a “queue ready” banner, a message — and choose the "
-                        "sound. Onion Watch keeps looking at that window while you're "
-                        "alt-tabbed into another game or away from the keyboard, and plays "
-                        "the sound (or rings until you're back) the moment it appears. It "
-                        "only looks: it never clicks, types or touches the game.")
+        head, hv = card(_("Play a sound when something shows up in your game"),
+                        _("Pick the game window, cut out the thing to watch for — a rare "
+                          "spawn's name, a “queue ready” banner, a message — and choose the "
+                          "sound. Onion Watch keeps looking at that window while you're "
+                          "alt-tabbed into another game or away from the keyboard, and plays "
+                          "the sound (or rings until you're back) the moment it appears. It "
+                          "only looks: it never clicks, types or touches the game."))
         hv.itemAt(0).widget().setWordWrap(True)
         self.hint = hv.itemAt(1).widget()
         self.warn = hint_label("")
@@ -2284,16 +2298,15 @@ class TriggersTab(QWidget):
         gb.setSpacing(4)
         self.cb_profile = WideCombo(min_width=150)
         self.cb_profile.setMaximumWidth(240)
-        self.cb_profile.setToolTip("Which categories are on: your own switches (Manual), a "
-                                   "profile's, or Automatic: the profile of the program "
-                                   "that's open")
+        self.cb_profile.setToolTip(_("Which categories are on: your own switches (Manual), a "
+                                     "profile's, or Automatic: the profile of the program that's "
+                                     "open"))
         no_wheel(self.cb_profile)
         self.cb_profile.activated.connect(self._on_profile)
-        gb.addWidget(labelled("Profile", self.cb_profile), 0, Qt.AlignLeft)
+        gb.addWidget(labelled(_("Profile"), self.cb_profile), 0, Qt.AlignLeft)
         self.btn_categories = QPushButton()
-        self.btn_categories.setAccessibleName("Categories")
-        self.btn_categories.setToolTip("Categories: give each one its own colours and a "
-                                       "picture")
+        self.btn_categories.setAccessibleName(_("Categories"))
+        self.btn_categories.setToolTip(_("Categories: give each one its own colours and a picture"))
         icons.set_icon(self.btn_categories, "palette")
         self.btn_categories.clicked.connect(lambda: self.edit_categories())
         align_control(self.btn_categories)
@@ -2313,10 +2326,10 @@ class TriggersTab(QWidget):
         search_layout.setSpacing(8)
         bar_layout.addWidget(self.search_line)
         self.search_text = QLineEdit()
-        self.search_text.setPlaceholderText("Search triggers")
-        self.search_text.setAccessibleName("Search triggers")
-        self.search_text.setToolTip("Find a trigger by name, category, window or sound "
-                                    "(Ctrl+F). Esc clears it.")
+        self.search_text.setPlaceholderText(_("Search triggers"))
+        self.search_text.setAccessibleName(_("Search triggers"))
+        self.search_text.setToolTip(_("Find a trigger by name, category, window or sound "
+                                      "(Ctrl+F). Esc clears it."))
         self.search_text.setClearButtonEnabled(True)
         self._search_icon = self.search_text.addAction(icons.icon("search", "muted"),
                                                        QLineEdit.LeadingPosition)
@@ -2324,13 +2337,13 @@ class TriggersTab(QWidget):
         self.search_text.setMinimumWidth(SEARCH_MIN)
         search_layout.addWidget(self.search_text, 3)
         self.search_scope = WideCombo(min_width=140)
-        self.search_scope.setAccessibleName("Search category")
-        self.search_scope.setToolTip("Search every category, or only one")
+        self.search_scope.setAccessibleName(_("Search category"))
+        self.search_scope.setToolTip(_("Search every category, or only one"))
         no_wheel(self.search_scope)
         align_control(self.search_scope)
         search_layout.addWidget(self.search_scope)
-        self.btn_clear_search = QPushButton("Clear")
-        self.btn_clear_search.setToolTip("Show every trigger again (Esc)")
+        self.btn_clear_search = QPushButton(_("Clear"))
+        self.btn_clear_search.setToolTip(_("Show every trigger again (Esc)"))
         align_control(self.btn_clear_search)
         search_layout.addWidget(self.btn_clear_search)
         self.search_summary = hint_label("")
@@ -2346,15 +2359,15 @@ class TriggersTab(QWidget):
         view_layout.setSpacing(8)
         search_layout.addWidget(self.view_bar)
         self.cb_per_row = WideCombo(min_width=110)
-        self.cb_per_row.setAccessibleName("View")
-        self.cb_per_row.setToolTip("List and editor: the triggers in a list, the one you "
-                                   "pick beside it (in a window wide enough). Or cards side "
-                                   "by side that open where they are: as many as fit at "
-                                   "their usual size (Auto), or a number of your own.")
-        self.cb_per_row.addItem("List and editor", LIST_VIEW)
-        self.cb_per_row.addItem("Auto per row", 0)
+        self.cb_per_row.setAccessibleName(_("View"))
+        self.cb_per_row.setToolTip(_("List and editor: the triggers in a list, the one you pick "
+                                     "beside it (in a window wide enough). Or cards side by side "
+                                     "that open where they are: as many as fit at their usual "
+                                     "size (Auto), or a number of your own."))
+        self.cb_per_row.addItem(_("List and editor"), LIST_VIEW)
+        self.cb_per_row.addItem(_("Auto per row"), 0)
         for k in range(1, MAX_PER_ROW + 1):
-            self.cb_per_row.addItem(f"{k} per row", k)
+            self.cb_per_row.addItem(_("{k} per row", k=k), k)
         per_row = host.screen.get("cards_per_row")
         self.per_row = per_row if type(per_row) is int and 0 < per_row <= MAX_PER_ROW else 0
         # (a key of its own: an older version reads cards_per_row, and knows no list)
@@ -2365,9 +2378,9 @@ class TriggersTab(QWidget):
         align_control(self.cb_per_row)
         self.cb_per_row.activated.connect(self._on_view)
         view_layout.addWidget(self.cb_per_row)
-        self.chk_advanced = QCheckBox("Show more info")
-        self.chk_advanced.setToolTip("Closed cards show more: every name in full, and "
-                                     "each trigger's settings")
+        self.chk_advanced = QCheckBox(_("Show more info"))
+        self.chk_advanced.setToolTip(_("Closed cards show more: every name in full, and each "
+                                       "trigger's settings"))
         self.chk_advanced.setChecked(host.screen.get("advanced_cards") is True)
         self.chk_advanced.toggled.connect(self._on_advanced)
         view_layout.addWidget(self.chk_advanced)
@@ -2402,12 +2415,13 @@ class TriggersTab(QWidget):
         ev.setSpacing(10)
         self.hoot = owl.OwlWidget(96)   # waiting (sadly) for something to watch
         ev.addWidget(self.hoot, 0, Qt.AlignHCenter)
-        hint = hint_label("No triggers yet. Pick your game window below, then click "
-                          "Cut picture… and drag a box around the thing to watch for.")
+        hint = hint_label(_("No triggers yet. Pick your game window below, then click Cut "
+                            "picture… and drag a box around the thing to watch for."))
         hint.setAlignment(Qt.AlignCenter)
         ev.addWidget(hint)
         self.list_layout.addWidget(self.empty)
-        self.no_results = hint_label("No matching triggers. Try another search or clear filters.")
+        self.no_results = hint_label(_("No matching triggers. Try another search or clear "
+                                       "filters."))
         self.no_results.setAlignment(Qt.AlignCenter)
         self.no_results.hide()
         v.addWidget(self.no_results)
@@ -2428,8 +2442,8 @@ class TriggersTab(QWidget):
         ep = QVBoxLayout(self.editor_pane)
         ep.setContentsMargins(0, 0, 0, 0)
         ep.setSpacing(8)
-        self.editor_empty = hint_label("Pick a trigger on the left to change it, or click "
-                                       "Cut picture… below to make one.")
+        self.editor_empty = hint_label(_("Pick a trigger on the left to change it, or click Cut "
+                                         "picture… below to make one."))
         self.editor_empty.setAlignment(Qt.AlignCenter)
         ep.addWidget(self.editor_empty)
         ep.addStretch(1)
@@ -2448,31 +2462,31 @@ class TriggersTab(QWidget):
         self.btn_watch = QPushButton()
         self.btn_watch.setObjectName("live")
         self.btn_watch.setCheckable(True)
-        self.btn_watch.setToolTip("Watch for the pictures above")
+        self.btn_watch.setToolTip(_("Watch for the pictures above"))
         icons.set_icon(self.btn_watch, "triggers", checked_color="#ffffff")
         self.btn_watch.toggled.connect(self.set_watching)
         h.addWidget(self.btn_watch)
-        self.btn_cut = QPushButton("Cut picture…")
+        self.btn_cut = QPushButton(_("Cut picture…"))
         self.btn_cut.setObjectName("primary")
-        self.btn_cut.setToolTip("A new trigger: cut a picture out of the window (or screen) "
-                                "picked in Look in")
+        self.btn_cut.setToolTip(_("A new trigger: cut a picture out of the window (or screen) "
+                                  "picked in Look in"))
         icons.set_icon(self.btn_cut, "crop", "on_accent")
         self.btn_cut.clicked.connect(self.add_from_cut)
         self.hoot.clicked.connect(lambda: self.btn_cut.setFocus(Qt.OtherFocusReason))
         h.addWidget(self.btn_cut)
         # the other ways to make a trigger, in one menu next to it: a picture file,
         # the copied picture, or none at all (a part of the window to watch)
-        self.btn_add = QPushButton("Add")
-        self.btn_add.setToolTip("A new trigger from a picture file, from the picture you "
-                                "copied, or one without a picture")
+        self.btn_add = QPushButton(_("Add"))
+        self.btn_add.setToolTip(_("A new trigger from a picture file, from the picture you "
+                                  "copied, or one without a picture"))
         icons.set_icon(self.btn_add, "plus")
         add_menu = QMenu(self.btn_add)
-        self.act_add_file = add_menu.addAction(icons.icon("plus"), "From a picture file…",
+        self.act_add_file = add_menu.addAction(icons.icon("plus"), _("From a picture file…"),
                                                self.add_from_file)
-        self.act_paste = add_menu.addAction(icons.icon("image"), "Paste the copied picture",
+        self.act_paste = add_menu.addAction(icons.icon("image"), _("Paste the copied picture"),
                                             self.add_from_clipboard)
-        self.act_paste.setToolTip("Win+Shift+S cuts a piece of the screen to paste here")
-        add_menu.addAction("Without a picture…", self.add_area_trigger)
+        self.act_paste.setToolTip(_("Win+Shift+S cuts a piece of the screen to paste here"))
+        add_menu.addAction(_("Without a picture…"), self.add_area_trigger)
         add_menu.setToolTipsVisible(True)
 
         def add_about_to_show():
@@ -2480,29 +2494,29 @@ class TriggersTab(QWidget):
         add_menu.aboutToShow.connect(add_about_to_show)
         self.btn_add.setMenu(add_menu)
         h.addWidget(self.btn_add)
-        self.btn_more = QPushButton("More")
-        self.btn_more.setToolTip("What went off lately, saving or loading triggers, and "
-                                 "recently deleted ones")
+        self.btn_more = QPushButton(_("More"))
+        self.btn_more.setToolTip(_("What went off lately, saving or loading triggers, and "
+                                   "recently deleted ones"))
         icons.set_icon(self.btn_more, "history")
         menu = QMenu(self.btn_more)
-        menu.addAction("What went off…", self.show_history)
+        menu.addAction(_("What went off…"), self.show_history)
         menu.addSeparator()
-        menu.addAction("New category…", self.new_category)
-        self.act_categories = menu.addAction(icons.icon("palette"), "Categories…",
+        menu.addAction(_("New category…"), self.new_category)
+        self.act_categories = menu.addAction(icons.icon("palette"), _("Categories…"),
                                              lambda: self.edit_categories())
-        menu.addAction("Profiles…", self.edit_profiles)
+        menu.addAction(_("Profiles…"), self.edit_profiles)
         menu.addSeparator()
-        self.act_export = menu.addAction("Save triggers to a file…", self.export_triggers)
-        menu.addAction("Load triggers from a file…", self.import_triggers)
+        self.act_export = menu.addAction(_("Save triggers to a file…"), self.export_triggers)
+        menu.addAction(_("Load triggers from a file…"), self.import_triggers)
         menu.addSeparator()
-        self.act_bin = menu.addAction(icons.icon("trash"), "Recently deleted…",
+        self.act_bin = menu.addAction(icons.icon("trash"), _("Recently deleted…"),
                                       self.show_deleted)
 
         def about_to_show():
             self.act_export.setEnabled(bool(self.triggers))
             self.act_categories.setEnabled(self._named_categories())
             n = len(self._bin())
-            self.act_bin.setText(f"Recently deleted ({n})…" if n else "Recently deleted…")
+            self.act_bin.setText(_("Recently deleted ({n})…", n=n) if n else _("Recently deleted…"))
         menu.aboutToShow.connect(about_to_show)
         self.btn_more.setMenu(menu)
         h.addWidget(self.btn_more)
@@ -2510,36 +2524,36 @@ class TriggersTab(QWidget):
         # as wide as "Screen 1: 1920×1080" when there's room (at 150 it always read
         # "Screen 1: 1…"); a long window title stays in the popup and the tooltip
         self.cb_where.setMaximumWidth(260)
-        self.cb_where.setToolTip("Where triggers that say “Same as below” look: your game's "
-                                 "window, or a whole screen")
+        self.cb_where.setToolTip(_("Where triggers that say “Same as below” look: your game's "
+                                   "window, or a whole screen"))
         self.cb_where.activated.connect(self._on_where)
         no_wheel(self.cb_where)
         # beside the buttons when there's room (the list gives way first), on a line of
         # its own when not. How often triggers on "Default" are checked is under ⚙
         # (set_default_interval): each card has its own "Check every" too
-        self.look = labelled("Look in", self.cb_where)
+        self.look = labelled(_("Look in"), self.cb_where)
         h.addWidget(self.look)
         # the watching settings (check speed, processor use), then last the ⓘ and the
         # bin (only while it holds something)
         self.btn_settings = QPushButton()
         self.btn_settings.setFixedWidth(34)
-        self.btn_settings.setToolTip("Watching settings: how often triggers on Default are "
-                                     "checked, and how much of your processor it may use")
-        self.btn_settings.setAccessibleName("Watching settings")
+        self.btn_settings.setToolTip(_("Watching settings: how often triggers on Default are "
+                                       "checked, and how much of your processor it may use"))
+        self.btn_settings.setAccessibleName(_("Watching settings"))
         icons.set_icon(self.btn_settings, "settings")
         self.btn_settings.clicked.connect(self.show_watching)
         h.addWidget(self.btn_settings)
         if not callable(getattr(host, "tab_info", None)):
-            self.btn_info = QPushButton("Help")
+            self.btn_info = QPushButton(_("Help"))
             self.btn_info.setObjectName("small")
             self.btn_info.setCursor(Qt.PointingHandCursor)
-            self.btn_info.setToolTip("What is this?")
+            self.btn_info.setToolTip(_("What is this?"))
             self.btn_info.clicked.connect(
                 lambda: QMessageBox.information(self, *self.info))
             self.btn_info.setParent(self)
             self.btn_info.hide()
             menu.addSeparator()
-            menu.addAction("Help…", self.btn_info.click)
+            menu.addAction(_("Help…"), self.btn_info.click)
         self.btn_bin = QPushButton()     # the bin's icon and count (_label_bin)
         icons.set_icon(self.btn_bin, "trash")
         self.btn_bin.clicked.connect(self.show_deleted)
@@ -2755,13 +2769,13 @@ class TriggersTab(QWidget):
         scope = self.search_scope.currentData()
         self.search_scope.blockSignals(True)
         self.search_scope.clear()
-        self.search_scope.addItem("All categories", None)
+        self.search_scope.addItem(_("All categories"), None)
         for name in self.groups.names():
             self.search_scope.addItem(profiles.label(name), name)
         self.search_scope.setCurrentIndex(max(0, self.search_scope.findData(scope)))
         self.search_scope.blockSignals(False)
 
-    def _apply_search(self, *_):
+    def _apply_search(self, *__):
         """Filter model data, including unbuilt/folded cards, without changing watching."""
         words = self.search_text.text().casefold().split()
         scope = self.search_scope.currentData()
@@ -2807,8 +2821,8 @@ class TriggersTab(QWidget):
         self.no_results.setVisible(active and not self._search_ids)
         self.empty.setVisible(not self.triggers and not active)
         self.search_summary.setText(
-            f"{len(self._search_ids)} of {len(self.triggers)}" if active else "")
-        self.search_summary.setToolTip("Matching triggers; watching is unchanged")
+            _("{n} of {n2}", n=len(self._search_ids), n2=len(self.triggers)) if active else "")
+        self.search_summary.setToolTip(_("Matching triggers; watching is unchanged"))
         self._fit_top()
 
     def _matches_search(self, trigger: Trigger) -> bool:
@@ -2919,13 +2933,14 @@ class TriggersTab(QWidget):
                 if p.id in before_apps:
                     p.apps = before_apps[p.id]
             refresh()
-        what = [plural(len(moved), "trigger")] if moved else []
+        what = [triggers(len(moved))] if moved else []
         if default != before_default:
-            what.append("the default Look in")
+            what.append(_("the default Look in"))
         if apps:
-            what.append("profiles")
-        self.undo_bar.show_for(f"Moved {', '.join(what)} to {new.label}", undo,
-                               tip=f"Look in {old.label} again")
+            what.append(_("profiles"))
+        self.undo_bar.show_for(_("Moved {what} to {place}", what=", ".join(what),
+                                 place=new.label), undo,
+                               tip=_("Look in {place} again", place=old.label))
         return True
 
     # ------------------------------------------------------------------ watching
@@ -2971,7 +2986,7 @@ class TriggersTab(QWidget):
         self.active_changed.emit(on)
 
     def _label_watch(self):
-        text = "Watching" if self.is_active() else "Start watching"
+        text = _("Watching") if self.is_active() else _("Start watching")
         self.btn_watch.setProperty("full_text", text)   # a host that shows it icon only
         if not self.btn_watch.property("compact"):       # reads it back when there's room
             self.btn_watch.setText(text)
@@ -3035,7 +3050,7 @@ class TriggersTab(QWidget):
         t = next((t for t in self.triggers if t.id == tid), None)
         log.info("trigger %r stopped ringing by itself", t.name if t else tid)
         for row in self._views(tid):
-            row.flash("Stopped ringing — you're back", 4000)
+            row.flash(_("Stopped ringing — you're back"), 4000)
         self.ringing_changed.emit()
 
     def retheme(self):
@@ -3124,7 +3139,9 @@ class TriggersTab(QWidget):
         gen = self._gen
         if t.delay > 0:
             for row in self._views(tid):
-                row.flash(f"Seen{self._in(tid)}! Playing in {t.delay:g} s…",
+                place = self._in(tid)
+                row.flash(_("Seen in {place}! Playing in {s:g} s…", place=place, s=t.delay)
+                          if place else _("Seen! Playing in {s:g} s…", s=t.delay),
                           int(t.delay * 1000) + 1500)
             QTimer.singleShot(int(t.delay * 1000), self, lambda: self._fire(tid, gen))
         else:
@@ -3137,7 +3154,13 @@ class TriggersTab(QWidget):
         if self._play_trigger(t):
             log.info("trigger %r matched", t.name)
             for row in self._views(tid):
-                row.flash(("Ringing" if t.ring else "Played") + self._in(tid) + "!", 4000)
+                place = self._in(tid)
+                if place:
+                    text = (_("Ringing in {place}!", place=place) if t.ring
+                            else _("Played in {place}!", place=place))
+                else:
+                    text = _("Ringing!") if t.ring else _("Played!")
+                row.flash(text, 4000)
             if t.ring:
                 self._watch_ring(t)
             self._live[t.id] = time.monotonic()
@@ -3149,21 +3172,21 @@ class TriggersTab(QWidget):
         return source_label(place, self._mons)
 
     def _in(self, tid: str) -> str:
-        """" in Game (copy 2)" for a trigger looking in more than one place (else
-        ""): which one it went off in."""
+        """"Game (copy 2)" for a trigger looking in more than one place (else ""):
+        which one it went off in."""
         hit = self._hits.get(tid)
         places = self.watcher.where.get(tid, ())
         if hit is None or len(places) < 2:
             return ""
-        return f" in {self.place_name(hit.source)}"
+        return self.place_name(hit.source)
 
     def alert_text(self, t: Trigger) -> str:
         """The words of a notification for `t` going off: what happened and where."""
-        where = self._in(t.id).strip()
-        what = {"appear": "It just showed up", "vanish": "It went away",
-                "change": "Something changed", "still": "Nothing has moved for a while",
-                "colour": "The bar ran low" if t.below else "The bar filled up"}[t.mode]
-        what += f" {where}." if where else "."
+        where = self._in(t.id)
+        what = {"appear": _("It just showed up"), "vanish": _("It went away"),
+                "change": _("Something changed"), "still": _("Nothing has moved for a while"),
+                "colour": _("The bar ran low") if t.below else _("The bar filled up")}[t.mode]
+        what = _("{what} in {place}.", what=what, place=where) if where else what + "."
         return what + (" " + UNTILS[t.stop][2] if t.ring else "")
 
     def _play_trigger(self, t: Trigger, test: bool = False) -> list[str]:
@@ -3181,7 +3204,7 @@ class TriggersTab(QWidget):
         elif t.pick == "order":
             n, i = len(t.sounds), self._order.get(t.id, 0)
             chosen = []
-            for _ in range(n):
+            for __ in range(n):
                 sid, i = t.sounds[i % n], i + 1
                 if sid in pool:
                     chosen = [sid]
@@ -3261,22 +3284,22 @@ class TriggersTab(QWidget):
         name = source_label(src, self._mons)
         if src in w.failed:
             if isinstance(src, WindowRef):
-                return f"Waiting for {name} to open", "warn"
-            return f"Screen {src + 1} can't be captured — waiting for it", "warn"
+                return _("Waiting for {name} to open", name=name), "warn"
+            return _("Screen {n} can't be captured — waiting for it", n=src + 1), "warn"
         if src in w.minimized:
-            return (f"{name} is minimized, so it can't be seen — restore it (covering it "
-                    "with other windows is fine)"), "warn"
+            return _("{name} is minimized, so it can't be seen — restore it (covering it "
+                     "with other windows is fine)", name=name), "warn"
         if src in w.unseen:
             if isinstance(src, WindowRef):
-                return (f"{name} can't be captured: nothing comes out of it. Pick its "
-                        "screen under Look in instead."), "warn"
-            return f"Screen {src + 1} gives no picture — waiting for one", "warn"
+                return _("{name} can't be captured: nothing comes out of it. Pick its "
+                         "screen under Look in instead.", name=name), "warn"
+            return _("Screen {n} gives no picture — waiting for one", n=src + 1), "warn"
         if src in w.blacked:
             if isinstance(src, WindowRef):
-                return (f"{name} comes out black. Some games can only be seen on the "
-                        "screen: pick its screen under Look in instead."), "warn"
-            return ("The screen looks all black. If the game is in exclusive fullscreen, "
-                    "set it to Borderless or Windowed."), "warn"
+                return _("{name} comes out black. Some games can only be seen on the "
+                         "screen: pick its screen under Look in instead.", name=name), "warn"
+            return _("The screen looks all black. If the game is in exclusive fullscreen, "
+                     "set it to Borderless or Windowed."), "warn"
         return None
 
     def _show_warning(self):
@@ -3285,25 +3308,30 @@ class TriggersTab(QWidget):
         if not ok:
             why = unsupported
         elif w.error:
-            why = f"Watching stopped: {w.error}"
+            why = _("Watching stopped: {error}", error=w.error)
         elif self.is_active() and w.lost:
-            why = ("Waiting for the screen to come back. A game switching to or from "
-                   "fullscreen does this for a moment.")
+            why = _("Waiting for the screen to come back. A game switching to or from "
+                    "fullscreen does this for a moment.")
         elif self.is_active() and not w.scores and not w.failed and not any(
                 self.is_on(t) and self.ready(t) and t.sounds for t in self.triggers):
             if any(t.enabled and self.ready(t) and t.sounds for t in self.triggers):
-                why = ("Nothing to watch for: the triggers that could go off are all in "
-                       "categories that are off now.")
+                why = _("Nothing to watch for: the triggers that could go off are all in "
+                        "categories that are off now.")
             else:
-                why = ("Nothing to watch for yet: each trigger needs a sound, and a "
-                       "picture (or its bar) to look for.")
+                why = _("Nothing to watch for yet: each trigger needs a sound, and a "
+                        "picture (or its bar) to look for.")
         elif (self.is_active() and self._heavy_since is not None
               and time.monotonic() - self._heavy_since >= HEAVY_FOR):
-            why = (f"Each trigger is checked only every {w.gap:.1f} s: "
-                   f"{plural(self._counts()[2], 'picture')} are on, more than this "
-                   f"computer looks for in {share_label(w.cpu_share)} of its processor. "
-                   "Let it use more under ⚙, switch off a category, or give triggers an "
-                   "Area to look in, to check more often.")
+            n = self._counts()[2]
+            why = ngettext("Each trigger is checked only every {s:.1f} s: {n} picture is on, "
+                           "more than this computer looks for in {share} of its processor. "
+                           "Let it use more under ⚙, switch off a category, or give triggers "
+                           "an Area to look in, to check more often.",
+                           "Each trigger is checked only every {s:.1f} s: {n} pictures are on, "
+                           "more than this computer looks for in {share} of its processor. "
+                           "Let it use more under ⚙, switch off a category, or give triggers "
+                           "an Area to look in, to check more often.",
+                           n, s=w.gap, share=share_label(w.cpu_share))
         self.warn.setText(why)
         self.warn.setVisible(bool(why))
 
@@ -3570,29 +3598,35 @@ class TriggersTab(QWidget):
 
     def watching_text(self) -> str:
         """How often each trigger is checked now, for the Watching dialog."""
-        pics = plural(self._counts()[2], "picture")
+        pics = pictures(self._counts()[2])
         if not self.is_active() or not self.watcher.running:
-            return f"Not watching right now ({pics} on)."
+            return _("Not watching right now ({pictures} on).", pictures=pics)
         w = self.watcher
-        slower = " (the most it can in that share)" if w.gap > w.interval * 1.05 else ""
         if w.heavy:
-            slower = " (max detection is on)"
-        text = f"Each trigger is checked every {w.gap:.2f} s{slower}, with {pics} on."
+            text = _("Each trigger is checked every {s:.2f} s (max detection is on), with "
+                     "{pictures} on.", s=w.gap, pictures=pics)
+        elif w.gap > w.interval * 1.05:
+            text = _("Each trigger is checked every {s:.2f} s (the most it can in that share), "
+                     "with {pictures} on.", s=w.gap, pictures=pics)
+        else:
+            text = _("Each trigger is checked every {s:.2f} s, with {pictures} on.",
+                     s=w.gap, pictures=pics)
         if any(t.interval_ms for t in self.triggers if self.is_on(t)):
-            text = (f"Watching ticks every {w.gap:.2f} s, with {pics} on. "
-                    "Each trigger follows its own interval (or the default); "
-                    "the shared processor limit can make checks slower.")
+            text = _("Watching ticks every {s:.2f} s, with {pictures} on. Each trigger follows "
+                     "its own interval (or the default); the shared processor limit can make "
+                     "checks slower.", s=w.gap, pictures=pics)
         if w.cpu_used is not None:
-            text += (f"\nWatching is using about {w.cpu_used * 100:.2f} % of your processor "
-                     f"({w.cpu_used * screenwatch.CORES * 100:.0f} % of one core).")
+            text += "\n" + _("Watching is using about {share:.2f} % of your processor "
+                             "({core:.0f} % of one core).", share=w.cpu_used * 100,
+                             core=w.cpu_used * screenwatch.CORES * 100)
         return text
 
     def _gap_text(self) -> str:
         if not self.is_active() or not self.watcher.running:
             return ""
         if any(t.interval_ms for t in self.triggers if self.is_on(t)):
-            return f"watching tick {self.watcher.gap:.2f} s · individual intervals"
-        return f"each checked every {self.watcher.gap:.1f} s"
+            return _("watching tick {s:.2f} s · individual intervals", s=self.watcher.gap)
+        return _("each checked every {s:.1f} s", s=self.watcher.gap)
 
     def _refresh_counts(self):
         """The numbers on the sections' headers and the Profile line."""
@@ -3610,29 +3644,30 @@ class TriggersTab(QWidget):
             sec.set_counts(counts_text(n, on, pics, cat_on), "" if cat_on else "warn")
             sec.empty.setVisible(not n and not sec.header.isHidden())
         total, on, pics = self._counts()
-        parts = [f"{on} of {plural(total, 'trigger')} on", plural(pics, "picture")]
+        parts = [ngettext("{on} of {n} trigger on", "{on} of {n} triggers on", total, on=on),
+                 pictures(pics)]
         self._gap_shown = self._gap_text()
         if self._gap_shown:
             parts.append(self._gap_shown)
         state = self._profile_state()
         self.lbl_counts.setText(" · ".join(parts) + (f"  —  {state}" if state else ""))
         self.lbl_counts.setToolTip(
-            "Triggers on, and the pictures they look for. Each picture on takes a share of "
-            "the processor watching keeps to (⚙): with too many, each is checked "
-            "less often. Turn off what you don't need now, or give triggers an Area.")
+            _("Triggers on, and the pictures they look for. Each picture on takes a share of the "
+              "processor watching keeps to (⚙): with too many, each is checked less often. Turn "
+              "off what you don't need now, or give triggers an Area."))
 
     def _refresh_switches(self):
         """Each section's switch: is it on now, and who says so."""
         ps = self.groups.in_charge(self.apps.matched)
         if not ps:
-            tip = ("Switch the whole category on or off. Its triggers keep their own "
-                   "switches, so turning it back on brings back just the ones that were on.")
+            tip = _("Switch the whole category on or off. Its triggers keep their own "
+                    "switches, so turning it back on brings back just the ones that were on.")
         elif len(ps) == 1:
-            tip = (f"On or off as the profile “{ps[0].name}” says: switching it changes "
-                   "that profile.")
+            tip = _("On or off as the profile “{name}” says: switching it changes "
+                    "that profile.", name=ps[0].name)
         else:
-            tip = (f"On or off as the profiles {', '.join(p.name for p in ps)} say (Automatic). "
-                   "Change them under More → Profiles….")
+            tip = _("On or off as the profiles {names} say (Automatic). "
+                    "Change them under More → Profiles….", names=", ".join(p.name for p in ps))
         for name, sec in self.sections.items():
             sec.set_switch(name in self._active, tip)
 
@@ -3653,10 +3688,10 @@ class TriggersTab(QWidget):
         """A category's switch was clicked."""
         if not self.groups.set_on(name, on, self.apps.matched):
             names = ", ".join(p.name for p in self.groups.in_charge(self.apps.matched))
-            QMessageBox.information(self, "Set by profiles",
-                                    f"The profiles {names} say which categories are on now "
-                                    "(Profile is Automatic). Change them under More → "
-                                    "Profiles….")
+            QMessageBox.information(self, _("Set by profiles"),
+                                    _("The profiles {names} say which categories are on now "
+                                      "(Profile is Automatic). Change them under More → "
+                                      "Profiles….", names=names))
             self._refresh_switches()
             return
         self._save_groups()
@@ -3674,7 +3709,7 @@ class TriggersTab(QWidget):
         """Make a category (asked for when `name` isn't given): its name, or None."""
         if name is None:
             from PySide6.QtWidgets import QInputDialog
-            name, ok = QInputDialog.getText(self, "New category", "Name of the category:")
+            name, ok = QInputDialog.getText(self, _("New category"), _("Name of the category:"))
             if not ok:
                 return None
         name = profiles.clean_name(name)
@@ -3682,8 +3717,9 @@ class TriggersTab(QWidget):
             return None
         if self.groups.find(name) is None:
             if len(self.groups.categories) >= profiles.MAX_CATEGORIES:
-                QMessageBox.information(self, "Too many categories",
-                                        f"You can have up to {profiles.MAX_CATEGORIES}.")
+                QMessageBox.information(self, _("Too many categories"),
+                                        _("You can have up to {max_categories}.",
+                                          max_categories=profiles.MAX_CATEGORIES))
                 return None
             self.groups.ensure(name).open = True
         self._last_category = name
@@ -3719,7 +3755,7 @@ class TriggersTab(QWidget):
         sec = self.sections.get(t.category)
         if sec is not None and sec.is_open and sec.built:
             row = self._place_row(t, sec)
-            row.flash(f"Moved to {profiles.label(t.category)}")
+            row.flash(_("Moved to {category}", category=profiles.label(t.category)))
         self._store()
 
     def rename_category(self, old: str, new: str) -> bool:
@@ -3768,13 +3804,16 @@ class TriggersTab(QWidget):
             return False
         moved = [t for t in self.triggers if t.category == name]
         if ask:
-            box = QMessageBox(QMessageBox.Question, "Delete category",
-                              f"Delete the category “{name}”?\n\n"
-                              + (f"Its {plural(len(moved), 'trigger')} move to "
-                                 f"{profiles.UNCATEGORISED_LABEL}: none is deleted."
-                                 if moved else "It's empty."),
+            box = QMessageBox(QMessageBox.Question, _("Delete category"),
+                              _("Delete the category “{name}”?", name=name) + "\n\n"
+                              + (ngettext("Its {n} trigger moves to {uncategorised}: none is "
+                                          "deleted.",
+                                          "Its {n} triggers move to {uncategorised}: none is "
+                                          "deleted.", len(moved),
+                                          uncategorised=profiles.label(profiles.UNCATEGORISED))
+                                 if moved else _("It's empty.")),
                               QMessageBox.Yes | QMessageBox.Cancel, self)
-            box.button(QMessageBox.Yes).setText("Delete")
+            box.button(QMessageBox.Yes).setText(_("Delete"))
             box.setDefaultButton(QMessageBox.Cancel)
             if box.exec() != QMessageBox.Yes:
                 return False
@@ -3803,8 +3842,8 @@ class TriggersTab(QWidget):
             self._categories_changed()
             self._fill_profiles()
             self._store()
-        self.undo_bar.show_for(f"Deleted the category “{name}”", undo,
-                               tip="Put it back, its triggers and all")
+        self.undo_bar.show_for(_("Deleted the category “{name}”", name=name), undo,
+                               tip=_("Put it back, its triggers and all"))
         return True
 
     def export_category(self, name: str):
@@ -3823,14 +3862,14 @@ class TriggersTab(QWidget):
 
     def _fill_new_here(self, menu: QMenu, name: str):
         """The ways to make a trigger, each putting it in this category."""
-        menu.addAction(icons.icon("crop"), "Cut it from the window",
+        menu.addAction(icons.icon("crop"), _("Cut it from the window"),
                        lambda: self.add_in_category(name, self.add_from_cut))
-        menu.addAction(icons.icon("plus"), "From a picture file…",
+        menu.addAction(icons.icon("plus"), _("From a picture file…"),
                        lambda: self.add_in_category(name, self.add_from_file))
-        a = menu.addAction(icons.icon("image"), "Paste the copied picture",
+        a = menu.addAction(icons.icon("image"), _("Paste the copied picture"),
                            lambda: self.add_in_category(name, self.add_from_clipboard))
         a.setEnabled(not QApplication.clipboard().image().isNull())
-        menu.addAction("Without a picture…",
+        menu.addAction(_("Without a picture…"),
                        lambda: self.add_in_category(name, self.add_area_trigger))
 
     def _pop_menu(self, menu: QMenu, under: QWidget):
@@ -3854,35 +3893,35 @@ class TriggersTab(QWidget):
         menu = QMenu(sec.btn_menu)
         named = name != profiles.UNCATEGORISED
         n = sum(t.category == name for t in self.triggers)
-        self._fill_new_here(menu.addMenu(icons.icon("plus"), "New trigger here"), name)
+        self._fill_new_here(menu.addMenu(icons.icon("plus"), _("New trigger here")), name)
         menu.addSeparator()
         if named:
-            menu.addAction("Rename…", lambda: self._ask_rename(name))
-        menu.addAction(icons.icon("palette"), "Colours and picture…",
+            menu.addAction(_("Rename…"), lambda: self._ask_rename(name))
+        menu.addAction(icons.icon("palette"), _("Colours and picture…"),
                        lambda: self.edit_categories(name))
-        menu.addAction(icons.icon("search"), "Search this category",
+        menu.addAction(icons.icon("search"), _("Search this category"),
                        lambda: self.show_search(name))
-        a = menu.addAction("Turn all its triggers on",
+        a = menu.addAction(_("Turn all its triggers on"),
                            lambda: self.set_category_triggers(name, True))
         a.setEnabled(n > 0)
-        a = menu.addAction("Turn all its triggers off",
+        a = menu.addAction(_("Turn all its triggers off"),
                            lambda: self.set_category_triggers(name, False))
         a.setEnabled(n > 0)
         menu.addSeparator()
         i = self.groups.names().index(name) if self.groups.find(name) else 0
-        menu.addAction("Move up", lambda: self.move_category(name, -1)).setEnabled(i > 0)
-        menu.addAction("Move down", lambda: self.move_category(name, 1)).setEnabled(
+        menu.addAction(_("Move up"), lambda: self.move_category(name, -1)).setEnabled(i > 0)
+        menu.addAction(_("Move down"), lambda: self.move_category(name, 1)).setEnabled(
             i < len(self.groups.categories) - 1)
         menu.addSeparator()
-        menu.addAction("Save to a file…", lambda: self.export_category(name)).setEnabled(n > 0)
+        menu.addAction(_("Save to a file…"), lambda: self.export_category(name)).setEnabled(n > 0)
         if named:
-            menu.addAction(icons.icon("trash"), "Delete category…",
+            menu.addAction(icons.icon("trash"), _("Delete category…"),
                            lambda: self.delete_category(name))
         self._pop_menu(menu, sec.btn_menu)
 
     def _ask_rename(self, name: str):
         from PySide6.QtWidgets import QInputDialog
-        new, ok = QInputDialog.getText(self, "Rename category", "New name:", text=name)
+        new, ok = QInputDialog.getText(self, _("Rename category"), _("New name:"), text=name)
         if ok:
             self.rename_category(name, new)
 
@@ -3891,13 +3930,13 @@ class TriggersTab(QWidget):
         cb, g = self.cb_profile, self.groups
         cb.blockSignals(True)
         cb.clear()
-        cb.addItem("Manual (your switches)", "")
+        cb.addItem(_("Manual (your switches)"), "")
         for p in g.profiles:
             cb.addItem(p.name, p.id)
         if g.profiles:
-            cb.addItem("Automatic (by program)", profiles.AUTO)
+            cb.addItem(_("Automatic (by program)"), profiles.AUTO)
         cb.insertSeparator(cb.count())
-        cb.addItem("Edit profiles…", EDIT_PROFILES)
+        cb.addItem(_("Edit profiles…"), EDIT_PROFILES)
         cb.setCurrentIndex(max(0, cb.findData(g.mode)))
         cb.blockSignals(False)
         self.groupbar.setVisible(self._grouped())
@@ -3908,8 +3947,8 @@ class TriggersTab(QWidget):
             return ""
         ps = self.groups.in_charge(self.apps.matched)
         if not ps:
-            return "no profile's program is open: your switches apply"
-        return "on now: " + ", ".join(p.name for p in ps)
+            return _("no profile's program is open: your switches apply")
+        return _("on now: {names}", names=", ".join(p.name for p in ps))
 
     def set_profile(self, mode: str):
         """Manual (""), a profile's id, or profiles.AUTO."""
@@ -4149,10 +4188,11 @@ class TriggersTab(QWidget):
         another sound is picked; None when no picture could be used. `notes`: see
         _add_pictures."""
         if len(self.triggers) >= MAX_TRIGGERS:
-            QMessageBox.information(self, "Too many triggers",
-                                    f"You can have up to {MAX_TRIGGERS} triggers.")
+            QMessageBox.information(self, _("Too many triggers"),
+                                    _("You can have up to {max_triggers} triggers.",
+                                      max_triggers=MAX_TRIGGERS))
             return None
-        t = Trigger(id=uuid.uuid4().hex[:12], name=name[:60] or "Trigger",
+        t = Trigger(id=uuid.uuid4().hex[:12], name=name[:60] or _("Trigger"),
                     sounds=[self.host.default_sound] if self.host.default_sound else [],
                     category=self._new_category())
         if not self._add_pictures(t, [img] if isinstance(img, QImage) else list(img),
@@ -4172,18 +4212,18 @@ class TriggersTab(QWidget):
         """Whether a picture can be looked for: (its grey and mask, ()) or (None,
         (why not, in detail))."""
         if img.isNull():
-            return None, ("Not a picture", "That picture couldn't be read.")
+            return None, (_("Not a picture"), _("That picture couldn't be read."))
         if min(img.width(), img.height()) < 6:
-            return None, ("Picture too small",
-                          "Cut a bigger piece: at least 6 pixels each way.")
+            return None, (_("Picture too small"),
+                          _("Cut a bigger piece: at least 6 pixels each way."))
         if max(img.width(), img.height()) > MAX_SIDE:
-            return None, ("Picture too big", "Cut a smaller piece: at most "
-                          f"{MAX_SIDE} pixels each way.")
+            return None, (_("Picture too big"), _("Cut a smaller piece: at most "
+                                                  "{n} pixels each way.", n=MAX_SIDE))
         pic = picture_of(img)
         if pic is None or flatness(*pic) < screenwatch.FLAT_STD:
-            return None, ("Picture is one plain colour",
-                          "There's nothing in it to recognise. Cut a piece with some detail, "
-                          "like the words or an icon. (Transparent parts don't count.)")
+            return None, (_("Picture is one plain colour"),
+                          _("There's nothing in it to recognise. Cut a piece with some detail, "
+                            "like the words or an icon. (Transparent parts don't count.)"))
         return pic, ()
 
     def _add_pictures(self, t: Trigger, imgs: list[QImage], names: list[str] = (),
@@ -4205,7 +4245,7 @@ class TriggersTab(QWidget):
                 img = fit_web(img, here)
             if not img.isNull() and cut_size(img) is None:
                 set_cut_size(img, here)
-            name = names[i] if i < len(names) else f"Picture {len(t.images) + 1}"
+            name = names[i] if i < len(names) else _("Picture {n}", n=len(t.images) + 1)
             if at is None and len(t.images) >= MAX_PICTURES:
                 left_out = len(imgs) - i
                 break
@@ -4216,7 +4256,7 @@ class TriggersTab(QWidget):
             try:
                 path = save_picture(img, picture_name(t, self.pictures), self.pictures)
             except OSError as e:
-                refused.append((name, "Couldn't keep the picture", str(e)))
+                refused.append((name, _("Couldn't keep the picture"), str(e)))
                 continue
             if at is not None and 0 <= at < len(t.images):
                 old, t.images[at] = t.images[at], path
@@ -4238,18 +4278,21 @@ class TriggersTab(QWidget):
             if web:
                 self._web_tip(row)
             if left_out:
-                row.flash(f"A trigger can look for up to {MAX_PICTURES} pictures — "
-                          f"{plural(left_out, 'picture')} not added", 4000, "warn")
-        self._say(refused, "Some pictures couldn't be used")
-        self._say([(n, "This picture may not be found", note) for n, note in notes],
-                  "Some pictures may not be found")
+                row.flash(ngettext("A trigger can look for up to {max} pictures — {n} "
+                                   "picture not added",
+                                   "A trigger can look for up to {max} pictures — {n} "
+                                   "pictures not added", left_out, max=MAX_PICTURES),
+                          4000, "warn")
+        self._say(refused, _("Some pictures couldn't be used"))
+        self._say([(n, _("This picture may not be found"), note) for n, note in notes],
+                  _("Some pictures may not be found"))
         return added
 
     @staticmethod
     def _web_tip(row: TriggerRow):
         """Said on the card when a picture not cut from the game is added (once the
         card's been redrawn for it: that sets its line back)."""
-        text = "From the web: looked for at every size. Never found? Cut it from the game."
+        text = _("From the web: looked for at every size. Never found? Cut it from the game.")
         QTimer.singleShot(0, row, lambda: row.flash(text, 9000, "warn"))
 
     def _say(self, items: list[tuple[str, str, str]], title: str):
@@ -4286,22 +4329,30 @@ class TriggersTab(QWidget):
         smallest = (screenwatch.WIDE_SIZES[0] if web else
                     screenwatch.SIZES[0] if t.any_size else 1.0)
         if w * smallest > sw or h * smallest > sh:
-            notes.append(f"It's bigger than the {what} being watched ({sw}×{sh}), so it can't "
-                         f"be found there. Cut it from that {what} at the size it's shown.")
+            notes.append(
+                _("It's bigger than the window being watched ({w}×{h}), so it can't be found "
+                  "there. Cut it from that window at the size it's shown.", w=sw, h=sh)
+                if what == "window" else
+                _("It's bigger than the screen being watched ({w}×{h}), so it can't be found "
+                  "there. Cut it from that screen at the size it's shown.", w=sw, h=sh))
             return notes
         top = screenwatch.work_scale(sw, [1])     # the most detail a check keeps
         need = math.ceil(screenwatch.MIN_SIDE / top)
         if min(w, h) < need:
-            notes.append(f"It's very small for a {sw}-pixel-wide {what}, so it may be missed "
-                         "or match the wrong thing. A bigger piece (at least "
-                         f"{need} pixels each way) works better.")
+            notes.append(
+                _("It's very small for a {w}-pixel-wide window, so it may be missed or match "
+                  "the wrong thing. A bigger piece (at least {n} pixels each way) works "
+                  "better.", w=sw, n=need) if what == "window" else
+                _("It's very small for a {w}-pixel-wide screen, so it may be missed or match "
+                  "the wrong thing. A bigger piece (at least {n} pixels each way) works "
+                  "better.", w=sw, n=need))
         scale = screenwatch.work_scale(sw, [min(w, h)])
         if mask is not None and int(screenwatch.shrink_mask(mask, scale).sum()) < \
                 screenwatch.MASK_MIN:
-            notes.append("Most of it is see-through and what's left is thin, so there's "
-                         "almost nothing to compare once it's scaled down for checking. "
-                         "Keep more of the background around it, or use a picture "
-                         "without transparency.")
+            notes.append(_("Most of it is see-through and what's left is thin, so there's "
+                           "almost nothing to compare once it's scaled down for checking. "
+                           "Keep more of the background around it, or use a picture "
+                           "without transparency."))
         return notes
 
     # ------------------------------------------------------------------ cutting
@@ -4318,16 +4369,18 @@ class TriggersTab(QWidget):
         if isinstance(src, WindowRef):
             info = windows.find(src)
             if info is None:
-                return None, f"{src.label} isn't open. Start it, then try again.", None
+                return None, _("{name} isn't open. Start it, then try again.",
+                               name=src.label), None
             if info.minimized:
-                return None, f"{src.label} is minimized. Restore it, then try again.", None
+                return None, _("{name} is minimized. Restore it, then try again.",
+                               name=src.label), None
             px = windows.snapshot(info.hwnd)
             if px is None:
-                return None, f"{src.label} couldn't be copied.", None
+                return None, _("{name} couldn't be copied.", name=src.label), None
             return px, src.label, lambda: windows.snapshot(info.hwnd)
         mons = screenwatch.monitors()
         if not mons:
-            return None, "No screen was found.", None
+            return None, _("No screen was found."), None
         mon = mons[src] if isinstance(src, int) and 0 <= src < len(mons) else mons[0]
         win = self.window()
         # take our own window out of the way first: it's probably on that screen
@@ -4341,7 +4394,7 @@ class TriggersTab(QWidget):
         finally:
             win.setWindowOpacity(was)
         if px is None:
-            return None, "The screen couldn't be copied.", None
+            return None, _("The screen couldn't be copied."), None
         return px, source_label(src, mons), mon
 
     def _cut(self, src, threshold: float = Trigger.threshold
@@ -4354,13 +4407,13 @@ class TriggersTab(QWidget):
         from onionwatch.ui.windowpicker import bgra_image
         px, where, again = self._grab(src)
         if px is None:
-            QMessageBox.information(self, "Can't cut a picture", where)
+            QMessageBox.information(self, _("Can't cut a picture"), where)
             return None, [], ""
         if float(px[..., :3].max()) < 8:
-            QMessageBox.information(self, "It comes out black",
-                                    f"{where} comes out black, so there's nothing to cut. "
-                                    "Some games can only be seen on the screen: pick its "
-                                    "screen under Look in instead.")
+            QMessageBox.information(self, _("It comes out black"),
+                                    _("{where} comes out black, so there's nothing to cut. Some "
+                                      "games can only be seen on the screen: pick its screen "
+                                      "under Look in instead.", where=where))
             return None, [], ""
         img = bgra_image(px)
         from onionwatch.ui.snip import SnipDialog
@@ -4388,8 +4441,8 @@ class TriggersTab(QWidget):
         flash = ""
         if keep is not None:
             piece = with_alpha(piece, keep)
-            flash = (f"Learned the background: {1 - float(keep.mean()):.0%} of the picture "
-                     "is scenery and left out")
+            flash = _("Learned the background: {share:.0%} of the picture is scenery and "
+                      "left out", share=1 - float(keep.mean()))
         set_cut_size(piece, (img.width(), img.height()))
         kept = cut if keep is not None else plain
         what = "window" if isinstance(src, WindowRef) else "screen"
@@ -4429,7 +4482,7 @@ class TriggersTab(QWidget):
     def add_from_cut(self):
         piece, notes, flash = self._cut(self.watcher.default)
         if piece is not None:
-            t = self._new(piece, f"Trigger {len(self.triggers) + 1}", notes)
+            t = self._new(piece, _("Trigger {n}", n=len(self.triggers) + 1), notes)
             if t is not None and flash and t.id in self.rows:
                 self.rows[t.id].flash(flash, 5000)
 
@@ -4443,24 +4496,24 @@ class TriggersTab(QWidget):
 
     # ------------------------------------------------------------------ files
     def add_from_file(self):
-        path, _ = QFileDialog.getOpenFileName(self, "Picture to look for", str(Path.home()),
-                                              f"Pictures ({PICTURE_EXTS});;All files (*)")
+        path, __ = QFileDialog.getOpenFileName(self, _("Picture to look for"), str(Path.home()),
+                                              picture_filter())
         if path:
             self._new(picture_file(path), Path(path).stem)
 
     def add_from_clipboard(self):
         img = copied_picture()
         if img.isNull():
-            QMessageBox.information(self, "No picture copied",
-                                    "Copy a picture first: press Win+Shift+S, drag around "
-                                    "the thing to look for, then click Paste.")
+            QMessageBox.information(self, _("No picture copied"),
+                                    _("Copy a picture first: press Win+Shift+S, drag around the "
+                                      "thing to look for, then click Paste."))
             return
-        self._new(img, f"Trigger {len(self.triggers) + 1}")
+        self._new(img, _("Trigger {n}", n=len(self.triggers) + 1))
 
     def _add_picture_files(self, row: TriggerRow):
         """The card's "+ Add pictures…": any number of files onto this trigger."""
-        paths, _ = QFileDialog.getOpenFileNames(self, "Pictures to look for", str(Path.home()),
-                                                f"Pictures ({PICTURE_EXTS});;All files (*)")
+        paths, __ = QFileDialog.getOpenFileNames(self, _("Pictures to look for"),
+                                                str(Path.home()), picture_filter())
         if paths and self._add_pictures(row.t, [picture_file(p) for p in paths],
                                         [Path(p).name for p in paths]):
             self._store()
@@ -4480,9 +4533,9 @@ class TriggersTab(QWidget):
         """The card's "Paste picture": the copied picture onto this trigger."""
         img = copied_picture()
         if img.isNull():
-            QMessageBox.information(self, "No picture copied",
-                                    "Copy a picture first: press Win+Shift+S, drag around "
-                                    "the thing to look for, then click Paste picture.")
+            QMessageBox.information(self, _("No picture copied"),
+                                    _("Copy a picture first: press Win+Shift+S, drag around the "
+                                      "thing to look for, then click “Paste the copied picture”."))
             return
         if self._add_pictures(row.t, [img]):
             self._store()
@@ -4502,9 +4555,9 @@ class TriggersTab(QWidget):
 
         def made_from(img: QImage) -> str:
             if is_web(img):
-                return "not cut from the game: looked for at any size"
+                return _("not cut from the game: looked for at any size")
             size = cut_size(img)
-            return f"cut from a {size[0]}×{size[1]} view" if size else ""
+            return _("cut from a {w}×{h} view", w=size[0], h=size[1]) if size else ""
 
         def swap(i: int):
             r = self.rows.get(t.id)
@@ -4516,7 +4569,8 @@ class TriggersTab(QWidget):
             if r is not None:
                 self._remove_picture(r, i)
 
-        viewer = PictureViewer(f"Pictures of “{t.name}”", lambda: t.images, index, swap,
+        viewer = PictureViewer(_("Pictures of “{name}”", name=t.name), lambda: t.images, index,
+                               swap,
                                remove, made_from, self)
         viewers[t.id] = viewer
         viewer.setAttribute(Qt.WA_DeleteOnClose)
@@ -4525,8 +4579,8 @@ class TriggersTab(QWidget):
 
     def _change_picture(self, row: TriggerRow, index: int = 0):
         """Swap one of the trigger's pictures for a file."""
-        path, _ = QFileDialog.getOpenFileName(self, "Picture to look for", str(Path.home()),
-                                              f"Pictures ({PICTURE_EXTS});;All files (*)")
+        path, __ = QFileDialog.getOpenFileName(self, _("Picture to look for"), str(Path.home()),
+                                              picture_filter())
         if path and self._add_pictures(row.t, [picture_file(path)], [Path(path).name],
                                        at=index):
             self._store()
@@ -4553,21 +4607,21 @@ class TriggersTab(QWidget):
             if not self._picture_used(path):
                 delete_picture(path, self.pictures)
                 self._gray.pop(path, None)
-        self.undo_bar.show_for(f"Removed a picture from “{t.name}”", undo, done)
+        self.undo_bar.show_for(_("Removed a picture from “{name}”", name=t.name), undo, done)
 
     def _choose_sound_file(self, row: TriggerRow):
         exts = " ".join(f"*{e}" for e in sorted(self.host.audio_exts))
-        path, _ = QFileDialog.getOpenFileName(self, "Sound to play", str(Path.home()),
-                                              f"Audio ({exts});;All files (*)")
+        path, __ = QFileDialog.getOpenFileName(self, _("Sound to play"), str(Path.home()),
+                                              _("Audio") + f" ({exts});;" + _("All files") + " (*)")
         if not path:
             return
         tid = row.t.id
-        row.flash("Adding the sound…", 60_000)
+        row.flash(_("Adding the sound…"), 60_000)
         try:
             self.host.add_sound(path, lambda sid: self._sound_added(tid, sid))
         except OSError as e:
             row.flash("", 0)
-            QMessageBox.warning(self, "Can't use that sound", str(e))
+            QMessageBox.warning(self, _("Can't use that sound"), str(e))
 
     def _sound_added(self, tid: str, sid: str | None):
         """A sound file picked on a card has been added to the host (sid), or couldn't
@@ -4582,15 +4636,16 @@ class TriggersTab(QWidget):
         if t is not None and sid:
             self._store()
         elif row is not None and not sid:
-            row.flash("That sound couldn't be added", 4000, "warn")
+            row.flash(_("That sound couldn't be added"), 4000, "warn")
 
     def ask_remove(self, row: TriggerRow):
         """The card's delete button: ask first, then delete (to Recently deleted)."""
-        box = QMessageBox(QMessageBox.Question, "Delete trigger",
-                          f"Delete the trigger “{row.t.name}”?\n\nIt goes to Recently "
-                          f"deleted, where you can bring it back for {KEEP_DAYS} days.",
+        box = QMessageBox(QMessageBox.Question, _("Delete trigger"),
+                          _("Delete the trigger “{name}”?\n\nIt goes to Recently deleted, where "
+                            "you can bring it back for {keep_days} days.",
+                            name=row.t.name, keep_days=KEEP_DAYS),
                           QMessageBox.Yes | QMessageBox.Cancel, self)
-        box.button(QMessageBox.Yes).setText("Delete")
+        box.button(QMessageBox.Yes).setText(_("Delete"))
         box.setDefaultButton(QMessageBox.Cancel)
         if box.exec() == QMessageBox.Yes:
             self._remove(row)
@@ -4626,10 +4681,10 @@ class TriggersTab(QWidget):
         if not self.triggers and self.is_active():
             self.set_watching(False)
         self._label_bin()
-        self.undo_bar.show_for(f"Deleted “{t.name}”",
+        self.undo_bar.show_for(_("Deleted “{name}”", name=t.name),
                                lambda: self.restore_deleted(entry["id"]),
-                               tip=f"Put it back, exactly as it was. Later: Recently "
-                                   f"deleted (kept {KEEP_DAYS} days)")
+                               tip=_("Put it back, exactly as it was. Later: Recently "
+                                     "deleted (kept {n} days)", n=KEEP_DAYS))
 
     # ------------------------------------------------------------------ recently deleted
     def _bin(self) -> list[dict]:
@@ -4643,9 +4698,9 @@ class TriggersTab(QWidget):
         n = len(self._bin())
         # just the bin and how many: a compact button that never makes the bar wrap
         self.btn_bin.setText(str(n))
-        what = f"Recently deleted ({n})"
-        self.btn_bin.setToolTip(f"{what}…\nTriggers you deleted: bring them back, pictures "
-                                "and all")
+        what = _("Recently deleted ({n})", n=n)
+        self.btn_bin.setToolTip(what + "…\n" + _("Triggers you deleted: bring them back, "
+                                                 "pictures and all"))
         self.btn_bin.setAccessibleName(what)
         self.btn_bin.setVisible(n > 0)
 
@@ -4684,7 +4739,7 @@ class TriggersTab(QWidget):
 
     def deleted(self) -> list[tuple[str, str, float]]:
         """The bin for the Recently deleted window: (id, name, when), newest first."""
-        return [(d["id"], str(d["trigger"].get("name") or "Trigger"), _num(d.get("when")))
+        return [(d["id"], str(d["trigger"].get("name") or _("Trigger")), _num(d.get("when")))
                 for d in reversed(self._bin())]
 
     def restore_deleted(self, entry_id: str) -> bool:
@@ -4694,9 +4749,9 @@ class TriggersTab(QWidget):
         if entry is None:
             return False
         if len(self.triggers) >= MAX_TRIGGERS:
-            QMessageBox.information(self, "Too many triggers",
-                                    f"You can have up to {MAX_TRIGGERS} triggers. Delete "
-                                    "one to bring this one back.")
+            QMessageBox.information(self, _("Too many triggers"),
+                                    _("You can have up to {max_triggers} triggers. Delete one to "
+                                      "bring this one back.", max_triggers=MAX_TRIGGERS))
             return False
         t = Trigger.from_raw(entry["trigger"])
         if t is None:
@@ -4740,7 +4795,7 @@ class TriggersTab(QWidget):
         src = t.source if t.source is not None else self.watcher.default
         img, where = self.capture(src)
         if img is None:
-            QMessageBox.information(self, "Can't show the window", where)
+            QMessageBox.information(self, _("Can't show the window"), where)
             return
         dlg = AreaDialog(img, where, t.region, t.colour if t.mode == "colour" else None, self)
         if not dlg.exec():
@@ -4755,8 +4810,9 @@ class TriggersTab(QWidget):
     def _duplicate(self, row: TriggerRow):
         """A copy of the trigger (its pictures copied too), just below it."""
         if len(self.triggers) >= MAX_TRIGGERS:
-            QMessageBox.information(self, "Too many triggers",
-                                    f"You can have up to {MAX_TRIGGERS} triggers.")
+            QMessageBox.information(self, _("Too many triggers"),
+                                    _("You can have up to {max_triggers} triggers.",
+                                      max_triggers=MAX_TRIGGERS))
             return
         t = row.t.copy(uuid.uuid4().hex[:12])
         t.name = row.t.name[:53] + " (copy)"
@@ -4785,10 +4841,11 @@ class TriggersTab(QWidget):
         starts as "the area stops changing" (a game stuck or idle); the card picks
         another kind."""
         if len(self.triggers) >= MAX_TRIGGERS:
-            QMessageBox.information(self, "Too many triggers",
-                                    f"You can have up to {MAX_TRIGGERS} triggers.")
+            QMessageBox.information(self, _("Too many triggers"),
+                                    _("You can have up to {max_triggers} triggers.",
+                                      max_triggers=MAX_TRIGGERS))
             return
-        t = Trigger(id=uuid.uuid4().hex[:12], name=f"Trigger {len(self.triggers) + 1}",
+        t = Trigger(id=uuid.uuid4().hex[:12], name=_("Trigger {n}", n=len(self.triggers) + 1),
                     sounds=[self.host.default_sound] if self.host.default_sound else [],
                     mode="still", level=LEVELS["still"], hold=10.0,
                     category=self._new_category())
@@ -4835,7 +4892,7 @@ class TriggersTab(QWidget):
             t = next((x for x in self.triggers if x.id == tid), None)
             log.info("trigger %r stopped by hand", t.name if t else tid)
         for row in self._views(tid):
-            row.flash("Stopped", 2500)
+            row.flash(_("Stopped"), 2500)
         self.playing_changed.emit()
 
     def stop_all_playing(self):
@@ -4855,8 +4912,8 @@ class TriggersTab(QWidget):
             return
         file = f"Onion Watch {name}.zip" if name else "Onion Watch triggers.zip"
         file = "".join("_" if c in '\\/:*?"<>|' else c for c in file)
-        path, _ = QFileDialog.getSaveFileName(self, "Save triggers", str(Path.home() / file),
-                                              "Trigger packs (*.zip)")
+        path, __ = QFileDialog.getSaveFileName(self, _("Save triggers"), str(Path.home() / file),
+                                              _("Trigger packs") + " (*.zip)")
         if not path:
             return
         from onionwatch.ui.categories import pictures_dir as category_pictures_dir
@@ -4866,23 +4923,27 @@ class TriggersTab(QWidget):
             packs.write_pack(path, triggers, dict(self.host.sounds()), cats,
                              category_pictures_dir(self.host.data_dir))
         except OSError as e:
-            QMessageBox.warning(self, "Couldn't save the triggers", str(e))
+            QMessageBox.warning(self, _("Couldn't save the triggers"), str(e))
             return
         QMessageBox.information(
-            self, "Triggers saved",
-            f"{plural(len(triggers), 'trigger')} saved to {Path(path).name}, pictures "
-            "and all, each in its category with its colours, picture and banner. "
-            "Sounds go by name: sound files of yours aren't in it.")
+            self, _("Triggers saved"),
+            ngettext("{n} trigger saved to {name}, pictures and all, each in its category "
+                     "with its colours, picture and banner. Sounds go by name: sound files of "
+                     "yours aren't in it.",
+                     "{n} triggers saved to {name}, pictures and all, each in its category "
+                     "with its colours, picture and banner. Sounds go by name: sound files of "
+                     "yours aren't in it.", len(triggers), name=Path(path).name))
 
     def import_triggers(self):
-        path, _ = QFileDialog.getOpenFileName(self, "Load triggers", str(Path.home()),
-                                              "Trigger packs (*.zip);;All files (*)")
+        path, __ = QFileDialog.getOpenFileName(self, _("Load triggers"), str(Path.home()),
+                                              _("Trigger packs") + " (*.zip);;"
+                                              + _("All files") + " (*)")
         if not path:
             return
         try:
             found = packs.read_pack(path)
         except packs.PackError as e:
-            QMessageBox.warning(self, "Can't load those triggers", str(e))
+            QMessageBox.warning(self, _("Can't load those triggers"), str(e))
             return
         if found and not any(t.category for t, _p, _s in found):
             # a pack without categories (an older one): its triggers go in one named
@@ -4894,10 +4955,11 @@ class TriggersTab(QWidget):
         if added:
             self.add_pack_looks(packs.read_categories(path))
         if found and not added:
-            QMessageBox.information(self, "Too many triggers",
-                                    f"You can have up to {MAX_TRIGGERS} triggers.")
+            QMessageBox.information(self, _("Too many triggers"),
+                                    _("You can have up to {max_triggers} triggers.",
+                                      max_triggers=MAX_TRIGGERS))
         elif not found:
-            QMessageBox.information(self, "No triggers", "That file has no triggers in it.")
+            QMessageBox.information(self, _("No triggers"), _("That file has no triggers in it."))
 
     def add_pack_looks(self, looks: dict):
         """Give the categories a pack brought their looks (packs.read_categories),

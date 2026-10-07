@@ -16,8 +16,9 @@ from PySide6.QtWidgets import (QCheckBox, QDialog, QDialogButtonBox, QHBoxLayout
 
 from onionwatch import screenwatch, theme, windows
 from onionwatch.screenwatch import MAX_SOURCES, WindowRef
-from onionwatch.ui import icons
+from onionwatch.ui import fit, icons
 from onionwatch.ui.panel import hint_label
+from onionwatch.i18n import _, ngettext
 
 log = logging.getLogger(__name__)
 
@@ -55,8 +56,8 @@ def places_label(places: list) -> str:
         return ""
     if len(places) == 1:
         p = places[0]
-        return p.label if isinstance(p, WindowRef) else f"Screen {p + 1}"
-    return f"{len(places)} places"
+        return p.label if isinstance(p, WindowRef) else _("Screen {n}", n=p + 1)
+    return ngettext("{n} place", "{n} places", len(places))
 
 
 class WindowPicker(QDialog):
@@ -66,8 +67,9 @@ class WindowPicker(QDialog):
 
     def __init__(self, parent=None, current=None, multi: bool = False):
         super().__init__(parent)
+        fit.watch(self)          # grows to fit its (translated) text
         self.multi = multi
-        self.setWindowTitle("Where to look" if multi else "Pick a window to watch")
+        self.setWindowTitle(_("Where to look") if multi else _("Pick a window to watch"))
         self.resize(760, 600)
         self.chosen: WindowRef | None = None
         self.places: list = []
@@ -75,13 +77,13 @@ class WindowPicker(QDialog):
         self._wins: list[windows.WindowInfo] = []
         v = QVBoxLayout(self)
         v.addWidget(hint_label(
-            "Tick every window (and screen) to look in: any of them counts, and each is "
-            "watched on its own, so the alert says which one it was. Windows are watched "
-            "even while other windows cover them, but not while they're minimized."
+            _("Tick every window (and screen) to look in: any of them counts, and each is "
+              "watched on its own, so the alert says which one it was. Windows are watched even "
+              "while other windows cover them, but not while they're minimized.")
             if multi else
-            "Pick the game window. It's watched even while other windows cover it, so "
-            "you can alt-tab away — but not while it's minimized. With two copies of a "
-            "game open, the thumbnails show which is which."))
+            _("Pick the game window. It's watched even while other windows cover it, so you can "
+              "alt-tab away — but not while it's minimized. With two copies of a game open, the "
+              "thumbnails show which is which.")))
         self.list = QListWidget()
         self.list.setViewMode(QListWidget.IconMode)
         self.list.setIconSize(THUMB)
@@ -91,7 +93,7 @@ class WindowPicker(QDialog):
         self.list.setWordWrap(True)
         self.list.setUniformItemSizes(True)
         self.list.itemDoubleClicked.connect(self._double)
-        self.list.currentItemChanged.connect(lambda *_: self._enable())
+        self.list.currentItemChanged.connect(lambda *__: self._enable())
         self.list.itemChanged.connect(lambda _i: self._enable())
         if multi:
             # tick boxes that read on a picked (accent) tile too: an outline, filled when ticked
@@ -106,21 +108,21 @@ class WindowPicker(QDialog):
                 f"background:{t.get('accent', '#1fb6a6')}; "
                 f"image:url(\"{theme._check_url(t.get('on_accent', '#ffffff'))}\"); }}")
         v.addWidget(self.list, 1)
-        self.chk_every = QCheckBox("Every copy of this game, also ones started later")
-        self.chk_every.setToolTip("For playing several accounts: one trigger watches all the "
-                                  "game's windows, and says which one it was")
+        self.chk_every = QCheckBox(_("Every copy of this game, also ones started later"))
+        self.chk_every.setToolTip(_("For playing several accounts: one trigger watches all the "
+                                    "game's windows, and says which one it was"))
         self.chk_every.toggled.connect(self._on_every)
         v.addWidget(self.chk_every)            # in the layout first: shown with no
         self.chk_every.setVisible(multi)       # parent, it flashed up as a window
         row = QHBoxLayout()
-        self.btn_refresh = QPushButton("Refresh")
+        self.btn_refresh = QPushButton(_("Refresh"))
         icons.set_icon(self.btn_refresh, "reload")
         self.btn_refresh.clicked.connect(self.refresh)
         row.addWidget(self.btn_refresh)
         row.addStretch(1)
         self.buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         self.buttons.button(QDialogButtonBox.Ok).setText(
-            "Look in these" if multi else "Watch this window")
+            _("Look in these") if multi else _("Watch this window"))
         self.buttons.button(QDialogButtonBox.Ok).setObjectName("primary")
         self.buttons.accepted.connect(self._accept)
         self.buttons.rejected.connect(self.reject)
@@ -152,11 +154,12 @@ class WindowPicker(QDialog):
         pick = None
         if self.multi:
             for i, m in enumerate(screenwatch.monitors()):
-                it = QListWidgetItem(icons.icon("apps", "muted"), f"Screen {i + 1}\n{m.label}")
+                it = QListWidgetItem(icons.icon("apps", "muted"),
+                                     _("Screen {n}", n=i + 1) + f"\n{m.label}")
                 it.setData(PLACE, i)
                 it.setFlags(it.flags() | Qt.ItemIsUserCheckable)
                 it.setCheckState(Qt.Checked if i in want else Qt.Unchecked)
-                it.setToolTip("The whole screen, windows on top included")
+                it.setToolTip(_("The whole screen, windows on top included"))
                 self.list.addItem(it)
         seen_every: set = set()
         for w in self._wins:
@@ -164,9 +167,9 @@ class WindowPicker(QDialog):
             text = w.label if len(w.label) <= 60 else w.label[:59] + "…"
             sub = w.exe or "?"
             if ref.nth:
-                sub += f" · copy {ref.nth + 1}"
+                sub += " · " + _("copy {n}", n=ref.nth + 1)
             if w.minimized:
-                sub += " · minimized"
+                sub += " · " + _("minimized")
             it = QListWidgetItem(placeholder, f"{text}\n{sub}")
             it.setData(PLACE, ref)
             it.setData(HWND, w.hwnd)
@@ -192,7 +195,7 @@ class WindowPicker(QDialog):
                 if isinstance(p, WindowRef) and p not in seen_every and not any(
                         self.list.item(i).data(PLACE) == p for i in range(self.list.count())):
                     it = QListWidgetItem(icons.icon("window", "muted"),
-                                         f"{p.label}\nnot open now")
+                                         f"{p.label}\n" + _("not open now"))
                     it.setData(PLACE, p)
                     it.setData(BASE, p)
                     it.setFlags(it.flags() | Qt.ItemIsUserCheckable)
@@ -211,8 +214,8 @@ class WindowPicker(QDialog):
         ref = WindowRef(base.exe, base.title, 0, True) if on else base
         it.setData(PLACE, ref)
         first = it.text().split("\n", 1)[0]
-        sub = (base.exe or "?") + (" · every copy" if on else
-                                   (f" · copy {base.nth + 1}" if base.nth else ""))
+        sub = (base.exe or "?") + (" · " + _("every copy") if on else
+                                   (" · " + _("copy {n}", n=base.nth + 1) if base.nth else ""))
         it.setText(f"{first}\n{sub}")
 
     def _on_every(self, on: bool):

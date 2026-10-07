@@ -58,6 +58,9 @@ class Config:
     stats_id: str = ""
     stats_sent: float = 0.0
     stats_heard: str = ""
+    # Settings → Look → Language: a catalog's code ("de", "pt-BR"…), or "" for Windows'
+    # own. Read on its own by i18n.startup() before anything else, as the app starts
+    language: str = ""
 
     @classmethod
     def load(cls, folder: Path | None = None) -> Config:
@@ -76,6 +79,10 @@ class Config:
         if not isinstance(raw, dict):
             _keep_aside(path)
             return cfg
+        # settings a newer version wrote that this one doesn't know: kept, and saved
+        # back as they were, so opening the same settings here loses nothing
+        known = {f.name for f in fields(cls)}
+        cfg._unknown = {k: v for k, v in raw.items() if k not in known}
         for f in fields(cls):
             if f.name not in raw:
                 continue
@@ -101,5 +108,6 @@ class Config:
         folder.mkdir(parents=True, exist_ok=True)
         path = folder / CONFIG
         tmp = folder / (CONFIG + ".saving")
-        tmp.write_text(json.dumps(asdict(self), indent=1, ensure_ascii=False), encoding="utf-8")
+        data = {**getattr(self, "_unknown", {}), **asdict(self)}
+        tmp.write_text(json.dumps(data, indent=1, ensure_ascii=False), encoding="utf-8")
         os.replace(tmp, path)

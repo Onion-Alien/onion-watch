@@ -26,6 +26,7 @@ from pathlib import Path
 
 from onionwatch import __version__, profiles
 from onionwatch.screenwatch import MAX_PICTURES, Trigger
+from onionwatch.i18n import _
 
 FORMAT = "onion-watch-triggers"
 MAX_PACK_TRIGGERS = 500
@@ -139,30 +140,30 @@ def read_pack(path: str | Path) -> list[tuple[Trigger, list[bytes], list[tuple[s
     except PackError:
         raise
     except Exception as e:  # noqa: BLE001 - a damaged zip fails in many ways (CRC, zlib, encrypted, recursion)
-        raise PackError(f"it's damaged ({e or type(e).__name__})") from e
+        raise PackError(_("it's damaged ({error})", error=e or type(e).__name__)) from e
 
 
 def _read_pack(path):
     try:
         z = zipfile.ZipFile(path)
     except (OSError, zipfile.BadZipFile) as e:
-        raise PackError(f"it isn't a trigger pack ({e})") from e
+        raise PackError(_("it isn't a trigger pack ({error})", error=e)) from e
     with z:
         try:
             info = z.getinfo("triggers.json")
         except KeyError as e:
-            raise PackError("it isn't a trigger pack (no triggers.json)") from e
+            raise PackError(_("it isn't a trigger pack (no triggers.json)")) from e
         if info.file_size > MAX_JSON:
-            raise PackError("its triggers.json is too big")
+            raise PackError(_("its triggers.json is too big"))
         try:
             d = json.loads(z.read(info).decode("utf-8-sig"))
         except (ValueError, UnicodeDecodeError) as e:
-            raise PackError(f"its triggers.json can't be read ({e})") from e
+            raise PackError(_("its triggers.json can't be read ({error})", error=e)) from e
         if not isinstance(d, dict) or d.get("format") != FORMAT:
-            raise PackError("it isn't an Onion Watch trigger pack")
+            raise PackError(_("it isn't an Onion Watch trigger pack"))
         raws = d.get("triggers")
         if not isinstance(raws, list):
-            raise PackError("it has no triggers")
+            raise PackError(_("it has no triggers"))
         names = {i.filename: i for i in z.infolist()}
         total = 0
         found = []

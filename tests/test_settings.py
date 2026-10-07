@@ -32,3 +32,21 @@ def test_a_locked_config_is_left_where_it_is(tmp_path, monkeypatch):
     assert Config.load(tmp_path) == Config()
     monkeypatch.undo()
     assert (tmp_path / CONFIG).exists() and not (tmp_path / (CONFIG + ".bad")).exists()
+
+
+def test_the_language_is_kept_and_settings_from_a_newer_version_arent_lost(tmp_path):
+    """Config.language round-trips; keys this version doesn't know (written by a newer
+    one) are saved back as they were, so going back a version loses nothing."""
+    (tmp_path / CONFIG).write_text(json.dumps(
+        {"theme": "Midnight", "language": "de", "future_thing": {"a": [1, 2]},
+         "screen": {"on": True}}), encoding="utf-8")
+    cfg = Config.load(tmp_path)
+    assert (cfg.theme, cfg.language) == ("Midnight", "de")
+    cfg.theme = "Ocean"
+    cfg.save(tmp_path)
+    raw = json.loads((tmp_path / CONFIG).read_text(encoding="utf-8"))
+    assert raw["future_thing"] == {"a": [1, 2]} and raw["theme"] == "Ocean"
+    assert raw["language"] == "de"
+    # settings from before the language setting: Windows' language
+    (tmp_path / CONFIG).write_text(json.dumps({"theme": "Midnight"}), encoding="utf-8")
+    assert Config.load(tmp_path).language == ""

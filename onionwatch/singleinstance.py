@@ -16,6 +16,8 @@ import time
 from PySide6.QtCore import Qt
 from PySide6.QtNetwork import QLocalServer, QLocalSocket
 
+from onionwatch.i18n import _
+
 log = logging.getLogger(__name__)
 
 # overridable so a test copy never finds (and pops up) the real, running app
@@ -23,15 +25,24 @@ INSTANCE_NAME = os.environ.get("ONIONWATCH_INSTANCE", "OnionWatch.App")
 CONNECT_SECONDS = 5.0   # how long a second launch waits for the first to answer
 
 
-def claim_single_instance() -> bool:
+def claim_single_instance(wait: float = 0.0) -> bool:
     """True if we're the only Onion Watch running. Otherwise asks the running one to
-    come to the front and returns False."""
+    come to the front and returns False. `wait`: seconds to give a copy that's closing
+    (a restart) to finish first."""
     k32 = ctypes.WinDLL("kernel32", use_last_error=True)
     k32.CreateMutexW.restype = ctypes.c_void_p
-    handle = k32.CreateMutexW(None, False, f"Local\\{INSTANCE_NAME}")
-    if handle and ctypes.get_last_error() != 183:   # 183 = ERROR_ALREADY_EXISTS
-        claim_single_instance.handle = handle        # held until the process exits
-        return True
+    k32.CloseHandle.argtypes = [ctypes.c_void_p]
+    deadline = time.monotonic() + wait
+    while True:
+        handle = k32.CreateMutexW(None, False, f"Local\\{INSTANCE_NAME}")
+        if handle and ctypes.get_last_error() != 183:   # 183 = ERROR_ALREADY_EXISTS
+            claim_single_instance.handle = handle        # held until the process exits
+            return True
+        if time.monotonic() >= deadline:
+            break
+        if handle:
+            k32.CloseHandle(handle)
+        time.sleep(0.2)
     try:
         ctypes.windll.user32.AllowSetForegroundWindow(-1)   # ASFW_ANY: let it take focus
     except Exception:  # noqa: BLE001
@@ -55,10 +66,10 @@ def claim_single_instance() -> bool:
         try:
             from PySide6.QtWidgets import QMessageBox
             QMessageBox.information(
-                None, "Onion Watch is already running",
-                "Onion Watch is already open — look for its icon in the taskbar tray "
-                "(the ^ arrow by the clock).\n\nIf you can't find it, end “Onion Watch” "
-                "in Task Manager and start it again.")
+                None, _("Onion Watch is already running"),
+                _("Onion Watch is already open — look for its icon in the taskbar tray (the ^ "
+                  "arrow by the clock).\n\nIf you can't find it, end “Onion Watch” in Task "
+                  "Manager and start it again."))
         except Exception:  # noqa: BLE001
             log.debug("couldn't show the already-running message", exc_info=True)
     return False
