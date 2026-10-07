@@ -103,6 +103,67 @@ def test_the_player_opens_its_output_again_after_the_device_goes():
     p.close()
 
 
+def _wait(cond, timeout=3.0):
+    end = time.monotonic() + timeout
+    while not cond() and time.monotonic() < end:
+        time.sleep(0.01)
+    return cond()
+
+
+def test_the_player_closes_its_output_after_a_while_of_silence_and_opens_it_again():
+    """An open stream runs its callback a hundred times a second, sound or not: it's
+    closed once nothing has played for idle_close_s, and the next alert opens it
+    again and is heard."""
+    SilentOutputStream.opened.clear()
+    p = Player()
+    p.idle_close_s = 0.3
+    tone = np.full((480, 2), 0.25, np.float32)          # 10 ms
+    assert p.play(tone, tag="a")
+    first = SilentOutputStream.opened[-1]
+    assert _wait(lambda: p._stream is None)
+    assert not first.active
+    blocks = first.blocks
+    time.sleep(0.1)
+    assert first.blocks == blocks                       # no callbacks once closed
+    assert p.play(tone, tag="b")                        # the next alert
+    second = SilentOutputStream.opened[-1]
+    assert second is not first and second.active
+    assert _wait(lambda: second.peak > 0.1)             # ...is heard
+    p.close()
+
+
+def test_a_ringing_sound_keeps_the_output_open():
+    SilentOutputStream.opened.clear()
+    p = Player()
+    p.idle_close_s = 0.15
+    assert p.play(np.full((480, 2), 0.25, np.float32), loop=True, tag="r")
+    stream = SilentOutputStream.opened[-1]
+    time.sleep(0.6)
+    assert p._stream is stream and stream.active and p.ringing == ["r"]
+    p.stop_all()
+    assert _wait(lambda: p._stream is None)             # silent from then on: closed
+    p.close()
+
+
+def test_decoded_sounds_kept_are_bounded_and_the_latest_played_stay(app_dir, tmp_path,
+                                                                    monkeypatch):
+    monkeypatch.setattr(sounds, "CACHE_MB", 1.2)        # ~3.3 s of 48 kHz stereo
+    lib = Library([])
+    ids = []
+    for i in range(4):                                  # 1 s each: 0.37 MB decoded
+        src = tmp_path / f"s{i}.wav"
+        sf.write(src, np.full((RATE, 2), 0.1 * (i + 1), np.float32), RATE)
+        ids.append(lib.add_file(src))
+    for sid in ids[:3]:
+        lib.load(sid)
+    lib.load(ids[0])                                    # played again: kept
+    lib.load(ids[3])                                    # no room for four: the oldest goes
+    assert list(lib._cache) == [ids[2], ids[0], ids[3]]
+    assert sum(a.nbytes for a in lib._cache.values()) <= 1.2 * 2 ** 20
+    again = lib.load(ids[1])                            # decoded again when wanted
+    assert again is not None and float(again[0, 0]) == pytest.approx(0.2, abs=1e-4)
+
+
 @pytest.mark.parametrize("rate", [22050, 44100, 96000])
 def test_resampling_gives_what_scipy_did(tmp_path, rate):
     # decode() resamples with soxr now; it should give what scipy's resample_poly gave,

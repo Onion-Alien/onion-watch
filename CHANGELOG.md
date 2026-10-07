@@ -8,6 +8,11 @@ What changed between releases, for the release notes. Newest first.
   first opened (about 4x quicker and 3.5x less memory per card), the Log keeps small
   pictures, and the alarm bar, Hoot and the live check rest while nothing needs
   them. Cards look the same.
+- **Lighter watching**: with watching off, Onion Watch inside Onion Board no longer loads its
+  maths libraries (about half a GB and 18 threads less). Watching keeps its memory
+  flat over a long evening, only grabs a window or screen when one of its triggers
+  is due, and is quicker on HDR screens and with colour triggers. The app closes
+  its sound output after 30 s of silence, and the download is 26 MB smaller.
 
 ## 0.9.1 (2026-10-07)
 

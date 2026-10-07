@@ -3,6 +3,11 @@ matcher uses. The FFTs are checked both ways: through scipy.fft, and through num
 in a host without it."""
 from __future__ import annotations
 
+import os
+import subprocess
+import sys
+from pathlib import Path
+
 import numpy as np
 import pytest
 
@@ -106,6 +111,32 @@ def test_gaussian_filter_every_other_pixel_is_scipys_sliced(shape):
     a = _gray(shape)
     want = ndi.gaussian_filter(a, 1.5, mode="nearest")[::2, ::2]
     np.testing.assert_array_equal(imgops.gaussian_filter(a, 1.5, step=2), want)
+
+
+def test_scipy_is_loaded_by_the_first_transform_not_with_the_engine():
+    """Onion Board builds the triggers page at start: watching off must not load
+    scipy (and its second maths library's threads)."""
+    code = ("import sys\n"
+            "from onionwatch import board, imgops, screenwatch\n"
+            "assert not [m for m in sys.modules if m.startswith('scipy')], 'loaded early'\n"
+            "import numpy as np\n"
+            "imgops.rfft2(np.ones((4, 6), np.float32), (4, 6))\n"
+            "assert 'scipy.fft' in sys.modules\n")
+    env = dict(os.environ, QT_QPA_PLATFORM="offscreen")
+    subprocess.run([sys.executable, "-c", code], check=True, env=env,
+                   cwd=Path(__file__).resolve().parent.parent, timeout=120)
+
+
+def test_without_scipy_the_transforms_are_numpys(monkeypatch):
+    monkeypatch.setattr(imgops, "_sfft", imgops._NOT_YET)
+    monkeypatch.setitem(sys.modules, "scipy.fft", None)     # import scipy.fft fails
+    a = _gray((27, 48)) - 128
+    n = (27, 48)
+    got = imgops.rfft2(a, n)
+    assert imgops._sfft is None
+    want = sfft.rfft2(a, n)
+    np.testing.assert_allclose(got, want, rtol=0, atol=1e-5 * np.abs(want).max())
+    np.testing.assert_allclose(imgops.irfft2(got, n), a, rtol=0, atol=1e-3)
 
 
 def test_irfft2_kept_corner_is_the_whole_ones(backend):
