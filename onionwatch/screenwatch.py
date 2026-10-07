@@ -1977,6 +1977,22 @@ def frame_view(rows: np.ndarray, fmt: int, width: int) -> np.ndarray:
     return px.reshape(rows.shape[0], width, 4)
 
 
+_hdr_lut: np.ndarray | None = None     # see _hdr_levels
+
+
+def _hdr_levels(px: np.ndarray) -> np.ndarray:
+    """float16 scRGB values -> float32 sRGB levels in 0..1: clipped to SDR, with the
+    sRGB curve put back on (x ** (1 / 2.2)). Looked up by the float16's bits in a
+    table of all 65536 made once, the same numbers as working each one out, at a
+    fraction of the cost (NaN, which can't be shown, comes out 0)."""
+    global _hdr_lut
+    if _hdr_lut is None:
+        v = np.arange(65536, dtype=np.uint32).astype(np.uint16).view(np.float16)
+        v = np.nan_to_num(v.astype(np.float32), nan=0.0, posinf=1.0, neginf=0.0)
+        _hdr_lut = (np.clip(v, 0.0, 1.0) ** (1 / 2.2)).astype(np.float32)
+    return _hdr_lut[px.view(np.uint16)]
+
+
 def frame_gray(sample: np.ndarray, fmt: int, factor: int = 1) -> np.ndarray:
     """Pixels sampled from a duplicated frame (see frame_view for their shape) ->
     (h, w) float32 luma in 0..1 on the same scale as the pictures, which are 8-bit
@@ -1987,7 +2003,7 @@ def frame_gray(sample: np.ndarray, fmt: int, factor: int = 1) -> np.ndarray:
     if fmt == FMT_RGBA16F:
         # scRGB: linear light, 1.0 is SDR white and highlights go above it. Clip to
         # SDR and put the sRGB curve back on, so grey matches an 8-bit screenshot.
-        rgb = np.clip(sample[..., :3].astype(np.float32), 0.0, 1.0) ** (1 / 2.2)
+        rgb = _hdr_levels(sample[..., :3])
     elif fmt == FMT_RGB10A2:
         # 10 bits each, R lowest; already gamma-encoded like the 8-bit desktop.
         u = sample.astype(np.uint32)
@@ -2005,9 +2021,19 @@ def frame_rgb(sample: np.ndarray, fmt: int = FMT_BGRA8, factor: int = 1) -> np.n
     """frame_gray() in colour: (h, w, 3) float32 RGB in 0..1, sRGB like a screenshot.
     Only made for a capture with a "colour" trigger on it (Grabber.want_color)."""
     if fmt in (FMT_BGRA8, FMT_BGRX8):
+        if factor == 2:
+            # each 2x2 block added up in whole numbers first, as gray_2x does: a
+            # fifth of the time of averaging floats (the same to 1e-7)
+            h, w = sample.shape[0] // 2, sample.shape[1] // 2
+            x = sample[:2 * h, :2 * w, 2::-1]
+            s = x[0::2, 0::2].astype(np.uint16)
+            s += x[1::2, 0::2]
+            s += x[0::2, 1::2]
+            s += x[1::2, 1::2]
+            return s.astype(np.float32) * np.float32(1 / (4 * 255))
         rgb = sample[..., 2::-1].astype(np.float32) * (1 / 255)
     elif fmt == FMT_RGBA16F:
-        rgb = np.clip(sample[..., :3].astype(np.float32), 0.0, 1.0) ** (1 / 2.2)
+        rgb = _hdr_levels(sample[..., :3])
     elif fmt == FMT_RGB10A2:
         u = sample.astype(np.uint32)
         rgb = np.stack([(u >> sh) & 1023 for sh in (0, 10, 20)], -1).astype(np.float32) / 1023
@@ -2311,6 +2337,10 @@ class DupGrabber:
     TEX_GET_DESC = 10               # ID3D11Texture2D::GetDesc
     CTX_MAP, CTX_UNMAP, CTX_COPY_RESOURCE = 14, 15, 47
     USAGE_STAGING, CPU_ACCESS_READ, MAP_READ = 3, 0x20000, 1
+    # D3D11_CREATE_DEVICE_SINGLETHREADED | PREVENT_INTERNAL_THREADING_OPTIMIZATIONS: the
+    # device is only used from the watching thread, so it needs no locking inside, nor
+    # the driver's own worker threads (a couple fewer for each screen watched)
+    DEVICE_FLAGS = 0x1 | 0x8
     turns = 0                       # FRAME_TURNS for the output's rotation
     want_color = False              # as Grabber's
     color: np.ndarray | None = None
@@ -2352,9 +2382,12 @@ class DupGrabber:
             d3d.D3D11CreateDevice.argtypes = [
                 ctypes.c_void_p, ctypes.c_int, ctypes.c_void_p, ctypes.c_uint, ctypes.c_void_p,
                 ctypes.c_uint, ctypes.c_uint, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p]
-            hr = d3d.D3D11CreateDevice(adapter.p, 0, None, 0, None, 0, 7,   # 7: SDK version
-                                       ctypes.byref(self.device.p), None,
-                                       ctypes.byref(self.ctx.p))
+            for flags in (self.DEVICE_FLAGS, 0):     # 0: as it was, should a driver refuse
+                hr = d3d.D3D11CreateDevice(adapter.p, 0, None, flags, None, 0,
+                                           7, ctypes.byref(self.device.p), None,  # 7: SDK version
+                                           ctypes.byref(self.ctx.p))
+                if hr >= 0:
+                    break
             if hr < 0:
                 raise OSError(f"D3D11CreateDevice failed (0x{_hr(hr):08X})")
             self.output1 = output.query(IID_IDXGIOutput1)
@@ -2701,6 +2734,83 @@ def expand(src, wins) -> list:
     return [WindowRef(src.exe, src.title, i) for i in range(max(n, 1))]
 
 
+# The most a capture's kept answers (_Capture.twins) hold, with the pixels each was
+# worked out on: the ones used longest ago go first.
+TWINS_MB = 8.0
+_ANSWER_COST = 200          # bytes an answer takes besides its pixels (key, tuple, score)
+
+
+class Answers:
+    """_Capture.twins: answers worked out on a box of the capture's pixels at full
+    size, each kept with those pixels (key -> (picture, pixels, answer)), so the same
+    pixels get the same answer again without the work. A dict for its users, but it
+    holds at most `mb` MB (TWINS_MB): box sizes change with every sweep and hunt size,
+    so new keys keep coming, and unbounded it grew by tens of MB an evening. An answer
+    only matters while its pixels stay on screen, so the one used longest ago goes
+    first."""
+
+    def __init__(self, mb: float | None = None):
+        self.limit = int((TWINS_MB if mb is None else mb) * 2 ** 20)
+        self.bytes = 0              # what it holds now, by _cost()
+        self._d: dict = {}          # oldest use first
+
+    @staticmethod
+    def _cost(value) -> int:
+        px = value[1] if isinstance(value, tuple) and len(value) > 1 else None
+        return _ANSWER_COST + (len(px) if isinstance(px, (bytes, bytearray)) else 0)
+
+    def get(self, key, default=None):
+        value = self._d.pop(key, None)
+        if value is None:
+            return default
+        self._d[key] = value        # used now: the last to go
+        return value
+
+    def __setitem__(self, key, value):
+        old = self._d.pop(key, None)
+        if old is not None:
+            self.bytes -= self._cost(old)
+        self._d[key] = value
+        self.bytes += self._cost(value)
+        while self.bytes > self.limit and len(self._d) > 1:
+            first = next(iter(self._d))
+            self.bytes -= self._cost(self._d.pop(first))
+
+    def __getitem__(self, key):
+        return self._d[key]
+
+    def __contains__(self, key) -> bool:
+        return key in self._d
+
+    def __len__(self) -> int:
+        return len(self._d)
+
+    def __iter__(self):
+        return iter(self._d)
+
+    def keys(self):
+        return self._d.keys()
+
+    def values(self):
+        return self._d.values()
+
+    def items(self):
+        return self._d.items()
+
+    def pop(self, key, *default):
+        if key in self._d:
+            value = self._d.pop(key)
+            self.bytes -= self._cost(value)
+            return value
+        if default:
+            return default[0]
+        raise KeyError(key)
+
+    def clear(self):
+        self._d.clear()
+        self.bytes = 0
+
+
 class _Capture:
     """One screen or window as the watching thread captures it: its grabber, the
     pictures shrunk to what that grabber sees, and where it is in coming back from
@@ -2715,8 +2825,9 @@ class _Capture:
         self.scores: dict[str, float] = {}
         self.refs: dict[str, tuple[float, np.ndarray]] = {}   # "change" / "still": (when, area)
         # the twin check's last answer for each trigger's picture: (the picture, the
-        # pixels it was laid on, score). The same pixels give the same answer (_twin)
-        self.twins: dict[tuple, tuple[np.ndarray, bytes, float]] = {}
+        # pixels it was laid on, score). The same pixels give the same answer (_twin);
+        # at most TWINS_MB of them (Answers)
+        self.twins = Answers()
         self.covers: dict[str, bool] = {}  # found covered when last tried
         self.cover_left = 0               # ...and the tries left this check (COVER_PER_CHECK)
         self.fresh_left = 0               # ...and about what just changed (COVER_FRESH)
@@ -3030,9 +3141,11 @@ class Watcher:
                 rounds += 1
                 if live:
                     live = live[rounds % len(live):] + live[:rounds % len(live)]
+                grabbed = []
                 for cap in live:
                     try:
-                        self._tick(cap, groups.get(cap.source, []))
+                        if self._tick(cap, groups.get(cap.source, [])):
+                            grabbed.append(cap)
                     except Exception:  # noqa: BLE001 - one odd frame mustn't end watching
                         if cap.source not in tick_errors:
                             log.exception("checking %r failed; watching goes on", cap.source)
@@ -3051,7 +3164,8 @@ class Watcher:
                 self.check_ms = spent * 1000
                 # keep to cpu_share of the processor: what the checks really cost it
                 # (PACE_ROUNDS) sets how far apart they must be
-                out = sum(getattr(c.grab, "cpu_elsewhere", 0.0) for c in live)
+                out = sum(getattr(c.grab, "cpu_elsewhere", 0.0) for c in grabbed
+                          if c.grab is not None)
                 elsewhere += out
                 costs.append((now_t, now_cpu - c0 + out))
                 while len(costs) > 1 and now_t - costs[0][0] > PACE_S:
@@ -3180,8 +3294,29 @@ class Watcher:
                                               cap.fitted)
         return True
 
-    def _tick(self, cap: _Capture, items: list[Watched]):
-        """Grab the screen / window once and check its triggers against it."""
+    def _due(self, cap: _Capture, items: list[Watched], now: float) -> list[Watched]:
+        """The triggers of `cap` whose interval is up at `now` (all of a trigger new
+        or edited since its last check)."""
+        due = []
+        for it in items:
+            previous, checked = cap.checked_at.get(it.id, (None, 0.0))
+            interval = it.interval_ms / 1000 if it.interval_ms else self.interval
+            if previous is not it or now - checked >= interval - 0.001:
+                due.append(it)
+        return due
+
+    def _tick(self, cap: _Capture, items: list[Watched]) -> bool:
+        """Grab the screen / window once and check its triggers against it, when one
+        of them is due: the loop goes round as often as the fastest trigger anywhere
+        needs, and a capture whose triggers all wait longer isn't grabbed in between
+        (nothing would look at it). Returns whether it grabbed."""
+        now = time.monotonic()
+        due = self._due(cap, items, now)
+        if not due:
+            ids = {it.id for it in items}
+            cap.scores = {k: v for k, v in cap.scores.items() if k in ids}
+            cap.checked_at = {k: v for k, v in cap.checked_at.items() if k in ids}
+            return False
         try:
             gray = cap.grab.grab()
         except OSError as e:
@@ -3198,9 +3333,9 @@ class Watcher:
             cap.error = str(e) or type(e).__name__
             cap.scores = {}
             cap.refs = {}
-            cap.twins = {}
+            cap.twins.clear()
             cap.misses = 0
-            return
+            return True
         cap.failing = False
         cap.lost = bool(getattr(cap.grab, "lost", False))
         cap.minimized = bool(getattr(cap.grab, "minimized", False))
@@ -3218,22 +3353,16 @@ class Watcher:
             # resized): scale the pictures for what the capture really sees
             cap.fitted, cap.scaled = self._fit(cap.grab, cap.mon, items, cap.scaled,
                                               cap.fitted)
-            return
+            return True
         if gray is not None:
             cap.black = is_black(gray)
-            now = time.monotonic()
-            due = []
-            for it in items:
-                previous, checked = cap.checked_at.get(it.id, (None, 0.0))
-                interval = it.interval_ms / 1000 if it.interval_ms else self.interval
-                if previous is not it or now - checked >= interval - 0.001:
-                    due.append(it)
-                    cap.checked_at[it.id] = (it, now)
-            if due:
-                cap.scores.update(self._check(cap, gray, due))
+            for it in due:
+                cap.checked_at[it.id] = (it, now)
+            cap.scores.update(self._check(cap, gray, due))
             ids = {it.id for it in items}
             cap.scores = {k: v for k, v in cap.scores.items() if k in ids}
             cap.checked_at = {k: v for k, v in cap.checked_at.items() if k in ids}
+        return True
 
     @staticmethod
     def _fit(grab, mon: Monitor | None, items: list[Watched], old: dict | None = None,

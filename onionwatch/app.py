@@ -1,16 +1,24 @@
 """Application entry point: logging, single instance, the window."""
 from __future__ import annotations
 
-import ctypes
-import logging
-import logging.handlers
 import os
-import sys
 
-from PySide6.QtWidgets import QApplication
+# numpy's and scipy's maths library (OpenBLAS) start a thread for every processor as
+# they load, and set memory aside for each: on a 16-thread PC ~30 idle threads and ~1 GB,
+# for matrix maths the app never does (its FFTs and filters don't use it). It reads
+# this once, so it's set before anything loads numpy. Inside Onion Board, the board
+# sets it.
+os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
 
-from onionwatch import __version__, settings
-from onionwatch.singleinstance import claim_single_instance, listen_for_second_launch
+import ctypes  # noqa: E402
+import logging  # noqa: E402
+import logging.handlers  # noqa: E402
+import sys  # noqa: E402
+
+from PySide6.QtWidgets import QApplication  # noqa: E402
+
+from onionwatch import __version__, settings  # noqa: E402
+from onionwatch.singleinstance import claim_single_instance, listen_for_second_launch  # noqa: E402
 
 log = logging.getLogger(__name__)
 
