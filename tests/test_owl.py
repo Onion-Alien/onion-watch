@@ -101,3 +101,38 @@ def test_feathers_follow_the_theme_but_artwork_stays_teal(qapp):
         assert img.pixelColor(img.width() // 2, 30) == owl.FEATHER
     finally:
         theme.set_current(theme.DEFAULT)
+
+
+def test_left_alone_he_slows_down_and_a_click_speeds_him_up(qapp):
+    """Just swaying and bobbing, 10 frames a second do; anything quicker (a hop, an
+    act, a blink, the mouse near) gets the full 30."""
+    w = owl.OwlWidget(80)
+    w.resize(w.sizeHint())
+    w._next_act = w._next_blink = w._next_glance = 1e9     # nothing due
+    w._look = list(w._glance)
+    w.say = ""
+    w._mouse = lambda: None
+    w._timer.start(owl.FAST_MS)
+    w._tick()
+    assert not w.busy() and w._timer.interval() == owl.IDLE_MS
+    w.cheer()
+    assert w._timer.interval() == owl.FAST_MS      # the hop starts now
+    w._tick()
+    assert w.busy() and w._timer.interval() == owl.FAST_MS
+    w._timer.stop()
+
+
+def test_he_stops_while_another_program_is_in_front(qapp):
+    w = owl.OwlWidget(80)
+    w.resize(w.sizeHint())
+    w.show()
+    w._resume()
+    assert w._timer.isActive()
+    w._on_app_state(Qt.ApplicationInactive)
+    assert not w._timer.isActive()
+    w._on_app_state(Qt.ApplicationActive)
+    assert w._timer.isActive()
+    w.hide()
+    assert not w._timer.isActive()
+    w._on_app_state(Qt.ApplicationActive)      # back in front, but hidden: stays still
+    assert not w._timer.isActive()

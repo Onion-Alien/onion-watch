@@ -195,3 +195,45 @@ def test_manual_rings_wait_for_stop(tab):
     tab._fire(row.t.id, tab._gen)
     assert row.t.id not in tab.watcher._quiet and not tab._input_waits
     assert tab.host.ringing() == [row.t.id]
+
+
+def test_the_alarm_bar_only_checks_while_something_rings(qapp):
+    """Nothing ringing (no triggers, watching off, minimised): the red bar's check
+    doesn't run at all. A ring starts it, and it stops again once the ring ends."""
+    from PySide6.QtCore import QObject, Signal
+
+    from onionwatch.ui.alarmbar import AlarmBar
+
+    class Host:
+        rings: list = []
+
+        def ringing(self):
+            return list(self.rings)
+
+    class Panel(QObject):
+        fired = Signal(object)
+        ringing_changed = Signal()
+
+        def __init__(self):
+            super().__init__()
+            self.host = Host()
+
+        def stop_ringing(self):
+            self.host.rings = []
+
+    panel = Panel()
+    bar = AlarmBar(panel)
+    assert not bar._check.isActive() and not bar.ringing
+    panel.host.rings = ["t1"]
+    panel.fired.emit(Trigger(id="t1", name="Died", ring=True))
+    assert bar.ringing and bar._check.isActive()
+    panel.host.rings = []           # it ended by itself (its trigger was deleted)
+    bar._check.timeout.emit()
+    assert not bar.ringing and not bar._check.isActive()
+    panel.host.rings = ["t1"]
+    panel.ringing_changed.emit()
+    assert bar._check.isActive()
+    bar.btn_stop.click()
+    assert not bar.ringing and not bar._check.isActive()
+    panel.host.rings = ["t2"]       # already ringing when a bar is made: it shows at once
+    assert AlarmBar(panel).ringing

@@ -9,7 +9,9 @@ from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QPushButton
 from onionwatch.ui import icons
 from onionwatch.i18n import _
 
-CHECK_MS = 500      # a ring can also end by itself (its trigger deleted, Stop all)
+CHECK_MS = 500      # a ring can also end by itself (its trigger deleted, Stop all):
+# checked this often while something rings, and not at all otherwise (a ring only
+# starts with the panel's fired / ringing_changed)
 
 
 class AlarmBar(QFrame):
@@ -44,8 +46,9 @@ class AlarmBar(QFrame):
         panel.fired.connect(self._on_fired)
         panel.ringing_changed.connect(self.update_bar)
         self._check = QTimer(self)
+        self._check.setInterval(CHECK_MS)
         self._check.timeout.connect(self.update_bar)
-        self._check.start(CHECK_MS)
+        self.update_bar()     # (one already ringing when the bar is made)
 
     def _on_fired(self, t):
         if t.ring:
@@ -64,6 +67,10 @@ class AlarmBar(QFrame):
                                                       last=names[-1])
             self.text.setText(_("{text} — ringing", text=text))
         self.setVisible(bool(names))
+        if names and not self._check.isActive():
+            self._check.start()
+        elif not names:
+            self._check.stop()
         if bool(names) != self._on:
             self._on = bool(names)
             self.changed.emit(self._on)
