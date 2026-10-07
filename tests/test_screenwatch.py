@@ -1074,3 +1074,83 @@ def test_an_exact_shrink_takes_each_pixel_its_share_of_the_old_ones():
     assert np.allclose(got, want, atol=1e-5)
     assert not np.allclose(sw.shrink(img, 0.9, exact=False), want, atol=1e-2)
     assert sw.SHRINK_EXACT & 1       # the frame's own second shrink uses it
+
+
+def on_patch(codes, patch, ink=(1.0, 1.0, 1.0)) -> tuple[np.ndarray, np.ndarray]:
+    """glyphs() as HUD text drawn on a flat patch, cut as a rectangle: (grey, RGB)."""
+    gray, _edge = glyphs(codes)
+    text = gray > 0.5
+    rgb = np.where(text[..., None], np.array(ink, np.float32), np.array(patch, np.float32))
+    return sw.to_gray((rgb[..., ::-1] * 255).astype(np.uint8)), rgb.astype(np.float32)
+
+
+WORD = [0b111101101101111, 0b010010010010111, 0b111001111100111, 0b111001111001111]
+
+
+def test_the_thing_in_a_rectangle_is_what_isnt_joined_to_its_edges():
+    """Text cut as a rectangle over a dark patch: the patch (joined to the picture's
+    edges) is background, the letters are the thing."""
+    g, _rgb = on_patch(WORD, (0.05, 0.08, 0.2))
+    thing = sw.thing_mask(g)
+    assert thing is not None
+    letters = g > 0.5
+    assert thing[letters].all() and thing.mean() < 0.45      # the letters, and their holes
+    assert not thing[0].any() and not thing[:, 0].any()
+    assert sw.thing_mask(np.full((20, 30), 0.4, np.float32)) is None
+
+
+def test_text_over_a_changed_background_passes_the_colour_check_on_its_letters():
+    """HUD text cut over a dark-blue patch, now over orange: every colour cell is
+    mostly background, so the cells fail; the letters themselves are the same. The
+    same shape in another colour (a red gem where a blue one was cut) still fails,
+    and so does scenery that only looks alike shrunk."""
+    g, t = on_patch(WORD, (0.05, 0.08, 0.2))
+    a, rgb = on_patch(WORD, (0.35, 0.18, 0.05))
+    share, fit, kept, gap = sw.matched_colour(a, rgb, g, t)
+    assert sw.MATCH_LEAST <= share <= sw.MATCH_MOST
+    assert fit >= sw.MATCH_SHAPE and kept >= sw.MATCH_KEPT and gap <= sw.MATCH_CRES
+    # the letters in another colour, of about the same grey
+    g2, t2 = on_patch(WORD, (0.05, 0.08, 0.2), ink=(1.0, 0.85, 0.85))
+    a2, rgb2 = on_patch(WORD, (0.05, 0.08, 0.2), ink=(0.75, 0.9, 1.0))
+    share, fit, kept, gap = sw.matched_colour(a2, rgb2, g2, t2)
+    assert gap > sw.MATCH_CRES
+    # scenery
+    rng = np.random.default_rng(5)
+    noise = rng.random(g.shape + (3,)).astype(np.float32)
+    share, fit, kept, gap = sw.matched_colour(sw.to_gray((noise[..., ::-1] * 255).astype(np.uint8)),
+                                              noise, g, t)
+    assert fit < sw.MATCH_SHAPE
+
+
+def test_a_rectangle_whose_background_changed_at_one_end_is_no_look_alike():
+    """Text cut as a rectangle, then shown with something new behind its last glyphs
+    (a light in the scene): the look-alike strips there are off, but the letters
+    aren't. A different last glyph still is."""
+    word = WORD + [0b101101111001001, 0b010110010010111]
+    g, _t = on_patch(word, (0.05, 0.08, 0.2))
+    a = g.copy()
+    a[:, -40:] = np.where(a[:, -40:] > 0.5, a[:, -40:], 0.45)
+    area = np.pad(a, 3, constant_values=0.05)
+    assert sw.one_part_off(area, g, None) == 1.0
+    twin = on_patch(WORD + [0b101101111001001, 0b111001001001001], (0.05, 0.08, 0.2))[0]
+    assert sw.one_part_off(np.pad(twin, 3, constant_values=0.05), g, None) < 0.8
+
+
+def test_a_cut_out_just_under_the_line_is_matched_again_sharp():
+    """Thin cut-out text whose edges shrunk take in the scenery behind it: at its own
+    size it's matched again on the full-size pixels under its mask, once per new
+    pixels."""
+    gray, mask = glyphs(WORD)
+    rng = np.random.default_rng(2)
+    full = (rng.random((200, 300)) * 0.6).astype(np.float32)
+    full[50:50 + gray.shape[0], 40:40 + gray.shape[1]][mask] = gray[mask]
+    cut = (lambda y0, y1, x0, x1: full[y0:y1, x0:x1]), full.shape
+    look = sw.Look(gray, mask, 0.5, [1.0], False)
+    cap = sw._Capture(0, None)
+    cap.sharp_left = 1
+    box = (25, 25 + gray.shape[0] // 2, 20, 20 + gray.shape[1] // 2)
+    assert sw.Watcher._sharp(cap, "t", cut, box, look, (100, 150)) > 0.99
+    assert cap.sharp_left == 0
+    assert sw.Watcher._sharp(cap, "t", cut, box, look, (100, 150)) > 0.99   # kept
+    other = (25, 25 + gray.shape[0], 20, 20 + gray.shape[1])                  # twice the size
+    assert sw.Watcher._sharp(cap, "t", cut, other, look, (100, 150)) == 0.0
