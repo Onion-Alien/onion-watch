@@ -29,6 +29,28 @@ Run `python scripts/check_sensitive.py` before committing. It's also the
 pre-commit hook: `git config core.hooksPath .githooks`, which also re-stamps
 commit times in UTC.
 
+## Text the app shows: every language, in the same change
+
+Onion Watch ships in every language in `onionwatch/lang/` (the same set as Onion Board). So any change
+that adds or edits text a user can see (labels, buttons, tooltips, dialogs, toasts,
+errors) does all of this **before committing**, not "later":
+
+1. Wrap it: `_("…")` / `ngettext("…", "…", n)` from `onionwatch.i18n`. Whole sentences with
+   `{placeholders}`: never an f-string, `+`, or an English word passed into a
+   placeholder ("{what}" = "sounds" can't be translated).
+2. `python scripts/i18n_extract.py --update`: adds the new texts (empty) to every
+   catalog and drops the unused ones.
+3. Translate every text you added or changed into **every** catalog: plain, short,
+   friendly words for gamers, the same words the catalog already uses (and Onion Board
+   uses, for shared things), every `{placeholder}`, `<b>…</b>`, `&amp;` and line break
+   kept, and the language's number of plural forms (`i18n.FORMS`). Lots of text: one
+   subagent per language.
+4. `ruff`, the i18n tests, and check that `i18n_extract.py` lists none of your texts as
+   missing.
+
+Never wrap log messages, settings keys, file names, the update / usage JSON or the changelog. A new language goes into
+both apps at once. Details: [docs/TRANSLATING.md](docs/TRANSLATING.md).
+
 ## Working in the code
 
 - Checks: `.venv\Scripts\ruff check .` and `.venv\Scripts\python -m pytest`.

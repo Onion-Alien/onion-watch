@@ -3053,6 +3053,7 @@ class TriggersTab(QWidget):
             if remember and self.host.ringing():
                 self.stop_ringing()     # you switched it off: you're here
             for row in self._cards():
+                row.watching = False    # else the card keeps saying "Watching"
                 row.show_score(None)
                 row.set_note(None)
         if remember:
