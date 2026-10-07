@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (QFrame, QHBoxLayout, QLabel, QPushButton, QStacke
 from onionwatch import theme
 from onionwatch.ui import chances, icons
 from onionwatch.ui.history import HistoryView
+from onionwatch.i18n import _
 
 CHECK_MS = 400          # how often the bar looks whether a sound has ended
 MAX_SHOWN = 6           # triggers named on the bar; the rest as "+3 more"
@@ -36,17 +37,17 @@ class PlayingBar(QFrame):
         self.chips.setSpacing(6)
         h.addLayout(self.chips)
         h.addStretch(1)
-        self.btn_chances = QPushButton("Chances")
-        self.btn_chances.setToolTip("Live chances: how close every trigger is to going "
-                                    "off, right now")
+        self.btn_chances = QPushButton(_("Chances"))
+        self.btn_chances.setToolTip(_("Live chances: how close every trigger is to going off, "
+                                      "right now"))
         icons.set_icon(self.btn_chances, "gauge")
         self.btn_chances.clicked.connect(self.open_chances)
         h.addWidget(self.btn_chances)
         self.chances: chances.ChancesDialog | None = None
         self.show_chances_button()
-        self.btn_stop_all = QPushButton("Stop all")
-        self.btn_stop_all.setToolTip("Stop every trigger's sound now (and any still "
-                                     "waiting out its wait)")
+        self.btn_stop_all = QPushButton(_("Stop all"))
+        self.btn_stop_all.setToolTip(_("Stop every trigger's sound now (and any still waiting "
+                                       "out its wait)"))
         icons.set_icon(self.btn_stop_all, "stop")
         self.btn_stop_all.clicked.connect(self.stop_all)
         h.addWidget(self.btn_stop_all)
@@ -74,20 +75,20 @@ class PlayingBar(QFrame):
                 w.deleteLater()
         self.icon.setPixmap(icons.pixmap("volume", 16, theme.T.get(
             "accent" if now else "muted", "#888888")))
-        self.title.setText("Playing now:" if now else "Nothing playing")
+        self.title.setText(_("Playing now:") if now else _("Nothing playing"))
         self.title.setObjectName("" if now else "muted")
         self.title.style().unpolish(self.title)
         self.title.style().polish(self.title)
         for t, ring in now[:MAX_SHOWN]:
-            b = QPushButton(f"{t.name}{' (ringing)' if ring else ''}")
+            b = QPushButton(_("{name} (ringing)", name=t.name) if ring else t.name)
             b.setObjectName("small")
             icons.set_icon(b, "stop", size=12)
-            b.setToolTip(f"Stop {t.name}")
-            b.setAccessibleName(f"Stop {t.name}")
-            b.clicked.connect(lambda _=False, tid=t.id: self.panel.stop_trigger(tid))
+            b.setToolTip(_("Stop {name}", name=t.name))
+            b.setAccessibleName(_("Stop {name}", name=t.name))
+            b.clicked.connect(lambda __=False, tid=t.id: self.panel.stop_trigger(tid))
             self.chips.addWidget(b)
         if len(now) > MAX_SHOWN:
-            more = QLabel(f"+{len(now) - MAX_SHOWN} more")
+            more = QLabel(_("+{n} more", n=len(now) - MAX_SHOWN))
             more.setObjectName("muted")
             self.chips.addWidget(more)
         self.btn_stop_all.setEnabled(bool(now))
@@ -128,9 +129,9 @@ class TriggerPages(QWidget):
         self.tabs = QTabBar()
         self.tabs.setDrawBase(False)
         self.tabs.setExpanding(False)
-        self.tabs.addTab("Triggers")
-        self.tabs.addTab("Log")
-        self.tabs.setTabToolTip(1, "What went off and when, newest first")
+        self.tabs.addTab(_("Triggers"))
+        self.tabs.addTab(_("Log"))
+        self.tabs.setTabToolTip(1, _("What went off and when, newest first"))
         v.addWidget(self.tabs)
         for w in top:
             v.addWidget(w)
@@ -152,7 +153,7 @@ class TriggerPages(QWidget):
 
     def _count(self):
         n = len(self.panel.history)
-        self.tabs.setTabText(1, f"Log ({n})" if n else "Log")
+        self.tabs.setTabText(1, _("Log ({n})", n=n) if n else _("Log"))
 
     def show_log(self):
         self.tabs.setCurrentIndex(1)

@@ -34,6 +34,12 @@ def test_it_holds_the_page_and_engine_but_not_the_app(built):
                      "singleinstance.py", "ui/mainwindow.py", "ui/settingsdialog.py"):
         assert top + app_only not in names, app_only
     assert {"onion-watch/module.json", "onion-watch/LICENSE"} <= names
+    # the language catalogs ride along (and nothing else that isn't code)
+    langs = {n for n in names if n.startswith(top + "lang/")}
+    assert langs and all(n.endswith(".json") for n in langs)
+    assert top + "lang/de.json" in langs and top + "lang/xx.json" not in langs
+    assert all(n.endswith(".py") for n in names - langs
+               - {"onion-watch/module.json", "onion-watch/LICENSE"})
     assert all(n.startswith("onion-watch/") and ".." not in n for n in names)
 
 
@@ -97,7 +103,11 @@ app = QApplication([])
 board = importlib.import_module("onionwatch.board")
 from fakehost import FakeHost
 from pathlib import Path
-tab = board.create(FakeHost(Path({str(tmp_path / "data")!r})))
+host = FakeHost(Path({str(tmp_path / "data")!r}))
+host.language = lambda: "de"    # the board's language: the tab follows it
+tab = board.create(host)
+i18n = sys.modules["onionwatch.i18n"]
+assert i18n.current() == "de" and i18n.LANG_DIR.is_relative_to(folder), i18n.LANG_DIR
 assert all(m.__file__.startswith(folder) for n, m in sys.modules.items()
            if n.startswith("onionwatch") and getattr(m, "__file__", None))
 assert "onionwatch.player" not in sys.modules and "sounddevice" not in sys.modules

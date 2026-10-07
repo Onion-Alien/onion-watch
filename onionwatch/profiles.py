@@ -43,9 +43,9 @@ import ntpath
 import re
 import uuid
 from dataclasses import dataclass, field
+from onionwatch.i18n import _
 
 UNCATEGORISED = ""              # the category of a trigger that isn't in one
-UNCATEGORISED_LABEL = "Uncategorised"
 NAME_MAX = 60                   # characters in a category's or profile's name
 MAX_CATEGORIES = 200
 MAX_PROFILES = 50
@@ -65,7 +65,7 @@ def clean_name(text) -> str:
 
 def label(name: str) -> str:
     """A category's name on screen."""
-    return name or UNCATEGORISED_LABEL
+    return name or _("Uncategorised")
 
 
 _HEX = re.compile(r"#[0-9a-f]{6}")

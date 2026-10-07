@@ -56,6 +56,7 @@ if ($Clean) { $cleanArg = @("--clean") }
     --exclude-module scipy.stats --exclude-module scipy.optimize `
     --exclude-module scipy.interpolate --exclude-module scipy.integrate `
     --exclude-module scipy.sparse --exclude-module scipy.spatial `
+    --add-data "onionwatch\lang;onionwatch\lang" `
     --paths . `
     main.py
 if ($LASTEXITCODE -ne 0) { throw "PyInstaller failed" }

@@ -18,23 +18,27 @@ from PySide6.QtWidgets import (QDialog, QDialogButtonBox, QFileDialog, QHBoxLayo
 
 from onionwatch.ui.panel import hint_label
 from onionwatch.ui.windowpicker import thumbnail
+from onionwatch.ui import fit
+from onionwatch.i18n import _
 
 THUMB = QSize(160, 90)     # the window as it was, beside each line
-WHAT = {"appear": "showed up", "vanish": "went away", "change": "changed",
-        "still": "stood still", "colour": "bar"}
+WHAT = {"appear": _("showed up"), "vanish": _("went away"), "change": _("changed"),
+        "still": _("stood still"), "colour": _("bar")}
 
 
 def alert_text(a) -> str:
     """One history line: "14:02:31  Rare spawn\nshowed up in Game (copy 2) · 93%"."""
     when = time.strftime("%H:%M:%S", time.localtime(a.when))
-    return f"{when}  {a.name}\n{WHAT.get(a.mode, '')} in {a.place} · {round(a.score * 100)}%"
+    return f"{when}  {a.name}\n" + _("{what} in {place} · {score}%", what=WHAT.get(a.mode, ""),
+                                     place=a.place, score=round(a.score * 100))
 
 
 def log_line(a) -> str:
     """One alert as a line of the saved log: "2026-10-06 14:02:31  Rare spawn: showed
     up in Game (copy 2), 93%"."""
     when = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(a.when))
-    return f"{when}  {a.name}: {WHAT.get(a.mode, '')} in {a.place}, {round(a.score * 100)}%"
+    return f"{when}  {a.name}: " + _("{what} in {place}, {score}%", what=WHAT.get(a.mode, ""),
+                                     place=a.place, score=round(a.score * 100))
 
 
 class HistoryView(QWidget):
@@ -48,23 +52,23 @@ class HistoryView(QWidget):
         v.setContentsMargins(0, 0, 0, 0)
         if intro:
             v.addWidget(hint_label(
-                f"The last {panel.history.maxlen} alerts, newest first, each with the "
-                "window as it was checked and a box round what set it off. They're only "
-                "kept until Onion Watch closes: Save to a file… keeps a copy."))
+                _("The last {maxlen} alerts, newest first, each with the window as it was "
+                  "checked and a box round what set it off. They're only kept until Onion Watch "
+                  "closes: Save to a file… keeps a copy.", maxlen=panel.history.maxlen)))
         self.list = QListWidget()
         self.list.setIconSize(THUMB)
         self.list.setSpacing(4)
         self.list.setWordWrap(True)
         v.addWidget(self.list, 1)
-        self.empty = QLabel("Nothing has gone off yet.")
+        self.empty = QLabel(_("Nothing has gone off yet."))
         self.empty.setObjectName("muted")
         self.empty.setAlignment(Qt.AlignCenter)
         v.addWidget(self.empty)
-        self.btn_clear = QPushButton("Clear")
-        self.btn_clear.setToolTip("Empty the list")
+        self.btn_clear = QPushButton(_("Clear"))
+        self.btn_clear.setToolTip(_("Empty the list"))
         self.btn_clear.clicked.connect(self._clear)
-        self.btn_save = QPushButton("Save to a file…")
-        self.btn_save.setToolTip("Write the list out as a text file")
+        self.btn_save = QPushButton(_("Save to a file…"))
+        self.btn_save.setToolTip(_("Write the list out as a text file"))
         self.btn_save.clicked.connect(self.save)
         panel.history_changed.connect(self.refresh)
         self.refresh()
@@ -91,23 +95,25 @@ class HistoryView(QWidget):
     def _clear(self):
         n = len(self.panel.history)
         if n > 1 and QMessageBox.question(
-                self, "Clear the list",
-                f"Clear all {n} alerts from the list? This can't be undone.") != QMessageBox.Yes:
+                self, _("Clear the list"),
+                _("Clear all {n} alerts from the list? This can't be undone.",
+                  n=n)) != QMessageBox.Yes:
             return
         self.panel.history.clear()
         self.refresh()
 
     def save(self, path: str = ""):
         if not path:
-            path, _ = QFileDialog.getSaveFileName(self, "Save the log",
-                                                  "Onion Watch log.txt", "Text (*.txt)")
+            path, __ = QFileDialog.getSaveFileName(self, _("Save the log"),
+                                                  _("Onion Watch log") + ".txt",
+                                                  _("Text") + " (*.txt)")
         if not path:
             return
         try:
             with open(path, "w", encoding="utf-8") as f:
                 f.writelines(log_line(a) + "\n" for a in self.panel.history)
         except OSError as e:
-            QMessageBox.warning(self, "Couldn't save the log", str(e))
+            QMessageBox.warning(self, _("Couldn't save the log"), str(e))
 
     def detach(self):
         try:
@@ -121,8 +127,9 @@ class HistoryDialog(QDialog):
 
     def __init__(self, panel, parent=None):
         super().__init__(parent)
+        fit.watch(self)          # grows to fit its (translated) text
         self.panel = panel
-        self.setWindowTitle("What went off")
+        self.setWindowTitle(_("What went off"))
         self.resize(640, 560)
         v = QVBoxLayout(self)
         self.view = HistoryView(panel, self)

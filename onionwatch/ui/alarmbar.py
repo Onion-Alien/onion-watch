@@ -7,6 +7,7 @@ from PySide6.QtCore import QTimer, Signal
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QPushButton
 
 from onionwatch.ui import icons
+from onionwatch.i18n import _
 
 CHECK_MS = 500      # a ring can also end by itself (its trigger deleted, Stop all)
 
@@ -33,8 +34,8 @@ class AlarmBar(QFrame):
         self.text = QLabel()
         self.text.setWordWrap(True)
         h.addWidget(self.text, 1)
-        self.btn_stop = QPushButton("Stop")
-        self.btn_stop.setToolTip("Stop the ringing")
+        self.btn_stop = QPushButton(_("Stop"))
+        self.btn_stop.setToolTip(_("Stop the ringing"))
         self.btn_stop.clicked.connect(self.stop)
         h.addWidget(self.btn_stop)
         self.hide()
@@ -53,13 +54,15 @@ class AlarmBar(QFrame):
 
     def update_bar(self):
         tags = self.panel.host.ringing()
-        names = [self._names.get(tag, "A trigger") for tag in dict.fromkeys(tags)]
+        names = [self._names.get(tag, _("A trigger")) for tag in dict.fromkeys(tags)]
         for tag in list(self._names):
             if tag not in tags:
                 del self._names[tag]
         if names:
-            text = names[0] if len(names) == 1 else f"{', '.join(names[:-1])} and {names[-1]}"
-            self.text.setText(f"{text} — ringing")
+            text = names[0] if len(names) == 1 else _("{names} and {last}",
+                                                      names=", ".join(names[:-1]),
+                                                      last=names[-1])
+            self.text.setText(_("{text} — ringing", text=text))
         self.setVisible(bool(names))
         if bool(names) != self._on:
             self._on = bool(names)

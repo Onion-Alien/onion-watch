@@ -16,6 +16,8 @@ from PySide6.QtWidgets import (QDialog, QDialogButtonBox, QHBoxLayout, QLabel, Q
 
 from onionwatch import theme
 from onionwatch.ui.panel import hint_label
+from onionwatch.ui import fit
+from onionwatch.i18n import _
 
 MIN_CUT = 6     # pixels each way (the smallest picture a trigger takes)
 MIN_AREA = 4    # ...and the smallest area
@@ -143,13 +145,14 @@ class SnipDialog(QDialog):
 
     def __init__(self, img: QImage, where: str, parent=None):
         super().__init__(parent)
-        self.setWindowTitle(f"Cut a picture from {where}")
+        fit.watch(self)          # grows to fit its (translated) text
+        self.setWindowTitle(_("Cut a picture from {where}", where=where))
         self.piece: QImage | None = None
         v = QVBoxLayout(self)
         v.addWidget(hint_label(
-            "Drag a box around the thing to watch for — a name plate, a banner, an icon. "
-            "Keep it tight but with some detail in it (words work well). It's kept at full "
-            "size, so it matches the game at this resolution."))
+            _("Drag a box around the thing to watch for — a name plate, a banner, an icon. Keep "
+              "it tight but with some detail in it (words work well). It's kept at full size, so "
+              "it matches the game at this resolution.")))
         self.view = CropView(img)
         self.view.changed.connect(self._update)
         v.addWidget(self.view, 1)
@@ -158,7 +161,7 @@ class SnipDialog(QDialog):
         v.addWidget(self.size_label)
         self.buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         ok = self.buttons.button(QDialogButtonBox.Ok)
-        ok.setText("Use this piece")
+        ok.setText(_("Use this piece"))
         ok.setObjectName("primary")
         self.buttons.accepted.connect(self._accept)
         self.buttons.rejected.connect(self.reject)
@@ -170,8 +173,9 @@ class SnipDialog(QDialog):
         s = self.view.selection
         ok = s.width() >= MIN_CUT and s.height() >= MIN_CUT
         self.buttons.button(QDialogButtonBox.Ok).setEnabled(ok)
-        self.size_label.setText(f"{s.width()}×{s.height()} pixels" if s.width() and s.height()
-                                else "Drag a box on the picture")
+        self.size_label.setText(_("{width}×{height} pixels",
+                                  width=s.width(), height=s.height()) if s.width() and s.height()
+                                else _("Drag a box on the picture"))
 
     def _accept(self):
         s = self.view.selection
@@ -189,19 +193,20 @@ class AreaDialog(QDialog):
     def __init__(self, img: QImage, where: str, region=None, colour: str | None = None,
                  parent=None):
         super().__init__(parent)
-        self.setWindowTitle(f"Where to look in {where}")
+        fit.watch(self)          # grows to fit its (translated) text
+        self.setWindowTitle(_("Where to look in {where}", where=where))
         self.want_colour = colour is not None
         self.region = region
         self.colour = colour or ""
         v = QVBoxLayout(self)
         v.addWidget(hint_label(
-            "Drag a box tightly around the bar to measure (its full length), then check "
-            "the colour below: it's the bar's main colour — click “Pick the colour” and "
-            "then the bar if it's wrong."
+            _("Drag a box tightly around the bar to measure (its full length), then check the "
+              "colour below: it's the bar's main colour — click “Pick the colour” and then the "
+              "bar if it's wrong.")
             if self.want_colour else
-            "Drag a box around the part of the window to look in: only there counts, "
-            "so other things on screen can't set it off, and checking is quicker. It's "
-            "kept as a share of the window, so it follows the window when it's resized."))
+            _("Drag a box around the part of the window to look in: only there counts, so other "
+              "things on screen can't set it off, and checking is quicker. It's kept as a share "
+              "of the window, so it follows the window when it's resized.")))
         self.view = CropView(img)
         self.view.selection = from_region(region, img.size())
         self.view.changed.connect(self._update)
@@ -216,22 +221,22 @@ class AreaDialog(QDialog):
         # parentless one flashed up on the desktop as a little window of its own
         self.swatch = QLabel(self)
         self.swatch.setFixedSize(22, 22)
-        self.btn_pick = QPushButton("Pick the colour", self)
+        self.btn_pick = QPushButton(_("Pick the colour"), self)
         self.btn_pick.setCheckable(True)
-        self.btn_pick.setToolTip("Then click the colour in the picture")
+        self.btn_pick.setToolTip(_("Then click the colour in the picture"))
         self.btn_pick.toggled.connect(self._on_pick)
         for w in (self.swatch, self.btn_pick):
             w.setVisible(self.want_colour)
             row.addWidget(w)
-        self.btn_all = QPushButton("All of it", self)
-        self.btn_all.setToolTip("Look in the whole window")
+        self.btn_all = QPushButton(_("All of it"), self)
+        self.btn_all.setToolTip(_("Look in the whole window"))
         self.btn_all.clicked.connect(self._all)
         self.btn_all.setVisible(not self.want_colour)
         row.addWidget(self.btn_all)
         v.addLayout(row)
         self.buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         ok = self.buttons.button(QDialogButtonBox.Ok)
-        ok.setText("Use this area")
+        ok.setText(_("Use this area"))
         ok.setObjectName("primary")
         self.buttons.accepted.connect(self._accept)
         self.buttons.rejected.connect(self.reject)
@@ -246,9 +251,10 @@ class AreaDialog(QDialog):
             self._picked_by_hand = False        # a new box: its own main colour
         elif self.want_colour and some and not self._picked_by_hand:
             self.colour = main_colour(self.view.img, s).name()
-        self.size_label.setText(f"{s.width()}×{s.height()} pixels" if some else
-                                ("Drag a box around the bar" if self.want_colour
-                                 else "All of the window — or drag a box"))
+        self.size_label.setText(_("{width}×{height} pixels",
+                                  width=s.width(), height=s.height()) if some else
+                                (_("Drag a box around the bar") if self.want_colour
+                                 else _("All of the window — or drag a box")))
         self.swatch.setStyleSheet(f"background:{self.colour or 'transparent'}; "
                                   "border:1px solid #888; border-radius:4px;")
         self.buttons.button(QDialogButtonBox.Ok).setEnabled(

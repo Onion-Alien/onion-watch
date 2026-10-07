@@ -25,6 +25,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from onionwatch import __version__, settings
+from onionwatch.i18n import _
 
 log = logging.getLogger(__name__)
 
@@ -214,8 +215,8 @@ def download(rel: Release, progress: Callable[[int, int], None] | None = None,
     lists (SHA-256); its path. `progress(done, total)` is called as it arrives.
     Raises UpdateError with a message for the user. Call off the UI thread."""
     if not rel.asset_url.startswith(DOWNLOADS) or not SHA_RE.fullmatch(rel.sha256):
-        raise UpdateError("this release has no installer the app can check, "
-                          "so it can only be downloaded from its page")
+        raise UpdateError(_("this release has no installer the app can check, "
+                            "so it can only be downloaded from its page"))
     dest = installer_path(rel)
     if dest.is_file() and _sha256(dest) == rel.sha256:
         return dest   # downloaded earlier, never used
@@ -228,31 +229,31 @@ def download(rel: Release, progress: Callable[[int, int], None] | None = None,
     try:
         with urllib.request.urlopen(req, timeout=30) as r, open(part, "wb") as f:
             if not r.geturl().startswith("https://"):
-                raise UpdateError("the download was redirected off HTTPS")
+                raise UpdateError(_("the download was redirected off HTTPS"))
             total = _length(r.headers.get("Content-Length")) or rel.size or 0
             if total > MAX_SIZE:
-                raise UpdateError("the download is far bigger than an installer")
+                raise UpdateError(_("the download is far bigger than an installer"))
             while chunk := r.read(CHUNK):
                 if cancelled is not None and cancelled():
                     raise UpdateError("cancelled")
                 done += len(chunk)
                 if done > MAX_SIZE:
-                    raise UpdateError("the download is far bigger than an installer")
+                    raise UpdateError(_("the download is far bigger than an installer"))
                 h.update(chunk)
                 f.write(chunk)
                 if progress is not None:
                     progress(done, total)
         if h.hexdigest() != rel.sha256:
             log.warning("%s: SHA-256 %s, expected %s", dest.name, h.hexdigest(), rel.sha256)
-            raise UpdateError("the downloaded file isn't the one GitHub lists "
-                              "(its checksum doesn't match), so it wasn't kept")
+            raise UpdateError(_("the downloaded file isn't the one GitHub lists "
+                                "(its checksum doesn't match), so it wasn't kept"))
         os.replace(part, dest)
     except UpdateError:
         part.unlink(missing_ok=True)
         raise
     except OSError as e:   # offline, disk full, connection dropped…
         part.unlink(missing_ok=True)
-        raise UpdateError(f"the download failed ({e})") from e
+        raise UpdateError(_("the download failed ({error})", error=e)) from e
     log.info("downloaded update %s (%d bytes, SHA-256 checked)", rel.version, done)
     return dest
 

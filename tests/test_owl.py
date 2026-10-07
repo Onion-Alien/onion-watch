@@ -60,7 +60,8 @@ def test_click_cheers(qapp):
     w.step(0.4, mouse=None)
     assert "joy" in w.pose()
     w.step(2.0, mouse=None)
-    assert "joy" not in w.pose() and w.say == ""
+    # the cheer is over (he may already be begging again: a wait line, at random)
+    assert "joy" not in w.pose() and w.say != "yay"
 
 
 def test_owl_image_still_plain(qapp):
