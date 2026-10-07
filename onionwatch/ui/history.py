@@ -70,7 +70,9 @@ class HistoryView(QWidget):
         self.btn_save = QPushButton(_("Save to a file…"))
         self.btn_save.setToolTip(_("Write the list out as a text file"))
         self.btn_save.clicked.connect(self.save)
-        panel.history_changed.connect(self.refresh)
+        self._shown: list = []      # the alerts in the list, oldest first
+        self._behind = False        # history changed while it was hidden
+        panel.history_changed.connect(self._changed)
         self.refresh()
 
     def button_row(self) -> QHBoxLayout:
@@ -81,13 +83,53 @@ class HistoryView(QWidget):
         h.addStretch(1)
         return h
 
+    @staticmethod
+    def _item(a) -> QListWidgetItem:
+        # no picture (a check that kept none): no empty space for one either
+        return (QListWidgetItem(QIcon(thumbnail(a.picture, THUMB)), alert_text(a))
+                if not a.picture.isNull() else QListWidgetItem(alert_text(a)))
+
     def refresh(self):
+        """Fill the list again from the history."""
         self.list.clear()
-        for a in reversed(self.panel.history):
-            # no picture (a check that kept none): no empty space for one either
-            it = (QListWidgetItem(QIcon(thumbnail(a.picture, THUMB)), alert_text(a))
-                  if not a.picture.isNull() else QListWidgetItem(alert_text(a)))
-            self.list.addItem(it)
+        self._shown = list(self.panel.history)
+        self._behind = False
+        for a in reversed(self._shown):
+            self.list.addItem(self._item(a))
+        self._label()
+
+    def _changed(self):
+        """Something went off (or the history was cleared): only the new alerts are
+        added at the top and the ones the history let go of taken off the bottom, and
+        only once the list is on screen."""
+        if not self.isVisible():
+            self._behind = True
+            self._label()
+            return
+        self._catch_up()
+
+    def _catch_up(self):
+        now = list(self.panel.history)
+        shown = self._shown
+        start = next((i for i, a in enumerate(shown) if now and a is now[0]), None)
+        kept = len(shown) - start if start is not None else 0
+        if start is None and shown or any(a is not b for a, b in zip(shown[start or 0:], now)):
+            self.refresh()          # not just more of the same (cleared, or another list)
+            return
+        for _i in range(start or 0):           # the oldest, at the bottom
+            self.list.takeItem(self.list.count() - 1)
+        for a in now[kept:]:
+            self.list.insertItem(0, self._item(a))
+        self._shown = now
+        self._behind = False
+        self._label()
+
+    def showEvent(self, ev):
+        super().showEvent(ev)
+        if self._behind:
+            self._catch_up()
+
+    def _label(self):
         self.empty.setVisible(not self.panel.history)
         self.btn_clear.setEnabled(bool(self.panel.history))
         self.btn_save.setEnabled(bool(self.panel.history))
@@ -117,7 +159,7 @@ class HistoryView(QWidget):
 
     def detach(self):
         try:
-            self.panel.history_changed.disconnect(self.refresh)
+            self.panel.history_changed.disconnect(self._changed)
         except (RuntimeError, TypeError):
             pass
 

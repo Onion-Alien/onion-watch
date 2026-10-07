@@ -167,6 +167,7 @@ def test_a_card_says_when_its_window_is_not_open(tab, qapp, monkeypatch):
     row = next(iter(tab.rows.values()))
     row.t.window = ref
     tab._store()
+    tab.show()      # notes are only worked out while the tab can be seen
     tab.watcher.interval = 0.01
     tab.set_watching(True)
     assert process_events(qapp, lambda: row.state.text() == "Waiting for Game to open")
@@ -209,6 +210,7 @@ def test_a_card_says_when_its_window_never_comes_out(tab, qapp, monkeypatch):
     row = next(iter(tab.rows.values()))
     row.t.window = ref
     tab._store()
+    tab.show()
     tab.watcher.interval = 0.01
     tab.set_watching(True)
     assert process_events(qapp, lambda: row.state.text().startswith("Game can't be captured"))

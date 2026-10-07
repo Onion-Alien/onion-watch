@@ -4,7 +4,11 @@ What changed between releases, for the release notes. Newest first.
 
 ## Unreleased
 
-- Lighter: with watching off, Onion Watch inside Onion Board no longer loads its
+- **Lighter Triggers tab**: a closed trigger card makes its editor only when it's
+  first opened (about 4x quicker and 3.5x less memory per card), the Log keeps small
+  pictures, and the alarm bar, Hoot and the live check rest while nothing needs
+  them. Cards look the same.
+- **Lighter watching**: with watching off, Onion Watch inside Onion Board no longer loads its
   maths libraries (about half a GB and 18 threads less). Watching keeps its memory
   flat over a long evening, only grabs a window or screen when one of its triggers
   is due, and is quicker on HDR screens and with colour triggers. The app closes

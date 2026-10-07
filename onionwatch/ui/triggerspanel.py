@@ -16,6 +16,7 @@ in (host.data_dir / "triggers").
 """
 from __future__ import annotations
 
+import dataclasses
 import logging
 import math
 import os
@@ -43,7 +44,7 @@ from onionwatch.ui.categories import (MAX_PER_ROW, CategoriesDialog, CategorySec
                                       ProfilesDialog,
                                       counts_text)
 from onionwatch.ui.chances import LiveLabel, goes_below
-from onionwatch.ui.history import HistoryDialog
+from onionwatch.ui.history import THUMB as LOG_THUMB, HistoryDialog
 from onionwatch.ui.panel import Flow, UndoBar, card, hint_label
 from onionwatch.ui.watching import share_label
 from onionwatch.ui.windowpicker import places_label
@@ -129,7 +130,8 @@ MAX_DELETED = 50        # ...and at most this many of them
 class Alert:
     """Something that went off, for the history: when, which trigger, where, how
     strongly, and what the watched window looked like then (the check's own small
-    copy, the box around what set it off drawn on it)."""
+    copy, the box around what set it off drawn on it, kept at the size the Log shows
+    it: 50 of them stay in memory)."""
     when: float
     name: str
     place: str
@@ -139,7 +141,11 @@ class Alert:
 
     @classmethod
     def of(cls, t: Trigger, hit: screenwatch.Hit, place: str) -> Alert:
-        return cls(time.time(), t.name, place, hit.score, t.mode, hit_image(hit))
+        img = hit_image(hit)
+        if img.width() > LOG_THUMB.width() or img.height() > LOG_THUMB.height():
+            # what the Log's thumbnail would make of it anyway (windowpicker.thumbnail)
+            img = img.scaled(LOG_THUMB, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        return cls(time.time(), t.name, place, hit.score, t.mode, img)
 
 
 def hit_image(hit: screenwatch.Hit) -> QImage:
@@ -1225,7 +1231,55 @@ class TriggerRow(QFrame):
         bv.setContentsMargins(0, 0, 0, 0)
         bv.setSpacing(4)
         v.addWidget(self.body)
+        v.addStretch(1)     # a tile taller than it needs (its line's tallest): space below
+        # the editor under the header is made the first time the card opens
+        # (_build_body): a closed tile is just its header, and most never open
+        self._built = False
+        self._categories: list[str] | None = None   # set_categories, kept till then
+        self._default_ms: int | None = None          # set_default_interval, likewise
 
+        self._flash = QTimer(self)
+        self._flash.setSingleShot(True)
+        self._flash.timeout.connect(self._update_state)
+        self._show_mode()
+        self.set_sounds(sounds)
+        self.set_screens(list(screens))
+        if not open_:   # its pictures made once, at the size they're shown (_arrange)
+            self.strip.set_look(TILE_THUMB, 1)
+        self.refresh_pictures()
+        self._update_state()
+        self.show_score(None)
+        self.btn_open.setChecked(open_)
+        self.set_open(open_)
+
+    # the editor's widgets, made by _build_body: asking a closed card for one makes it
+    EDITOR = frozenset({
+        "mode", "where", "where_box", "_watch_row", "sounds_box", "sounds_row",
+        "lbl_play", "chips", "sound", "pick", "btn_test", "btn_tune", "tune_text",
+        "btn_menu", "act_dup", "act_del", "tune", "_tune_row", "btn_area", "interval",
+        "chk_size", "chk_ring", "until", "ring_box", "delay", "cooldown", "hold",
+        "lbl_hold", "hold_box", "threshold", "below", "lbl_number", "match_box", "_in",
+        "chk_quiet", "cb_category"})
+
+    def __getattr__(self, name: str):
+        # (only for what isn't there: a closed card's editor, made now)
+        if name in TriggerRow.EDITOR and self.__dict__.get("_built") is False:
+            self._build_body()
+            return getattr(self, name)
+        raise AttributeError(f"{type(self).__name__!r} object has no attribute {name!r}")
+
+    @property
+    def built(self) -> bool:
+        """Its editor has been made (it was opened, or something needed it)."""
+        return self._built
+
+    def _build_body(self):
+        """Make the editor: the "When … in …" sentence, the sounds, More options."""
+        if self._built:
+            return
+        self._built = True
+        t = self.t
+        bv = self.body.layout()
         # the card reads as a sentence: "When [it shows up] in [the game], then play
         # [Ready] [Chime] [+ Add sound…]  ▶ Test". The pictures are the header's (its +
         # adds more); everything else is folded away under More options, behind a line
@@ -1418,24 +1472,18 @@ class TriggerRow(QFrame):
         self.cb_category.activated.connect(self._on_category)
         row.addWidget(labelled(_("Category"), self.cb_category, in_card=True))
         tune_col.addWidget(self.tune)
-        v.addStretch(1)     # a tile taller than it needs (its line's tallest): space below
         for w in (self.delay, self.cooldown, self.hold, self.threshold):
             no_wheel(w)
             w.valueChanged.connect(self._on_numbers)
-
-        self._flash = QTimer(self)
-        self._flash.setSingleShot(True)
-        self._flash.timeout.connect(self._update_state)
-        self._show_mode()
-        self.set_sounds(sounds)
-        self.set_screens(list(screens))
-        if not open_:   # its pictures made once, at the size they're shown (_arrange)
-            self.strip.set_look(TILE_THUMB, 1)
-        self.refresh_pictures()
-        self._update_state()
-        self.show_score(None)
-        self.btn_open.setChecked(open_)
-        self.set_open(open_)
+        self._show_mode_body()
+        self._fill_sounds()
+        fill_sources(self.where, self._mons, t.sources, _("Same as below"),
+                     _("Pick windows…"))
+        if self._categories is not None:
+            self.set_categories(self._categories)
+        if self._default_ms is not None:
+            self.set_default_interval(self._default_ms)
+        self.tune_text.setText(self._tune_summary())
         for control in (self.mode, self.where, self.btn_area, self.interval, self.sound,
                         self.pick, self.until, self.btn_test, self.btn_menu, self.delay,
                         self.cooldown, self.hold, self.threshold, self.below, self.cb_category):
@@ -1465,6 +1513,8 @@ class TriggerRow(QFrame):
             on = False
         if self.pinned:
             on = True
+        if on:
+            self._build_body()
         self.body.setVisible(on)
         self._arrange(not on)
         if self.btn_open.isChecked() != on:
@@ -1751,15 +1801,24 @@ class TriggerRow(QFrame):
         """Show the controls the trigger's mode uses, labelled for it."""
         t = self.t
         pics = t.uses_pictures
-        self._place(self.match_box, not pics)          # a bar's level, how much changes
-        self._place(self.hold_box, t.mode == "still")  # how long nothing may move
-        self._place(self.btn_area, not pics)           # the bar, the area that changes
-        self.chk_size.setVisible(pics)
         self._show_thumb()
         if not pics:
             self.badge.setPixmap(icons.pixmap(
                 {"change": "live", "still": "pause", "colour": "palette"}.get(t.mode, "triggers"),
                 28, theme.T.get("muted", "#888888")))
+        self.live.setToolTip(_("Right now: how well it matches (the best of its pictures)")
+                             if pics else _("Right now, in the place closest to going off"))
+        if self._built:
+            self._show_mode_body()
+
+    def _show_mode_body(self):
+        """The editor's part of _show_mode."""
+        t = self.t
+        pics = t.uses_pictures
+        self._place(self.match_box, not pics)          # a bar's level, how much changes
+        self._place(self.hold_box, t.mode == "still")  # how long nothing may move
+        self._place(self.btn_area, not pics)           # the bar, the area that changes
+        self.chk_size.setVisible(pics)
         self.below.setVisible(t.mode == "colour")
         self.threshold.blockSignals(True)
         if pics:
@@ -1784,8 +1843,6 @@ class TriggerRow(QFrame):
             "colour": _("How much of the area is the colour, as a share: a bar that's full "
                         "reads about 100 %, half empty about 50 %."),
         }[t.mode])
-        self.live.setToolTip(_("Right now: how well it matches (the best of its pictures)")
-                             if pics else _("Right now, in the place closest to going off"))
         self.lbl_hold.setText(_("Still for") if t.mode == "still" else _("Must last"))
         self.hold.setToolTip(
             _("How long nothing may change before it plays") if t.mode == "still" else
@@ -1794,6 +1851,8 @@ class TriggerRow(QFrame):
         self._label_area()
 
     def _label_area(self):
+        if not self._built:
+            return
         t = self.t
         colour = t.mode == "colour"
         if colour:
@@ -1809,8 +1868,17 @@ class TriggerRow(QFrame):
                                        "Fewer false alarms, quicker checks."))
 
     def set_sounds(self, sounds: list[tuple[str, str]]):
-        """The sounds on offer: fill the "+ Add sound" list and redraw the chips."""
+        """The sounds on offer: fill the "+ Add sound" list and redraw the chips (once
+        the editor is made: a closed tile only names them)."""
         self._sounds = list(sounds)
+        names = dict(sounds)
+        self.missing = [sid for sid in self.t.sounds if sid not in names]
+        if self._built:
+            self._fill_sounds()
+        self._update_state()
+
+    def _fill_sounds(self):
+        sounds = self._sounds
         cb = self.sound
         cb.blockSignals(True)
         cb.clear()
@@ -1822,7 +1890,6 @@ class TriggerRow(QFrame):
         cb.setCurrentIndex(0)
         cb.blockSignals(False)
         names = dict(sounds)
-        self.missing = [sid for sid in self.t.sounds if sid not in names]
         old, self.chips = self.chips, []
         for sid in self.t.sounds:
             self.chips.append(self._chip(names.get(sid, _("Removed sound")), sid,
@@ -1835,7 +1902,6 @@ class TriggerRow(QFrame):
             # default size over the card
             chip.setParent(None)
             chip.deleteLater()
-        self._update_state()
 
     def _layout_sounds(self):
         """Put the sounds row's widgets back in order (the Flow layout has no insert)."""
@@ -1875,7 +1941,8 @@ class TriggerRow(QFrame):
         t = self.t
         self._mons = list(mons)
         self._screens = len(mons)
-        fill_sources(self.where, mons, t.sources, _("Same as below"), _("Pick windows…"))
+        if self._built:
+            fill_sources(self.where, mons, t.sources, _("Same as below"), _("Pick windows…"))
         self.fallback = any(not 0 <= m < len(mons) for m in t.screens)
         self._update_state()
 
@@ -2003,7 +2070,8 @@ class TriggerRow(QFrame):
         theme.set_tone(self.state, tone)
         self.btn_retarget.setVisible(retarget)
         self._fit_lines()
-        self.tune_text.setText(self._tune_summary())
+        if self._built:
+            self.tune_text.setText(self._tune_summary())
         sounds = dict(self._sounds)
         self.sound_summary.setText("♪ " + (", ".join(sounds.get(s, _("Removed sound"))
                                                     for s in t.sounds) or _("Choose a sound")))
@@ -2033,7 +2101,9 @@ class TriggerRow(QFrame):
 
     def set_default_interval(self, ms: int):
         """Say what "Default" is now (the speed picked under ⚙)."""
-        self.interval.setItemText(0, _("Default ({ms} ms)", ms=ms))
+        self._default_ms = ms
+        if self._built:
+            self.interval.setItemText(0, _("Default ({ms} ms)", ms=ms))
 
     def _on_name(self):
         name = self.name.text().strip() or _("Trigger")
@@ -2043,6 +2113,9 @@ class TriggerRow(QFrame):
 
     def set_categories(self, names: list[str]):
         """The categories it can be put in (onionwatch.profiles), its own picked."""
+        self._categories = list(names)
+        if not self._built:
+            return
         cb = self.cb_category
         cb.blockSignals(True)
         cb.clear()
@@ -2243,6 +2316,7 @@ class TriggersTab(QWidget):
         self._input_waits: dict[str, float] = {}
         self._played: dict[str, set[str]] = {}       # trigger id -> sounds it played (tagged)
         self._ring_sounds: dict[str, list[str]] = {}  # ...-> what its ring is playing
+        self._sounds_shown: list | None = None  # the host's sounds the cards last got
         self._ring_how: dict[str, str] = {}           # ...-> what stops that ring (Trigger.stop)
         self._live: dict[str, float] = {}             # ...-> when it went off, while it plays
         self.pages = None               # the Triggers / Log pages it's shown in (ui.pages)
@@ -2954,6 +3028,8 @@ class TriggersTab(QWidget):
         super().showEvent(ev)
         self.sounds_changed()     # the host's sounds may have been renamed meanwhile
         self._fill_sources()      # ...and screens plugged in or out
+        if self.poll.isActive() and self._on_screen():
+            self._show_poll()     # what watching found while it was hidden
 
     def is_active(self) -> bool:
         return self.btn_watch.isChecked()
@@ -3063,7 +3139,7 @@ class TriggersTab(QWidget):
         self.undo_bar.restyle()
         for sec in self.sections.values():
             sec.retheme()             # category tabs fade into the new panel colour
-        self.sounds_changed()         # the chips of sounds that are gone
+        self.sounds_changed(force=True)   # the chips of sounds that are gone
         for row in self._cards():
             row._show_mode()           # the badge of a trigger without pictures
             row.show_score(self.watcher.scores.get(row.t.id) if self.is_active() else None)
@@ -3135,7 +3211,9 @@ class TriggersTab(QWidget):
         for row in self._views(tid):
             row.cooldown_until = time.monotonic() + t.cooldown
         if hit is not None:
-            self._hits[tid] = hit
+            # where it went off is all that's needed later (_watch_ring, _in): not the
+            # picture of the window, which the history keeps small
+            self._hits[tid] = dataclasses.replace(hit, frame=None)
             self.history.append(Alert.of(t, hit, self.place_name(hit.source)))
             self.history_changed.emit()
         gen = self._gen
@@ -3251,15 +3329,24 @@ class TriggersTab(QWidget):
             # a trigger's own screen went away (or came back) while watching
             self._fell_back = w.fell_back
             self._fill_sources()
-        for row in self._cards():
-            row.set_note(*self._first_note(w.where.get(row.t.id, ())))
         heavy = w.gap > HEAVY_GAP and w.gap > w.interval * 1.05
         if not heavy:
             self._heavy_since = None
         elif self._heavy_since is None:
             self._heavy_since = time.monotonic()
-        if not self.isVisible():
-            return
+        # the rest is only for the eye: nothing while the tab is hidden or its window
+        # minimised (showEvent catches up, and so does the next check after a restore)
+        if self._on_screen():
+            self._show_poll()
+
+    def _on_screen(self) -> bool:
+        return self.isVisible() and not self.window().isMinimized()
+
+    def _show_poll(self):
+        """What watching says on each card (notes, live scores) and at the bottom."""
+        w = self.watcher
+        for row in self._cards():
+            row.set_note(*self._first_note(w.where.get(row.t.id, ())))
         if self._gap_text() != self._gap_shown:
             self._refresh_counts()
         for row in self._cards():
@@ -4015,10 +4102,16 @@ class TriggersTab(QWidget):
             self._apply_active(force=True)
 
     # ------------------------------------------------------------------ the list
-    def sounds_changed(self):
-        sounds = self.host.sounds()
-        for row in self._cards():
-            row.set_sounds(sounds)
+    def sounds_changed(self, force: bool = False):
+        """The host's sounds may have changed: give the cards the new list. Only when
+        it did (or `force`: a trigger's own sounds or the theme changed), since every
+        tab show and board pad move lands here, and remaking every card's list and
+        chips is slow with many triggers."""
+        sounds = list(self.host.sounds())
+        if force or sounds != self._sounds_shown:
+            self._sounds_shown = sounds
+            for row in self._cards():
+                row.set_sounds(sounds)
         # a sound taken off the board (or the app) stops wherever a trigger played it
         have = {sid for sid, _name in sounds}
         for tid in list(self._played):
@@ -4634,7 +4727,7 @@ class TriggersTab(QWidget):
             row.flash("", 0)
         if t is not None and sid and sid not in t.sounds and len(t.sounds) < MAX_SOUNDS:
             t.sounds.append(sid)
-        self.sounds_changed()
+        self.sounds_changed(force=True)
         if t is not None and sid:
             self._store()
         elif row is not None and not sid:

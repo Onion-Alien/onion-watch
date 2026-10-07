@@ -76,7 +76,9 @@ def test_a_trigger_without_a_picture_goes_off_and_is_in_the_history(tab, qapp, m
     assert tab.alert_text(t) == "Nothing has moved for a while."
     a = tab.history[-1]
     assert a.name == t.name and a.mode == "still" and a.place == "the screen"
-    assert (a.picture.width(), a.picture.height()) == (W, H)
+    # the window as it was, kept at the size the Log shows it (W x H is twice that)
+    assert (a.picture.width(), a.picture.height()) == (W // 2, H // 2)
+    assert tab._hits[t.id].frame is None        # only where it went off is kept
     dlg = HistoryDialog(tab)
     assert dlg.list.count() == 1 and "stood still in the screen" in alert_text(a)
     dlg._clear()
