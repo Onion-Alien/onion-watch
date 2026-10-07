@@ -448,7 +448,7 @@ QAbstractSpinBox { background:$bg; border:1px solid $border; border-radius:6px; 
 QAbstractSpinBox:hover { border-color:$border_hi; }
 QAbstractSpinBox:focus { border-color:$accent; }
 QSpinBox::up-button, QSpinBox::down-button { width:0; }
-QDoubleSpinBox, QSpinBox#stepper { padding-right:20px; }
+QDoubleSpinBox, QSpinBox#stepper { padding-right:2px; }
 QDoubleSpinBox::up-button, QDoubleSpinBox::down-button,
 QSpinBox#stepper::up-button, QSpinBox#stepper::down-button {
     subcontrol-origin:border; width:18px; border:none; background:transparent; }
@@ -479,7 +479,7 @@ QLineEdit, QComboBox { background:$card; border:1px solid $border; border-radius
 QLineEdit:hover, QComboBox:hover { border-color:$border_hi; }
 QLineEdit:focus, QComboBox:focus, QComboBox:on { border-color:$accent; }
 QLineEdit { selection-background-color:$accent; selection-color:$on_accent; }
-QComboBox { padding:6px 10px; padding-right:30px; combobox-popup:0; }
+QComboBox { padding:6px 10px; padding-right:6px; combobox-popup:0; }
 QComboBox::drop-down { subcontrol-origin:padding; subcontrol-position:center right;
     width:26px; border:none; background:transparent; }
 QComboBox::down-arrow { image:url("$down"); width:10px; height:10px; }

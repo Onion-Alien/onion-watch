@@ -34,7 +34,9 @@ from PySide6.QtGui import (QColor, QFontMetrics, QIcon, QImage, QKeySequence, QP
 from PySide6.QtWidgets import (QApplication, QBoxLayout, QCheckBox, QComboBox, QDoubleSpinBox,
                                QFileDialog, QFrame, QGridLayout, QHBoxLayout, QLabel,
                                QLineEdit, QMenu, QMessageBox, QPushButton, QScrollArea,
-                               QSizePolicy, QSpinBox, QVBoxLayout, QWidget)
+                               QSizePolicy, QSpinBox, QStyle, QStyleOptionComboBox,
+                               QStyleOptionSpinBox,
+                               QVBoxLayout, QWidget)
 
 from onionwatch import cutout, owl, packs, profiles, screenwatch, theme, windows
 from onionwatch.screenwatch import (INTERVALS_MS, MAX_PICTURES, MAX_SOUNDS, Monitor, Picture,
@@ -368,24 +370,76 @@ def narrow(combo: QComboBox, chars: int) -> QComboBox:
 
 
 class WideCombo(QComboBox):
-    """A list as wide as its longest entry when there's room ("Screen 2: 1920×1080"
-    isn't cut off) that still gives way when the window is small. A plain
-    AdjustToContents list can never be narrower than its entries, and the tab, so
-    the whole window, then can't shrink below it (the window must fit 300 px)."""
+    """A list as wide as the entry it shows when there's room ("Screen 2: 1920×1080"
+    isn't cut off, "it shows up" isn't padded out to its longest entry's width) that
+    still gives way when the window is small; its open list is as wide as its longest
+    entry. A plain AdjustToContents list can never be narrower than its entries, and
+    the tab, so the whole window, then can't shrink below it (the window must fit
+    300 px)."""
 
     MIN_WIDTH = 90
 
     def __init__(self, parent: QWidget | None = None, min_width: int = MIN_WIDTH):
         super().__init__(parent)
         self.min_width = min_width
-        self.setSizeAdjustPolicy(QComboBox.AdjustToContents)   # sizeHint: the entries
+        self.setSizeAdjustPolicy(QComboBox.AdjustToContents)   # (the open list's width)
         pol = self.sizePolicy()
         pol.setHorizontalPolicy(QSizePolicy.Maximum)   # up to that, down to min_width
         self.setSizePolicy(pol)
+        self.currentIndexChanged.connect(self.updateGeometry)   # its width follows it
+
+    def sizeHint(self) -> QSize:
+        s = super().sizeHint()          # the longest entry's
+        opt = QStyleOptionComboBox()
+        self.initStyleOption(opt)
+        text = self.fontMetrics().horizontalAdvance(self.currentText())
+        if not self.itemIcon(self.currentIndex()).isNull():
+            text += self.iconSize().width() + 4
+        w = self.style().sizeFromContents(QStyle.CT_ComboBox, opt,
+                                          QSize(text, s.height()), self).width()
+        return QSize(min(s.width(), w + 4), s.height())
 
     def minimumSizeHint(self) -> QSize:
         s = super().minimumSizeHint()
-        return QSize(min(s.width(), self.min_width), s.height())
+        return QSize(min(s.width(), self.min_width, self.sizeHint().width()), s.height())
+
+    def showPopup(self):
+        # open as wide as the longest entry, however narrow the list is shut
+        self.view().setMinimumWidth(super().sizeHint().width())
+        super().showPopup()
+
+
+def _spin_hint(sb, s: QSize) -> QSize:
+    """`s` (a number box's size hint) trimmed to its longest number, suffix and all:
+    Qt leaves room for a few more letters than it ever shows."""
+    fm = sb.fontMetrics()
+    text = max(fm.horizontalAdvance(sb.prefix() + sb.textFromValue(v) + sb.suffix())
+               for v in (sb.minimum(), sb.maximum()))
+    opt = QStyleOptionSpinBox()
+    sb.initStyleOption(opt)
+    opt.rect = QRect(0, 0, s.width(), s.height())
+    edit = sb.style().subControlRect(QStyle.CC_SpinBox, opt, QStyle.SC_SpinBoxEditField, sb)
+    return QSize(s.width() - max(0, edit.width() - text - 8), s.height())
+
+
+class FitSpin(QSpinBox):
+    """A whole-number box as wide as its numbers (see _spin_hint)."""
+
+    def sizeHint(self) -> QSize:
+        return _spin_hint(self, super().sizeHint())
+
+    def minimumSizeHint(self) -> QSize:
+        return self.sizeHint()
+
+
+class FitDoubleSpin(QDoubleSpinBox):
+    """A number box as wide as its numbers (see _spin_hint)."""
+
+    def sizeHint(self) -> QSize:
+        return _spin_hint(self, super().sizeHint())
+
+    def minimumSizeHint(self) -> QSize:
+        return self.sizeHint()
 
 
 def _row_width(widgets: list[QWidget], gap: int = 8, least: bool = True) -> int:
@@ -1340,8 +1394,7 @@ class TriggerRow(QFrame):
         self.sounds_row = self.sounds_box.flow
         self.lbl_play = QLabel(_("then play"))
         self.chips: list[QFrame] = []
-        self.sound = QComboBox()
-        narrow(self.sound, max(10, len(_("+ Add sound…")) - 1))   # its resting words show
+        self.sound = WideCombo()        # as wide as its resting "+ Add sound…"
         self.sound.setToolTip(_("Add a sound to play: a built-in alert, or a sound file of yours"))
         no_wheel(self.sound)
         self.sound.activated.connect(self._on_sound)
@@ -1373,7 +1426,7 @@ class TriggerRow(QFrame):
         tune.addWidget(self.btn_tune)
         self.tune_text = ElideLabel()
         self.tune_text.setObjectName("hint")
-        self.tune_text.set_elide(True)      # one line: the whole of it is its tooltip
+        self.tune_text.setWordWrap(True)    # wraps when narrow, never cut short
         self.tune_text.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
         tune.addWidget(self.tune_text, 1)
         tune.addWidget(self.btn_test)       # on this line: the sounds' line stays short
@@ -1439,7 +1492,7 @@ class TriggerRow(QFrame):
         self.until.currentIndexChanged.connect(self._on_until)
         self.ring_box = Pair(self.chk_ring, self.until)
         row.addWidget(self.ring_box)
-        self.delay = QDoubleSpinBox()
+        self.delay = FitDoubleSpin()
         self.delay.setRange(0.0, 60.0)
         self.delay.setDecimals(1)
         self.delay.setSingleStep(0.5)
@@ -1447,7 +1500,7 @@ class TriggerRow(QFrame):
         self.delay.setValue(t.delay)
         self.delay.setToolTip(_("How long after it goes off to play the sound (0 = straight away)"))
         row.addWidget(labelled(_("Wait"), self.delay, in_card=True))
-        self.cooldown = QDoubleSpinBox()
+        self.cooldown = FitDoubleSpin()
         self.cooldown.setRange(0.0, 600.0)
         self.cooldown.setDecimals(0)
         self.cooldown.setSingleStep(1.0)
@@ -1456,7 +1509,7 @@ class TriggerRow(QFrame):
         self.cooldown.setToolTip(_("After playing, ignore this trigger for this long. It also "
                                    "has to stop before it can play again."))
         row.addWidget(labelled(_("Not again for"), self.cooldown, in_card=True))
-        self.hold = QDoubleSpinBox()
+        self.hold = FitDoubleSpin()
         self.hold.setRange(0.0, screenwatch.MAX_HOLD)
         self.hold.setDecimals(1)
         self.hold.setSingleStep(0.5)
@@ -1466,7 +1519,7 @@ class TriggerRow(QFrame):
         self.hold_box = hold = labelled("", self.hold, in_card=True)
         hold.layout().insertWidget(0, self.lbl_hold)
         row.addWidget(hold)
-        self.threshold = QSpinBox()
+        self.threshold = FitSpin()
         self.threshold.setObjectName("stepper")   # arrows like Wait / Not again for
         self.threshold.setSuffix(" %")
         self.below = WideCombo(min_width=70)
