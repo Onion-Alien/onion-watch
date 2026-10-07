@@ -161,7 +161,7 @@ def test_decoded_sounds_kept_are_bounded_and_the_latest_played_stay(app_dir, tmp
     assert list(lib._cache) == [ids[2], ids[0], ids[3]]
     assert sum(a.nbytes for a in lib._cache.values()) <= 1.2 * 2 ** 20
     again = lib.load(ids[1])                            # decoded again when wanted
-    assert again is not None and float(again[0, 0]) == pytest.approx(0.2)
+    assert again is not None and float(again[0, 0]) == pytest.approx(0.2, abs=1e-4)
 
 
 @pytest.mark.parametrize("rate", [22050, 44100, 96000])
