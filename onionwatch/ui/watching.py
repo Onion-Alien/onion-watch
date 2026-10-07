@@ -141,6 +141,8 @@ class WatchingDialog(QDialog):
         buttons = QDialogButtonBox(QDialogButtonBox.Close)
         buttons.rejected.connect(self.reject)
         v.addWidget(buttons)
+        # never narrower than its contents: a translation's long radio buttons
+        self.setMinimumWidth(max(420, v.minimumSize().width()))
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._show_now)
         self._timer.start(500)

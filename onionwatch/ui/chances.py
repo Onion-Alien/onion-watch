@@ -159,7 +159,14 @@ class ChanceRow(QFrame):
         self.bar = _Bar()
         h.addWidget(self.bar, 1)
         self.word = QLabel()
-        self.word.setFixedWidth(96)
+        # as wide as the longest state word (a translation can be longer), the same on
+        # every row so the bars end in line
+        bold = QFont(self.word.font())
+        bold.setBold(True)
+        fm = QFontMetrics(bold)
+        self.word.setFixedWidth(max(96, 8 + max(fm.horizontalAdvance(w) for w in (
+            _("Off"), _("Not set up"), _("Playing"), _("Ready"), _("Waiting"),
+            _("Cooldown"), _("Watching"), "100%"))))
         self.word.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         self.word.setTextFormat(Qt.RichText)
         self.word.setStyleSheet("background:transparent;")
