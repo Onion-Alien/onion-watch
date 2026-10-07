@@ -15,8 +15,8 @@ until you're back.
 ## ⬇️ [Download Onion Watch for Windows](https://github.com/Onion-Alien/onion-watch/releases/latest/download/OnionWatch-Installer.exe)
 
 <!-- release -->
-Version **0.9.0** · Windows 10 / 11 · free, no account, no internet needed ·
-[VirusTotal: 68 of 68 clean](https://www.virustotal.com/gui/file/36de902070d60137e625a3e07576edeeaa295f16cbb90322f861e8fa1278dbdf) · [what's new](https://github.com/Onion-Alien/onion-watch/releases/latest)
+Version **0.9.1** · Windows 10 / 11 · free, no account, no internet needed ·
+[VirusTotal: 64 of 64 clean](https://www.virustotal.com/gui/file/8624c7986f6fd8edce2dd72f213230e996cb2b213aeae0e06f7adb6bb74ce673) · [what's new](https://github.com/Onion-Alien/onion-watch/releases/latest)
 <!-- /release -->
 
 ![Onion Watch watching a game, one trigger open](docs/screenshots/main.png?v=9ef68566)
@@ -49,8 +49,10 @@ Settings → Updates and privacy.
   alert with a picture of the moment.
 - **Built-in alert sounds** or your own files. Categories, profiles that switch on
   with a game, search, and Recently deleted.
-- **In your language**: English, Deutsch, Español, Français, Português (Brasil) and
-  Русский (Settings → Look → Language; inside Onion Board it follows the board).
+- **In your language**: English, Deutsch, Español, Français, Italiano, Nederlands, Polski, Português
+  (Brasil), Türkçe, Bahasa Indonesia, Tiếng Việt, Русский, Українська, العربية,
+  हिन्दी, ไทย, 简体中文, 繁體中文, 日本語 and 한국어
+  (Settings → Look → Language; inside Onion Board it follows the board).
   Want another one? See [docs/TRANSLATING.md](docs/TRANSLATING.md).
 
 The full list and how the matching works: [docs/FEATURES.md](docs/FEATURES.md).

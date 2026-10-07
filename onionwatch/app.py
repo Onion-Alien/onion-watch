@@ -127,6 +127,11 @@ def main():
     app = QApplication(sys.argv)
     app.setApplicationName("Onion Watch")
     app.setQuitOnLastWindowClosed(False)     # the tray keeps it going
+    if i18n.is_rtl():                        # Arabic: every window mirrored
+        from PySide6.QtCore import Qt
+        app.setLayoutDirection(Qt.RightToLeft)
+    from onionwatch import theme
+    i18n.use_fonts(theme.font_families())
     i18n.translate_qt_buttons(app)
     if not claim_single_instance(RESTART_WAIT_S if RESTART_ARG in sys.argv else 0.0):
         log.info("another Onion Watch is running; asked it to come to the front")

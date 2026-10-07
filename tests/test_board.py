@@ -77,3 +77,25 @@ def test_the_board_is_told_what_it_may_squeeze(tab):
 def test_the_board_can_reach_the_more_menu(tab):
     """Onion Board puts "Remove Onion Watch…" last in the add-on's More menu."""
     assert tab.btn_more is tab.panel.btn_more and tab.btn_more.menu() is not None
+
+
+@pytest.mark.parametrize("board_rtl", [False, True])
+def test_in_arabic_the_tab_is_mirrored_unless_the_board_already_is(
+        qapp, tmp_path, monkeypatch, board_rtl):
+    from PySide6.QtCore import Qt
+
+    from onionwatch import i18n
+    monkeypatch.setattr(sw, "monitors", lambda: [Monitor(0, 0, W, H, True)])
+    monkeypatch.setattr(sw, "open_grabber", FakeGrabber)
+    monkeypatch.setenv(i18n.ENV, "ar")
+    qapp.setLayoutDirection(Qt.RightToLeft if board_rtl else Qt.LeftToRight)
+    try:
+        tab = board.create(FakeHost(tmp_path / "board"))
+        assert tab.layoutDirection() == Qt.RightToLeft
+        # the board mirrored the app: the tab follows it rather than setting its own
+        assert tab.testAttribute(Qt.WA_SetLayoutDirection) != board_rtl
+        tab.shutdown()
+    finally:
+        qapp.setLayoutDirection(Qt.LeftToRight)
+        i18n.set_language(i18n.ENGLISH)
+        theme.set_current(theme.DEFAULT)

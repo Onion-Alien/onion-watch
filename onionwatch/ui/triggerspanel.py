@@ -960,7 +960,8 @@ class Switch(QCheckBox):
         p.setBrush(QColor(theme.T.get("accent" if on else "off", "#888888")))
         p.drawRoundedRect(QRectF(0, 0, 40, 22), 11, 11)
         p.setBrush(QColor(theme.T.get("on_accent", "#ffffff") if on else "#ffffff"))
-        p.drawEllipse(QRectF(21 if on else 3, 3, 16, 16))
+        right = on != self.isRightToLeft()     # mirrored: on is on the left
+        p.drawEllipse(QRectF(21 if right else 3, 3, 16, 16))
 
 
 def divider() -> QFrame:
@@ -2976,6 +2977,7 @@ class TriggersTab(QWidget):
             if remember and self.host.ringing():
                 self.stop_ringing()     # you switched it off: you're here
             for row in self._cards():
+                row.watching = False    # else the card keeps saying "Watching"
                 row.show_score(None)
                 row.set_note(None)
         if remember:
