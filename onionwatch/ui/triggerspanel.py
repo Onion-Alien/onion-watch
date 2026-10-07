@@ -2517,11 +2517,25 @@ class TriggersTab(QWidget):
         ep = QVBoxLayout(self.editor_pane)
         ep.setContentsMargins(0, 0, 0, 0)
         ep.setSpacing(8)
-        self.editor_empty = hint_label(_("Pick a trigger on the left to change it, or click Cut "
-                                         "picture… below to make one."))
-        self.editor_empty.setAlignment(Qt.AlignCenter)
-        ep.addWidget(self.editor_empty)
-        ep.addStretch(1)
+        # nothing picked: a soft outlined box filling the pane, the hint in its middle
+        self.editor_empty = QFrame()
+        self.editor_empty.setObjectName("editorempty")
+        self.editor_empty.setStyleSheet("QFrame#editorempty { border: 1px dashed palette(mid);"
+                                        " border-radius: 12px; }")
+        ee = QVBoxLayout(self.editor_empty)
+        ee.setContentsMargins(32, 24, 32, 24)
+        ee.setSpacing(10)
+        ee.addStretch(1)
+        mark = QLabel()
+        icons.set_label_icon(mark, "triggers", size=40)
+        ee.addWidget(mark, 0, Qt.AlignHCenter)
+        hint = hint_label(_("Pick a trigger on the left to change it, or click Cut "
+                            "picture… below to make one."))
+        hint.setAlignment(Qt.AlignCenter)
+        ee.addWidget(hint)
+        ee.addStretch(1)
+        ep.addWidget(self.editor_empty, 1)
+        ep.addStretch(0)        # under a picked trigger: the gap (_empty_shown)
         self.editor_scroll.setWidget(self.editor_pane)
         self.editor_scroll.hide()
         bh.addWidget(self.editor_scroll, 1)
@@ -2532,8 +2546,11 @@ class TriggersTab(QWidget):
         f = QFrame()
         f.setObjectName("transport")
         self.toolbar = f
-        h = BarFlow(f, gap=6)
-        h.setContentsMargins(10, 8, 10, 8)
+        # roomier buttons than elsewhere: the bar's few big actions read as buttons, not a
+        # packed strip (only padding: their colours stay the theme's)
+        f.setStyleSheet("QPushButton { padding: 8px 16px; }")
+        h = BarFlow(f, gap=10)
+        h.setContentsMargins(12, 10, 12, 10)
         self.btn_watch = QPushButton()
         self.btn_watch.setObjectName("live")
         self.btn_watch.setCheckable(True)
@@ -2709,7 +2726,7 @@ class TriggersTab(QWidget):
         ed.show_score(row._score)       # what its tile shows, until the next check
         self.editor = ed
         self.editor_pane.layout().insertWidget(0, ed)
-        self.editor_empty.hide()
+        self._empty_shown(False)
         for r in self.rows.values():
             r.set_selected(r.t is t)
 
@@ -2721,7 +2738,13 @@ class TriggersTab(QWidget):
             ed.deleteLater()
         for r in self.rows.values():
             r.set_selected(False)
-        self.editor_empty.show()
+        self._empty_shown(True)
+
+    def _empty_shown(self, on: bool):
+        """The nothing-picked box, filling the pane; or the gap under a picked trigger."""
+        ep = self.editor_pane.layout()
+        ep.setStretch(ep.count() - 1, 0 if on else 1)
+        self.editor_empty.setVisible(on)
 
     def _cards(self) -> list[TriggerRow]:
         """Every card made: the list's, and the editor."""
