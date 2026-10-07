@@ -2,6 +2,13 @@
 
 What changed between releases, for the release notes. Newest first.
 
+## Unreleased
+
+- **Lighter Triggers tab**: a closed trigger card makes its editor only when it's
+  first opened (about 4x quicker and 3.5x less memory per card), the Log keeps small
+  pictures, and the alarm bar, Hoot and the live check rest while nothing needs
+  them. Cards look the same.
+
 ## 0.9.1 (2026-10-07)
 
 - **Live chances**: each trigger card shows a small bar filled to how close it is
