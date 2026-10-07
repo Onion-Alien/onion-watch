@@ -4060,8 +4060,8 @@ class Watcher:
                  shape: tuple[int, int], fresh: bool = False) -> bool:
         """Whether `lk`'s thing in one colour (lk.hue, one_colour()) shows at `box` in a
         colour no light makes of it (overlay_off()), on the capture's pixels at full size
-        (shrunk, thin letters blend with their outline). Kept in `cap.twins`, HUE_PER_CHECK
-        a check (then paced as _colour_cover() is); when it's not its turn, it isn't off."""
+        (shrunk, thin letters blend with their outline). Kept in `cap.twins`, HUE_PER_CHECK new
+        ones a check; when it's not its turn, it isn't off."""
         got = Watcher._colour_area(full, box, lk, shape)
         if got is None:
             return False
@@ -4071,10 +4071,9 @@ class Watcher:
         seen = cap.twins.get(ck)
         if seen is not None and seen[0] is lk.gray and seen[1] == px:
             return seen[2] > 0.0
-        if cap.hue_left > 0:
-            cap.hue_left -= 1
-        elif not (fresh and Watcher._cover_turn(cap, True)):
+        if cap.hue_left <= 0:
             return False
+        cap.hue_left -= 1
         off = False
         q = Pattern(g, mk)
         rgb = rgb_cut(*b)
