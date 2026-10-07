@@ -59,7 +59,6 @@ class WatchingDialog(QDialog):
         fit.watch(self)          # grows to fit its (translated) text
         self.panel = panel
         self.setWindowTitle(_("Watching"))
-        self.setMinimumWidth(420)
         outer = QVBoxLayout(self)
         outer.setSpacing(10)
         # the cards scroll when they're taller than the screen (a long translation on a
@@ -67,9 +66,15 @@ class WatchingDialog(QDialog):
         self.body = QWidget()
         self.body.setObjectName("watchingbody")
         self.body.setStyleSheet("QWidget#watchingbody { background: transparent; }")
-        v = QVBoxLayout(self.body)
-        v.setContentsMargins(0, 0, 0, 0)
-        v.setSpacing(10)
+        # two columns of cards: one long column ran the height of the screen
+        cols = QHBoxLayout(self.body)
+        cols.setContentsMargins(0, 0, 0, 0)
+        cols.setSpacing(12)
+        left, right = QVBoxLayout(), QVBoxLayout()
+        for c in (left, right):
+            c.setSpacing(10)
+            cols.addLayout(c, 1)
+        v = left
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
         self.scroll.setFrameShape(QFrame.NoFrame)
@@ -115,6 +120,7 @@ class WatchingDialog(QDialog):
         (self.radios.get(current) or self.radios[screenwatch.CPU_SHARE]).setChecked(True)
         self.group.idToggled.connect(self._picked)
         v.addWidget(box)
+        v = right
         box, bv = card(_("MAX DETECTION"), _("Look as hard as it can, for pictures shown "
                                      "bigger or smaller than they were cut too, whatever it "
                                      "costs."))
@@ -154,13 +160,14 @@ class WatchingDialog(QDialog):
         self.now.setWordWrap(True)
         bv.addWidget(self.now)
         v.addWidget(box)
-        v.addStretch(1)                 # spare height goes below the cards, not into them
+        for c in (left, right):
+            c.addStretch(1)             # spare height goes below the cards, not into them
         self.buttons = QDialogButtonBox(QDialogButtonBox.Close)
         self.buttons.rejected.connect(self.reject)
         outer.addWidget(self.buttons)
         # never narrower than its contents: a translation's long radio buttons
         bar = self.scroll.verticalScrollBar().sizeHint().width()
-        self.setMinimumWidth(max(420, v.minimumSize().width() + bar + 24))
+        self.setMinimumWidth(max(420, cols.minimumSize().width() + bar + 24))
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._show_now)
         self._timer.start(500)
@@ -170,11 +177,15 @@ class WatchingDialog(QDialog):
         super().showEvent(e)
         # wrapped text: only now, at its width, is the height it needs known: all of
         # the cards, as far as the screen allows (the rest scrolls)
+        screen = self.screen() or QApplication.primaryScreen()
+        # wide enough for both columns to read easily, as far as the screen allows
+        wide = max(self.width(), min(820, screen.availableGeometry().width() - 40))
+        self.resize(wide, self.height())
+        self.layout().activate()
         m = self.layout().contentsMargins()
         need = (self.body.layout().totalHeightForWidth(self.scroll.viewport().width())
                 + self.buttons.sizeHint().height() + self.layout().spacing()
                 + m.top() + m.bottom() + 2)
-        screen = self.screen() or QApplication.primaryScreen()
         room = screen.availableGeometry().height() - (self.frameGeometry().height()
                                                        - self.height())
         self.resize(self.width(), max(min(need, room), 300))
