@@ -8,9 +8,10 @@ choice holds in Onion Watch and in Onion Board's Triggers tab. "max_detect" is a
 of its own: a version without it keeps reading "cpu_share" as before."""
 from __future__ import annotations
 
-from PySide6.QtCore import QTimer
-from PySide6.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QDialog, QDialogButtonBox,
-                               QHBoxLayout, QLabel, QRadioButton, QVBoxLayout)
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtWidgets import (QApplication, QButtonGroup, QCheckBox, QComboBox, QDialog,
+                               QDialogButtonBox, QFrame, QHBoxLayout, QLabel, QRadioButton,
+                               QScrollArea, QVBoxLayout, QWidget)
 
 from onionwatch import screenwatch
 from onionwatch.ui.panel import card, hint_label
@@ -59,8 +60,24 @@ class WatchingDialog(QDialog):
         self.panel = panel
         self.setWindowTitle(_("Watching"))
         self.setMinimumWidth(420)
-        v = QVBoxLayout(self)
+        outer = QVBoxLayout(self)
+        outer.setSpacing(10)
+        # the cards scroll when they're taller than the screen (a long translation on a
+        # small screen) instead of being squashed over each other
+        self.body = QWidget()
+        self.body.setObjectName("watchingbody")
+        self.body.setStyleSheet("QWidget#watchingbody { background: transparent; }")
+        v = QVBoxLayout(self.body)
+        v.setContentsMargins(0, 0, 0, 0)
         v.setSpacing(10)
+        self.scroll = QScrollArea()
+        self.scroll.setWidgetResizable(True)
+        self.scroll.setFrameShape(QFrame.NoFrame)
+        self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.scroll.setStyleSheet("QScrollArea { background: transparent; }")
+        self.scroll.viewport().setAutoFillBackground(False)
+        self.scroll.setWidget(self.body)
+        outer.addWidget(self.scroll, 1)
         from onionwatch.ui.triggerspanel import interval_label
         box, bv = card(_("CHECK SPEED"), _("How often each trigger left on “Default” looks. "
                                    "A trigger can have its own speed: “Check every”, on its "
@@ -138,11 +155,12 @@ class WatchingDialog(QDialog):
         bv.addWidget(self.now)
         v.addWidget(box)
         v.addStretch(1)                 # spare height goes below the cards, not into them
-        buttons = QDialogButtonBox(QDialogButtonBox.Close)
-        buttons.rejected.connect(self.reject)
-        v.addWidget(buttons)
+        self.buttons = QDialogButtonBox(QDialogButtonBox.Close)
+        self.buttons.rejected.connect(self.reject)
+        outer.addWidget(self.buttons)
         # never narrower than its contents: a translation's long radio buttons
-        self.setMinimumWidth(max(420, v.minimumSize().width()))
+        bar = self.scroll.verticalScrollBar().sizeHint().width()
+        self.setMinimumWidth(max(420, v.minimumSize().width() + bar + 24))
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._show_now)
         self._timer.start(500)
@@ -150,10 +168,16 @@ class WatchingDialog(QDialog):
 
     def showEvent(self, e):
         super().showEvent(e)
-        # wrapped text: only now, at its width, is the height it needs known
-        h = self.layout().heightForWidth(self.width())
-        if h > 0:
-            self.resize(self.width(), h)
+        # wrapped text: only now, at its width, is the height it needs known: all of
+        # the cards, as far as the screen allows (the rest scrolls)
+        m = self.layout().contentsMargins()
+        need = (self.body.layout().totalHeightForWidth(self.scroll.viewport().width())
+                + self.buttons.sizeHint().height() + self.layout().spacing()
+                + m.top() + m.bottom() + 2)
+        screen = self.screen() or QApplication.primaryScreen()
+        room = screen.availableGeometry().height() - (self.frameGeometry().height()
+                                                       - self.height())
+        self.resize(self.width(), max(min(need, room), 300))
 
     def _picked_speed(self, _i: int):
         self.panel.set_default_interval(self.speed.currentData())

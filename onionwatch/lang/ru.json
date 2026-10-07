@@ -722,5 +722,9 @@
   "{what} in {place}, {score}%": "{what} в {place}, {score}%",
   "{what} in {place}.": "{what} в {place}.",
   "{where} comes out black, so there's nothing to cut. Some games can only be seen on the screen: pick its screen under Look in instead.": "{where} получается чёрным, так что вырезать нечего. Некоторые игры видно только на экране: выбери вместо этого его экран в «Где искать».",
-  "{width}×{height} pixels": "{width}×{height} пикс."
+  "{width}×{height} pixels": "{width}×{height} пикс.",
+  "Window": "Окно",
+  "{name} (every copy)": "{name} (все копии)",
+  "{name} (copy {n})": "{name} (копия {n})",
+  "{ms} ms": "{ms} мс"
 }

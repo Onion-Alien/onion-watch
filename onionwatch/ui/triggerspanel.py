@@ -405,7 +405,7 @@ def triggers(n: int) -> str:
 
 def interval_label(ms: int) -> str:
     """A check speed in a list: "250 ms", "16 ms (every frame)"."""
-    return _("{ms} ms (every frame)", ms=ms) if ms == 16 else f"{ms} ms"
+    return _("{ms} ms (every frame)", ms=ms) if ms == 16 else _("{ms} ms", ms=ms)
 
 
 def paint_plate(widget: QWidget):
@@ -1262,7 +1262,7 @@ class TriggerRow(QFrame):
         self.lbl_play = QLabel(_("then play"))
         self.chips: list[QFrame] = []
         self.sound = QComboBox()
-        narrow(self.sound, 10)
+        narrow(self.sound, max(10, len(_("+ Add sound…")) - 1))   # its resting words show
         self.sound.setToolTip(_("Add a sound to play: a built-in alert, or a sound file of yours"))
         no_wheel(self.sound)
         self.sound.activated.connect(self._on_sound)

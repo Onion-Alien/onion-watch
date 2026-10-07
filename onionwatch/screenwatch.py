@@ -361,10 +361,10 @@ class WindowRef:
 
     @property
     def label(self) -> str:
-        name = self.title or self.exe or "Window"
+        name = self.title or self.exe or i18n._("Window")
         if self.every:
-            return f"{name} (every copy)"
-        return name + (f" (copy {self.nth + 1})" if self.nth else "")
+            return i18n._("{name} (every copy)", name=name)
+        return i18n._("{name} (copy {n})", name=name, n=self.nth + 1) if self.nth else name
 
     @classmethod
     def from_raw(cls, d) -> WindowRef | None:

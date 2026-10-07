@@ -226,6 +226,8 @@ def translate_qt_buttons(app) -> bool:
 
     _translator = ButtonWords(app)
     app.installTranslator(_translator)
+    # out again before Python shuts down: Qt mustn't call into it while it does
+    app.aboutToQuit.connect(lambda: app.removeTranslator(_translator))
     return True
 
 

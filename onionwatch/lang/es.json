@@ -710,5 +710,9 @@
   "{what} in {place}, {score}%": "{what} en {place}, {score}%",
   "{what} in {place}.": "{what} en {place}.",
   "{where} comes out black, so there's nothing to cut. Some games can only be seen on the screen: pick its screen under Look in instead.": "{where} sale en negro, así que no hay nada que recortar. Algunos juegos solo se pueden ver en la pantalla: elige mejor su pantalla en Buscar en.",
-  "{width}×{height} pixels": "{width}×{height} píxeles"
+  "{width}×{height} pixels": "{width}×{height} píxeles",
+  "Window": "Ventana",
+  "{name} (every copy)": "{name} (todas las copias)",
+  "{name} (copy {n})": "{name} (copia {n})",
+  "{ms} ms": "{ms} ms"
 }

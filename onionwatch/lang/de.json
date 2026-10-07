@@ -710,5 +710,9 @@
   "{what} in {place}, {score}%": "{what} in {place}, {score}%",
   "{what} in {place}.": "{what} – {place}.",
   "{where} comes out black, so there's nothing to cut. Some games can only be seen on the screen: pick its screen under Look in instead.": "{where} bleibt schwarz, also gibt es nichts auszuschneiden. Manche Spiele sieht man nur auf dem Bildschirm: Wähl stattdessen seinen Bildschirm unter „Suchen in“.",
-  "{width}×{height} pixels": "{width}×{height} Pixel"
+  "{width}×{height} pixels": "{width}×{height} Pixel",
+  "Window": "Fenster",
+  "{name} (every copy)": "{name} (jede Kopie)",
+  "{name} (copy {n})": "{name} (Kopie {n})",
+  "{ms} ms": "{ms} ms"
 }

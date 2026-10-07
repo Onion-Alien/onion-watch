@@ -326,12 +326,20 @@ class ChancesDialog(QDialog):
         foot = QHBoxLayout()
         self.foot = QLabel()
         self.foot.setObjectName("muted")
+        self.foot.setWordWrap(True)     # a translation can be longer than the room
         foot.addWidget(self.foot, 1)
         close = QPushButton(_("Close"))
         close.clicked.connect(self.accept)
         foot.addWidget(close)
         v.addLayout(foot)
         self._restyle()
+        # never narrower than its contents: the tools line and a trigger's row (both as
+        # long as the language makes them), with room for the list's scroll bar
+        probe = ChanceRow(type("T", (), {"id": ""})())
+        row = probe.minimumSizeHint().width() + self.scroll.verticalScrollBar().sizeHint().width()
+        probe.deleteLater()
+        m = v.contentsMargins()
+        self.setMinimumWidth(max(460, v.minimumSize().width(), row + m.left() + m.right()))
 
         self.rows: dict[str, ChanceRow] = {}
         self._order: list[str] = []
