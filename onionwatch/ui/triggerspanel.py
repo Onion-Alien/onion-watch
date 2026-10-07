@@ -4535,7 +4535,7 @@ class TriggersTab(QWidget):
         if img.isNull():
             QMessageBox.information(self, _("No picture copied"),
                                     _("Copy a picture first: press Win+Shift+S, drag around the "
-                                      "thing to look for, then click Paste picture."))
+                                      "thing to look for, then click “Paste the copied picture”."))
             return
         if self._add_pictures(row.t, [img]):
             self._store()

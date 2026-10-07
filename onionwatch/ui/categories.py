@@ -453,7 +453,7 @@ class CategorySection(QWidget):
         self.body_layout = self.body.flow
         self.empty = hint_label(_("No triggers in this category yet. Click + to make one here, "
                                   "drag one in, or pick it with Category, under a trigger's "
-                                  "Fine-tune."))
+                                  "More options."))
         self.body_layout.addWidget(self.empty)
         v.addWidget(self.body)
         # where a dragged card would land: a line in the accent colour
