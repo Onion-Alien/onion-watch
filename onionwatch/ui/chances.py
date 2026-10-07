@@ -53,10 +53,11 @@ def _mix(a: str, b: str, k: float) -> QColor:
 
 
 def paint_meter(p: QPainter, rect: QRectF, score: float, level: float, hot: bool,
-                below: bool = False):
+                below: bool = False, rtl: bool = False):
     """A rounded bar filled to `score` (0..1) with a tick at `level`. `hot`: it would
     go off now (the fill turns the theme's "ok" colour). `below`: it goes off under
-    the line, so the part under the tick is the side that counts."""
+    the line, so the part under the tick is the side that counts. `rtl`: filled from
+    the right (a right-to-left language)."""
     T = theme.T
     score = max(0.0, min(1.0, score))
     level = max(0.0, min(1.0, level))
@@ -77,9 +78,10 @@ def paint_meter(p: QPainter, rect: QRectF, score: float, level: float, hot: bool
         p.save()
         p.setClipPath(clip)
         p.setBrush(fill)
-        p.drawRoundedRect(QRectF(rect.x(), rect.y(), w, rect.height()), r, r)
+        left = rect.right() - w if rtl else rect.x()
+        p.drawRoundedRect(QRectF(left, rect.y(), w, rect.height()), r, r)
         p.restore()
-    x = rect.x() + rect.width() * level
+    x = rect.right() - rect.width() * level if rtl else rect.x() + rect.width() * level
     p.setBrush(QColor(T.get("text_hi", "#ffffff")))
     p.drawRoundedRect(QRectF(x - 1, rect.y() - 2, 2, rect.height() + 4), 1, 1)
 
@@ -119,12 +121,17 @@ class LiveLabel(QLabel):
         score, level, hot, below = self.meter
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing)
-        h, x0 = self.height(), self.contentsMargins().left()
-        paint_meter(p, QRectF(x0 + 1, h / 2 - 3.5, self.BAR_W, 7), score, level, hot, below)
+        h, m = self.height(), self.contentsMargins()
+        rtl = self.isRightToLeft()      # mirrored: the bar on the right, filling leftwards
+        rest = self.width() - m.left() - self.BAR_W - 6 - (m.right() if rtl else 0)
+        bar_x = self.width() - m.right() - self.BAR_W - 1 if rtl else m.left() + 1
+        paint_meter(p, QRectF(bar_x, h / 2 - 3.5, self.BAR_W, 7), score, level, hot, below,
+                    rtl)
         p.setFont(self._font())
         p.setPen(QColor(theme.status("ok") if hot else theme.T.get("text", "#e6e8f0")))
-        p.drawText(QRectF(x0 + self.BAR_W + 6, 0, self.width() - x0 - self.BAR_W - 6, h),
-                   Qt.AlignRight | Qt.AlignVCenter, f"{max(0, round(score * 100))}%")
+        text_x = m.left() if rtl else m.left() + self.BAR_W + 6
+        p.drawText(QRectF(text_x, 0, rest, h), Qt.AlignRight | Qt.AlignVCenter,
+                   f"{max(0, round(score * 100))}%")
         p.end()
 
 
@@ -221,10 +228,12 @@ class _Bar(QWidget):
             p.setBrush(QColor(theme.T.get("inset", "#1b1d26")))
             p.drawRoundedRect(rect, 5, 5)
             p.setBrush(QColor(theme.T.get("faint", "#6b7189")))
-            x = rect.x() + rect.width() * self.level
+            x = (rect.right() - rect.width() * self.level if self.isRightToLeft()
+                 else rect.x() + rect.width() * self.level)
             p.drawRoundedRect(QRectF(x - 1, rect.y() - 2, 2, rect.height() + 4), 1, 1)
         else:
-            paint_meter(p, rect, self.score, self.level, self.hot, self.below)
+            paint_meter(p, rect, self.score, self.level, self.hot, self.below,
+                        self.isRightToLeft())
         p.end()
 
 
