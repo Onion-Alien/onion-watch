@@ -18,7 +18,9 @@ from onionwatch.settings import Config
 from onionwatch.sounds import Library
 from onionwatch.ui import icons
 from onionwatch.ui.alarmbar import AlarmBar
+from onionwatch.ui.pages import TriggerPages
 from onionwatch.ui.triggerspanel import TriggersTab
+from onionwatch.i18n import _
 
 log = logging.getLogger(__name__)
 
@@ -33,6 +35,7 @@ class MainWindow(QMainWindow):
     def __init__(self, cfg: Config | None = None, player: Player | None = None):
         super().__init__()
         self.cfg = cfg if cfg is not None else Config.load()
+        self.started_language = self.cfg.language   # Settings: a change needs a restart
         self._quitting = False
         self._told_tray = False
         self._saver = QTimer(self)
@@ -62,14 +65,14 @@ class MainWindow(QMainWindow):
         names.setSpacing(0)
         self.wordmark = QLabel("ONION WATCH")
         self.wordmark.setObjectName("wordmark")
-        self.tagline = QLabel("an app by Onion Alien")
+        self.tagline = QLabel(_("an app by Onion Alien"))
         self.tagline.setObjectName("tagline")
         names.addWidget(self.wordmark)
         names.addWidget(self.tagline)
         head.addLayout(names)
         head.addStretch(1)
         self.btn_settings = QPushButton()
-        self.btn_settings.setToolTip("Settings: sound output, volume, notifications, theme")
+        self.btn_settings.setToolTip(_("Settings: sound output, volume, notifications, theme"))
         icons.set_icon(self.btn_settings, "settings")
         self.btn_settings.clicked.connect(self.open_settings)
         head.addWidget(self.btn_settings)
@@ -82,8 +85,9 @@ class MainWindow(QMainWindow):
         self.triggers.active_changed.connect(self._on_active)
         # the alarm bar: shown while a trigger rings, with the one button that matters
         self.alarm = AlarmBar(self.triggers)
-        rv.addWidget(self.alarm)
-        rv.addWidget(self.triggers, 1)
+        self.pages = TriggerPages(self.triggers, top=[self.alarm])
+        self.triggers.pages = self.pages
+        rv.addWidget(self.pages, 1)
 
         self._make_tray()
         self.alarm.changed.connect(self.act_stop.setEnabled)
@@ -114,19 +118,19 @@ class MainWindow(QMainWindow):
     def _make_tray(self):
         self.tray = QSystemTrayIcon(theme.app_icon(), self)
         menu = QMenu(self)
-        act_show = QAction("Show Onion Watch", self)
+        act_show = QAction(_("Show Onion Watch"), self)
         act_show.triggered.connect(self.bring_up)
         menu.addAction(act_show)
-        self.act_watch = QAction("Watching", self)
+        self.act_watch = QAction(_("Watching"), self)
         self.act_watch.setCheckable(True)
         self.act_watch.toggled.connect(lambda on: self.triggers.set_watching(on))
         menu.addAction(self.act_watch)
-        self.act_stop = QAction("Stop ringing", self)
+        self.act_stop = QAction(_("Stop ringing"), self)
         self.act_stop.triggered.connect(self.stop_ringing)
         self.act_stop.setEnabled(False)
         menu.addAction(self.act_stop)
         menu.addSeparator()
-        act_quit = QAction("Quit", self)
+        act_quit = QAction(_("Quit"), self)
         act_quit.triggered.connect(self.quit)
         menu.addAction(act_quit)
         self.tray.setContextMenu(menu)
@@ -155,13 +159,14 @@ class MainWindow(QMainWindow):
         self.act_watch.blockSignals(True)
         self.act_watch.setChecked(on)
         self.act_watch.blockSignals(False)
-        self.tray.setToolTip("Onion Watch — watching" if on else "Onion Watch — not watching")
+        self.tray.setToolTip(_("Onion Watch — watching") if on
+                             else _("Onion Watch — not watching"))
         self.tray.setIcon(theme.app_icon(awake=on))   # the eye shuts while it isn't watching
 
     # ------------------------------------------------------------------ alarms
     def _on_fired(self, t):
         text = self.triggers.alert_text(t)
-        self._notify(t.name, text + (" Click here to stop." if t.ring else ""))
+        self._notify(t.name, text + (" " + _("Click here to stop.") if t.ring else ""))
         QApplication.alert(self, 0 if t.ring else 3000)   # flash the taskbar button
 
     def _notify(self, title: str, body: str):
@@ -176,6 +181,13 @@ class MainWindow(QMainWindow):
         from onionwatch.ui.settingsdialog import SettingsDialog
         dlg = SettingsDialog(self)
         dlg.exec()
+
+    def restart(self):
+        """Settings' Restart now (a new language): saved, quit, and started again."""
+        from onionwatch import app
+        self.save_now()
+        if app.restart():
+            self.quit()
 
     def set_theme(self, name: str):
         self.cfg.theme = theme.apply(QApplication.instance(), name)
@@ -220,8 +232,8 @@ class MainWindow(QMainWindow):
             self.hide()
             if not self._told_tray:
                 self._told_tray = True
-                self.tray.showMessage("Onion Watch is still watching",
-                                      "It's in the tray by the clock. Right-click it to quit.",
+                self.tray.showMessage(_("Onion Watch is still watching"),
+                                      _("It's in the tray by the clock. Right-click it to quit."),
                                       theme.app_icon(), 5000)
             self.cfg.geometry = bytes(self.saveGeometry().toHex()).decode()
             self.save_later()

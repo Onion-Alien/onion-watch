@@ -44,6 +44,7 @@ def test_update_event():
 
 
 def test_nothing_sent_from_source_or_when_off(monkeypatch):
+    monkeypatch.delenv("ONIONBOARD_NO_STATS", raising=False)   # as on anyone's PC
     sent = []
     monkeypatch.setattr(usage, "send", lambda p: sent.append(p) or True)
     assert usage.maybe_send(cfg()) is None                  # from source: never
@@ -52,6 +53,15 @@ def test_nothing_sent_from_source_or_when_off(monkeypatch):
     c = cfg()
     usage.maybe_send(c).join(5)
     assert len(sent) == 1 and c.stats_sent > 0
+
+
+def test_nothing_sent_from_a_dev_pc(monkeypatch):
+    """ONIONBOARD_NO_STATS (the developer's PCs and test VMs): never, even switched on."""
+    sent = []
+    monkeypatch.setattr(usage, "send", lambda p: sent.append(p) or True)
+    monkeypatch.setattr(usage.sys, "frozen", True, raising=False)
+    monkeypatch.setenv("ONIONBOARD_NO_STATS", "1")
+    assert usage.maybe_send(cfg()) is None and sent == []
 
 
 def test_old_settings_start_with_it_off(tmp_path):

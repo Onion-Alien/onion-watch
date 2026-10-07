@@ -167,11 +167,23 @@ def test_a_card_says_when_its_window_is_not_open(tab, qapp, monkeypatch):
     row = next(iter(tab.rows.values()))
     row.t.window = ref
     tab._store()
+    tab.show()      # notes are only worked out while the tab can be seen
     tab.watcher.interval = 0.01
     tab.set_watching(True)
     assert process_events(qapp, lambda: row.state.text() == "Waiting for Game to open")
     tab.set_watching(False)
     assert not row.state.text().startswith("Waiting")
+
+
+def test_a_card_stops_saying_watching_once_watching_stops(tab, qapp, monkeypatch):
+    monkeypatch.setattr(tab, "isVisible", lambda: True)    # the poll only paints when shown
+    tab._new(as_qimage(banner()), "Rare")
+    row = next(iter(tab.rows.values()))
+    tab.watcher.interval = 0.01
+    tab.set_watching(True)
+    assert process_events(qapp, lambda: row.watching)
+    tab.set_watching(False)
+    assert not row.watching and "Watching" not in row.live.text()
 
 
 def test_a_card_says_when_its_window_never_comes_out(tab, qapp, monkeypatch):
@@ -198,6 +210,7 @@ def test_a_card_says_when_its_window_never_comes_out(tab, qapp, monkeypatch):
     row = next(iter(tab.rows.values()))
     row.t.window = ref
     tab._store()
+    tab.show()
     tab.watcher.interval = 0.01
     tab.set_watching(True)
     assert process_events(qapp, lambda: row.state.text().startswith("Game can't be captured"))
@@ -484,10 +497,10 @@ def test_the_delete_button_asks_first(tab, monkeypatch):
     monkeypatch.setattr(box, "exec", lambda self: box.Cancel)
     tab._new(as_qimage(banner()), "Keep me")
     row = tab.rows[tab.triggers[0].id]
-    row.btn_del.click()
+    row.act_del.trigger()
     assert [t.name for t in tab.triggers] == ["Keep me"]
     monkeypatch.setattr(box, "exec", lambda self: box.Yes)
-    row.btn_del.click()
+    row.act_del.trigger()
     assert tab.triggers == [] and tab.deleted()[0][1] == "Keep me"
 
 

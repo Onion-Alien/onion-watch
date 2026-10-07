@@ -68,12 +68,14 @@ from dataclasses import asdict, dataclass, field
 
 import numpy as np
 
+from onionwatch import i18n
 from onionwatch.imgops import (binary_erosion, gaussian_filter, irfft2, next_fast_len, rfft2,
                               zoom_linear)
 
 log = logging.getLogger(__name__)
 
 WORK_WIDTH = 480        # the screen is shrunk to about this wide before matching
+LOG_PICTURE_W = 480     # a Hit's picture of the window (the Log) is about this wide
 MIN_SIDE = 12           # a picture's short side, shrunk, can't be less than this and match
 # ...and the screen is shrunk no further than keeps the smallest picture this big:
 # at a dozen pixels a line of small text is a smudge (one cut over a moving scene
@@ -101,6 +103,12 @@ SOFT_MASK_MIN = 400
 # so sizes that close count as one. The sweep steps SWEEP_STEP apart, and a step
 # scoring within PROMISING of the threshold is tried again either side of it.
 SIZES = (0.5, 2.0)
+# A picture that wasn't cut from the game (a file from the web: `Watched.wide`) says
+# nothing about the size it's drawn at, so it's swept from WIDE_SIZES[0] to
+# WIDE_SIZES[1] times its own size instead, "any size" or not. It's shrunk when it's
+# added to fit well inside what's watched (the UI's WEB_FILL), so the low end reaches
+# an icon a few dozen pixels high
+WIDE_SIZES = (0.04, 2.0)
 SAME = 0.025
 SWEEP_STEP = 1.06
 SWEEP_PER_CHECK = 2     # sizes a trigger sweeps on its turn
@@ -118,11 +126,18 @@ SWEEP_MIN_SIDE = 6      # ...skipping those that shrink a picture below this
 # whole frame does. A frame changed over more than HUNT_MAX_SHARE of it (the scene
 # moving, a new screen) has nothing to narrow it down to. At most HUNT_PER_CHECK
 # sizes a check, all triggers together; what's left waits for the next checks, up to
-# HUNT_CHECKS of them (the patch may have changed again by then).
+# HUNT_CHECKS of them (the patch may have changed again by then). A size counts as
+# one on an area up to HUNT_SMALL of the frame (an icon's patch with its room), more
+# on a bigger one, (area / HUNT_SMALL) ** HUNT_POW: the area looked in about a patch
+# (HUNT_ROOM) is often the whole frame in a moving game, where 240 sizes each a
+# whole-frame match cost a second a check, and the 1 % pacing spaced checks out to
+# ~11 s. Linear (1.0) halved that; 2.0 also lost a find of a window's "size" round.
 HUNT_LEVEL = 0.06
 HUNT_CELL = 8
 HUNT_MAX_SHARE = 0.3
 HUNT_PER_CHECK = 240
+HUNT_SMALL = 0.15
+HUNT_POW = 1.5
 HUNT_CHECKS = 4
 HUNT_BOXES = 6          # changed patches kept per capture: the biggest
 HUNT_ROOM = 1.3         # a picture up to this much bigger than a patch is looked for in it
@@ -138,6 +153,24 @@ HUNT_PROMISING = 0.3    # ...the hunt's (HUNT_SIZES are two sweep steps apart)
 # structure() on the screen's own pixels at full size: the thing does (0.84 there), the
 # scenery that fit at the working size doesn't (0.02-0.62 on game footage).
 FINE_SHAPE = 0.65
+# A match where the picture is small (under SMALL_AREA px on the frame it's matched on)
+# has few pixels to go by: a patch of flat colour with one bright corner or one line in
+# it matches most scenery with a bright thing or a line there (0.97 on game footage).
+# So it counts only if the picture keeps SMALL_SHAPE of structure() on the screen's own
+# pixels at full size, at the size found or up to SMALL_STEPS CONFIRM_STEPs either side
+# (the sweep's sizes are coarser than a shape at full size holds). On game footage real
+# finds keep 0.9 (95 % of them over 0.5), the scenery that fit 0.1-0.4, now and then 0.5
+# (0.6 takes 3 false alarms in 4 away and 1 find in 400; 0.7 a few more of each).
+SMALL_AREA = 900
+SMALL_SHAPE = 0.6
+SMALL_STEPS = 4             # (a cut-out is scored on its opaque part: cut_structure())
+# A cut-out found well under the size it was cut at (under CUT_LOW_K of it) has to
+# keep CUT_LOW_SHAPE, whatever its size on the frame: shrunk that far, a cut-out's
+# few pixels are a smooth blob that some scenery fits, and keeps 0.5-0.7 of its shape
+# by chance (most of the cut-outs' false alarms on game footage were at the sweep's
+# smallest sizes, 0.5-0.65).
+CUT_LOW_K = 0.7
+CUT_LOW_SHAPE = 0.8
 SWEEP_DONE = 0.9        # a match scoring less may be at a size a little off: keep sweeping
 BLUR = 1.5
 BLUR_MIN_SIDE = 16
@@ -180,6 +213,7 @@ STRUCT_RATIO = 0.8
 # by STRUCT_BLUR px first: a capture is picked pixels, a picture smoothly resized,
 # and without it their finest detail disagrees (aliasing) even where the thing is.
 STRUCT_BLUR = 1.2
+STACK_MAX = 3000        # (px: structure() works on a picture's places together up to this)
 # A picture too small for the usual working size makes its capture finer (see
 # Watcher._fit), and is matched there; but it's found first at the usual size with
 # a stand-in (a copy shrunk to it, if that's at least PROXY_MIN px each way): its
@@ -248,6 +282,24 @@ TINT_OK = 0.25
 TINT_SPAN = 0.25
 TINT_FLOOR = 0.02
 TINT_FEW_CELLS = 5      # a picture with this many cells or fewer may have one covered
+# ...and the colour of its thing's most colourful part (one_colour(): letters' fill,
+# not their outline, ONE_HUE close to the most colourful pixels' colour, varying less
+# than ONE_COLOUR of its strength, which is at least ONE_COLOUR_MIN). Letters fill the
+# cells about equally (or none of them half), and then an offset per channel turns
+# green into red. Checked at full size (Watcher._hue_off, HUE_PER_CHECK a check), where
+# the thing is it must be a colour some light over the scene makes of it: a colour
+# laid over it up to OVERLAY_MAX strong (darker, brighter, washed out, a tint, a night
+# filter) adding up to OVERLAY_HUE of colour, the exposure OVERLAY_GAIN apart,
+# OVERLAY_TOL each channel (overlay_off()).
+OVERLAY_MAX = 0.65
+OVERLAY_GAIN = (0.8, 0.9, 1.0, 1.1, 1.25)
+OVERLAY_TOL = 0.05
+OVERLAY_HUE = 0.25
+ONE_COLOUR = 0.5
+ONE_COLOUR_MIN = 0.06
+ONE_HUE = 0.8           # ...counting the pixels whose colour points this close to it
+HUE_CHECK = True
+HUE_PER_CHECK = 3       # full-size colour checks of one-colour things a capture gets a check
 CORES = os.cpu_count() or 1
 REARM_MARGIN = 0.08     # a match must fall this far below the threshold to count as gone
 FLAT_STD = 2 / 255      # screen windows flatter than this never match (blank areas)
@@ -327,10 +379,10 @@ class WindowRef:
 
     @property
     def label(self) -> str:
-        name = self.title or self.exe or "Window"
+        name = self.title or self.exe or i18n._("Window")
         if self.every:
-            return f"{name} (every copy)"
-        return name + (f" (copy {self.nth + 1})" if self.nth else "")
+            return i18n._("{name} (every copy)", name=name)
+        return i18n._("{name} (copy {n})", name=name, n=self.nth + 1) if self.nth else name
 
     @classmethod
     def from_raw(cls, d) -> WindowRef | None:
@@ -801,7 +853,7 @@ def _confirm(full: Frame, p: Pattern, at: tuple[int, int], sc: float,
     if p._sharps is None:
         gray, mask, s = p.sharp
         p._sharps = []
-        for k in ((0,) if p.exact else (-2, -1, 0, 1, 2)):
+        for k in ((0,) if p.exact else (0, -1, 1, -2, 2)):     # its own size first
             f = s * CONFIRM_STEP ** k
             q = Pattern(resize(gray, f), None if mask is None else shrink_mask(mask, f))
             if q.ok:
@@ -817,16 +869,21 @@ def _confirm(full: Frame, p: Pattern, at: tuple[int, int], sc: float,
             area = full.s[y0:y1, x0:x1]
             best = max(best, _ncc_near(area, q) if th * tw <= DIRECT_MAX
                        else find(Frame(area), q)[0])
+            if best >= SOFT_CONFIRM and not p.exact:
+                break                       # it counts: the other sizes can't change that
     if p.exact:
         return best
     return sc if best >= SOFT_CONFIRM else min(sc, best)
 
 
 def _box_mean(a: np.ndarray, k: int) -> np.ndarray:
-    """Each pixel's mean over the k x k square around it (k odd; the edges carried out)."""
+    """Each pixel's mean over the k x k square around it (k odd; the edges carried out).
+    A stack of them (n, h, w): each one alike."""
     r = k // 2
-    c = np.pad(np.pad(a, r, mode="edge").cumsum(0).cumsum(1), ((1, 0), (1, 0)))
-    return (c[k:, k:] - c[:-k, k:] - c[k:, :-k] + c[:-k, :-k]) * (1.0 / (k * k))
+    lead = ((0, 0),) * (a.ndim - 2)
+    c = np.pad(np.pad(a, lead + ((r, r), (r, r)), mode="edge").cumsum(-2).cumsum(-1),
+               lead + ((1, 0), (1, 0)))
+    return (c[..., k:, k:] - c[..., :-k, k:] - c[..., k:, :-k] + c[..., :-k, :-k]) * (1.0 / (k * k))
 
 
 def structure(full: Frame, p: Pattern, at: tuple[int, int]) -> float:
@@ -863,19 +920,65 @@ def structure(full: Frame, p: Pattern, at: tuple[int, int]) -> float:
         _sc, (bx, by) = _ncc_at(area, p)
         places = [(by + dy, bx + dx) for dy in (-1, 0, 1) for dx in (-1, 0, 1)
                   if 0 <= by + dy <= 2 * pad and 0 <= bx + dx <= 2 * pad]
-    for dy, dx in places:
-        # each place on its own pixels only, as the picture is: what's around it
-        # (other scenery where it turned up) mustn't change its light's slow changes
-        b = area[dy:dy + th, dx:dx + tw]
-        if b.shape != t.shape:
-            continue
+    # each place on its own pixels only, as the picture is: what's around it (other
+    # scenery where it turned up) mustn't change its light's slow changes. A small
+    # picture's places all at once (the same numbers, a third of the time; a big
+    # one's don't fit the processor's cache together, and take longer so)
+    bs = [area[dy:dy + th, dx:dx + tw] for dy, dx in places]
+    bs = [b for b in bs if b.shape == t.shape]
+    if not bs:
+        return best
+    if th * tw <= STACK_MAX:
+        bs = np.stack(bs)
         if blur > 0:
-            b = gaussian_filter(b, blur)
-        b = b - _box_mean(b, k)
+            bs = gaussian_filter(bs, blur)
+        bs = bs - _box_mean(bs, k)
+    else:
+        if blur > 0:
+            bs = [gaussian_filter(b, blur) for b in bs]
+        bs = [b - _box_mean(b, k) for b in bs]
+    for b in bs:
         b = b - b.mean()
         nb = math.sqrt(float((b * b).sum()))
         if nt > 1e-9 and nb > 1e-9:
             best = max(best, float((t * b).sum()) / (nt * nb))
+    return best
+
+
+def _cut_high(a: np.ndarray, m: np.ndarray, k: int) -> np.ndarray:
+    """`a` with its light's slow changes (the mean of the k x k square about each
+    pixel) taken off, those worked out under mask `m` only."""
+    mm = m.astype(np.float64)
+    return a - _box_mean(a * mm, k) / np.maximum(_box_mean(mm, k), 1e-6)
+
+
+def cut_structure(area: np.ndarray, gray: np.ndarray, mask: np.ndarray,
+                  at: tuple[int, int]) -> float:
+    """structure() for a cut-out (`gray` and `mask` at the size it's matched at, in
+    `area` at `at` (x, y) or a pixel off): only its opaque part counts, a pixel in from
+    the edge (where a resized one is part scenery), the light's slow changes taken off
+    under it alone. structure() takes them off the whole box: the scenery around the
+    thing, a new one wherever it turns up, would count as much as the thing."""
+    th, tw = gray.shape
+    k = max(3, min(th, tw) // STRUCT_DIV) | 1
+    inner = binary_erosion(mask)
+    if int(inner.sum()) < MASK_MIN:
+        inner = mask
+    t = _cut_high(gray.astype(np.float64), mask, k)[inner]
+    t = t - t.mean()
+    nt = math.sqrt(float((t * t).sum()))
+    x, y = at
+    best = 0.0
+    for dy in (-1, 0, 1):
+        for dx in (-1, 0, 1):
+            yy, xx = y + dy, x + dx
+            if yy < 0 or xx < 0 or yy + th > area.shape[0] or xx + tw > area.shape[1]:
+                continue
+            b = _cut_high(area[yy:yy + th, xx:xx + tw].astype(np.float64), mask, k)[inner]
+            b = b - b.mean()
+            nb = math.sqrt(float((b * b).sum()))
+            if nt > 1e-9 and nb > 1e-9:
+                best = max(best, float((t * b).sum()) / (nt * nb))
     return best
 
 
@@ -888,16 +991,21 @@ def _ncc_near(area: np.ndarray, q: Pattern) -> float:
 def _ncc_at(area: np.ndarray, q: Pattern) -> tuple[float, tuple[int, int]]:
     """_ncc_near(), and where in `area` (x, y) that score is."""
     th, tw = q.shape
-    win = np.lib.stride_tricks.sliding_window_view(area.astype(np.float64), (th, tw))
-    t = q.t.astype(np.float64)
-    num = np.einsum("ijkl,kl->ij", win, t)
+    a = area.astype(np.float64)
+    win = np.lib.stride_tricks.sliding_window_view(a, (th, tw))
     if q.m is None:
-        s1 = win.sum(axis=(2, 3))
-        s2 = np.einsum("ijkl,ijkl->ij", win, win)
+        num = np.einsum("ijkl,kl->ij", win, q.t.astype(np.float64))
+        # each window's sum and sum of squares from running totals: a few passes
+        # over the area, not one over every window's pixels
+        c = np.zeros((2, a.shape[0] + 1, a.shape[1] + 1))
+        c[0, 1:, 1:] = a
+        c[1, 1:, 1:] = a * a
+        c = c.cumsum(1).cumsum(2)
+        s1, s2 = c[:, th:, tw:] - c[:, :-th, tw:] - c[:, th:, :-tw] + c[:, :-th, :-tw]
     else:
         m = q.m.astype(np.float64)
-        s1 = np.einsum("ijkl,kl->ij", win, m)
-        s2 = np.einsum("ijkl,ijkl,kl->ij", win, win, m)
+        num, s1 = np.einsum("ijkl,ckl->cij", win, np.stack([q.t.astype(np.float64), m]))
+        s2 = np.einsum("ijkl,kl->ij", np.lib.stride_tricks.sliding_window_view(a * a, (th, tw)), m)
     var = s2 - s1 * s1 / q.count
     ok = var > q.count * q.flat * q.flat
     score = np.divide(num, np.sqrt(np.where(ok, var, 1.0)), where=ok,
@@ -945,8 +1053,9 @@ def _ncc_shifted(a: np.ndarray, t: np.ndarray, m: np.ndarray, y: int, x: int) ->
 # box), the rest scores COVER_SCORE or more, COVER_GAIN more than all of it did, and
 # the rest's colours are the picture's (the colour check on the same pixels both sides).
 # Scenery in other games got through anything looser (HANDOFF-19). It's tried for
-# COVER_PER_CHECK places a check, each trigger at most every COVER_EVERY checks (but
-# every check while it's found covered): a few ms each on a big picture.
+# COVER_PER_CHECK places a check, COVER_FRESH more about what changed this check (a
+# thing just shown), and any for a trigger found covered last time; each answer kept
+# until its pixels change: a few ms each on a big picture.
 COVER_LOW = 0.3
 COVER_FLAT = 0.03
 COVER_K = 5
@@ -959,17 +1068,159 @@ COVER_FILL = 0.6
 COVER_SCORE = 0.97
 COVER_GAIN = 0.1
 COVER_PER_CHECK = 2
-COVER_EVERY = 4
+COVER_FRESH = 4         # ...and as many more about what just changed (a hunt's patch)
 COVER_ON = True
+# ...and a place whose grey matches but whose colours don't: the cover told by colour
+# (colour_cover), on the capture's own pixels, the same rules but COVER_GAIN (its grey
+# matched already)
+COVER_CRES = 0.15
+COLOUR_PER_CHECK = 2
+COLOUR_COVER = True
+
+
+def colour_cover(a: np.ndarray, t: np.ndarray, m: np.ndarray) -> tuple[np.ndarray, dict]:
+    """The pixels something flat covers, told by colour: `a` the screen's RGB (0..1)
+    where a picture was found, `t` the picture's own the same size, `m` its opaque
+    part (bool). Pixels flat on the screen (every channel, COVER_K px) whose colour
+    isn't the picture's once the light is fitted (one gain, an offset per channel,
+    as tint_gap) by more than COVER_CRES, and COVER_GROW px round them. A dark grey
+    box over a dark red panel is the panel's grey but not its colour, which grey
+    can't see (cover_score). Returns (those pixels, {"uni": the cover's widest
+    channel spread, "fill": how much of its box it fills})."""
+    flat = np.ones(m.shape, bool)
+    for c in range(3):
+        mu = _box_mean(a[..., c], COVER_K)
+        flat &= np.sqrt(np.maximum(_box_mean(a[..., c] ** 2, COVER_K) - mu * mu, 0.0)) < COVER_FLAT
+    use, core, cov = m, m & False, m & False
+    for _ in range(3):
+        tt, aa = t[use], a[use]
+        if len(tt) < 8:
+            break
+        A, B = tt - tt.mean(0), aa - aa.mean(0)
+        gain = max(float((A * B).sum()) / max(float((A * A).sum()), 1e-12), 0.0)
+        core = m & flat & (np.abs(a - gain * t - (aa.mean(0) - gain * tt.mean(0))).sum(-1)
+                           > COVER_CRES)
+        cov = core
+        for _g in range(COVER_GROW):
+            c = cov.copy()
+            c[1:] |= cov[:-1]
+            c[:-1] |= cov[1:]
+            c[:, 1:] |= cov[:, :-1]
+            c[:, :-1] |= cov[:, 1:]
+            cov = c
+        cov &= m
+        use = m & ~cov
+    info = {"uni": 1.0, "fill": 0.0}
+    if core.any():
+        ys, xs = np.nonzero(core)
+        info["uni"] = float(a[core].std(0).max())
+        info["fill"] = float(core.sum()) / max(1.0, float(m[ys.min():ys.max() + 1,
+                                                              xs.min():xs.max() + 1].sum()))
+    return cov, info
+
+
+# ...and a place whose grey matches but whose colours don't, because what's behind the
+# thing changed (text cut over a dark patch, now over a lit scene: the colour check's
+# cells are mostly that background). For a picture cut as a rectangle (a cut-out has
+# its background left out already), its colours are compared again on the thing alone
+# (matched_colour): all but the background, the part joined to its edges within
+# MATCH_REL of its grey range of the edges' grey (thing_mask), MATCH_LEAST..MATCH_MOST
+# of it. The thing and MATCH_RING px round it must match sharp (MATCH_SHAPE: grey that
+# matched shrunk but not at full size is scenery that looks alike softened), MATCH_KEPT
+# of the thing must have the picture's grey there (light fitted), and its colour (each
+# pixel's off its grey) be off the picture's by MATCH_CRES or less on average.
+# A blue skull where a red one was cut is off on the skull itself.
+MATCH_REL = 0.45
+MATCH_LEAST = 0.03
+MATCH_MOST = 0.5
+MATCH_RES = 0.08
+MATCH_KEPT = 0.9
+MATCH_CRES = 0.1
+MATCH_RING = 2
+MATCH_SHAPE = 0.9
+MATCH_COLOUR = True
+TWIN_LETTERS = True     # ...and the look-alike strips judged on the thing (_letters_agree)
+# A cut-out's edges, shrunk to the working size, take in whatever is behind it: thin
+# text cut out of a scene that now moves scores under the line there while its own
+# pixels still match. A place of a cut-out at its own size scoring SHARP_LOW or more
+# but under the line is matched again on the screen's full-size pixels (+-CONFIRM_PAD
+# px) under the picture's own mask, and takes that score if higher; for SHARP_PER_CHECK
+# places a check, each answer kept until its pixels change.
+SHARP_LOW = 0.65
+SHARP_PER_CHECK = 2
+SHARP_ON = True
+
+
+def thing_mask(g: np.ndarray) -> np.ndarray | None:
+    """What isn't the background in picture `g` (grey 0..1, a rectangle): the pixels
+    not joined to its edges through pixels within MATCH_REL of its grey range (2-98%)
+    of the edges' median grey. None when it has no contrast to tell by."""
+    lo, hi = np.percentile(g, (2, 98))
+    if hi - lo < 0.05:
+        return None
+    edge = np.concatenate([g[0], g[-1], g[:, 0], g[:, -1]])
+    near_ = np.abs(g - float(np.median(edge))) < MATCH_REL * float(hi - lo)
+    bg = np.zeros(g.shape, bool)
+    bg[0], bg[-1], bg[:, 0], bg[:, -1] = near_[0], near_[-1], near_[:, 0], near_[:, -1]
+    for _ in range(sum(g.shape)):
+        grown = bg.copy()
+        grown[1:] |= bg[:-1]
+        grown[:-1] |= bg[1:]
+        grown[:, 1:] |= bg[:, :-1]
+        grown[:, :-1] |= bg[:, 1:]
+        grown &= near_
+        if (grown == bg).all():
+            break
+        bg = grown
+    return ~bg
+
+
+def matched_colour(a: np.ndarray, rgb: np.ndarray, g: np.ndarray, t: np.ndarray
+                   ) -> tuple[float, float, float, float]:
+    """`a` / `rgb` the screen's grey / RGB (0..1) where a picture cut as a rectangle
+    was found, `g` / `t` the picture's the same size: (the share of it that's the
+    thing (thing_mask), how well the thing and MATCH_RING px round it match, the share
+    of the thing whose grey agrees once the light is fitted, its colour gap)."""
+    thing = thing_mask(g)
+    if thing is None:
+        return 0.0, 0.0, 0.0, 1.0
+    n = int(thing.sum())
+    share = n / thing.size
+    ring = thing
+    for _ in range(MATCH_RING):
+        grown = ring.copy()
+        grown[1:] |= ring[:-1]
+        grown[:-1] |= ring[1:]
+        grown[:, 1:] |= ring[:, :-1]
+        grown[:, :-1] |= ring[:, 1:]
+        ring = grown
+    fit = _ncc_masked(a.astype(np.float64), g.astype(np.float64), ring.astype(np.float64))
+    gg, aa = g.astype(np.float64).ravel(), a.astype(np.float64).ravel()
+    G, A = gg - gg.mean(), aa - aa.mean()
+    gain = float((G * A).sum()) / max(float((G * G).sum()), 1e-12)
+    if n < 8 or gain <= 0.0:
+        return share, fit, 0.0, 1.0
+    ok = thing & (np.abs(a - gain * g - (aa.mean() - gain * gg.mean())) <= MATCH_RES)
+    k = int(ok.sum())
+    if k < 8:
+        return share, fit, k / n, 1.0
+    # colour, not brightness: each pixel's colour off its grey, the grey's gain allowed
+    # (not a shift per channel, as tint_gap's: a one-colour thing would lose all of
+    # its colour to that, and a scene tinted as a whole passes the colour check anyway)
+    tt, cc = t[ok].astype(np.float64), rgb[ok].astype(np.float64)
+    left = (cc - cc.mean(-1, keepdims=True)) - gain * (tt - tt.mean(-1, keepdims=True))
+    return share, fit, k / n, float(np.abs(left).sum(-1).mean())
 
 
 def cover_score(area: np.ndarray, gray: np.ndarray, mask: np.ndarray | None,
-                info: dict | None = None) -> tuple[float, float]:
+                info: dict | None = None, cov: np.ndarray | None = None
+                ) -> tuple[float, float]:
     """(score, share covered) of `gray` (`mask` its cut-out) on `area`, the screen's
     full-size pixels about where it was found (the picture's size, a few px of room
     round it), with the pixels something flat covers left out (see COVER_*). `info`
     gets: "cov" (those pixels, the picture's size), "plain" (the score with them in),
-    "uni" (the cover's grey spread) and "fill" (how much of its box it fills)."""
+    "uni" (the cover's grey spread) and "fill" (how much of its box it fills).
+    `cov`: the covered pixels known already (colour_cover's, the picture's size)."""
     th, tw = gray.shape
     if area.shape[0] < th or area.shape[1] < tw:
         return 0.0, 1.0
@@ -980,6 +1231,13 @@ def cover_score(area: np.ndarray, gray: np.ndarray, mask: np.ndarray | None,
     m = np.ones(gray.shape, bool) if mask is None else mask.astype(bool)
     t = gray.astype(np.float64)
     a = area[y:y + th, x:x + tw].astype(np.float64)
+    if cov is not None:
+        use = m & ~cov
+        n = float(use.sum())
+        if info is not None:
+            info.update(cov=cov & m, plain=_ncc_masked(a, t, m.astype(np.float64)))
+        return (_ncc_masked(a, t, use.astype(np.float64)) if n >= 8 else 0.0,
+                1.0 - n / float(m.sum()))
     mu = _box_mean(a, COVER_K)
     flat = np.sqrt(np.maximum(_box_mean(a * a, COVER_K) - mu * mu, 0.0)) < COVER_FLAT
     if float((flat & m).sum()) < COVER_LEAST / 3 * float(m.sum()):
@@ -1050,11 +1308,34 @@ def one_part_off(area: np.ndarray, gray: np.ndarray, mask: np.ndarray | None) ->
         got = [v for v in parts if v is not None]
         if len(got) < 3 or float(np.median(got)) < TWIN_MED:
             continue
-        for u, v in zip(parts, parts[1:]):
+        for i, (u, v) in enumerate(zip(parts, parts[1:])):
             if (u is not None and v is not None and u <= TWIN_LOW and v <= TWIN_LOW
                     and (u + v) / 2 <= TWIN_RUN):
+                x0, x1 = i * tw // n, (i + 2) * tw // n
+                if (TWIN_LETTERS and mask is None
+                        and _letters_agree(area[y:y + th, x:x + tw], gray, x0, x1)):
+                    continue                # only what's behind it changed there
                 return max(0.0, (u + v) / 2)
     return 1.0
+
+
+def _letters_agree(a: np.ndarray, g: np.ndarray, x0: int, x1: int) -> bool:
+    """Whether the thing in picture `g` (a rectangle: thing_mask) between columns
+    x0..x1 has the picture's grey on the screen's `a` there (the same size), the light
+    fitted on all of it, for MATCH_KEPT of its pixels: the scene behind a thing
+    changed, not one of its glyphs."""
+    thing = thing_mask(g)
+    if thing is None:
+        return False
+    gg, aa = g.astype(np.float64).ravel(), a.astype(np.float64).ravel()
+    G, A = gg - gg.mean(), aa - aa.mean()
+    gain = float((G * A).sum()) / max(float((G * G).sum()), 1e-12)
+    part = thing[:, x0:x1]
+    n = int(part.sum())
+    if n < 8 or gain <= 0.0:
+        return False
+    off = np.abs(a[:, x0:x1] - gain * g[:, x0:x1] - (aa.mean() - gain * gg.mean()))
+    return int((part & (off <= MATCH_RES)).sum()) >= MATCH_KEPT * n
 
 
 def find_via(fine: Frame, coarse: Frame, r: float, off: tuple[int, int], p: Pattern,
@@ -1218,7 +1499,9 @@ def tint(rgb: np.ndarray, mask: np.ndarray | None = None) -> np.ndarray | None:
     ys = np.linspace(0, h, g + 1).astype(int)[:-1]
     xs = np.linspace(0, w, g + 1).astype(int)[:-1]
     wt = np.ones((h, w), np.float32) if mask is None else mask.astype(np.float32)
-    rgb = rgb[..., :3].astype(np.float32) * wt[..., None]
+    rgb = rgb[..., :3].astype(np.float32, copy=False)
+    if mask is not None:
+        rgb = rgb * wt[..., None]
     sums = np.add.reduceat(np.add.reduceat(rgb, ys, -3), xs, -2)
     n = np.add.reduceat(np.add.reduceat(wt, ys, 0), xs, 1)
     area = np.outer(np.diff(np.append(ys, h)), np.diff(np.append(xs, w)))
@@ -1283,6 +1566,63 @@ def tint_gaps(want: np.ndarray, got: np.ndarray) -> np.ndarray:
     return np.where((n >= 4) & (aa >= 1e-6), gap, 0.0)
 
 
+def one_colour(rgb: np.ndarray, mask: np.ndarray | None, g: np.ndarray
+               ) -> tuple[np.ndarray, np.ndarray] | None:
+    """The colour of a picture's thing, taken from its most colourful part (ONE_*):
+    (that colour, 0..1 RGB mean, and where that part is, a bool mask the picture's
+    size), or None for a grey thing or a part that isn't one colour. The thing: a cut-out's
+    `mask`, or in a rectangle what stands out of its background (thing_mask() of its
+    grey `g`, MATCH_LEAST..MATCH_MOST of it). Letters fill tint()'s cells about
+    equally (or not one of them half), so only this tells a green word from a red one."""
+    if mask is None:
+        mask = thing_mask(g)
+        if mask is None or not MATCH_LEAST <= float(mask.mean()) <= MATCH_MOST:
+            return None
+    mask = mask.astype(bool)
+    if not mask.any():
+        return None
+    # its colourful part in the colour of its most colourful pixels: letters' fill, not
+    # the dark outline or shadow round them, nor the scenery through their holes
+    f = rgb[..., :3].astype(np.float64) * (1 / 255)
+    c3 = f - f.mean(-1, keepdims=True)
+    chroma = np.linalg.norm(c3, axis=-1)
+    top = float(np.percentile(chroma[mask], 99))
+    if top < ONE_COLOUR_MIN:
+        return None
+    unit = c3 / np.maximum(chroma, 1e-9)[..., None]
+    ref = unit[mask & (chroma >= top)].mean(0)
+    ref /= max(float(np.linalg.norm(ref)), 1e-9)
+    mask = mask & (chroma >= max(ONE_COLOUR_MIN, 0.5 * top)) & ((unit * ref).sum(-1) >= ONE_HUE)
+    if int(mask.sum()) < max(12, 0.005 * mask.size):
+        return None
+    px = f[mask]
+    mean = px.mean(0)
+    c = mean - mean.mean()
+    strength = float(np.linalg.norm(c))
+    ch = px - px.mean(-1, keepdims=True) - c
+    spread = float(np.sqrt(np.square(ch).sum(-1).mean()))
+    if strength < ONE_COLOUR_MIN or spread > ONE_COLOUR * strength:
+        return None
+    return mean, mask
+
+
+def overlay_off(want: np.ndarray, got: np.ndarray) -> np.ndarray:
+    """Whether each colour in `got` (n, 3) is one no light over the scene makes of
+    `want` (3,) (OVERLAY_*): (n,) bools. The light: got = s ((1 - a) want + a L), the
+    colour L laid over it a strong, adding no more than OVERLAY_HUE of colour (a L's
+    distance from grey: an orange tint or a night filter adds a little, a red one
+    strong enough to turn green into red a lot)."""
+    al = np.linspace(0.0, OVERLAY_MAX, 14)[1:, None, None]
+    gs = np.array(OVERLAY_GAIN)[None, :, None]
+    g = got[:, None, None, :]
+    lit = np.clip((g / gs - (1 - al) * want) / al, 0.0, 1.0)      # L, (n, a, s, 3)
+    near_ = (np.abs(gs * ((1 - al) * want + al * lit) - g) <= OVERLAY_TOL).all(-1)
+    hue = al[..., 0] * np.linalg.norm(lit - lit.mean(-1, keepdims=True), axis=-1)
+    gains = np.array(OVERLAY_GAIN)[:, None]
+    plain = (np.abs(gains * want - got[:, None, :]) <= OVERLAY_TOL).all(-1)      # a = 0
+    return ~((near_ & (hue <= OVERLAY_HUE)).any((1, 2)) | plain.any(1))
+
+
 def _tint_top(err: np.ndarray, n: np.ndarray) -> np.ndarray:
     """The mean of each row's worst quarter of cell errors, after the worst."""
     err = -np.sort(-err, axis=1)                                 # each row's largest first
@@ -1318,24 +1658,35 @@ def tint_factor(gap: float) -> float:
 # the box itself, then a pixel off each way (Watcher._tint_factor)
 _NEAR_FIRST = [(0, 0)] + [(dy, dx) for dy in (-1, 0, 1) for dx in (-1, 0, 1) if dy or dx]
 
+
+def _steps(lo: float, hi: float, every: int = 1) -> list[float]:
+    """The sweep's sizes from `lo` to `hi` (every `every`-th one)."""
+    return [f for f in (SWEEP_STEP ** i for i in range(-80, 81, every)) if lo <= f <= hi]
+
+
 # nearest the size it was cut at first: small changes are the likeliest
-SWEEP = sorted((f for f in (SWEEP_STEP ** i for i in range(-40, 41)) if SIZES[0] <= f <= SIZES[1]),
-               key=lambda f: abs(math.log(f)))
+SWEEP = sorted(_steps(*SIZES), key=lambda f: abs(math.log(f)))
+# ...a picture from the web is far likelier to be drawn smaller than it is than bigger
+WIDE_SWEEP = sorted(_steps(*WIDE_SIZES), key=lambda f: abs(math.log(f)) * (3 if f > 1 else 1))
 # a hunt's first pass (HUNT_*): every other sweep size, the one it was cut at left out
-HUNT_SIZES = [f for f in (SWEEP_STEP ** i for i in range(-40, 41, 2))
-              if SIZES[0] <= f <= SIZES[1] and not near(f, 1.0)]
+HUNT_SIZES = [f for f in _steps(*SIZES, 2) if not near(f, 1.0)]
+WIDE_HUNT_SIZES = [f for f in _steps(*WIDE_SIZES, 2) if not near(f, 1.0)]
 
 
 class Look:
     """One picture as a capture looks for it: a Pattern for each size it's looked for
     every check (`pats`: the size it was cut at first, then with "any size" the sizes
     sizes_for() predicts and ones the sweep found), and with "any size" the sweep's
-    place (`todo`, the sizes left to try, and `next`)."""
+    place (`todo`, the sizes left to try, and `next`). A `wide` one (its size on
+    screen unknown) is looked for between WIDE_SIZES rather than SIZES."""
 
     def __init__(self, gray: np.ndarray, mask: np.ndarray | None, scale: float,
                  sizes: list[float], sweep: bool, found: list[float] = (),
-                 tint: np.ndarray | None = None, ratio: float = 1.0, coarse: float = 1.0):
+                 tint: np.ndarray | None = None, ratio: float = 1.0, coarse: float = 1.0,
+                 wide: bool = False):
         self.gray, self.mask, self.scale = gray, mask, scale
+        self.lo, self.hi = WIDE_SIZES if wide else SIZES
+        self.hunt_sizes = WIDE_HUNT_SIZES if wide else HUNT_SIZES
         # the frame it's matched on: the capture's, shrunk by this (see Watcher._fit);
         # and for a picture too small for the usual size, that frame shrunk to the
         # usual size is this much smaller (< 1: its stand-in is found there, PROXY_MIN)
@@ -1344,13 +1695,14 @@ class Look:
         # ...also at the size it's matched at (tint_at): (tint, the mask it was taken under)
         self.small_tint: tuple | None = None
         self.rgb: np.ndarray | None = None      # its own colours (uint8 RGB), if known
+        self.hue: tuple | None = None           # its thing's colour, if one (one_colour)
         self.pats: list[tuple[float, Pattern]] = []
         self.found: list[float] = []
         self.changes = 0                        # bumped whenever `pats` changes
         self._hunted: dict[float, Pattern] = {}  # hunt_pattern()'s
         for f in sizes:
             self._add(f)
-        self.todo = SWEEP if sweep else []
+        self.todo = (WIDE_SWEEP if wide else SWEEP) if sweep else []
         self.next = 0
         for f in found:
             self.keep(f)
@@ -1401,7 +1753,7 @@ class Look:
         return pat
 
     def _add(self, f: float, p: Pattern | None = None) -> bool:
-        if not SIZES[0] - 1e-9 <= f <= SIZES[1] + 1e-9 or any(near(f, g) for g, _p in self.pats):
+        if not self.lo - 1e-9 <= f <= self.hi + 1e-9 or any(near(f, g) for g, _p in self.pats):
             return False
         self.pats.append((f, p or self.pattern(f)))
         self.changes += 1
@@ -1595,7 +1947,7 @@ class Hit:
 
 def supported() -> tuple[bool, str]:
     if sys.platform != "win32":
-        return False, "Onion Watch only works on Windows."
+        return False, i18n._("Onion Watch only works on Windows.")
     return True, ""
 
 
@@ -1609,7 +1961,8 @@ class Monitor:
 
     @property
     def label(self) -> str:
-        return f"{self.width}×{self.height}" + ("  (main)" if self.primary else "")
+        return f"{self.width}×{self.height}" + ("  " + i18n._("(main)") if self.primary
+                                               else "")
 
 
 def monitors() -> list[Monitor]:
@@ -1700,6 +2053,22 @@ def frame_view(rows: np.ndarray, fmt: int, width: int) -> np.ndarray:
     return px.reshape(rows.shape[0], width, 4)
 
 
+_hdr_lut: np.ndarray | None = None     # see _hdr_levels
+
+
+def _hdr_levels(px: np.ndarray) -> np.ndarray:
+    """float16 scRGB values -> float32 sRGB levels in 0..1: clipped to SDR, with the
+    sRGB curve put back on (x ** (1 / 2.2)). Looked up by the float16's bits in a
+    table of all 65536 made once, the same numbers as working each one out, at a
+    fraction of the cost (NaN, which can't be shown, comes out 0)."""
+    global _hdr_lut
+    if _hdr_lut is None:
+        v = np.arange(65536, dtype=np.uint32).astype(np.uint16).view(np.float16)
+        v = np.nan_to_num(v.astype(np.float32), nan=0.0, posinf=1.0, neginf=0.0)
+        _hdr_lut = (np.clip(v, 0.0, 1.0) ** (1 / 2.2)).astype(np.float32)
+    return _hdr_lut[px.view(np.uint16)]
+
+
 def frame_gray(sample: np.ndarray, fmt: int, factor: int = 1) -> np.ndarray:
     """Pixels sampled from a duplicated frame (see frame_view for their shape) ->
     (h, w) float32 luma in 0..1 on the same scale as the pictures, which are 8-bit
@@ -1710,7 +2079,7 @@ def frame_gray(sample: np.ndarray, fmt: int, factor: int = 1) -> np.ndarray:
     if fmt == FMT_RGBA16F:
         # scRGB: linear light, 1.0 is SDR white and highlights go above it. Clip to
         # SDR and put the sRGB curve back on, so grey matches an 8-bit screenshot.
-        rgb = np.clip(sample[..., :3].astype(np.float32), 0.0, 1.0) ** (1 / 2.2)
+        rgb = _hdr_levels(sample[..., :3])
     elif fmt == FMT_RGB10A2:
         # 10 bits each, R lowest; already gamma-encoded like the 8-bit desktop.
         u = sample.astype(np.uint32)
@@ -1728,9 +2097,19 @@ def frame_rgb(sample: np.ndarray, fmt: int = FMT_BGRA8, factor: int = 1) -> np.n
     """frame_gray() in colour: (h, w, 3) float32 RGB in 0..1, sRGB like a screenshot.
     Only made for a capture with a "colour" trigger on it (Grabber.want_color)."""
     if fmt in (FMT_BGRA8, FMT_BGRX8):
+        if factor == 2:
+            # each 2x2 block added up in whole numbers first, as gray_2x does: a
+            # fifth of the time of averaging floats (the same to 1e-7)
+            h, w = sample.shape[0] // 2, sample.shape[1] // 2
+            x = sample[:2 * h, :2 * w, 2::-1]
+            s = x[0::2, 0::2].astype(np.uint16)
+            s += x[1::2, 0::2]
+            s += x[0::2, 1::2]
+            s += x[1::2, 1::2]
+            return s.astype(np.float32) * np.float32(1 / (4 * 255))
         rgb = sample[..., 2::-1].astype(np.float32) * (1 / 255)
     elif fmt == FMT_RGBA16F:
-        rgb = np.clip(sample[..., :3].astype(np.float32), 0.0, 1.0) ** (1 / 2.2)
+        rgb = _hdr_levels(sample[..., :3])
     elif fmt == FMT_RGB10A2:
         u = sample.astype(np.uint32)
         rgb = np.stack([(u >> sh) & 1023 for sh in (0, 10, 20)], -1).astype(np.float32) / 1023
@@ -1739,7 +2118,27 @@ def frame_rgb(sample: np.ndarray, fmt: int = FMT_BGRA8, factor: int = 1) -> np.n
     if factor == 2:
         h, w = rgb.shape[0] // 2, rgb.shape[1] // 2
         rgb = rgb[:2 * h, :2 * w].reshape(h, 2, w, 2, 3).mean((1, 3), dtype=np.float32)
-    return rgb.astype(np.float32)
+    return rgb.astype(np.float32, copy=False)
+
+
+def log_rgb(raw: tuple | None) -> np.ndarray | None:
+    """A grab's raw pixels (Grabber.raw: pixels, format, factor) as a small (h, w, 3)
+    uint8 RGB picture about LOG_PICTURE_W wide, for a Hit (the Log): every n-th
+    pixel, no averaging, so it costs well under a millisecond, and only when a
+    trigger goes off. None when there's nothing to make it from."""
+    if raw is None:
+        return None
+    pixels, fmt, _factor = raw
+    if pixels is None or pixels.ndim != 3 or not pixels.size:
+        return None
+    step = max(1, round(pixels.shape[1] / LOG_PICTURE_W))
+    s = pixels[::step, ::step]
+    if fmt in (FMT_BGRA8, FMT_BGRX8):
+        return np.ascontiguousarray(s[..., 2::-1])
+    try:
+        return (frame_rgb(s, fmt, 1) * 255).astype(np.uint8)
+    except OSError:
+        return None
 
 
 class Grabber:
@@ -1814,6 +2213,15 @@ class Grabber:
         size, for the twin check (Watcher._twin). Copied now, a moment after the last
         grab: where something just moved it can differ, which can only lower a score
         for that check. None when it can't be copied."""
+        px = self._full(y0, y1, x0, x1)
+        return None if px is None else to_gray(px)
+
+    def full_rgb(self, y0: int, y1: int, x0: int, x1: int) -> np.ndarray | None:
+        """full_gray() in colour (frame_rgb)."""
+        px = self._full(y0, y1, x0, x1)
+        return None if px is None else frame_rgb(px)
+
+    def _full(self, y0: int, y1: int, x0: int, x1: int) -> np.ndarray | None:
         h, w = y1 - y0, x1 - x0
         if h < 2 or w < 2 or not self.screen_dc:
             return None
@@ -1837,7 +2245,7 @@ class Grabber:
                                 w, h, self.SRCCOPY):
                 return None
             buf = (ctypes.c_uint8 * (w * h * 4)).from_address(bits.value)
-            return to_gray(np.frombuffer(buf, np.uint8).reshape(h, w, 4))
+            return np.frombuffer(buf, np.uint8).reshape(h, w, 4).copy()
         finally:
             if old:
                 g.SelectObject(dc, old)
@@ -2005,6 +2413,10 @@ class DupGrabber:
     TEX_GET_DESC = 10               # ID3D11Texture2D::GetDesc
     CTX_MAP, CTX_UNMAP, CTX_COPY_RESOURCE = 14, 15, 47
     USAGE_STAGING, CPU_ACCESS_READ, MAP_READ = 3, 0x20000, 1
+    # D3D11_CREATE_DEVICE_SINGLETHREADED | PREVENT_INTERNAL_THREADING_OPTIMIZATIONS: the
+    # device is only used from the watching thread, so it needs no locking inside, nor
+    # the driver's own worker threads (a couple fewer for each screen watched)
+    DEVICE_FLAGS = 0x1 | 0x8
     turns = 0                       # FRAME_TURNS for the output's rotation
     want_color = False              # as Grabber's
     color: np.ndarray | None = None
@@ -2046,9 +2458,12 @@ class DupGrabber:
             d3d.D3D11CreateDevice.argtypes = [
                 ctypes.c_void_p, ctypes.c_int, ctypes.c_void_p, ctypes.c_uint, ctypes.c_void_p,
                 ctypes.c_uint, ctypes.c_uint, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p]
-            hr = d3d.D3D11CreateDevice(adapter.p, 0, None, 0, None, 0, 7,   # 7: SDK version
-                                       ctypes.byref(self.device.p), None,
-                                       ctypes.byref(self.ctx.p))
+            for flags in (self.DEVICE_FLAGS, 0):     # 0: as it was, should a driver refuse
+                hr = d3d.D3D11CreateDevice(adapter.p, 0, None, flags, None, 0,
+                                           7, ctypes.byref(self.device.p), None,  # 7: SDK version
+                                           ctypes.byref(self.ctx.p))
+                if hr >= 0:
+                    break
             if hr < 0:
                 raise OSError(f"D3D11CreateDevice failed (0x{_hr(hr):08X})")
             self.output1 = output.query(IID_IDXGIOutput1)
@@ -2234,6 +2649,15 @@ class DupGrabber:
         pixels, upright) at full size, for the twin check (Watcher._twin): read again
         from the staging texture, which still holds that frame. None when it can't be
         read."""
+        got = self._full(y0, y1, x0, x1)
+        return None if got is None else upright(frame_gray(*got), self.turns)
+
+    def full_rgb(self, y0: int, y1: int, x0: int, x1: int) -> np.ndarray | None:
+        """full_gray() in colour (frame_rgb)."""
+        got = self._full(y0, y1, x0, x1)
+        return None if got is None else upright(frame_rgb(*got), self.turns)
+
+    def _full(self, y0: int, y1: int, x0: int, x1: int) -> tuple | None:
         if not self.staging or self._mode is None or self.last is None:
             return None
         sw, sh = self._frame
@@ -2254,7 +2678,7 @@ class DupGrabber:
         finally:
             self.ctx.call(self.CTX_UNMAP, self.staging.p, 0, restype=None,
                           argtypes=(ctypes.c_void_p, ctypes.c_uint))
-        return upright(frame_gray(piece, fmt), self.turns)
+        return piece, fmt
 
     def close(self):
         for c in (self.staging, self.dup, self.output1, self.ctx, self.device):
@@ -2295,7 +2719,9 @@ class Watched:
     screens and windows (empty: the default), `source` the one place older code
     gives. Each place has its own Gate, so two game windows showing the same thing
     each go off once. With `any_size` its pictures are looked for at other sizes too
-    (see Look); `cuts` holds the (w, h) each picture was cut from, or None. `tints`,
+    (see Look); `cuts` holds the (w, h) each picture was cut from, or None, and
+    `wide` which ones weren't cut from the game at all (a file from the web), so are
+    looked for over WIDE_SIZES, "any size" or not. `tints`,
     when given, has a place's colours checked too before it counts (see TINT_OK)."""
     id: str
     pictures: list[Picture]
@@ -2311,6 +2737,7 @@ class Watched:
     unfocused: bool = False
     any_size: bool = False
     cuts: list = field(default_factory=list)
+    wide: list = field(default_factory=list)        # each picture's: its size unknown
     tints: list = field(default_factory=list)       # each picture's tint(), or None
     # each picture's own colours (uint8 RGB, its size), or None: when given, its
     # colours are also taken at the size the capture is matched at (see tint_at)
@@ -2335,9 +2762,20 @@ class Watched:
     def cut(self, i: int) -> tuple[int, int] | None:
         return self.cuts[i] if i < len(self.cuts) else None
 
+    def is_wide(self, i: int) -> bool:
+        return i < len(self.wide) and bool(self.wide[i])
+
+    def sweeps(self, i: int) -> bool:
+        """Picture `i` is looked for at other sizes than its own."""
+        return self.any_size or self.is_wide(i)
+
+    @property
+    def sweeping(self) -> bool:
+        return self.any_size or any(self.wide[:len(self.pictures)])
+
     def sizes(self, i: int, now: tuple[int, int]) -> list[float]:
         """The sizes picture `i` is looked for at every check in something `now` big."""
-        return sizes_for(self.cut(i), now) if self.any_size else [1.0]
+        return sizes_for(self.cut(i), now) if self.sweeps(i) else [1.0]
 
     def sides_at(self, now: tuple[int, int]) -> list[int]:
         """Each picture's short side at the smallest size it's looked for at every
@@ -2372,6 +2810,83 @@ def expand(src, wins) -> list:
     return [WindowRef(src.exe, src.title, i) for i in range(max(n, 1))]
 
 
+# The most a capture's kept answers (_Capture.twins) hold, with the pixels each was
+# worked out on: the ones used longest ago go first.
+TWINS_MB = 8.0
+_ANSWER_COST = 200          # bytes an answer takes besides its pixels (key, tuple, score)
+
+
+class Answers:
+    """_Capture.twins: answers worked out on a box of the capture's pixels at full
+    size, each kept with those pixels (key -> (picture, pixels, answer)), so the same
+    pixels get the same answer again without the work. A dict for its users, but it
+    holds at most `mb` MB (TWINS_MB): box sizes change with every sweep and hunt size,
+    so new keys keep coming, and unbounded it grew by tens of MB an evening. An answer
+    only matters while its pixels stay on screen, so the one used longest ago goes
+    first."""
+
+    def __init__(self, mb: float | None = None):
+        self.limit = int((TWINS_MB if mb is None else mb) * 2 ** 20)
+        self.bytes = 0              # what it holds now, by _cost()
+        self._d: dict = {}          # oldest use first
+
+    @staticmethod
+    def _cost(value) -> int:
+        px = value[1] if isinstance(value, tuple) and len(value) > 1 else None
+        return _ANSWER_COST + (len(px) if isinstance(px, (bytes, bytearray)) else 0)
+
+    def get(self, key, default=None):
+        value = self._d.pop(key, None)
+        if value is None:
+            return default
+        self._d[key] = value        # used now: the last to go
+        return value
+
+    def __setitem__(self, key, value):
+        old = self._d.pop(key, None)
+        if old is not None:
+            self.bytes -= self._cost(old)
+        self._d[key] = value
+        self.bytes += self._cost(value)
+        while self.bytes > self.limit and len(self._d) > 1:
+            first = next(iter(self._d))
+            self.bytes -= self._cost(self._d.pop(first))
+
+    def __getitem__(self, key):
+        return self._d[key]
+
+    def __contains__(self, key) -> bool:
+        return key in self._d
+
+    def __len__(self) -> int:
+        return len(self._d)
+
+    def __iter__(self):
+        return iter(self._d)
+
+    def keys(self):
+        return self._d.keys()
+
+    def values(self):
+        return self._d.values()
+
+    def items(self):
+        return self._d.items()
+
+    def pop(self, key, *default):
+        if key in self._d:
+            value = self._d.pop(key)
+            self.bytes -= self._cost(value)
+            return value
+        if default:
+            return default[0]
+        raise KeyError(key)
+
+    def clear(self):
+        self._d.clear()
+        self.bytes = 0
+
+
 class _Capture:
     """One screen or window as the watching thread captures it: its grabber, the
     pictures shrunk to what that grabber sees, and where it is in coming back from
@@ -2386,10 +2901,15 @@ class _Capture:
         self.scores: dict[str, float] = {}
         self.refs: dict[str, tuple[float, np.ndarray]] = {}   # "change" / "still": (when, area)
         # the twin check's last answer for each trigger's picture: (the picture, the
-        # pixels it was laid on, score). The same pixels give the same answer (_twin)
-        self.twins: dict[tuple, tuple[np.ndarray, bytes, float]] = {}
-        self.covers: dict[str, tuple] = {}  # (check last tried as covered on, found then)
+        # pixels it was laid on, score). The same pixels give the same answer (_twin);
+        # at most TWINS_MB of them (Answers)
+        self.twins = Answers()
+        self.covers: dict[str, bool] = {}  # found covered when last tried
         self.cover_left = 0               # ...and the tries left this check (COVER_PER_CHECK)
+        self.fresh_left = 0               # ...and about what just changed (COVER_FRESH)
+        self.colour_left = 0              # colour_cover's (COLOUR_PER_CHECK)
+        self.hue_left = 0                 # _hue_off's (HUE_PER_CHECK)
+        self.sharp_left = 0               # _sharp()'s (SHARP_PER_CHECK)
         self.turns: dict[str, int] = {}   # "any size": which picture each trigger sweeps next
         self.swept: dict[str, int] = {}   # ...and the check it last swept on (SWEEPERS)
         # "any size": changed patches still to look in at every size (HUNT_*):
@@ -2465,12 +2985,13 @@ class Watcher:
         self._items: dict[str, Watched] = {}
         self._changed = True              # pictures / default changed: rescale
         self._sweeps: list[int] | None = None   # this check's sweep turns left (SWEEPERS)
-        self._hunts: list[int] | None = None    # ...and sizes left to hunt (HUNT_PER_CHECK)
+        self._hunts: list[float] | None = None  # ...and sizes left to hunt (HUNT_PER_CHECK)
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
         self.interval = DEFAULT_INTERVAL_MS / 1000
         self.cpu_share = CPU_SHARE          # see CPU_SHARES
         self.max_detect = "off"             # see MAX_DETECTS
+        self.color_hits = True              # a Hit's picture in colour (log_rgb), not grey
         self.heavy = False                  # max detection is on right now
         self.default: int | WindowRef = 0  # where triggers that don't pick are looked for
         self.scores: dict[str, float] = {}
@@ -2697,9 +3218,11 @@ class Watcher:
                 rounds += 1
                 if live:
                     live = live[rounds % len(live):] + live[:rounds % len(live)]
+                grabbed = []
                 for cap in live:
                     try:
-                        self._tick(cap, groups.get(cap.source, []))
+                        if self._tick(cap, groups.get(cap.source, [])):
+                            grabbed.append(cap)
                     except Exception:  # noqa: BLE001 - one odd frame mustn't end watching
                         if cap.source not in tick_errors:
                             log.exception("checking %r failed; watching goes on", cap.source)
@@ -2718,7 +3241,8 @@ class Watcher:
                 self.check_ms = spent * 1000
                 # keep to cpu_share of the processor: what the checks really cost it
                 # (PACE_ROUNDS) sets how far apart they must be
-                out = sum(getattr(c.grab, "cpu_elsewhere", 0.0) for c in live)
+                out = sum(getattr(c.grab, "cpu_elsewhere", 0.0) for c in grabbed
+                          if c.grab is not None)
                 elsewhere += out
                 costs.append((now_t, now_cpu - c0 + out))
                 while len(costs) > 1 and now_t - costs[0][0] > PACE_S:
@@ -2847,8 +3371,29 @@ class Watcher:
                                               cap.fitted)
         return True
 
-    def _tick(self, cap: _Capture, items: list[Watched]):
-        """Grab the screen / window once and check its triggers against it."""
+    def _due(self, cap: _Capture, items: list[Watched], now: float) -> list[Watched]:
+        """The triggers of `cap` whose interval is up at `now` (all of a trigger new
+        or edited since its last check)."""
+        due = []
+        for it in items:
+            previous, checked = cap.checked_at.get(it.id, (None, 0.0))
+            interval = it.interval_ms / 1000 if it.interval_ms else self.interval
+            if previous is not it or now - checked >= interval - 0.001:
+                due.append(it)
+        return due
+
+    def _tick(self, cap: _Capture, items: list[Watched]) -> bool:
+        """Grab the screen / window once and check its triggers against it, when one
+        of them is due: the loop goes round as often as the fastest trigger anywhere
+        needs, and a capture whose triggers all wait longer isn't grabbed in between
+        (nothing would look at it). Returns whether it grabbed."""
+        now = time.monotonic()
+        due = self._due(cap, items, now)
+        if not due:
+            ids = {it.id for it in items}
+            cap.scores = {k: v for k, v in cap.scores.items() if k in ids}
+            cap.checked_at = {k: v for k, v in cap.checked_at.items() if k in ids}
+            return False
         try:
             gray = cap.grab.grab()
         except OSError as e:
@@ -2865,9 +3410,9 @@ class Watcher:
             cap.error = str(e) or type(e).__name__
             cap.scores = {}
             cap.refs = {}
-            cap.twins = {}
+            cap.twins.clear()
             cap.misses = 0
-            return
+            return True
         cap.failing = False
         cap.lost = bool(getattr(cap.grab, "lost", False))
         cap.minimized = bool(getattr(cap.grab, "minimized", False))
@@ -2885,22 +3430,16 @@ class Watcher:
             # resized): scale the pictures for what the capture really sees
             cap.fitted, cap.scaled = self._fit(cap.grab, cap.mon, items, cap.scaled,
                                               cap.fitted)
-            return
+            return True
         if gray is not None:
             cap.black = is_black(gray)
-            now = time.monotonic()
-            due = []
-            for it in items:
-                previous, checked = cap.checked_at.get(it.id, (None, 0.0))
-                interval = it.interval_ms / 1000 if it.interval_ms else self.interval
-                if previous is not it or now - checked >= interval - 0.001:
-                    due.append(it)
-                    cap.checked_at[it.id] = (it, now)
-            if due:
-                cap.scores.update(self._check(cap, gray, due))
+            for it in due:
+                cap.checked_at[it.id] = (it, now)
+            cap.scores.update(self._check(cap, gray, due))
             ids = {it.id for it in items}
             cap.scores = {k: v for k, v in cap.scores.items() if k in ids}
             cap.checked_at = {k: v for k, v in cap.checked_at.items() if k in ids}
+        return True
 
     @staticmethod
     def _fit(grab, mon: Monitor | None, items: list[Watched], old: dict | None = None,
@@ -2937,15 +3476,18 @@ class Watcher:
             looks = []
             for k, (g, m) in enumerate(i.pictures):
                 found = ([f * ratio for f in before[k].found]
-                         if i.any_size and k < len(before) and isinstance(before[k], Look) else [])
+                         if i.sweeps(k) and k < len(before) and isinstance(before[k], Look)
+                         else [])
                 sizes = i.sizes(k, (sw, sh))
                 at = base if min(g.shape) * min(sizes) * base >= FINE_SIDE else scale
-                look = Look(g, m, at, sizes, i.any_size, found,
-                            i.tints[k] if k < len(i.tints) else None, at / scale, base / at)
+                look = Look(g, m, at, sizes, i.sweeps(k), found,
+                            i.tints[k] if k < len(i.tints) else None, at / scale, base / at,
+                            wide=i.is_wide(k))
                 rgb = i.colours[k] if k < len(i.colours) else None
                 if rgb is not None and rgb.shape[:2] == g.shape:
                     look.small_tint = tint_at(rgb, m, scale)
                     look.rgb = rgb
+                    look.hue = one_colour(rgb, m, g) if HUE_CHECK else None
                 for _f, p in look.pats:
                     need = spectrum * (1 if p.box else 2)
                     if room >= need:
@@ -2977,16 +3519,19 @@ class Watcher:
                     and (colour is None or np.array_equal(last[1], colour)))
             memo, cap.memo = cap.memo, {}
             if last is not None and not same and last[0].shape == gray.shape:
-                ids = [i.id for i in items if i.any_size and i.uses_pictures]
+                ids = [i.id for i in items if i.sweeping and i.uses_pictures]
                 if ids:
                     for bx in changed_boxes(last[0], gray)[:HUNT_BOXES]:
-                        cap.hunts.append([bx, cap.checks, list(ids)])
+                        cap.hunts.append([bx, cap.checks, list(ids), {}])
             cap.hunts = [h for h in cap.hunts if h[2] and cap.checks - h[1] < HUNT_CHECKS]
             del cap.hunts[:-HUNT_BOXES]
             hunt = self._hunts if self._hunts is not None else [HUNT_PER_CHECK]
             # those that swept longest ago are scored first, so they get the turns
             budget = self._sweeps if self._sweeps is not None else [SWEEPERS]
-            cap.cover_left = COVER_PER_CHECK
+            cap.cover_left, cap.fresh_left = COVER_PER_CHECK, COVER_FRESH
+            cap.colour_left = COLOUR_PER_CHECK
+            cap.hue_left = HUE_PER_CHECK
+            cap.sharp_left = SHARP_PER_CHECK
             for it in sorted(items, key=lambda i: cap.swept.get(i.id, -1)):
                 looks = cap.scaled.get(it.id)
                 got = memo.get(it.id) if same and it.id not in self._quiet else None
@@ -3019,10 +3564,13 @@ class Watcher:
                 log.debug("trigger %s went off in the window in front: kept quiet", it.id)
                 continue
             y0, y1, x0, x1 = box
-            rgb = getattr(cap.grab, "color", None)
-            pic = rgb if rgb is not None and rgb.shape[:2] == gray.shape else gray
+            pic = log_rgb(getattr(cap.grab, "raw", None)) if self.color_hits else None
+            if pic is None:
+                rgb = getattr(cap.grab, "color", None) if self.color_hits else None
+                pic = rgb if rgb is not None and rgb.shape[:2] == gray.shape else gray
+                pic = (np.clip(pic, 0, 1) * 255).astype(np.uint8)
             hit = Hit(cap.source, (x0 / fw, y0 / fh, (x1 - x0) / fw, (y1 - y0) / fh), score,
-                      (np.clip(pic, 0, 1) * 255).astype(np.uint8))
+                      pic)
             try:
                 if self._hits:
                     self._on_fire(it.id, hit)
@@ -3098,6 +3646,7 @@ class Watcher:
                 return got
             raw = getattr(cap.grab, "raw", None)
             twin = Watcher._full_size(cap.grab)
+            rgb_cut = Watcher._full_rgb(cap.grab) if COLOUR_COVER and raw is not None else None
             near_ = it.threshold - TINT_NEAR
 
             def around(r: float, bx: tuple, p: Pattern) -> tuple[Frame, tuple] | None:
@@ -3120,6 +3669,11 @@ class Watcher:
                 if p.size[0] + 2 > y1 - y0 or p.size[1] + 2 > x1 - x0:
                     return None
                 return got
+
+            def fresh(b: tuple) -> bool:
+                """Whether box `b` overlaps a patch that changed this check."""
+                return any(h[1] == cap.checks and h[0][0] < b[1] and b[0] < h[0][1]
+                           and h[0][2] < b[3] and b[2] < h[0][3] for h in cap.hunts)
 
             def judge(p: Pattern, lk: Look, area: tuple | None = None,
                       fine: bool = False) -> tuple[float, tuple]:
@@ -3154,36 +3708,47 @@ class Watcher:
                     b = (y0 + my, y0 + my + p.size[0], x0 + mx, x0 + mx + p.size[1])
                     if r < 0.999:
                         b = tuple(round(v / r) for v in b)
+                    if (SHARP_ON and lk.mask is not None and twin is not None and area is None
+                            and SHARP_LOW <= sc < it.threshold):
+                        sc = max(sc, Watcher._sharp(cap, it.id, twin, b, lk, gray.shape))
                     if (COVER_ON and check and twin is not None and area is None
-                            and COVER_LOW <= sc < it.threshold
-                            and (cap.covers.get(it.id, (0, False))[1]
-                                 or (cap.cover_left > 0 and cap.checks
-                                     - cap.covers.get(it.id, (-COVER_EVERY, False))[0]
-                                     >= COVER_EVERY))):
-                        # partly covered? (cover_score): tried for a few places a check,
-                        # and every check for one found covered last time
-                        if not cap.covers.get(it.id, (0, False))[1]:
-                            cap.cover_left -= 1
-                        cap.covers[it.id] = (cap.checks, False)
-                        info: dict = {}
-                        cs, share = Watcher._cover(twin, b, lk, gray.shape, info)
-                        if (COVER_LEAST <= share <= COVER_MAX and cs >= COVER_SCORE
-                                and cs - info.get("plain", 1.0) >= COVER_GAIN
-                                and info.get("uni", 1.0) <= COVER_UNI
-                                and info.get("fill", 0.0) >= COVER_FILL):
-                            if Watcher._cover_tint(raw, b, lk, info["cov"]) >= 1.0:
-                                sc, covered = cs, True
-                                cap.covers[it.id] = (cap.checks, True)
+                            and COVER_LOW <= sc < it.threshold):
+                        cs = Watcher._grey_cover(cap, it.id, twin, raw, b, lk, gray.shape,
+                                                 fresh(b))
+                        if cs > 0.0:
+                            sc, covered = cs, True
                     if check and sc >= near_ and not covered:
                         f_ = Watcher._tint_factor(raw, b, lk.tint, lk.mask)
                         if f_ < 1.0 and lk.small_tint is not None:
                             f_ = max(f_, Watcher._tint_factor(raw, b, *lk.small_tint))
-                        sc *= f_
+                        grey, sc = sc, sc * f_
+                        if (grey >= it.threshold > sc and rgb_cut is not None
+                                and twin is not None and area is None and lk.rgb is not None):
+                            # its grey matches but not its colours: something flat in
+                            # another colour over part of it?
+                            cs = Watcher._colour_cover(cap, it.id, twin, rgb_cut, raw, b, lk,
+                                                       gray.shape, fresh(b))
+                            if cs >= it.threshold:
+                                sc, covered = cs, True
+                            elif MATCH_COLOUR and Watcher._colour_match(
+                                    cap, it.id, twin, rgb_cut, b, lk, gray.shape, fresh(b)):
+                                sc = grey
+                    if (check and not covered and sc >= it.threshold and lk.hue is not None
+                            and twin is not None and rgb_cut is not None
+                            and Watcher._hue_off(cap, it.id, twin, rgb_cut, b, lk, gray.shape,
+                                                 fresh(b))):
+                        sc = 0.0                # another colour (one_colour)
                     if twin is not None and sc >= it.threshold:
                         sc = min(sc, Watcher._twin(twin, b, lk, gray.shape,
                                                    cap.twins, it.id))
                     if fine and sc >= it.threshold:
                         sc = min(sc, Watcher._fine_shape(twin, b, lk, gray.shape))
+                    bar = (Watcher._shape_bar(p, lk) if twin is not None
+                           and sc >= it.threshold and not covered else None)
+                    if bar is not None:
+                        st = Watcher._small_shape(twin, b, lk, gray.shape, cap.twins, it.id)
+                        if st < bar:
+                            sc = min(sc, st)
                     if sc > top[0]:
                         top = (sc, b)
                 return top
@@ -3198,7 +3763,7 @@ class Watcher:
                         if sc > best:
                             best, at = sc, b
             cap.memo[it.id] = (it, cap.scaled.get(it.id), stamp, (best, at))
-            if (best < max(it.threshold, SWEEP_DONE) and it.any_size
+            if (best < max(it.threshold, SWEEP_DONE) and it.sweeping
                     and (budget is None or budget[0] > 0)):
                 if budget is not None:
                     budget[0] -= 1
@@ -3207,7 +3772,7 @@ class Watcher:
                                        lambda lk: level(lk.ratio)[0].shape, best)
                 if sc > best:
                     best, at = sc, b
-            if (it.any_size and best < it.threshold and cap.hunts
+            if (it.sweeping and best < it.threshold and cap.hunts
                     and (hunt is None or hunt[0] > 0)):
                 sc, b = Watcher._hunt(cap, it, looks, judge, best, hunt)
                 if sc > best:
@@ -3279,29 +3844,121 @@ class Watcher:
         return score
 
     @staticmethod
-    def _fine_shape(full: tuple | None, box: tuple, lk: Look, shape: tuple[int, int]) -> float:
+    def _fine_shape(full: tuple | None, box: tuple, lk: Look, shape: tuple[int, int],
+                    steps: int = 0, masked: bool = False) -> float:
         """structure() of `lk`'s picture, made the size of `box` (y0, y1, x0, x1 in a
         frame of `shape`), on the capture's pixels at full size (`full`: _full_size's)
-        where it best fits about there (+-CONFIRM_PAD px). 0.0 without them."""
+        where it best fits about there (+-CONFIRM_PAD px). With `steps`, also made up
+        to that many CONFIRM_STEPs smaller and bigger: the best of those. `masked`: a
+        cut-out is scored on its opaque part only (cut_structure()). 0.0 without them."""
         if full is None:
             return 0.0
         cut, (fh, fw) = full
         sy, sx = fh / shape[0], fw / shape[1]
         y0, y1, x0, x1 = box
         th, tw = lk.gray.shape
-        k = ((y1 - y0) * sy / th + (x1 - x0) * sx / tw) / 2
-        q = Pattern(resize(lk.gray, k), None if lk.mask is None else shrink_mask(lk.mask, k))
-        if not q.ok:
+        k0 = ((y1 - y0) * sy / th + (x1 - x0) * sx / tw) / 2
+        best = 0.0
+        for i in range(-steps, steps + 1):
+            k = k0 * CONFIRM_STEP ** i
+            g, m = resize(lk.gray, k), None if lk.mask is None else shrink_mask(lk.mask, k)
+            q = Pattern(g, m)
+            if not q.ok:
+                continue
+            gh, gw = q.shape
+            pad = CONFIRM_PAD + 1 + (steps > 0)
+            cy, cx = round((y0 + y1) * sy / 2 - gh / 2), round((x0 + x1) * sx / 2 - gw / 2)
+            area = cut(max(0, cy - pad), min(fh, cy + gh + pad),
+                       max(0, cx - pad), min(fw, cx + gw + pad))
+            if area is None or area.shape[0] < gh or area.shape[1] < gw:
+                continue
+            _sc, at = _ncc_at(area, q)
+            if masked and not q.box:
+                st = cut_structure(area, g, m, at)
+            else:
+                st = structure(Frame(area), q, at)
+            best = max(best, st)
+        return best
+
+    @staticmethod
+    def _shape_bar(p: Pattern, lk: Look) -> float | None:
+        """The shape (_small_shape()) a match of `lk` at `p`'s size has to keep at full
+        size: CUT_LOW_SHAPE for a cut-out well under the size it was cut at, SMALL_SHAPE
+        for a small match; None: it needn't be checked."""
+        if (lk.mask is not None and p.size[1] < CUT_LOW_K * lk.gray.shape[1] * lk.scale
+                and not lk.mask.all()):
+            return CUT_LOW_SHAPE
+        if p.size[0] * p.size[1] < SMALL_AREA:
+            return SMALL_SHAPE
+        return None
+
+    @staticmethod
+    def _small_shape(full: tuple, box: tuple, lk: Look, shape: tuple[int, int],
+                     seen: dict | None = None, key: str = "") -> float:
+        """_fine_shape() with SMALL_STEPS either side, for a small match (SMALL_AREA).
+        `seen` (a capture's `twins`) keeps each answer under `key`, the picture and the
+        box's size, as _twin() does: a thing that stays up is worked out again only once
+        its pixels change."""
+        if seen is None:
+            return Watcher._fine_shape(full, box, lk, shape, SMALL_STEPS, True)
+        cut, (fh, fw) = full
+        sy, sx = fh / shape[0], fw / shape[1]
+        y0, y1, x0, x1 = box
+        area = cut(max(0, round(y0 * sy)), min(fh, round(y1 * sy)),
+                   max(0, round(x0 * sx)), min(fw, round(x1 * sx)))
+        px = None if area is None else area.tobytes()
+        k = ("small", key, y1 - y0, x1 - x0)
+        got = seen.get(k)
+        if got is not None and got[0] is lk.gray and got[1] == px:
+            return got[2]
+        score = Watcher._fine_shape(full, box, lk, shape, SMALL_STEPS, True)
+        seen[k] = (lk.gray, px, score)
+        return score
+
+    @staticmethod
+    def _cover_turn(cap: _Capture, fresh: bool) -> bool:
+        """Takes a cover try off this check's (COVER_PER_CHECK, COVER_FRESH): False
+        when none is left."""
+        if fresh and cap.fresh_left > 0:
+            cap.fresh_left -= 1
+        elif cap.cover_left > 0:
+            cap.cover_left -= 1
+        else:
+            return False
+        return True
+
+    @staticmethod
+    def _grey_cover(cap: _Capture, key: str, full: tuple, raw: tuple, box: tuple, lk: Look,
+                    shape: tuple[int, int], fresh: bool = False) -> float:
+        """The score of `lk` at `box` (y0, y1, x0, x1 in a frame of `shape`) partly
+        covered (_cover(), its rules: see COVER_*), or 0.0. Kept in `cap.twins` under
+        `key`, the picture and the box, as _twin() does; worked out for COVER_PER_CHECK
+        places a check (COVER_FRESH more where it just changed: `fresh`), and any for a
+        trigger found covered last time."""
+        cut, (fh, fw) = full
+        sy, sx = fh / shape[0], fw / shape[1]
+        y0, y1, x0, x1 = box
+        area = cut(max(0, round(y0 * sy)), min(fh, round(y1 * sy)),
+                   max(0, round(x0 * sx)), min(fw, round(x1 * sx)))
+        if area is None:
             return 0.0
-        gh, gw = q.shape
-        pad = CONFIRM_PAD + 1
-        cy, cx = round((y0 + y1) * sy / 2 - gh / 2), round((x0 + x1) * sx / 2 - gw / 2)
-        area = cut(max(0, cy - pad), min(fh, cy + gh + pad),
-                   max(0, cx - pad), min(fw, cx + gw + pad))
-        if area is None or area.shape[0] < gh or area.shape[1] < gw:
+        ck, px = ("cover", key, y1 - y0, x1 - x0), area.tobytes()
+        got = cap.twins.get(ck)
+        if got is not None and got[0] is lk.gray and got[1] == px:
+            return got[2]
+        if not cap.covers.get(key, False) and not Watcher._cover_turn(cap, fresh):
             return 0.0
-        _sc, at = _ncc_at(area, q)
-        return structure(Frame(area), q, at)
+        info: dict = {}
+        cs, share = Watcher._cover(full, box, lk, shape, info)
+        score = 0.0
+        if (COVER_LEAST <= share <= COVER_MAX and cs >= COVER_SCORE
+                and cs - info.get("plain", 1.0) >= COVER_GAIN
+                and info.get("uni", 1.0) <= COVER_UNI and info.get("fill", 0.0) >= COVER_FILL
+                and Watcher._cover_tint(raw, box, lk, info["cov"]) >= 1.0):
+            score = cs
+        cap.covers[key] = score > 0.0
+        cap.twins[ck] = (lk.gray, px, score)
+        return score
 
     @staticmethod
     def _cover(full: tuple, box: tuple, lk: Look, shape: tuple[int, int],
@@ -3327,6 +3984,210 @@ class Watcher:
         if area is None:
             return 0.0, 1.0
         return cover_score(area, g, m, info)
+
+    @staticmethod
+    def _full_rgb(grab):
+        """cut(y0, y1, x0, x1) giving the colours (frame_rgb) of that box of `grab`'s
+        pixels at full size, as _full_size's gives its grey; None: it can't."""
+        full = getattr(grab, "full", None)
+        if full is not None:
+            return lambda y0, y1, x0, x1: frame_rgb(full[y0:y1, x0:x1])
+        cut = getattr(type(grab), "full_rgb", None)
+        return None if cut is None else cut.__get__(grab)
+
+    @staticmethod
+    def _sharp(cap: _Capture, key: str, full: tuple, box: tuple, lk: Look,
+               shape: tuple[int, int]) -> float:
+        """`lk`'s cut-out matched on the capture's pixels at full size (`full`:
+        _full_size's) about `box` (y0, y1, x0, x1 in a frame of `shape`) under its own
+        mask, when the box is its own size there (TWIN_SIZE); else 0.0. Kept in
+        `cap.twins` as _twin() does; SHARP_PER_CHECK new places a check."""
+        cut, (fh, fw) = full
+        sy, sx = fh / shape[0], fw / shape[1]
+        y0, y1, x0, x1 = box
+        th, tw = lk.gray.shape
+        if (abs((y1 - y0) * sy / th - 1) > TWIN_SIZE
+                or abs((x1 - x0) * sx / tw - 1) > TWIN_SIZE):
+            return 0.0
+        pad = CONFIRM_PAD + 1
+        cy, cx = round((y0 + y1) * sy / 2 - th / 2), round((x0 + x1) * sx / 2 - tw / 2)
+        area = cut(max(0, cy - pad), min(fh, cy + th + pad),
+                   max(0, cx - pad), min(fw, cx + tw + pad))
+        if area is None or area.shape[0] < th or area.shape[1] < tw:
+            return 0.0
+        ck, px = ("sharp", key, y1 - y0, x1 - x0), area.tobytes()
+        got = cap.twins.get(ck)
+        if got is not None and got[0] is lk.gray and got[1] == px:
+            return got[2]
+        if cap.sharp_left <= 0:
+            return 0.0
+        cap.sharp_left -= 1
+        q = Pattern(lk.gray, lk.mask)
+        score = _ncc_at(area, q)[0] if q.ok else 0.0
+        cap.twins[ck] = (lk.gray, px, score)
+        return score
+
+    @staticmethod
+    def _colour_area(full: tuple, box: tuple, lk: Look, shape: tuple[int, int]) -> tuple | None:
+        """The picture's grey, mask and colours made the size of `box` (y0, y1, x0, x1
+        in a frame of `shape`), and the box about it on the capture's pixels at full size
+        (`full`: _full_size's) with CONFIRM_PAD px round it, and its grey: (g, mk, t, b,
+        area), or None."""
+        cut, (fh, fw) = full
+        sy, sx = fh / shape[0], fw / shape[1]
+        y0, y1, x0, x1 = box
+        th, tw = lk.gray.shape
+        k = ((y1 - y0) * sy / th + (x1 - x0) * sx / tw) / 2
+        t = lk.rgb[..., :3].astype(np.float32) * (1 / 255)
+        g, mk = lk.gray, lk.mask
+        if abs(k - 1) >= 0.02:
+            g = resize(lk.gray, k)
+            mk = None if lk.mask is None else shrink_mask(lk.mask, k)
+            t = np.stack([resize(t[..., c], k) for c in range(3)], -1)
+        gh, gw = g.shape
+        if t.shape[:2] != (gh, gw):
+            return None
+        pad = CONFIRM_PAD + 1
+        cy, cx = round((y0 + y1) * sy / 2 - gh / 2), round((x0 + x1) * sx / 2 - gw / 2)
+        b = (max(0, cy - pad), min(fh, cy + gh + pad), max(0, cx - pad), min(fw, cx + gw + pad))
+        area = cut(*b)
+        if area is None or area.shape[0] < gh or area.shape[1] < gw:
+            return None
+        return g, mk, t, b, area
+
+    @staticmethod
+    def _hue_off(cap: _Capture, key: str, full: tuple, rgb_cut, box: tuple, lk: Look,
+                 shape: tuple[int, int], fresh: bool = False) -> bool:
+        """Whether `lk`'s thing in one colour (lk.hue, one_colour()) shows at `box` in a
+        colour no light makes of it (overlay_off()), on the capture's pixels at full size
+        (shrunk, thin letters blend with their outline). Kept in `cap.twins`, HUE_PER_CHECK new
+        ones a check; when it's not its turn, it isn't off."""
+        got = Watcher._colour_area(full, box, lk, shape)
+        if got is None:
+            return False
+        g, mk, _t, b, area = got
+        y0, y1, x0, x1 = box
+        ck, px = ("hue", key, y1 - y0, x1 - x0), area.tobytes()
+        seen = cap.twins.get(ck)
+        if seen is not None and seen[0] is lk.gray and seen[1] == px:
+            return seen[2] > 0.0
+        if cap.hue_left <= 0:
+            return False
+        cap.hue_left -= 1
+        off = False
+        q = Pattern(g, mk)
+        rgb = rgb_cut(*b)
+        if q.ok and rgb is not None and rgb.shape[:2] == area.shape:
+            _sc, (x, y) = _ncc_at(area, q)
+            gh, gw = g.shape
+            colour, where = lk.hue
+            hh, hw = where.shape
+            at = where[(np.arange(gh) * hh // gh)[:, None], np.arange(gw) * hw // gw]
+            if at.any():
+                here = rgb[y:y + gh, x:x + gw][..., :3][at].astype(np.float64).mean(0)
+                off = bool(overlay_off(colour, here[None])[0])
+        cap.twins[ck] = (lk.gray, px, 1.0 if off else 0.0)
+        return off
+
+    @staticmethod
+    def _colour_match(cap: _Capture, key: str, full: tuple, rgb_cut, box: tuple, lk: Look,
+                      shape: tuple[int, int], fresh: bool = False) -> bool:
+        """Whether `lk`'s colours agree at `box` on the pixels whose grey is the
+        picture's (matched_colour(), MATCH_*), on the capture's pixels at full size.
+        Kept in `cap.twins` and paced as _colour_cover() is."""
+        got = Watcher._colour_area(full, box, lk, shape)
+        if got is None:
+            return False
+        g, mk, t, b, area = got
+        y0, y1, x0, x1 = box
+        ck, px = ("match", key, y1 - y0, x1 - x0), area.tobytes()
+        seen = cap.twins.get(ck)
+        if seen is not None and seen[0] is lk.gray and seen[1] == px:
+            return seen[2] > 0.0
+        if cap.colour_left > 0:
+            cap.colour_left -= 1
+        elif not (fresh and Watcher._cover_turn(cap, True)):
+            return False
+        ok = False
+        q = Pattern(g, mk)
+        rgb = rgb_cut(*b)
+        if mk is None and q.ok and rgb is not None and rgb.shape[:2] == area.shape:
+            _sc, (x, y) = _ncc_at(area, q)
+            gh, gw = g.shape
+            share, fit, kept, gap = matched_colour(area[y:y + gh, x:x + gw],
+                                                   rgb[y:y + gh, x:x + gw], g, t)
+            ok = (MATCH_LEAST <= share <= MATCH_MOST and fit >= MATCH_SHAPE
+                  and kept >= MATCH_KEPT and gap <= MATCH_CRES)
+        cap.twins[ck] = (lk.gray, px, 1.0 if ok else 0.0)
+        return ok
+
+    @staticmethod
+    def _colour_cover(cap: _Capture, key: str, full: tuple, rgb_cut, raw: tuple, box: tuple,
+                      lk: Look, shape: tuple[int, int], fresh: bool = False) -> float:
+        """The score of `lk` made the size of `box` (y0, y1, x0, x1 in a frame of
+        `shape`), on the capture's pixels at full size about there (`full`: _full_size's,
+        `rgb_cut`: _full_rgb's), with what colour_cover() finds covering it left out, if
+        that's one flat thing over COVER_LEAST..COVER_MAX of it, the rest scores
+        COVER_SCORE or more and its colours are the picture's (_cover_tint, on the
+        grab's own pixels `raw`); else 0.0. Kept in `cap.twins` under `key`, the
+        picture and the box, as _twin() does; worked out for COLOUR_PER_CHECK places a
+        check, or a cover try where it just changed (`fresh`, _cover_turn), at most
+        (0.0 for the rest)."""
+        cut, (fh, fw) = full
+        sy, sx = fh / shape[0], fw / shape[1]
+        y0, y1, x0, x1 = box
+        th, tw = lk.gray.shape
+        k = ((y1 - y0) * sy / th + (x1 - x0) * sx / tw) / 2
+        t = lk.rgb[..., :3].astype(np.float32) * (1 / 255)
+        g, mk = lk.gray, lk.mask
+        if abs(k - 1) >= 0.02:
+            g = resize(lk.gray, k)
+            mk = None if lk.mask is None else shrink_mask(lk.mask, k)
+            t = np.stack([resize(t[..., c], k) for c in range(3)], -1)
+        gh, gw = g.shape
+        if t.shape[:2] != (gh, gw):
+            return 0.0
+        pad = CONFIRM_PAD + 1
+        cy, cx = round((y0 + y1) * sy / 2 - gh / 2), round((x0 + x1) * sx / 2 - gw / 2)
+        b = (max(0, cy - pad), min(fh, cy + gh + pad), max(0, cx - pad), min(fw, cx + gw + pad))
+        area = cut(*b)
+        if area is None or area.shape[0] < gh or area.shape[1] < gw:
+            return 0.0
+        ck, px = ("colour", key, y1 - y0, x1 - x0), area.tobytes()
+        got = cap.twins.get(ck)
+        if got is not None and got[0] is lk.gray and got[1] == px:
+            return got[2]
+        if cap.colour_left > 0:
+            cap.colour_left -= 1
+        elif not (fresh and Watcher._cover_turn(cap, True)):
+            return 0.0
+        score = Watcher._colour_rest(area, rgb_cut(*b), raw, box, lk, g, mk, t)
+        cap.twins[ck] = (lk.gray, px, score)
+        return score
+
+    @staticmethod
+    def _colour_rest(area: np.ndarray, rgb: np.ndarray | None, raw: tuple, box: tuple,
+                     lk: Look, g: np.ndarray, mk: np.ndarray | None, t: np.ndarray) -> float:
+        """_colour_cover()'s work: `g`, `mk`, `t` the picture's grey, mask and colours
+        made the size it's matched at, `area` and `rgb` the screen's about there."""
+        gh, gw = g.shape
+        q = Pattern(g, mk)
+        if not q.ok:
+            return 0.0
+        if rgb is None or rgb.shape[:2] != area.shape:
+            return 0.0
+        _sc, (x, y) = _ncc_at(area, q)
+        m = np.ones((gh, gw), bool) if mk is None else mk.astype(bool)
+        cov, info = colour_cover(rgb[y:y + gh, x:x + gw].astype(np.float64),
+                                 t.astype(np.float64), m)
+        share = float(cov.sum()) / max(1.0, float(m.sum()))
+        if not (COVER_LEAST <= share <= COVER_MAX and info["uni"] <= COVER_UNI
+                and info["fill"] >= COVER_FILL):
+            return 0.0
+        cs, _share = cover_score(area, g, mk, None, cov)
+        if cs < COVER_SCORE or Watcher._cover_tint(raw, box, lk, cov) < 1.0:
+            return 0.0
+        return cs
 
     @staticmethod
     def _cover_tint(raw: tuple, box: tuple, lk: Look, cov: np.ndarray) -> float:
@@ -3380,30 +4241,47 @@ class Watcher:
 
     @staticmethod
     def _hunt(cap: _Capture, it: Watched, looks: list[Look], judge, beat: float,
-              budget: list[int] | None) -> tuple[float, tuple]:
+              budget: list[float] | None) -> tuple[float, tuple]:
         """Look for `it` at every sweep size about the changed patches it hasn't been
-        looked for in yet (HUNT_*), while `budget` (sizes left this check) lasts. A
-        size that matches is looked for every check from then on, as the sweep's are."""
+        looked for in yet (HUNT_*), while `budget` (sizes left this check, a size on a
+        big area counting for more) lasts: the sizes nearest its own first, the rest
+        the next checks. A size that matches is looked for every check from then on,
+        as the sweep's are."""
         best: tuple = (0.0, None)
         kept = None
+        fh, fw = cap.last[0].shape if cap.last is not None else (1, 1)
         for h in cap.hunts:
             if it.id not in h[2]:
                 continue
             # a thing that turned up there fits in the patch (with some room for the
             # scenery cut with it): sizes too big for it can't be what changed
             y0, y1, x0, x1 = h[0]
-            todo = [(lk, f) for lk in looks for f in HUNT_SIZES
+            todo = [(lk, f) for lk in looks for f in lk.hunt_sizes
                     if min(lk.gray.shape) * lk.scale * f >= SWEEP_MIN_SIDE
                     and lk.gray.shape[0] * lk.scale * f
                     <= ((y1 - y0) * HUNT_FITS + 2 * HUNT_CELL) * lk.ratio
                     and lk.gray.shape[1] * lk.scale * f
                     <= ((x1 - x0) * HUNT_FITS + 2 * HUNT_CELL) * lk.ratio
                     and not any(near(f, g) for g, _p in lk.pats)]
+            todo.sort(key=lambda t: abs(math.log(t[1])))
+            done = h[3].get(it.id, 0)
+            todo = todo[done:]
             if budget is not None:
-                if budget[0] < len(todo):
+                # around(): the area a size is looked for in, as a share of the frame
+                ah = min(fh, y1 - y0 + 2 * round(((y1 - y0) * HUNT_ROOM + 2 * HUNT_CELL) * 0.75))
+                aw = min(fw, x1 - x0 + 2 * round(((x1 - x0) * HUNT_ROOM + 2 * HUNT_CELL) * 0.75))
+                cost = max(1.0, ah * aw / (fh * fw) / HUNT_SMALL) ** HUNT_POW
+                n = min(len(todo), int(budget[0] / cost))
+                if n == 0 and todo:
                     break                       # the next check, with a whole budget
-                budget[0] -= len(todo)
-            h[2].remove(it.id)
+                budget[0] -= n * cost
+                if n < len(todo):
+                    h[3][it.id] = done + n
+                    todo = todo[:n]
+                else:
+                    h[2].remove(it.id)
+            else:
+                h[2].remove(it.id)
             for lk, f in todo:
                 # every other sweep size; one scoring within HUNT_PROMISING of the
                 # threshold has the sizes either side tried too, and if the best of
@@ -3412,7 +4290,7 @@ class Watcher:
 
                 def tri(g, fine=False, lk=lk, area=h[0]):
                     nonlocal best, kept, top
-                    if not SIZES[0] <= g <= SIZES[1] or any(near(g, q) for q, _p in lk.pats):
+                    if not lk.lo <= g <= lk.hi or any(near(g, q) for q, _p in lk.pats):
                         return 0.0
                     p = lk.hunt_pattern(g)
                     got = judge(p, lk, area, fine) if p.ok else (0.0, None)

@@ -6,6 +6,8 @@
         onionwatch/     only what onionwatch.board needs (followed through every
                         import, also the ones made inside functions): the engine
                         and the triggers page, not the app, its tray or its player
+            lang/       the language catalogs (<code>.json), so the Triggers tab shows
+                        in the board's language
         LICENSE
 
 Onion Board unzips it into %APPDATA%\\OnionBoard\\modules\\onion-watch and loads the
@@ -175,6 +177,11 @@ def tried(files: dict[str, Path]) -> set[str]:
     return {n for n in names if _file_of(n) is None and n.split(".")[0] != PACKAGE}
 
 
+def languages() -> list[Path]:
+    """The language catalogs (onionwatch/lang/<code>.json; not the pseudo-language)."""
+    return sorted(p for p in (ROOT / PACKAGE / "lang").glob("*.json") if p.stem != "xx")
+
+
 def build(out: Path) -> Path:
     files, outside = closure()
     bad = not_allowed(outside) + sorted(tried(files) - OPTIONAL)
@@ -183,7 +190,7 @@ def build(out: Path) -> Path:
     entries = {f"{MODULE_ID}/module.json":
                (json.dumps(manifest(outside), indent=1, ensure_ascii=False) + "\n").encode(),
                f"{MODULE_ID}/LICENSE": (ROOT / "LICENSE").read_bytes()}
-    for path in files.values():
+    for path in [*files.values(), *languages()]:
         rel = path.relative_to(ROOT).as_posix()
         entries[f"{MODULE_ID}/{rel}"] = path.read_bytes()
     buf = io.BytesIO()

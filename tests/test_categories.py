@@ -322,12 +322,45 @@ def test_a_card_waiting_for_its_window_offers_to_change_it(make, monkeypatch):
     assert row.btn_retarget.isHidden()
     tab.watcher.failed = frozenset({ref})
     tab.watcher.where = {t.id: [ref]}
+    tab.resize(800, 600)
+    tab.show()                  # (a hidden tab's cards wait until it shows)
     tab._poll()
     assert row.state.text() == "Waiting for Game to open" and not row.btn_retarget.isHidden()
     new = sw.WindowRef("game_dx12.exe", "Game", 0)
     monkeypatch.setattr(tab, "pick_window", lambda current=None: new)
     row.btn_retarget.click()
     assert t.sources == [new] and row.btn_retarget.isHidden()
+
+
+def test_watching_leaves_the_cards_alone_while_the_tab_is_hidden(make, monkeypatch):
+    """The live check (every POLL_MS) does nothing to the cards while the tab is
+    hidden or its window minimised, and catches them up the moment it shows."""
+    old = {"exe": "game.exe", "title": "Game", "nth": 0}
+    tab = make({"triggers": [raw(1, windows=[old])]})
+    t = tab.triggers[0]
+    tab._set_open(tab.sections[""], True)
+    row = tab.rows[t.id]
+    calls = []
+    real = row.show_score
+    monkeypatch.setattr(row, "show_score", lambda s: (calls.append(s), real(s)))
+    ref = sw.WindowRef.from_raw(old)
+    tab.watcher.failed = frozenset({ref})
+    tab.watcher.where = {t.id: [ref]}
+    monkeypatch.setattr(type(tab.watcher), "running", property(lambda w: True))
+    tab.btn_watch.blockSignals(True)
+    tab.btn_watch.setChecked(True)      # "watching", without the real thread
+    tab.btn_watch.blockSignals(False)
+    tab.poll.start(10_000)
+    tab._poll()
+    assert calls == [] and row.note is None             # hidden: nothing done
+    tab.resize(800, 600)
+    tab.show()
+    assert calls and row.state.text() == "Waiting for Game to open"   # caught up
+    tab.showMinimized()
+    del calls[:]
+    tab._poll()
+    assert calls == []                                  # minimised: nothing again
+    tab.poll.stop()
 
 
 def test_cards_never_flash_up_as_windows_of_their_own(make, qapp):
@@ -357,3 +390,23 @@ def test_cards_never_flash_up_as_windows_of_their_own(make, qapp):
     finally:
         qapp.removeEventFilter(spy)
     assert stray == []
+
+
+def test_a_new_trigger_from_a_categorys_plus_or_menu_goes_in_it(make, monkeypatch):
+    tab = make({"triggers": [raw(1), raw(2, "Raids")], "categories": [{"name": "Raids"}]})
+    tab.new_category("Empty one")
+    sec = tab.sections["Empty one"]
+    assert not sec.btn_add.isHidden()
+    shown = []
+    tab._pop_menu = lambda m, _b: shown.append(m)
+    tab._category_add_menu("Empty one")
+    names = [a.text() for a in shown[-1].actions()]
+    assert names[0] == "Cut it from the window" and "Without a picture…" in names
+    tab._category_menu("Raids")
+    first = shown[-1].actions()[0]
+    assert first.text() == "New trigger here" and first.menu() is not None
+    # picking "Without a picture" in the empty one's + menu puts it there, opened
+    tab._last_category = "Raids"
+    next(a for a in shown[-2].actions() if a.text() == "Without a picture…").trigger()
+    assert tab.triggers[-1].category == "Empty one"
+    assert sec.is_open and tab.rows[tab.triggers[-1].id].parentWidget() is sec.body

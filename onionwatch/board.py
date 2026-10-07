@@ -1,7 +1,8 @@
 """Onion Watch inside Onion Board: the add-on module's entry point (module.json's
 "entry"). Onion Board loads the `onionwatch` package from the module's folder,
 imports this and calls create(host) with itself as the host (onionwatch.host.Host).
-What comes back is the whole Triggers tab: the alarm bar over the triggers page.
+What comes back is the whole Triggers tab: Triggers / Log pages with the alarm
+bar over them and the Playing now bar under them (ui.pages).
 
 The board has no tray icon or settings window of Onion Watch's own: sounds are
 the board's, played through the board (into the mic / cable mix), and the
@@ -10,11 +11,12 @@ top of the tab and flashes the taskbar button; Stop all on the board stops it to
 """
 from __future__ import annotations
 
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QApplication, QVBoxLayout, QWidget
 
-from onionwatch import __version__, theme
+from onionwatch import __version__, i18n, theme
 from onionwatch.host import API_VERSION, missing
+from onionwatch.i18n import _
 
 
 class IncompatibleHost(RuntimeError):
@@ -25,14 +27,22 @@ def check(host) -> None:
     """Refuse a host this version can't run in, with a message for the user."""
     lacks = missing(host)
     if lacks:
-        raise IncompatibleHost(f"it isn't a triggers host (it has no {', '.join(lacks)})")
+        raise IncompatibleHost(_("it isn't a triggers host (it has no {names})",
+                                names=", ".join(lacks)))
     v = getattr(host, "api_version", 0)
     if not isinstance(v, int) or v < API_VERSION:
-        raise IncompatibleHost(f"this Onion Watch ({__version__}) needs a newer "
-                               f"{getattr(host, 'name', 'host')}: update it first")
+        raise IncompatibleHost(_("this Onion Watch ({version}) needs a newer {host}: update it "
+                                "first", version=__version__,
+                                host=getattr(host, "name", "host")))
 
 
 def create(host) -> BoardPanel:
+    # the board's language (its optional host.language(); Windows' on an older board),
+    # set before the page's modules load: some of their text is made as they do
+    i18n.follow_host(host)
+    app = QApplication.instance()
+    if app is not None:
+        i18n.translate_qt_buttons(app)
     check(host)
     return BoardPanel(host)
 
@@ -49,17 +59,24 @@ class BoardPanel(QWidget):
     def __init__(self, host):
         super().__init__()
         from onionwatch.ui.alarmbar import AlarmBar
+        from onionwatch.ui.pages import TriggerPages
         from onionwatch.ui.triggerspanel import TriggersTab
         self.host = host
         theme.use_palette(host.palette())
+        # the board owns the app's direction; on a board that hasn't mirrored the app (an
+        # older one, the tab following Windows' Arabic) only this tab is mirrored
+        app = QApplication.instance()
+        if i18n.is_rtl() and (app is None or app.layoutDirection() != Qt.RightToLeft):
+            self.setLayoutDirection(Qt.RightToLeft)
         v = QVBoxLayout(self)
         v.setContentsMargins(0, 8, 0, 0)
         v.setSpacing(8)
         self.panel = TriggersTab(host)
         self.btn_more = self.panel.btn_more   # the board adds "Remove Onion Watch…" to it
         self.alarm = AlarmBar(self.panel)
-        v.addWidget(self.alarm)
-        v.addWidget(self.panel, 1)
+        self.pages = TriggerPages(self.panel, top=[self.alarm])
+        self.panel.pages = self.pages
+        v.addWidget(self.pages, 1)
         self.panel.active_changed.connect(self.active_changed)
         self.panel.fired.connect(self._on_fired)
 

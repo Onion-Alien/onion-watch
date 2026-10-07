@@ -1,7 +1,9 @@
 """Plays the alert sounds on the speakers or headphones picked in Settings.
 
-One output stream, opened the first time something plays and kept open, mixes
-every sound that's playing. The audio callback never waits on anything: the UI
+One output stream, opened the first time something plays, mixes every sound
+that's playing. It's closed again once nothing has played for IDLE_CLOSE_S (an
+open stream runs its callback a hundred times a second, silence or not) and opened
+anew by the next sound. The audio callback never waits on anything: the UI
 thread hands it a new tuple of voices (swapping the reference is atomic), and each
 voice's position is only ever moved by the callback. A ringing voice (`loop`) plays
 over and over until stop() or stop_all().
@@ -10,6 +12,7 @@ from __future__ import annotations
 
 import logging
 import threading
+import time
 
 import numpy as np
 
@@ -18,6 +21,7 @@ from onionwatch.sounds import RATE
 log = logging.getLogger(__name__)
 
 GAP_S = 0.6       # silence between repeats of a ringing sound
+IDLE_CLOSE_S = 30.0   # the output stream is closed after this long with nothing playing
 
 
 class Voice:
@@ -56,6 +60,9 @@ class Player:
         self._stream = None
         self._lock = threading.Lock()      # the UI side only: the callback never takes it
         self.error = ""
+        self.idle_close_s = IDLE_CLOSE_S
+        self._idle: threading.Timer | None = None   # looks in now and then (_idle_check)
+        self._busy_at = 0.0                # when something was last seen playing
 
     # ------------------------------------------------------------------ devices
     @staticmethod
@@ -78,7 +85,8 @@ class Player:
     def set_device(self, name: str):
         if name != self.device:
             self.device = name
-            self._close()
+            with self._lock:
+                self._close()
 
     def _device_index(self):
         if not self.device:
@@ -116,6 +124,9 @@ class Player:
         return False
 
     def _close(self):
+        if self._idle is not None:
+            self._idle.cancel()
+            self._idle = None
         s, self._stream = self._stream, None
         if s is not None:
             try:
@@ -123,6 +134,32 @@ class Player:
                 s.close()
             except Exception:  # noqa: BLE001
                 log.debug("closing the output stream failed", exc_info=True)
+
+    def _arm_idle(self):
+        """Look again in a while whether the stream can be closed (the lock held)."""
+        if self._idle is None and self._stream is not None:
+            t = threading.Timer(max(0.01, self.idle_close_s / 3), self._idle_check)
+            t.daemon = True
+            self._idle = t
+            t.start()
+
+    def _idle_check(self):
+        """On the timer's thread: close the stream once nothing has played for
+        idle_close_s (a ringing sound plays until stopped, so keeps it open)."""
+        with self._lock:
+            self._idle = None
+            if self._stream is None:
+                return
+            now = time.monotonic()
+            if any(not v.done for v in self._voices):
+                self._busy_at = now
+            elif now - self._busy_at >= self.idle_close_s:
+                log.debug("nothing played for %.0f s: closing the output stream",
+                          now - self._busy_at)
+                self._voices = ()
+                self._close()
+                return
+            self._arm_idle()
 
     def _callback(self, out, frames, _time, _status):
         out.fill(0)
@@ -140,6 +177,8 @@ class Player:
             if not self._open():
                 return False
             self._voices = tuple(v for v in self._voices if not v.done) + (Voice(data, loop, tag),)
+            self._busy_at = time.monotonic()
+            self._arm_idle()
         return True
 
     def stop_tag(self, tag: str):
@@ -157,10 +196,16 @@ class Player:
             self._voices = ()
 
     @property
+    def playing(self) -> list[str]:
+        """The tags of every sound playing now."""
+        return [v.tag for v in self._voices if not v.done]
+
+    @property
     def ringing(self) -> list[str]:
         """The tags of the sounds ringing (looping) now."""
         return [v.tag for v in self._voices if v.loop and not v.done]
 
     def close(self):
         self.stop_all()
-        self._close()
+        with self._lock:
+            self._close()

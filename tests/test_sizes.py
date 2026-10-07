@@ -222,6 +222,68 @@ def test_a_picture_partly_covered_by_a_flat_thing_still_counts(monkeypatch):
     assert sc > 0.97 and 0.1 < share < 0.4
 
 
+def test_a_small_match_counts_only_with_the_things_shape_at_full_size():
+    """A small picture that is mostly flat, with one busy corner, matches any dark
+    place with something bright in that corner at the working size. At full size the
+    corner's shape tells them apart, even when the size found is a few % off."""
+    rng = np.random.default_rng(3)
+    pic = np.full((24, 44), 0.08, np.float32) + rng.normal(0, 0.01, (24, 44)).astype(np.float32)
+    pic[14:22, 2:10] = np.indices((8, 8)).sum(0) % 2 * 0.8 + 0.1      # a checker patch
+    lk = sw.Look(pic, None, 0.375, [1.0], True)
+    screen = (np.full((720, 1280), 0.08, np.float32)
+              + rng.normal(0, 0.01, (720, 1280)).astype(np.float32))
+    real = sw.resize(pic, 0.9)
+    rh, rw = real.shape
+    screen[300:300 + rh, 500:500 + rw] = real
+    screen[114:122, 802:810] = 0.85                                   # a bright square
+    full = (lambda y0, y1, x0, x1: screen[y0:y1, x0:x1]), screen.shape
+    shape = (270, 480)
+    k = 0.375
+    # the sweep's size is coarser than 0.9: the real one found at 0.94 of its size
+    s = (round(24 * 0.94 * k), round(44 * 0.94 * k))
+    box = (round(300 * k), round(300 * k) + s[0], round(500 * k), round(500 * k) + s[1])
+    assert sw.Watcher._small_shape(full, box, lk, shape) >= sw.SMALL_SHAPE
+    decoy = (round(100 * k), round(100 * k) + s[0], round(800 * k), round(800 * k) + s[1])
+    assert sw.Watcher._small_shape(full, decoy, lk, shape) < sw.SMALL_SHAPE
+    # kept per place and size: the same pixels aren't worked out again
+    seen: dict = {}
+    a = sw.Watcher._small_shape(full, box, lk, shape, seen, "t")
+    assert len(seen) == 1 and sw.Watcher._small_shape(full, box, lk, shape, seen, "t") == a
+
+
+def test_a_cut_outs_shape_is_judged_on_its_own_pixels():
+    """A cut-out turned up on other scenery: what shows around it isn't the picture's,
+    so only its opaque part is compared."""
+    rng = np.random.default_rng(4)
+    yy, xx = np.indices((40, 40))
+    mask = (yy - 20) ** 2 + (xx - 20) ** 2 < 15 ** 2
+    thing = (np.sin(xx / 2.0) * np.cos(yy / 3.0) * 0.3 + 0.5).astype(np.float32)
+    scenery = rng.random((44, 44)).astype(np.float32)
+    area = scenery.copy()
+    area[2:42, 2:42] = np.where(mask, thing, area[2:42, 2:42])
+    assert sw.cut_structure(area, thing, mask, (2, 2)) > 0.95
+    other = rng.random((44, 44)).astype(np.float32)
+    assert sw.cut_structure(other, thing, mask, (2, 2)) < 0.3
+
+
+def test_a_cut_out_found_well_under_its_size_must_keep_more_of_its_shape():
+    """Shrunk well under the size it was cut at, a cut-out is a smooth blob that
+    scenery fits: it has to keep CUT_LOW_SHAPE at full size, however big it is on the
+    frame. A rectangle, or a cut-out near its size, is checked as before."""
+    yy, xx = np.indices((120, 160))
+    mask = (yy - 60) ** 2 / 50 ** 2 + (xx - 80) ** 2 / 70 ** 2 < 1
+    gray = (np.sin(xx / 5) * np.cos(yy / 7) * 0.3 + 0.5).astype(np.float32)
+    cut = sw.Look(gray, mask, 0.375, [1.0], True)
+    box = sw.Look(gray, None, 0.375, [1.0], True)
+    low = cut.pattern(0.6)
+    assert low.size[0] * low.size[1] >= sw.SMALL_AREA       # not a small match
+    assert sw.Watcher._shape_bar(low, cut) == sw.CUT_LOW_SHAPE
+    assert sw.Watcher._shape_bar(cut.pattern(1.0), cut) is None
+    assert sw.Watcher._shape_bar(box.pattern(0.6), box) is None
+    small = sw.Look(gray[:40, :50], None, 0.375, [1.0], True)
+    assert sw.Watcher._shape_bar(small.pattern(1.0), small) == sw.SMALL_SHAPE
+
+
 def test_a_look_alike_in_other_colours_does_not_count():
     """A teal gem where the orange one was is the same grey: only its colours say
     it's not the same thing. The same gem in a darker scene still counts."""
@@ -442,6 +504,50 @@ def test_a_thing_turning_up_at_another_size_is_found_at_once(monkeypatch):
     assert not cap.hunts or all("t" not in h[2] for h in cap.hunts)
 
 
+def test_a_big_changed_patch_is_hunted_over_several_checks_nearest_sizes_first(monkeypatch):
+    """A size looked for about a patch costs by the area it's looked in: about a big
+    patch (a moving game) that's the whole frame, so a check's budget covers only a few
+    sizes there, the ones nearest the picture's own first, and the rest wait for the
+    next checks. A small patch still has all its sizes looked for at once."""
+    from types import SimpleNamespace
+
+    monkeypatch.setattr(sw, "HUNT_PER_CHECK", round(len(sw.HUNT_SIZES) / sw.HUNT_SMALL / 2))
+    tried = []
+    lk = SimpleNamespace(gray=np.zeros((40, 40), np.float32), scale=1.0, ratio=1.0, pats=[],
+                         hunt_sizes=sw.HUNT_SIZES, lo=sw.SIZES[0], hi=sw.SIZES[1],
+                         hunt_pattern=lambda g: SimpleNamespace(ok=True),
+                         keep=lambda *_a: None)
+    it = SimpleNamespace(id="t", threshold=0.8)
+
+    def judge(_p, _lk, _area, _fine=False):
+        return 0.0, None
+
+    def hunt(box, budget):
+        cap = SimpleNamespace(last=(np.zeros((300, 400), np.float32), None),
+                              hunts=[[box, 0, ["t"], {}]])
+        before = len(tried)
+        sw.Watcher._hunt(cap, it, [lk], lambda p, lk_, a, f=False: (
+            tried.append(p) or judge(p, lk_, a, f)), 0.0, budget)
+        return cap.hunts[0], len(tried) - before
+
+    whole = sw.HUNT_SIZES
+    h, n = hunt((0, 300, 0, 400), [sw.HUNT_PER_CHECK])
+    assert 0 < n < len(whole) and "t" in h[2] and h[3]["t"] == n
+    budget = [sw.HUNT_PER_CHECK]
+    cap = SimpleNamespace(last=(np.zeros((300, 400), np.float32), None), hunts=[h])
+    sizes = []
+    lk.hunt_pattern = lambda g: sizes.append(g) or SimpleNamespace(ok=True)
+    sw.Watcher._hunt(cap, it, [lk], judge, 0.0, budget)
+    assert sizes and len(sizes) == min(n, len(whole) - n)   # the next ones
+    assert all(abs(np.log(a)) <= abs(np.log(b)) + 1e-9 for a, b in zip(sizes, sizes[1:]))
+    assert min(abs(np.log(f)) for f in sizes) >= max(
+        abs(np.log(f)) for f in sorted(whole, key=lambda f: abs(np.log(f)))[:n]) - 1e-9
+    if 2 * n >= len(whole):
+        assert "t" not in h[2]                             # all looked for: done there
+    h, n = hunt((100, 140, 150, 200), [sw.HUNT_PER_CHECK])   # small: all at once
+    assert "t" not in h[2] and n == len(whole)
+
+
 def test_a_cut_out_with_room_around_it_is_hunted_at_a_size_bigger_than_what_changed(
         monkeypatch):
     """The screen changes only where a thing's own pixels are (text: its strokes), but
@@ -500,3 +606,91 @@ def test_colours_taken_at_the_matching_size_also_count():
 
     assert score([]) < 0.8                  # the wrong full-size tint alone: kept down
     assert score([rgb]) >= 0.9              # its colours at the matching size agree
+
+
+def panel(fill=(150, 30, 30), w=160, h=96) -> np.ndarray:
+    """A popup (RGB uint8): a panel in one colour, a light rim and a few white marks
+    (its writing)."""
+    p = np.empty((h, w, 3), np.float32)
+    p[:] = np.array(fill, np.float32) * np.linspace(0.7, 1.1, h)[:, None, None]
+    p[:2], p[-2:], p[:, :2], p[:, -2:] = 230, 230, 230, 230
+    rng = np.random.default_rng(7)
+    for _ in range(9):
+        x, y = rng.integers(20, w - 30), rng.integers(30, h - 50)
+        p[y:y + 18, x:x + 4] = 255
+        p[y:y + 4, x:x + 14] = 255
+    return np.clip(p, 0, 255).astype(np.uint8)
+
+
+def test_a_dark_box_over_a_coloured_popup_is_told_by_its_colour(monkeypatch):
+    """A dark grey box over a corner of a dark red popup is the popup's grey: grey
+    can't tell where it is (cover_score), so the colours fail and it's missed. By
+    colour it's plain (colour_cover): the rest of the popup decides. A popup in other
+    colours with the same box still doesn't count, nor one with noise over it."""
+    level = world(sprites=())
+    level[200:296, 300:460] = panel()
+    piece = level[192:304, 292:468].copy()
+    pic, tint = gray(piece), sw.tint(piece.astype(np.float32) / 255)
+
+    def watch(rgb):
+        h, w = rgb.shape[:2]
+        grab = Grab(w, h)
+        it = sw.Watched("t", [(pic, None)], 0.8, 0.0, any_size=False, cuts=[(960, 540)],
+                        tints=[tint], colours=[piece])
+        cap = sw._Capture(0, Monitor(0, 0, w, h, True))
+        cap.grab = grab
+        cap.fitted, cap.scaled = sw.Watcher._fit(grab, cap.mon, [it])
+        small = scaled(rgb, grab.w / w)[:grab.h, :grab.w]
+        grab.raw = (np.dstack([small[..., ::-1], np.full(small.shape[:2], 255, np.uint8)]),
+                    sw.FMT_BGRA8, 1)
+        grab.full = np.dstack([rgb[..., ::-1], np.full(rgb.shape[:2], 255, np.uint8)])
+        frame = gray(small)
+
+        def check(tries=1):
+            cap.cover_left, cap.fresh_left, cap.colour_left = tries, 0, tries
+            return sw.Watcher._score(cap, frame, it, 0.0, {})[0]
+        return check, cap
+
+    covered = level.copy()
+    covered[260:300, 400:464] = (48, 52, 60)        # a dark grey box over a corner
+    monkeypatch.setattr(sw, "COLOUR_COVER", False)
+    check, _cap = watch(covered)
+    assert check() < 0.8
+    monkeypatch.setattr(sw, "COLOUR_COVER", True)
+    check, _cap = watch(covered)
+    assert check() >= 0.9
+    assert check(tries=0) >= 0.9        # worked out once while its pixels stay the same
+    other = level.copy()
+    other[200:296, 300:460] = panel(fill=(20, 80, 90))   # the same grey, other colours
+    other[260:300, 400:464] = (48, 52, 60)
+    check, _cap = watch(other)
+    assert check() < 0.8
+    noisy = level.copy()
+    rng = np.random.default_rng(3)
+    noisy[260:300, 400:464] = (rng.random((40, 64, 3)) * 255).astype(np.uint8)
+    check, _cap = watch(noisy)
+    assert check() < 0.8
+
+
+
+def test_a_cover_is_tried_at_once_where_something_just_appeared(monkeypatch):
+    """The tries at a covered place are few a check (COVER_PER_CHECK), and scenery
+    near other triggers can take them all; a place where the frame just changed (a
+    hunt's patch: something was shown) has tries of its own (COVER_FRESH). Each answer
+    is kept while the place's pixels stay the same, at no cost."""
+    level = world(sprites=())
+    level[200:296, 300:396] = sprite(cell=16)
+    pic, tint = cut(level, s=112)
+    covered = level.copy()
+    covered[250:330, 344:430] = (40, 40, 40)
+    check, cap = watcher_on(covered, pic, tint, any_size=False)
+    cap.grab.full = np.dstack([covered[..., ::-1], np.full(covered.shape[:2], 255, np.uint8)])
+    cap.cover_left, cap.fresh_left = 0, 1               # the others took this check's
+    assert check() < 0.8
+    fy, fx = cap.grab.h / 540, cap.grab.w / 960
+    cap.hunts.append([(round(250 * fy), round(330 * fy), round(344 * fx), round(430 * fx)),
+                      cap.checks, ["t"], {}])
+    assert check() >= 0.9
+    assert cap.fresh_left == 0
+    cap.hunts.clear()
+    assert check() >= 0.9                               # kept: the same pixels

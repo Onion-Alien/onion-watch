@@ -4,7 +4,8 @@ ship with the app), plus sound files the user adds, which are copied into
 trigger.
 
 Everything is decoded to float32 stereo at RATE and kept in memory once loaded,
-so a trigger fires with no disk access.
+so a trigger fires with no disk access: up to CACHE_MB of them, the sounds played
+longest ago making room (a long file is up to ~46 MB decoded).
 """
 from __future__ import annotations
 
@@ -17,12 +18,14 @@ from pathlib import Path
 import numpy as np
 
 from onionwatch import settings
+from onionwatch.i18n import _
 
 log = logging.getLogger(__name__)
 
 RATE = 48000
 AUDIO_EXTS = {".wav", ".mp3", ".ogg", ".flac", ".aiff", ".aif", ".opus"}
 MAX_SECONDS = 120           # longer files are cut to this (an alarm, not a playlist)
+CACHE_MB = 64               # decoded sounds kept in memory (Library.load), at most
 BUILTIN_PREFIX = "builtin:"
 
 
@@ -89,11 +92,11 @@ def _rising() -> np.ndarray:
 
 
 BUILTINS: dict[str, tuple[str, object]] = {
-    "builtin:chime": ("Chime", _chime),
-    "builtin:ping": ("Ping", _ping),
-    "builtin:rising": ("Ready", _rising),
-    "builtin:bell": ("Bell", _bell),
-    "builtin:alarm": ("Alarm", _alarm),
+    "builtin:chime": (_("Chime"), _chime),
+    "builtin:ping": (_("Ping"), _ping),
+    "builtin:rising": (_("Ready"), _rising),
+    "builtin:bell": (_("Bell"), _bell),
+    "builtin:alarm": (_("Alarm"), _alarm),
 }
 DEFAULT_SOUND = "builtin:chime"
 
@@ -118,9 +121,10 @@ def decode(path: str | Path) -> np.ndarray:
         data, rate = sf.read(str(path), dtype="float32", always_2d=True,
                              frames=-1)
     except Exception as e:  # noqa: BLE001 - libsndfile raises its own types
-        raise OSError(f"{Path(path).name} couldn't be read as a sound ({e})") from e
+        raise OSError(_("{name} couldn't be read as a sound ({error})",
+                       name=Path(path).name, error=e)) from e
     if data.size == 0:
-        raise OSError(f"{Path(path).name} has no sound in it")
+        raise OSError(_("{name} has no sound in it", name=Path(path).name))
     data = data[: int(MAX_SECONDS * rate)]
     if data.shape[1] == 1:
         data = np.repeat(data, 2, axis=1)
@@ -139,7 +143,7 @@ class Library:
     def __init__(self, entries: list, save_cb=None):
         self.entries = entries
         self._save = save_cb or (lambda: None)
-        self._cache: dict[str, np.ndarray] = {}
+        self._cache: dict[str, np.ndarray] = {}     # the one played longest ago first
         clean = [e for e in entries if isinstance(e, dict) and isinstance(e.get("id"), str)
                  and isinstance(e.get("name"), str) and isinstance(e.get("path"), str)]
         entries[:] = clean
@@ -155,7 +159,8 @@ class Library:
     def name(self, sid: str) -> str:
         if sid in BUILTINS:
             return BUILTINS[sid][0]
-        return next((e["name"] for e in self.entries if e["id"] == sid), "Removed sound")
+        return next((e["name"] for e in self.entries if e["id"] == sid),
+                    _("Removed sound"))
 
     def add_file(self, path: str | Path) -> str:
         """Copy a sound file in and list it; returns its id. A file already added (the
@@ -189,8 +194,10 @@ class Library:
 
     def load(self, sid: str) -> np.ndarray | None:
         """The sound's samples (float32 stereo at RATE), or None if it's gone."""
-        if sid in self._cache:
-            return self._cache[sid]
+        data = self._cache.pop(sid, None)
+        if data is not None:
+            self._cache[sid] = data             # played now: the last to make room
+            return data
         if sid in BUILTINS:
             data = _stereo(BUILTINS[sid][1]())
         else:
@@ -203,4 +210,7 @@ class Library:
                 log.warning("sound %s couldn't be loaded", e["name"], exc_info=True)
                 return None
         self._cache[sid] = data
+        room = CACHE_MB * 2 ** 20
+        while len(self._cache) > 1 and sum(a.nbytes for a in self._cache.values()) > room:
+            del self._cache[next(iter(self._cache))]
         return data

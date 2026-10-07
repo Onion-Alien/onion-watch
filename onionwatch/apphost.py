@@ -9,6 +9,7 @@ from onionwatch.host import API_VERSION
 from onionwatch.player import Player
 from onionwatch.settings import Config
 from onionwatch.sounds import AUDIO_EXTS, DEFAULT_SOUND, Library
+from onionwatch.i18n import _
 
 
 class AppHost:
@@ -40,7 +41,7 @@ class AppHost:
 
     def sound_details(self, sid: str) -> str:
         """Optional card detail; older hosts can keep providing names alone."""
-        return f"Volume: {self.cfg.volume:.0%} · Hotkey: none"
+        return _("Volume: {volume:.0%} · Hotkey: none", volume=self.cfg.volume)
 
     def add_sound(self, path: str, done: Callable[[str | None], None]) -> None:
         done(self.library.add_file(path))    # OSError: it can't be read as a sound
@@ -53,6 +54,9 @@ class AppHost:
 
     def ringing(self) -> list[str]:
         return self.player.ringing
+
+    def playing(self) -> list[str]:
+        return self.player.playing
 
     def palette(self) -> dict[str, str]:
         return dict(theme.T)

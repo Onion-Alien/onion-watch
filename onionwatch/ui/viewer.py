@@ -20,8 +20,9 @@ from PySide6.QtWidgets import (QDialog, QHBoxLayout, QLabel, QPushButton, QScrol
                                QSizePolicy, QVBoxLayout, QWidget)
 
 from onionwatch import theme
-from onionwatch.ui import icons
+from onionwatch.ui import fit, icons
 from onionwatch.ui.windowpicker import thumbnail
+from onionwatch.i18n import _
 
 TILE = QSize(96, 54)    # a thumbnail along the bottom
 CHECK = 10              # px: a square of the see-through checkerboard
@@ -73,11 +74,11 @@ class PictureView(QWidget):
         if self.img.isNull():
             return 1.0
         pad = 24
-        fit = min((self.width() - pad) / self.img.width(),
-                  (self.height() - pad) / self.img.height())
-        if fit >= 1:
-            return float(min(int(fit), MAX_ZOOM))   # whole steps: every pixel the same size
-        return max(fit, 0.01)
+        room = min((self.width() - pad) / self.img.width(),
+                   (self.height() - pad) / self.img.height())
+        if room >= 1:
+            return float(min(int(room), MAX_ZOOM))   # whole steps: every pixel the same size
+        return max(room, 0.01)
 
     def picture_rect(self) -> QRectF:
         z = self.zoom()
@@ -90,7 +91,8 @@ class PictureView(QWidget):
         if self.img.isNull():
             p.setPen(QColor(theme.T.get("muted", "#888888")))
             p.drawText(self.rect(), Qt.AlignCenter,
-                       "Loading picture…" if self.loading else "This picture can't be read")
+                       _("Loading picture…") if self.loading
+                       else _("This picture can't be read"))
             return
         r = self.picture_rect()
         if self.img.hasAlphaChannel():      # see-through parts: a checkerboard behind
@@ -126,6 +128,7 @@ class PictureViewer(QDialog):
                  remove: Callable[[int], None] | None = None,
                  describe: Callable[[QImage], str] | None = None, parent=None):
         super().__init__(parent)
+        fit.watch(self)          # grows to fit its (translated) text
         self.setWindowTitle(title)
         self.setWindowFlag(Qt.WindowMaximizeButtonHint, True)
         self.get_paths, self.swap, self.remove = get_paths, swap, remove
@@ -154,17 +157,17 @@ class PictureViewer(QDialog):
         mid = QHBoxLayout()
         mid.setSpacing(8)
         self.btn_prev = QPushButton()
-        self.btn_prev.setToolTip("The picture before (←)")
+        self.btn_prev.setToolTip(_("The picture before (←)"))
         icons.set_icon(self.btn_prev, "back", size=18)
         self.btn_prev.setFixedSize(40, 64)
         self.btn_prev.clicked.connect(lambda: self.go(self.index - 1))
         mid.addWidget(self.btn_prev, 0, Qt.AlignVCenter)
         self.view = PictureView()
-        self.view.setToolTip("Double-click for full screen")
+        self.view.setToolTip(_("Double-click for full screen"))
         self.view.toggled.connect(self.toggle_full)
         mid.addWidget(self.view, 1)
         self.btn_next = QPushButton()
-        self.btn_next.setToolTip("The next picture (→)")
+        self.btn_next.setToolTip(_("The next picture (→)"))
         icons.set_icon(self.btn_next, "forward", size=18)
         self.btn_next.setFixedSize(40, 64)
         self.btn_next.clicked.connect(lambda: self.go(self.index + 1))
@@ -190,25 +193,25 @@ class PictureViewer(QDialog):
         foot.setSpacing(8)
         # the dialog's own from the start: shown before foot is laid out, a parentless
         # button flashed up on the desktop as a little window of its own
-        self.btn_swap = QPushButton("Swap for a file…", self)
-        self.btn_swap.setToolTip("Put another picture file in this one's place")
+        self.btn_swap = QPushButton(_("Swap for a file…"), self)
+        self.btn_swap.setToolTip(_("Put another picture file in this one's place"))
         icons.set_icon(self.btn_swap, "folder", size=14)
         self.btn_swap.clicked.connect(self._swap)
         self.btn_swap.setVisible(swap is not None)
         foot.addWidget(self.btn_swap)
-        self.btn_remove = QPushButton("Remove", self)
+        self.btn_remove = QPushButton(_("Remove"), self)
         self.btn_remove.setObjectName("danger")
-        self.btn_remove.setToolTip("Take this picture off the trigger (Undo brings it back)")
+        self.btn_remove.setToolTip(_("Take this picture off the trigger (Undo brings it back)"))
         icons.set_icon(self.btn_remove, "trash", size=14)
         self.btn_remove.clicked.connect(self._remove)
         self.btn_remove.setVisible(remove is not None)
         foot.addWidget(self.btn_remove)
         foot.addStretch(1)
-        self.btn_full = QPushButton("Full screen")
-        self.btn_full.setToolTip("Fill the screen with it (F11, or double-click the picture)")
+        self.btn_full = QPushButton(_("Full screen"))
+        self.btn_full.setToolTip(_("Fill the screen with it (F11, or double-click the picture)"))
         self.btn_full.clicked.connect(self.toggle_full)
         foot.addWidget(self.btn_full)
-        close = QPushButton("Close")
+        close = QPushButton(_("Close"))
         close.clicked.connect(self.reject)
         foot.addWidget(close)
         v.addLayout(foot)
@@ -304,7 +307,8 @@ class PictureViewer(QDialog):
         if not self.paths:
             return
         path, img, many = self.paths[self.index], self.view.img, len(self.paths) > 1
-        parts = [f"Picture {self.index + 1} of {len(self.paths)}" if many else "",
+        parts = [_("Picture {n} of {total}", n=self.index + 1, total=len(self.paths))
+                 if many else "",
                  Path(path).name]
         if not img.isNull():
             if self._image_size.isValid():
@@ -313,7 +317,7 @@ class PictureViewer(QDialog):
                 parts.append(self.describe(img))
             z = self.view.zoom()
             if z > 1:
-                parts.append(f"shown {z:g}× bigger")
+                parts.append(_("shown {zoom:g}× bigger", zoom=z))
         self.info.setText(" · ".join(p for p in parts if p))
 
     def resizeEvent(self, ev):
@@ -336,7 +340,7 @@ class PictureViewer(QDialog):
             self.showNormal()
         else:
             self.showFullScreen()
-        self.btn_full.setText("Leave full screen" if self.isFullScreen() else "Full screen")
+        self.btn_full.setText(_("Leave full screen") if self.isFullScreen() else _("Full screen"))
 
     def keyPressEvent(self, ev):
         if ev.key() == Qt.Key_Escape and self.isFullScreen():   # Esc: out of full screen first

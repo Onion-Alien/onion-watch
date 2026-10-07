@@ -5,6 +5,7 @@ added to it, and the check speed of triggers on "Default" is picked under ⚙ (e
 card says what Default is)."""
 from PySide6.QtCore import QMimeData, QPoint, QPointF, QSize, Qt, QUrl
 from PySide6.QtGui import QDropEvent, QEnterEvent, QMouseEvent
+from PySide6.QtWidgets import QPushButton
 
 import test_ui
 from test_ui import as_qimage, banner
@@ -33,6 +34,7 @@ def settle(qapp, tab, w=1000, h=900):
 
 def test_a_closed_card_is_a_short_tile(tab, qapp, styled):
     a, b = cards(tab, 2)
+    tab.set_list_view(False)        # an open card in the list (the list view: test_split)
     b.set_open(True)
     settle(qapp, tab)
     assert a.height() <= 80 < b.height()
@@ -73,6 +75,8 @@ def test_a_card_without_a_picture_has_a_slot_to_add_one(tab, qapp):
 
 def test_cards_per_row_is_picked_and_kept(tab, qapp):
     rows = cards(tab, 7)
+    tab.cb_per_row.setCurrentIndex(tab.cb_per_row.findData(0))
+    tab.cb_per_row.activated.emit(tab.cb_per_row.currentIndex())    # cards, not a list
     settle(qapp, tab, w=1400)
     grid = tab.sections[""].body_layout
 
@@ -82,9 +86,11 @@ def test_cards_per_row_is_picked_and_kept(tab, qapp):
         return sum(r.y() == rows[0].y() for r in rows)
     assert across() == grid.columns(grid.geometry().width()) == 4     # as many as fit
     tab.cb_per_row.setCurrentIndex(tab.cb_per_row.findData(6))
+    tab.cb_per_row.activated.emit(tab.cb_per_row.currentIndex())
     assert across() == 6 and tab.host.screen["cards_per_row"] == 6
     assert all(not r.btn_open.visibleRegion().isEmpty() for r in rows)
     tab.cb_per_row.setCurrentIndex(tab.cb_per_row.findData(2))
+    tab.cb_per_row.activated.emit(tab.cb_per_row.currentIndex())
     assert across() == 2
     tab.resize(400, 900)                # too narrow for two: still readable
     assert across() == 1
@@ -259,3 +265,44 @@ def test_a_card_without_room_for_more_pictures_has_no_plus(tab):
     row.refresh_pictures()
     assert not row.btn_add_pic.isEnabled()
 
+
+
+def test_a_closed_card_makes_its_editor_only_when_opened(qapp, styled):
+    """A tile is just its header: the editor (most of a card's widgets) is made the
+    first time it opens, with the trigger's sounds, category and speed in it."""
+    t = sw.Trigger(id="t1", name="Lazy", sounds=["s1"])
+    row = TriggerRow(t, [("s1", "Bell"), ("s2", "Horn")], [], open_=False)
+    row.set_categories(["Main", "Other"])
+    row.set_default_interval(250)
+    assert not row.built
+    assert "Bell" in row.sound_summary.text()
+    row.set_sounds([("s1", "Gong")])            # renamed meanwhile: the tile says so
+    assert "Gong" in row.sound_summary.text() and not row.built
+    row.set_open(True)
+    assert row.built
+    assert [c.findChild(QPushButton, "chipname").text() for c in row.chips] == ["Gong"]
+    assert row.interval.itemText(0) == "Default (250 ms)"
+    assert row.cb_category.count() >= 2
+    row.deleteLater()
+
+
+def test_asking_a_closed_card_for_its_editor_makes_it(qapp, styled):
+    row = TriggerRow(sw.Trigger(id="t2", name="Ask"), [], [], open_=False)
+    assert not row.built
+    row.cooldown.setValue(3)                     # (code that reaches into the editor)
+    assert row.built
+    row.deleteLater()
+
+
+def test_cards_get_the_sounds_again_only_when_they_changed(tab, qapp, styled):
+    rows = cards(tab, 3)
+    calls = []
+    for r in rows:
+        orig = r.set_sounds
+        r.set_sounds = lambda s, orig=orig: (calls.append(1), orig(s))
+    tab.sounds_changed()
+    first = len(calls)
+    tab.sounds_changed()                         # a tab show with nothing new
+    assert len(calls) == first
+    tab.sounds_changed(force=True)               # the theme changed, say
+    assert len(calls) == first + 3

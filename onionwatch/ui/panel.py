@@ -6,6 +6,7 @@ from PySide6.QtCore import QPoint, QRect, QSize, Qt
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QLayout, QVBoxLayout
 
 from onionwatch.ui import icons
+from onionwatch.i18n import _
 
 
 def section_label(text: str) -> QLabel:
@@ -164,7 +165,7 @@ class UndoBar(QFrame):
     MARGIN = 8          # from the parent's edges, as a toast
     MAX_TEXT = 420      # the longest the message gets before it's cut short (…)
 
-    def __init__(self, tip: str = "Put it back, exactly as it was", parent=None):
+    def __init__(self, tip: str = "", parent=None):
         super().__init__(parent)
         from PySide6.QtCore import QTimer
         from PySide6.QtGui import QColor
@@ -177,15 +178,15 @@ class UndoBar(QFrame):
         self.label = QLabel()
         self.label.setTextFormat(Qt.PlainText)   # names are user / web text
         h.addWidget(self.label, 1)
-        self.btn_undo = QPushButton("Undo")
+        self.btn_undo = QPushButton(_("Undo"))
         self.btn_undo.setObjectName("undobtn")
-        self.btn_undo.setToolTip(tip)
+        self.btn_undo.setToolTip(tip or _("Put it back, exactly as it was"))
         self.btn_undo.setCursor(Qt.PointingHandCursor)
         self.btn_undo.clicked.connect(self.undo)
         h.addWidget(self.btn_undo)
         self.btn_close = QPushButton()            # a painted cross (restyle)
         self.btn_close.setObjectName("undoclose")
-        self.btn_close.setToolTip("Dismiss")
+        self.btn_close.setToolTip(_("Dismiss"))
         self.btn_close.setFixedSize(22, 22)
         self.btn_close.setIconSize(QSize(10, 10))
         self.btn_close.setCursor(Qt.PointingHandCursor)

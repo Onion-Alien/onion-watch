@@ -135,6 +135,7 @@ def test_closed_card_switch_is_centered_beside_picture(tab, qapp):
 
 def test_closed_cards_are_tiles_side_by_side_an_open_one_the_whole_width(tab, qapp):
     rows = [new_card(tab) for _ in range(4)]
+    tab.set_list_view(False)
     for r in rows:
         r.set_open(False)
     rows[2].set_open(True)

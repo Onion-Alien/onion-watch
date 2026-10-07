@@ -15,17 +15,17 @@ until you're back.
 ## ⬇️ [Download Onion Watch for Windows](https://github.com/Onion-Alien/onion-watch/releases/latest/download/OnionWatch-Installer.exe)
 
 <!-- release -->
-Version **0.7.2** · Windows 10 / 11 · free, no account, no internet needed ·
-[VirusTotal: 68 of 68 clean](https://www.virustotal.com/gui/file/ca8e302f526f07c05f85eef2132a3aebcac6efd65b69d7f26bf7e410e2fd6658) · [what's new](https://github.com/Onion-Alien/onion-watch/releases/latest)
+Version **0.9.2** · Windows 10 / 11 · free, no account, no internet needed ·
+[VirusTotal: 69 of 69 clean](https://www.virustotal.com/gui/file/2a58084fef95637347bacc6c84e420d1a74c8108532f4bd0164b5a003f5e83bd) · [what's new](https://github.com/Onion-Alien/onion-watch/releases/latest)
 <!-- /release -->
 
-![Onion Watch watching a game, one trigger open](docs/screenshots/main.png?v=18d8dcbe)
+![Onion Watch watching a game, one trigger open](docs/screenshots/main.png?v=9ef68566)
 
 | | |
 |---|---|
 | ![The window picker](docs/screenshots/window-picker.png?v=c1530a72) | ![Cutting a picture from a window](docs/screenshots/cut-picture.png?v=e74729da) |
 | Pick the windows, or every copy of a game | Cut the thing to watch for straight out of the game |
-| ![Picking a health bar and its colour](docs/screenshots/health-bar.png?v=4ee7c359) | ![Categories and profiles](docs/screenshots/categories.png?v=9f2832b1) |
+| ![Picking a health bar and its colour](docs/screenshots/health-bar.png?v=4ee7c359) | ![Categories and profiles](docs/screenshots/categories.png?v=a76fe151) |
 | Or point it at a health bar | Hundreds of triggers in categories and profiles |
 
 ## It only looks
@@ -49,6 +49,11 @@ Settings → Updates and privacy.
   alert with a picture of the moment.
 - **Built-in alert sounds** or your own files. Categories, profiles that switch on
   with a game, search, and Recently deleted.
+- **In your language**: English, Deutsch, Español, Français, Italiano, Nederlands, Polski, Português
+  (Brasil), Türkçe, Bahasa Indonesia, Tiếng Việt, Русский, Українська, العربية,
+  हिन्दी, ไทย, 简体中文, 繁體中文, 日本語 and 한국어
+  (Settings → Look → Language; inside Onion Board it follows the board).
+  Want another one? See [docs/TRANSLATING.md](docs/TRANSLATING.md).
 
 The full list and how the matching works: [docs/FEATURES.md](docs/FEATURES.md).
 

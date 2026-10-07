@@ -28,13 +28,15 @@ def picture_row(tab):
 
 def test_switching_the_kind_of_trigger_shows_its_controls(tab):
     row = picture_row(tab)
-    assert row.pictures_box.isVisibleTo(row) and not row.badge.isVisibleTo(row)
+    assert not row.chk_size.isHidden() and not row.badge.isVisibleTo(row)
+    assert row._in[row.btn_area] is row._tune_row      # a picture's area: More options
     assert row.lbl_number.text() == "Match" and row.threshold.value() == 80
     row.mode.setCurrentIndex(row.mode.findData("change"))
     row.mode.activated.emit(row.mode.currentIndex())
     t = row.t
     assert t.mode == "change" and t.level == 0.05
-    assert not row.pictures_box.isVisibleTo(row) and row.badge.isVisibleTo(row)
+    assert row.chk_size.isHidden() and row.badge.isVisibleTo(row)
+    assert row._in[row.btn_area] is row._watch_row     # the area is what it's about
     assert row.lbl_number.text() == "Changes over" and row.threshold.value() == 5
     assert tab.host.screen["triggers"][0]["mode"] == "change"
     row.threshold.setValue(12)
@@ -74,7 +76,9 @@ def test_a_trigger_without_a_picture_goes_off_and_is_in_the_history(tab, qapp, m
     assert tab.alert_text(t) == "Nothing has moved for a while."
     a = tab.history[-1]
     assert a.name == t.name and a.mode == "still" and a.place == "the screen"
-    assert (a.picture.width(), a.picture.height()) == (W, H)
+    # the window as it was, kept at the size the Log shows it (W x H is twice that)
+    assert (a.picture.width(), a.picture.height()) == (W // 2, H // 2)
+    assert tab._hits[t.id].frame is None        # only where it went off is kept
     dlg = HistoryDialog(tab)
     assert dlg.list.count() == 1 and "stood still in the screen" in alert_text(a)
     dlg._clear()
@@ -111,7 +115,7 @@ def test_the_area_is_dragged_on_the_window(tab, monkeypatch):
     monkeypatch.setattr(snip.AreaDialog, "exec", fake_exec)
     row.t.sources = [GAME]
     tab._pick_area(row)
-    assert row.t.region == (0.5, 0.0, 0.5, 0.5) and row.btn_area.text() == "Area: part"
+    assert row.t.region == (0.5, 0.0, 0.5, 0.5) and row.btn_area.text() == "Part of the window…"
     assert tab.host.screen["triggers"][0]["region"] == [0.5, 0.0, 0.5, 0.5]
 
 

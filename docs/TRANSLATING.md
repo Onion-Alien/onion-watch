@@ -1,0 +1,99 @@
+# Translating Onion Watch
+
+Onion Watch's text is English in the code, wrapped for translation, the same way as
+Onion Board's (so the Triggers tab reads like the rest of the board):
+
+```python
+from onionwatch.i18n import _, ngettext
+
+QPushButton(_("Add a picture"))
+self.undo_bar.show_for(_("Deleted “{name}”", name=t.name), undo)
+ngettext("{n} trigger", "{n} triggers", n)
+```
+
+- `_()` takes a plain string (never an f-string or `+`): put the changing parts in
+  `{placeholders}` and pass them as keyword arguments, so a translation can move them.
+- `ngettext(singular, plural, n)` for text with a number in it; `{n}` is filled in.
+- Whole sentences, not pieces glued together: "Screen 2 isn't plugged in…" and "the
+  window…" / "the screen…" are separate texts, because other languages change the
+  words around them.
+- Don't wrap log messages, settings keys, the update / usage JSON or file names.
+- Don't use `_` as a throwaway name (`path, _ = …`) in a function that calls `_()`:
+  write `path, __ = …`. Where a module needs `_` for throwaways (the engine,
+  `screenwatch.py`), call `i18n._("…")` instead. `scripts/i18n_extract.py` and the
+  tests catch both.
+
+## The catalogs
+
+`onionwatch/lang/<code>.json`, inside the package so they travel in the Onion Board
+add-on zip and the built app:
+
+```json
+{
+  "_meta": {"name": "Deutsch"},
+  "Add a picture": "Bild hinzufügen",
+  "Deleted “{name}”": "„{name}“ gelöscht",
+  "{n} trigger": ["{n} Trigger", "{n} Trigger"]
+}
+```
+
+- The key is the English exactly as in the code. An empty or missing translation shows
+  the English.
+- Plural entries are a list of forms in the order of the language's rule
+  (`onionwatch/i18n.py` → `PLURALS`; how many: `FORMS`): English, German, Spanish,
+  Italian, Dutch, Turkish: one, other; French, Portuguese (Brazil), Hindi: 0–1, other;
+  Russian, Ukrainian: one (1, 21…), few (2–4, 22–24…), many; Polish: one (1), few
+  (2–4, 22–24…), many; Arabic: zero, one, two, few (3–10), many (11–99), other;
+  Chinese, Japanese, Korean, Indonesian, Vietnamese, Thai: one form for every number.
+- Keep the app's tone: short, plain, friendly words. Keep `{placeholders}`, `<b>…</b>`,
+  `&amp;` and line breaks as they are. Use the same words Onion Board uses for shared
+  things (sound, trigger, hotkey, Settings, headphones).
+
+`python scripts/i18n_extract.py` lists, per language, what's missing and what's no
+longer used; `--update` adds the missing texts (empty) to every catalog and drops the
+unused ones; `--check` exits 1 if anything is off. The tests also check that every
+catalog is complete and keeps the placeholders.
+
+A new language: copy a catalog to `<code>.json` (a Windows language code: `it`,
+`pl`, `zh-CN`…), set `_meta.name` to the language's own name, translate, and add its
+plural rule to `PLURALS` (and its number of forms to `FORMS`) if it isn't one / other.
+Add it to Onion Board too, so the two keep the same languages.
+
+## The languages and what's special about them
+
+The same languages as Onion Board, with the same words for shared things: English, Deutsch, Español, Français, Italiano, Nederlands, Polski, Português (Brasil), Türkçe, Bahasa Indonesia, Tiếng Việt, Русский, Українська, العربية, हिन्दी, ไทย, 简体中文, 繁體中文, 日本語 and 한국어.
+
+- **Chinese** goes by region: Windows' `zh-HK`, `zh-MO`, `zh-TW` and `zh-Hant…` get
+  Traditional (`zh-TW`), the rest (`zh-CN`, `zh-SG`, `zh-Hans…`) Simplified (`zh-CN`).
+  A plain base-language match would send Hong Kong to Simplified (`i18n._chinese`).
+- **Arabic** is written right to left (`i18n.RTL`, `i18n.is_rtl()`): the app calls
+  `setLayoutDirection(Qt.RightToLeft)` at start-up, so layouts, menus and text flip.
+  Inside Onion Board the board owns the app's direction: the tab
+  only mirrors its own page, when the board hasn't mirrored the app
+  (`board.BoardPanel`).
+  Check painted widgets (bars, meters, icons) in Arabic: they don't flip by themselves.
+- **Fonts**: the themes name one font (Segoe UI, Consolas, Tahoma, Comic Sans MS);
+  Windows falls back for letters it hasn't got. `i18n.use_fonts()` points that
+  fallback at the language's own font (`i18n.FONTS`: Microsoft YaHei UI / JhengHei UI,
+  Yu Gothic UI, Malgun Gothic, Leelawadee UI, Nirmala UI), so Chinese isn't drawn with
+  Japanese shapes on a Japanese PC. Offscreen screenshots need `QT_QPA_FONTDIR=C:/Windows/Fonts`
+  and the `.ttc` fonts added with `QFontDatabase.addApplicationFont` (the offscreen
+  font list skips them), or CJK and Hindi show as boxes.
+
+## Which language
+
+- The app: Settings → Look → **Language**. *Windows' language* (the default) uses
+  Windows' display language when there's a catalog for it, else English. A change
+  shows after a restart (*Restart now*). Saved as `language` in `config.json`.
+- Inside Onion Board: the board's language (its host's optional `language()`), else
+  Windows'.
+- `ONIONWATCH_LANG=de` (or `xx`) overrides both, for checking a translation from
+  source.
+
+## Checking the layout
+
+The pseudo-language `xx` (`ONIONWATCH_LANG=xx`) shows every wrapped text as
+`[Šéttîñĝš~~~]`: about 40 % longer, like German or Russian. In a screenshot, text
+without brackets isn't wrapped yet and a missing `]` means the label cuts it off.
+`i18n.unwrapped_texts(widget)` lists the unwrapped ones for a test. Dialogs grow to
+fit their text (`ui/fit.py`), so check labels and buttons that can't wrap.

@@ -33,6 +33,7 @@ import numpy as np
 
 from onionwatch.screenwatch import (_BITMAPINFOHEADER, FMT_BGRA8, CaptureLost, WindowRef,
                                     frame_rgb, gray_2x, pick, to_gray)
+from onionwatch.i18n import _
 
 log = logging.getLogger(__name__)
 
@@ -64,7 +65,7 @@ class WindowInfo:
 
     @property
     def label(self) -> str:
-        return self.title or self.exe or f"Window {self.hwnd:#x}"
+        return self.title or self.exe or _("Window {hwnd:#x}", hwnd=self.hwnd)
 
 
 # --------------------------------------------------------------------------- Win32
@@ -315,7 +316,7 @@ class _Bitmap:
                                           None, 0)
         if not self.dc or not self.bmp or not bits.value:
             self.close()
-            raise OSError("couldn't set up window capture")
+            raise OSError(_("couldn't set up window capture"))
         self._old = g.SelectObject(self.dc, self.bmp)
         buf = (ctypes.c_uint8 * (w * h * 4)).from_address(bits.value)
         self.pixels = np.frombuffer(buf, np.uint8).reshape(h, w, 4)
@@ -400,7 +401,7 @@ class WindowGrabber:
         self.ref = ref
         info = info or find(ref)
         if info is None:
-            raise WindowGone(f"{ref.label} isn't open")
+            raise WindowGone(_("{name} isn't open", name=ref.label))
         self.hwnd = info.hwnd
         self.w, self.h = w, h
         self.minimized = False
@@ -444,7 +445,7 @@ class WindowGrabber:
     def grab(self) -> np.ndarray | None:
         u = _win()[0]
         if not u.IsWindow(self.hwnd):
-            raise CaptureLost(f"{self.ref.label} was closed")
+            raise CaptureLost(_("{name} was closed", name=self.ref.label))
         if u.IsIconic(self.hwnd):
             self.minimized = True
             return None

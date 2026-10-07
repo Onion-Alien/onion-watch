@@ -60,6 +60,19 @@ class Host(Protocol):
         """A desktop notification, if the host has a way to show one (else nothing)."""
 
 
+# Optional (a host without it still works; the panel guesses instead):
+#
+#     def playing(self) -> list[str]:
+#         """The tags of every sound playing now, one-shots and rings alike: the
+#         Playing now bar shows a trigger until its sound ends. Without it a
+#         trigger counts as playing for a few seconds after it went off."""
+#
+#     def language(self) -> str:
+#         """The host's language ("en", "de", "pt-BR", the pseudo-language "xx"…): the
+#         page shows in it where Onion Watch has that language. Without it the page
+#         follows Windows' language."""
+
+
 def missing(host) -> list[str]:
     """What a host lacks of `Host` (empty when it has it all)."""
     names = [n for n in Host.__annotations__] + [
