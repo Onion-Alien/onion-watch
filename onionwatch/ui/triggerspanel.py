@@ -2316,6 +2316,7 @@ class TriggersTab(QWidget):
         self._input_waits: dict[str, float] = {}
         self._played: dict[str, set[str]] = {}       # trigger id -> sounds it played (tagged)
         self._ring_sounds: dict[str, list[str]] = {}  # ...-> what its ring is playing
+        self._sounds_shown: list | None = None  # the host's sounds the cards last got
         self._ring_how: dict[str, str] = {}           # ...-> what stops that ring (Trigger.stop)
         self._live: dict[str, float] = {}             # ...-> when it went off, while it plays
         self.pages = None               # the Triggers / Log pages it's shown in (ui.pages)
@@ -3137,7 +3138,7 @@ class TriggersTab(QWidget):
         self.undo_bar.restyle()
         for sec in self.sections.values():
             sec.retheme()             # category tabs fade into the new panel colour
-        self.sounds_changed()         # the chips of sounds that are gone
+        self.sounds_changed(force=True)   # the chips of sounds that are gone
         for row in self._cards():
             row._show_mode()           # the badge of a trigger without pictures
             row.show_score(self.watcher.scores.get(row.t.id) if self.is_active() else None)
@@ -4100,10 +4101,16 @@ class TriggersTab(QWidget):
             self._apply_active(force=True)
 
     # ------------------------------------------------------------------ the list
-    def sounds_changed(self):
-        sounds = self.host.sounds()
-        for row in self._cards():
-            row.set_sounds(sounds)
+    def sounds_changed(self, force: bool = False):
+        """The host's sounds may have changed: give the cards the new list. Only when
+        it did (or `force`: a trigger's own sounds or the theme changed), since every
+        tab show and board pad move lands here, and remaking every card's list and
+        chips is slow with many triggers."""
+        sounds = list(self.host.sounds())
+        if force or sounds != self._sounds_shown:
+            self._sounds_shown = sounds
+            for row in self._cards():
+                row.set_sounds(sounds)
         # a sound taken off the board (or the app) stops wherever a trigger played it
         have = {sid for sid, _name in sounds}
         for tid in list(self._played):
@@ -4719,7 +4726,7 @@ class TriggersTab(QWidget):
             row.flash("", 0)
         if t is not None and sid and sid not in t.sounds and len(t.sounds) < MAX_SOUNDS:
             t.sounds.append(sid)
-        self.sounds_changed()
+        self.sounds_changed(force=True)
         if t is not None and sid:
             self._store()
         elif row is not None and not sid:
