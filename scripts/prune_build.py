@@ -12,6 +12,10 @@ with this app's Qt modules):
 - Web Engine's `.debug` and developer-tools resources
 - Qt's translations (the app is English)
 - `opengl32sw.dll`: the software OpenGL fallback, which widgets never load.
+- the on-screen keyboard plugin (it pulls in Qt Quick, QML and OpenGL), the PDF
+  picture plugin (Qt Pdf), and Qt's TLS and network-information plugins with the
+  second OpenSSL they bring: Qt's network is only the local socket a second launch
+  uses, and HTTPS (update check, usage count) goes through Python's own ssl.
 
 Usage: python scripts/prune_build.py dist/OnionWatch [--dry-run]
 Exit 1 if a kept file imports a DLL that would be missing afterwards, so a change in
@@ -30,7 +34,11 @@ KEEP_MODULES = frozenset({"QtCore", "QtGui", "QtWidgets", "QtNetwork"})
 KEEP_LOCALES = frozenset({"en-US.pak"})
 # platform plugins: the real one, and offscreen for `OnionWatch.exe --selftest`
 KEEP_PLATFORMS = frozenset({"qwindows.dll", "qoffscreen.dll"})
-DROP_PLUGIN_DIRS = ("qmltooling", "position", "generic")
+DROP_PLUGIN_DIRS = ("qmltooling", "position", "generic", "platforminputcontexts", "tls",
+                    "networkinformation")
+DROP_PLUGIN_FILES = ("imageformats/qpdf.dll",)
+# OpenSSL as Qt's TLS plugin wants it; Python's _ssl has its own (libssl-3.dll)
+QT_OPENSSL = ("libssl-3-x64.dll", "libcrypto-3-x64.dll")
 DROP_FILES = ("opengl32sw.dll",)
 # the FFmpeg libraries are kept only if the multimedia plugin still imports them
 DLL_CANDIDATES = ("qt6", "av", "sw")
@@ -87,6 +95,7 @@ def plan(app_dir: Path, imports_of: Callable[[Path], list[str]] = _imports_pefil
         if d.is_dir():
             drop.append(d)
     drop += [qt / n for n in DROP_FILES if (qt / n).exists()]
+    drop += [qt / "plugins" / n for n in DROP_PLUGIN_FILES if (qt / "plugins" / n).exists()]
     for p in (qt / "plugins" / "platforms").glob("*.dll"):
         if p.name not in KEEP_PLATFORMS:
             drop.append(p)
@@ -114,7 +123,17 @@ def plan(app_dir: Path, imports_of: Callable[[Path], list[str]] = _imports_pefil
     for name in sorted(candidates - needed):
         drop.append(pool[name])
 
-    # 4. sanity: everything kept can still find what it imports
+    # 4. Qt's OpenSSL, when nothing kept outside Qt imports it either
+    internal = app_dir / "_internal"
+    ssl = {n: internal / n for n in QT_OPENSSL if (internal / n).exists()}
+    if ssl:
+        others = [p for p in internal.rglob("*") if p.is_file() and kept(p)
+                  and p.suffix.lower() in (".pyd", ".dll") and p.name.lower() not in ssl
+                  and qt not in p.parents]
+        wanted = {n for f in others for n in imports_of(f)}
+        drop += [p for n, p in ssl.items() if n.lower() not in wanted]
+
+    # 5. sanity: everything kept can still find what it imports
     dropped = {p.resolve() for p in drop}
     remaining = {n: p for n, p in pool.items() if kept(p)}
     problems = []

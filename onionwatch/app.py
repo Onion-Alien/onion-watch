@@ -68,7 +68,7 @@ def selftest() -> int:
     """`OnionWatch.exe --selftest`: prove a build can load everything it ships,
     without a window, a device or a capture. Prints OK and returns 0."""
     os.environ["QT_QPA_PLATFORM"] = "offscreen"
-    for mod in ("numpy", "scipy.fft", "sounddevice", "soundfile", "soxr"):
+    for mod in ("numpy", "scipy.fft", "sounddevice", "soundfile", "soxr", "ssl"):
         __import__(mod)
     _app = QApplication(sys.argv)   # noqa: F841 - kept alive while the imports run
     from onionwatch import i18n, sounds, theme
