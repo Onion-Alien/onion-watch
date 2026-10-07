@@ -1154,3 +1154,32 @@ def test_a_cut_out_just_under_the_line_is_matched_again_sharp():
     assert sw.Watcher._sharp(cap, "t", cut, box, look, (100, 150)) > 0.99   # kept
     other = (25, 25 + gray.shape[0], 20, 20 + gray.shape[1])                  # twice the size
     assert sw.Watcher._sharp(cap, "t", cut, other, look, (100, 150)) == 0.0
+
+
+def test_a_word_in_one_colour_is_told_from_the_same_word_in_another():
+    """Green letters with a dark outline, cut over an orange patch: every colour cell
+    is mostly letters (or none is half letters), and an offset per channel turns them
+    red, so only the thing's own colour tells READY in green from READY in red. The
+    scene's light over it (darker, a night filter, an orange tint, washed out,
+    brighter) still passes."""
+    g, rgb = on_patch(WORD, (0.75, 0.42, 0.2), ink=(0.24, 1.0, 0.43))
+    text = g > 0.5
+    ring = np.zeros_like(text)
+    for dy in (-1, 0, 1):
+        for dx in (-1, 0, 1):
+            ring |= np.roll(np.roll(text, dy, 0), dx, 1)
+    rgb = np.where((ring & ~text)[..., None], np.float32(0.03), rgb)
+    pic = (rgb * 255).astype(np.uint8)
+    got = sw.one_colour(pic, None, sw.to_gray(pic[..., ::-1]))
+    assert got is not None
+    colour, where = got
+    assert colour[1] > 0.8 > colour[0] and where[text].mean() > 0.9 and not where[~text].any()
+    for lit in (colour * 0.45, colour * 0.41 + np.array([0.0, 0.08, 0.35]) * 0.59,
+                colour * 0.73 + np.array([1.0, 0.47, 0.0]) * 0.27,
+                colour * 0.49 + 0.5 * 0.51, colour * 0.65 + 0.35):
+        assert not sw.overlay_off(colour, lit[None])[0]
+    for other in ((1.0, 0.32, 0.32), (0.12, 0.53, 0.9), (1.0, 0.84, 0.2)):
+        assert sw.overlay_off(colour, np.array([other]))[0]
+    # a grey picture has no colour to tell by
+    grey = (np.repeat(rgb.mean(-1, keepdims=True), 3, -1) * 255).astype(np.uint8)
+    assert sw.one_colour(grey, None, sw.to_gray(grey[..., ::-1])) is None
