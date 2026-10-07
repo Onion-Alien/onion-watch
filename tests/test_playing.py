@@ -70,9 +70,12 @@ def test_the_log_page_follows_what_went_off(make, tmp_path):  # noqa: F811
     tab.history.append(triggerspanel.Alert(0.0, "Rare spawn", "Game", 0.93, "appear",
                                            QImage()))
     tab.history_changed.emit()
-    assert pages.tabs.tabText(1) == "Log (1)" and pages.log.list.count() == 1
+    assert pages.tabs.tabText(1) == "Log (1)"
+    assert pages.log.list.count() == 0                  # hidden: filled once it shows
+    pages.resize(600, 500)
+    pages.show()
     tab.show_history()                                  # More → What went off…
-    assert pages.stack.currentIndex() == 1
+    assert pages.stack.currentIndex() == 1 and pages.log.list.count() == 1
     out = tmp_path / "log.txt"
     pages.log.save(str(out))
     assert "Rare spawn: showed up in Game, 93%" in out.read_text(encoding="utf-8")
@@ -100,3 +103,43 @@ def test_colour_log_pictures_can_be_switched_off_and_stay_so(make, qapp):  # noq
     dlg.reject()
     again = make(dict(tab.host.screen))
     assert not again.watcher.color_hits
+
+
+def test_the_log_adds_each_alert_instead_of_making_every_line_again(make):  # noqa: F811
+    """A fire adds its line at the top (the lines already there stay as they are),
+    the history letting go of its oldest takes that one off the bottom, and a Log
+    that's hidden catches up when it shows."""
+    from PySide6.QtGui import QImage
+
+    from onionwatch.ui.history import HistoryView
+    tab = make({"triggers": [raw(1)]})
+    view = HistoryView(tab)
+    view.resize(400, 400)
+    view.show()
+
+    def fire(name):
+        tab.history.append(triggerspanel.Alert(0.0, name, "Game", 0.9, "appear", QImage()))
+        tab.history_changed.emit()
+
+    def names():
+        return [view.list.item(i).text().splitlines()[0].split("  ", 1)[1]
+                for i in range(view.list.count())]
+
+    fire("a")
+    first = view.list.item(0)
+    fire("b")
+    assert names() == ["b", "a"] and view.list.item(1) is first     # not made again
+    for i in range(tab.history.maxlen - 1):
+        fire(f"n{i}")
+    assert view.list.count() == tab.history.maxlen and names()[-1] == "b"   # "a" let go
+    view.hide()
+    fire("late")
+    assert names()[0] != "late"
+    view.show()
+    assert names()[0] == "late" and view.list.count() == tab.history.maxlen
+    assert names() == [a.name for a in reversed(tab.history)]
+    tab.history.clear()
+    tab.history_changed.emit()
+    assert view.list.count() == 0 and view.empty.isVisibleTo(view)
+    view.detach()
+    view.deleteLater()

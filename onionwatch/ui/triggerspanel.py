@@ -16,6 +16,7 @@ in (host.data_dir / "triggers").
 """
 from __future__ import annotations
 
+import dataclasses
 import logging
 import math
 import os
@@ -43,7 +44,7 @@ from onionwatch.ui.categories import (MAX_PER_ROW, CategoriesDialog, CategorySec
                                       ProfilesDialog,
                                       counts_text)
 from onionwatch.ui.chances import LiveLabel, goes_below
-from onionwatch.ui.history import HistoryDialog
+from onionwatch.ui.history import THUMB as LOG_THUMB, HistoryDialog
 from onionwatch.ui.panel import Flow, UndoBar, card, hint_label
 from onionwatch.ui.watching import share_label
 from onionwatch.ui.windowpicker import places_label
@@ -129,7 +130,8 @@ MAX_DELETED = 50        # ...and at most this many of them
 class Alert:
     """Something that went off, for the history: when, which trigger, where, how
     strongly, and what the watched window looked like then (the check's own small
-    copy, the box around what set it off drawn on it)."""
+    copy, the box around what set it off drawn on it, kept at the size the Log shows
+    it: 50 of them stay in memory)."""
     when: float
     name: str
     place: str
@@ -139,7 +141,11 @@ class Alert:
 
     @classmethod
     def of(cls, t: Trigger, hit: screenwatch.Hit, place: str) -> Alert:
-        return cls(time.time(), t.name, place, hit.score, t.mode, hit_image(hit))
+        img = hit_image(hit)
+        if img.width() > LOG_THUMB.width() or img.height() > LOG_THUMB.height():
+            # what the Log's thumbnail would make of it anyway (windowpicker.thumbnail)
+            img = img.scaled(LOG_THUMB, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        return cls(time.time(), t.name, place, hit.score, t.mode, img)
 
 
 def hit_image(hit: screenwatch.Hit) -> QImage:
@@ -3133,7 +3139,9 @@ class TriggersTab(QWidget):
         for row in self._views(tid):
             row.cooldown_until = time.monotonic() + t.cooldown
         if hit is not None:
-            self._hits[tid] = hit
+            # where it went off is all that's needed later (_watch_ring, _in): not the
+            # picture of the window, which the history keeps small
+            self._hits[tid] = dataclasses.replace(hit, frame=None)
             self.history.append(Alert.of(t, hit, self.place_name(hit.source)))
             self.history_changed.emit()
         gen = self._gen
