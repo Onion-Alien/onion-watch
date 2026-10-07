@@ -11,7 +11,7 @@ top of the tab and flashes the taskbar button; Stop all on the board stops it to
 """
 from __future__ import annotations
 
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QApplication, QVBoxLayout, QWidget
 
 from onionwatch import __version__, i18n, theme
@@ -63,6 +63,11 @@ class BoardPanel(QWidget):
         from onionwatch.ui.triggerspanel import TriggersTab
         self.host = host
         theme.use_palette(host.palette())
+        # the board owns the app's direction; on a board that hasn't mirrored the app (an
+        # older one, the tab following Windows' Arabic) only this tab is mirrored
+        app = QApplication.instance()
+        if i18n.is_rtl() and (app is None or app.layoutDirection() != Qt.RightToLeft):
+            self.setLayoutDirection(Qt.RightToLeft)
         v = QVBoxLayout(self)
         v.setContentsMargins(0, 8, 0, 0)
         v.setSpacing(8)

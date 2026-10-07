@@ -49,8 +49,10 @@ Settings → Updates and privacy.
   alert with a picture of the moment.
 - **Built-in alert sounds** or your own files. Categories, profiles that switch on
   with a game, search, and Recently deleted.
-- **In your language**: English, Deutsch, Español, Français, Português (Brasil) and
-  Русский (Settings → Look → Language; inside Onion Board it follows the board).
+- **In your language**: English, Deutsch, Español, Français, Italiano, Nederlands, Polski, Português
+  (Brasil), Türkçe, Bahasa Indonesia, Tiếng Việt, Русский, Українська, العربية,
+  हिन्दी, ไทย, 简体中文, 繁體中文, 日本語 and 한국어
+  (Settings → Look → Language; inside Onion Board it follows the board).
   Want another one? See [docs/TRANSLATING.md](docs/TRANSLATING.md).
 
 The full list and how the matching works: [docs/FEATURES.md](docs/FEATURES.md).
