@@ -282,6 +282,24 @@ TINT_OK = 0.25
 TINT_SPAN = 0.25
 TINT_FLOOR = 0.02
 TINT_FEW_CELLS = 5      # a picture with this many cells or fewer may have one covered
+# ...and the colour of its thing's most colourful part (one_colour(): letters' fill,
+# not their outline, ONE_HUE close to the most colourful pixels' colour, varying less
+# than ONE_COLOUR of its strength, which is at least ONE_COLOUR_MIN). Letters fill the
+# cells about equally (or none of them half), and then an offset per channel turns
+# green into red. Checked at full size (Watcher._hue_off, HUE_PER_CHECK a check), where
+# the thing is it must be a colour some light over the scene makes of it: a colour
+# laid over it up to OVERLAY_MAX strong (darker, brighter, washed out, a tint, a night
+# filter) adding up to OVERLAY_HUE of colour, the exposure OVERLAY_GAIN apart,
+# OVERLAY_TOL each channel (overlay_off()).
+OVERLAY_MAX = 0.65
+OVERLAY_GAIN = (0.8, 0.9, 1.0, 1.1, 1.25)
+OVERLAY_TOL = 0.05
+OVERLAY_HUE = 0.25
+ONE_COLOUR = 0.5
+ONE_COLOUR_MIN = 0.06
+ONE_HUE = 0.8           # ...counting the pixels whose colour points this close to it
+HUE_CHECK = True
+HUE_PER_CHECK = 3       # full-size colour checks of one-colour things a capture gets a check
 CORES = os.cpu_count() or 1
 REARM_MARGIN = 0.08     # a match must fall this far below the threshold to count as gone
 FLAT_STD = 2 / 255      # screen windows flatter than this never match (blank areas)
@@ -1548,6 +1566,63 @@ def tint_gaps(want: np.ndarray, got: np.ndarray) -> np.ndarray:
     return np.where((n >= 4) & (aa >= 1e-6), gap, 0.0)
 
 
+def one_colour(rgb: np.ndarray, mask: np.ndarray | None, g: np.ndarray
+               ) -> tuple[np.ndarray, np.ndarray] | None:
+    """The colour of a picture's thing, taken from its most colourful part (ONE_*):
+    (that colour, 0..1 RGB mean, and where that part is, a bool mask the picture's
+    size), or None for a grey thing or a part that isn't one colour. The thing: a cut-out's
+    `mask`, or in a rectangle what stands out of its background (thing_mask() of its
+    grey `g`, MATCH_LEAST..MATCH_MOST of it). Letters fill tint()'s cells about
+    equally (or not one of them half), so only this tells a green word from a red one."""
+    if mask is None:
+        mask = thing_mask(g)
+        if mask is None or not MATCH_LEAST <= float(mask.mean()) <= MATCH_MOST:
+            return None
+    mask = mask.astype(bool)
+    if not mask.any():
+        return None
+    # its colourful part in the colour of its most colourful pixels: letters' fill, not
+    # the dark outline or shadow round them, nor the scenery through their holes
+    f = rgb[..., :3].astype(np.float64) * (1 / 255)
+    c3 = f - f.mean(-1, keepdims=True)
+    chroma = np.linalg.norm(c3, axis=-1)
+    top = float(np.percentile(chroma[mask], 99))
+    if top < ONE_COLOUR_MIN:
+        return None
+    unit = c3 / np.maximum(chroma, 1e-9)[..., None]
+    ref = unit[mask & (chroma >= top)].mean(0)
+    ref /= max(float(np.linalg.norm(ref)), 1e-9)
+    mask = mask & (chroma >= max(ONE_COLOUR_MIN, 0.5 * top)) & ((unit * ref).sum(-1) >= ONE_HUE)
+    if int(mask.sum()) < max(12, 0.005 * mask.size):
+        return None
+    px = f[mask]
+    mean = px.mean(0)
+    c = mean - mean.mean()
+    strength = float(np.linalg.norm(c))
+    ch = px - px.mean(-1, keepdims=True) - c
+    spread = float(np.sqrt(np.square(ch).sum(-1).mean()))
+    if strength < ONE_COLOUR_MIN or spread > ONE_COLOUR * strength:
+        return None
+    return mean, mask
+
+
+def overlay_off(want: np.ndarray, got: np.ndarray) -> np.ndarray:
+    """Whether each colour in `got` (n, 3) is one no light over the scene makes of
+    `want` (3,) (OVERLAY_*): (n,) bools. The light: got = s ((1 - a) want + a L), the
+    colour L laid over it a strong, adding no more than OVERLAY_HUE of colour (a L's
+    distance from grey: an orange tint or a night filter adds a little, a red one
+    strong enough to turn green into red a lot)."""
+    al = np.linspace(0.0, OVERLAY_MAX, 14)[1:, None, None]
+    gs = np.array(OVERLAY_GAIN)[None, :, None]
+    g = got[:, None, None, :]
+    lit = np.clip((g / gs - (1 - al) * want) / al, 0.0, 1.0)      # L, (n, a, s, 3)
+    near_ = (np.abs(gs * ((1 - al) * want + al * lit) - g) <= OVERLAY_TOL).all(-1)
+    hue = al[..., 0] * np.linalg.norm(lit - lit.mean(-1, keepdims=True), axis=-1)
+    gains = np.array(OVERLAY_GAIN)[:, None]
+    plain = (np.abs(gains * want - got[:, None, :]) <= OVERLAY_TOL).all(-1)      # a = 0
+    return ~((near_ & (hue <= OVERLAY_HUE)).any((1, 2)) | plain.any(1))
+
+
 def _tint_top(err: np.ndarray, n: np.ndarray) -> np.ndarray:
     """The mean of each row's worst quarter of cell errors, after the worst."""
     err = -np.sort(-err, axis=1)                                 # each row's largest first
@@ -1620,6 +1695,7 @@ class Look:
         # ...also at the size it's matched at (tint_at): (tint, the mask it was taken under)
         self.small_tint: tuple | None = None
         self.rgb: np.ndarray | None = None      # its own colours (uint8 RGB), if known
+        self.hue: tuple | None = None           # its thing's colour, if one (one_colour)
         self.pats: list[tuple[float, Pattern]] = []
         self.found: list[float] = []
         self.changes = 0                        # bumped whenever `pats` changes
@@ -2832,6 +2908,7 @@ class _Capture:
         self.cover_left = 0               # ...and the tries left this check (COVER_PER_CHECK)
         self.fresh_left = 0               # ...and about what just changed (COVER_FRESH)
         self.colour_left = 0              # colour_cover's (COLOUR_PER_CHECK)
+        self.hue_left = 0                 # _hue_off's (HUE_PER_CHECK)
         self.sharp_left = 0               # _sharp()'s (SHARP_PER_CHECK)
         self.turns: dict[str, int] = {}   # "any size": which picture each trigger sweeps next
         self.swept: dict[str, int] = {}   # ...and the check it last swept on (SWEEPERS)
@@ -3410,6 +3487,7 @@ class Watcher:
                 if rgb is not None and rgb.shape[:2] == g.shape:
                     look.small_tint = tint_at(rgb, m, scale)
                     look.rgb = rgb
+                    look.hue = one_colour(rgb, m, g) if HUE_CHECK else None
                 for _f, p in look.pats:
                     need = spectrum * (1 if p.box else 2)
                     if room >= need:
@@ -3452,6 +3530,7 @@ class Watcher:
             budget = self._sweeps if self._sweeps is not None else [SWEEPERS]
             cap.cover_left, cap.fresh_left = COVER_PER_CHECK, COVER_FRESH
             cap.colour_left = COLOUR_PER_CHECK
+            cap.hue_left = HUE_PER_CHECK
             cap.sharp_left = SHARP_PER_CHECK
             for it in sorted(items, key=lambda i: cap.swept.get(i.id, -1)):
                 looks = cap.scaled.get(it.id)
@@ -3654,6 +3733,11 @@ class Watcher:
                             elif MATCH_COLOUR and Watcher._colour_match(
                                     cap, it.id, twin, rgb_cut, b, lk, gray.shape, fresh(b)):
                                 sc = grey
+                    if (check and not covered and sc >= it.threshold and lk.hue is not None
+                            and twin is not None and rgb_cut is not None
+                            and Watcher._hue_off(cap, it.id, twin, rgb_cut, b, lk, gray.shape,
+                                                 fresh(b))):
+                        sc = 0.0                # another colour (one_colour)
                     if twin is not None and sc >= it.threshold:
                         sc = min(sc, Watcher._twin(twin, b, lk, gray.shape,
                                                    cap.twins, it.id))
@@ -3970,6 +4054,41 @@ class Watcher:
         if area is None or area.shape[0] < gh or area.shape[1] < gw:
             return None
         return g, mk, t, b, area
+
+    @staticmethod
+    def _hue_off(cap: _Capture, key: str, full: tuple, rgb_cut, box: tuple, lk: Look,
+                 shape: tuple[int, int], fresh: bool = False) -> bool:
+        """Whether `lk`'s thing in one colour (lk.hue, one_colour()) shows at `box` in a
+        colour no light makes of it (overlay_off()), on the capture's pixels at full size
+        (shrunk, thin letters blend with their outline). Kept in `cap.twins`, HUE_PER_CHECK
+        a check (then paced as _colour_cover() is); when it's not its turn, it isn't off."""
+        got = Watcher._colour_area(full, box, lk, shape)
+        if got is None:
+            return False
+        g, mk, _t, b, area = got
+        y0, y1, x0, x1 = box
+        ck, px = ("hue", key, y1 - y0, x1 - x0), area.tobytes()
+        seen = cap.twins.get(ck)
+        if seen is not None and seen[0] is lk.gray and seen[1] == px:
+            return seen[2] > 0.0
+        if cap.hue_left > 0:
+            cap.hue_left -= 1
+        elif not (fresh and Watcher._cover_turn(cap, True)):
+            return False
+        off = False
+        q = Pattern(g, mk)
+        rgb = rgb_cut(*b)
+        if q.ok and rgb is not None and rgb.shape[:2] == area.shape:
+            _sc, (x, y) = _ncc_at(area, q)
+            gh, gw = g.shape
+            colour, where = lk.hue
+            hh, hw = where.shape
+            at = where[(np.arange(gh) * hh // gh)[:, None], np.arange(gw) * hw // gw]
+            if at.any():
+                here = rgb[y:y + gh, x:x + gw][..., :3][at].astype(np.float64).mean(0)
+                off = bool(overlay_off(colour, here[None])[0])
+        cap.twins[ck] = (lk.gray, px, 1.0 if off else 0.0)
+        return off
 
     @staticmethod
     def _colour_match(cap: _Capture, key: str, full: tuple, rgb_cut, box: tuple, lk: Look,
