@@ -2959,6 +2959,8 @@ class TriggersTab(QWidget):
         super().showEvent(ev)
         self.sounds_changed()     # the host's sounds may have been renamed meanwhile
         self._fill_sources()      # ...and screens plugged in or out
+        if self.poll.isActive() and self._on_screen():
+            self._show_poll()     # what watching found while it was hidden
 
     def is_active(self) -> bool:
         return self.btn_watch.isChecked()
@@ -3257,15 +3259,24 @@ class TriggersTab(QWidget):
             # a trigger's own screen went away (or came back) while watching
             self._fell_back = w.fell_back
             self._fill_sources()
-        for row in self._cards():
-            row.set_note(*self._first_note(w.where.get(row.t.id, ())))
         heavy = w.gap > HEAVY_GAP and w.gap > w.interval * 1.05
         if not heavy:
             self._heavy_since = None
         elif self._heavy_since is None:
             self._heavy_since = time.monotonic()
-        if not self.isVisible():
-            return
+        # the rest is only for the eye: nothing while the tab is hidden or its window
+        # minimised (showEvent catches up, and so does the next check after a restore)
+        if self._on_screen():
+            self._show_poll()
+
+    def _on_screen(self) -> bool:
+        return self.isVisible() and not self.window().isMinimized()
+
+    def _show_poll(self):
+        """What watching says on each card (notes, live scores) and at the bottom."""
+        w = self.watcher
+        for row in self._cards():
+            row.set_note(*self._first_note(w.where.get(row.t.id, ())))
         if self._gap_text() != self._gap_shown:
             self._refresh_counts()
         for row in self._cards():
