@@ -1,4 +1,4 @@
 """Onion Watch: plays a sound when something shows up in a game window, even while
 you are alt-tabbed into another one."""
 
-__version__ = "0.9.1"
+__version__ = "0.9.2"

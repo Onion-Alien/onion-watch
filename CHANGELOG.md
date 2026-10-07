@@ -2,7 +2,7 @@
 
 What changed between releases, for the release notes. Newest first.
 
-## Unreleased
+## 0.9.2 (2026-10-07)
 
 - **Lighter Triggers tab**: a closed trigger card makes its editor only when it's
   first opened (about 4x quicker and 3.5x less memory per card), the Log keeps small
@@ -13,6 +13,8 @@ What changed between releases, for the release notes. Newest first.
   flat over a long evening, only grabs a window or screen when one of its triggers
   is due, and is quicker on HDR screens and with colour triggers. The app closes
   its sound output after 30 s of silence, and the download is 26 MB smaller.
+- One-colour text or icons (a green *READY* against a red one, say) are told apart
+  by their colour, so the wrong one no longer sets a trigger off.
 
 ## 0.9.1 (2026-10-07)
 
