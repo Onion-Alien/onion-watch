@@ -3,10 +3,15 @@ here, scaled up to fill the window (small cut-outs in sharp, whole pixels, so yo
 can see exactly what was taken), over a checkerboard where it's see-through. The
 other pictures of the trigger are along the bottom; ← and → go through them, F11
 (or a double-click) goes full screen, and a picture can be swapped for a file or
-taken off from here."""
+taken off from here.
+
+Pictures are read on a thread of their own: a big one, or a busy disk, never holds up
+the window (it once froze Onion Board for 5 s). A quick one is still there on the
+first paint."""
 from __future__ import annotations
 
 from collections.abc import Callable
+from concurrent.futures import Future, ThreadPoolExecutor, wait
 from pathlib import Path
 
 from PySide6.QtCore import QRectF, QSize, Qt, QTimer, Signal
@@ -21,6 +26,13 @@ from onionwatch.ui.windowpicker import thumbnail
 TILE = QSize(96, 54)    # a thumbnail along the bottom
 CHECK = 10              # px: a square of the see-through checkerboard
 MAX_ZOOM = 12           # a tiny cut-out is shown at most this many times its size
+BIG = QSize(2048, 2048)  # the picture itself is read at most this big
+WAIT_S = 0.15           # how long opening waits for it before showing "Loading…"
+POLL_MS = 30            # how often the window looks for pictures that are read
+
+# QImage and QImageReader may be used off the UI thread, and reading lets go of
+# Python's lock, so the window keeps answering while a picture is read
+_readers = ThreadPoolExecutor(max_workers=2, thread_name_prefix="onionwatch-picture")
 
 
 def read_image(path: str, size: QSize) -> QImage:
@@ -33,6 +45,11 @@ def read_image(path: str, size: QSize) -> QImage:
     return reader.read()
 
 
+def _read(path: str, size: QSize) -> tuple[QSize, QImage]:
+    """(its own size, the picture at most `size`), on a reader thread."""
+    return QImageReader(path).size(), read_image(path, size)
+
+
 class PictureView(QWidget):
     """One picture, as big as fits: blown up in whole steps (crisp pixels) when it's
     small, smoothly shrunk when it's bigger than the view. A double-click asks for
@@ -42,11 +59,13 @@ class PictureView(QWidget):
     def __init__(self):
         super().__init__()
         self.img = QImage()
+        self.loading = False            # it's being read: "Loading…", not "can't be read"
         self.setMinimumSize(240, 160)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
-    def set_image(self, img: QImage):
+    def set_image(self, img: QImage, loading: bool = False):
         self.img = img
+        self.loading = loading
         self.update()
 
     def zoom(self) -> float:
@@ -70,7 +89,8 @@ class PictureView(QWidget):
         p.fillRect(self.rect(), QColor(theme.T.get("inset", "#151d23")))
         if self.img.isNull():
             p.setPen(QColor(theme.T.get("muted", "#888888")))
-            p.drawText(self.rect(), Qt.AlignCenter, "This picture can't be read")
+            p.drawText(self.rect(), Qt.AlignCenter,
+                       "Loading picture…" if self.loading else "This picture can't be read")
             return
         r = self.picture_rect()
         if self.img.hasAlphaChannel():      # see-through parts: a checkerboard behind
@@ -113,7 +133,12 @@ class PictureViewer(QDialog):
         self.paths: list[str] = []
         self.index = index
         self._loaded_path = None
-        self._tile_generation = 0
+        self._image_size = QSize()
+        self._big: Future | None = None              # the picture shown, being read
+        self._tile_jobs: list[tuple[int, Future]] = []
+        self._poll = QTimer(self)
+        self._poll.setInterval(POLL_MS)
+        self._poll.timeout.connect(self._collect)
         scr = self.screen().availableGeometry() if self.screen() else None
         self.resize(min(1100, scr.width() - 80) if scr else 1000,
                     min(760, scr.height() - 80) if scr else 700)
@@ -199,7 +224,8 @@ class PictureViewer(QDialog):
         """Read the trigger's pictures again (one was swapped or taken off)."""
         self.paths = list(self.get_paths())
         self._loaded_path = None
-        self._tile_generation += 1
+        self._big = None
+        self._tile_jobs = []            # a reader still busy with an old one is ignored
         for b in self.tiles:
             self.tiles_row.removeWidget(b)
             b.hide()
@@ -220,15 +246,32 @@ class PictureViewer(QDialog):
             self.accept()               # the last one was taken off: nothing to show
             return
         self.go(min(self.index, len(self.paths) - 1))
-        generation = self._tile_generation
-        QTimer.singleShot(0, self, lambda: self._load_tile(generation, 0))
+        self._tile_jobs = [(i, _readers.submit(read_image, p, TILE))
+                           for i, p in enumerate(self.paths)]
+        self._poll.start()
 
-    def _load_tile(self, generation: int, index: int):
-        """Yield between thumbnails; only the selected picture blocks the first paint."""
-        if generation != self._tile_generation or index >= len(self.tiles):
-            return
-        self.tiles[index].setIcon(QIcon(thumbnail(read_image(self.paths[index], TILE), TILE)))
-        QTimer.singleShot(0, self, lambda: self._load_tile(generation, index + 1))
+    def _collect(self):
+        """Put up what the reader threads have finished: the picture, thumbnails."""
+        big = self._big
+        if big is not None and big.done():
+            self._big = None
+            self._show_read(big)
+        waiting = []
+        for i, job in self._tile_jobs:
+            if not job.done():
+                waiting.append((i, job))
+            elif i < len(self.tiles):
+                img = job.result() if job.exception() is None else QImage()
+                self.tiles[i].setIcon(QIcon(thumbnail(img, TILE)))
+        self._tile_jobs = waiting
+        if self._big is None and not waiting:
+            self._poll.stop()
+
+    def _show_read(self, job: Future):
+        size, img = job.result() if job.exception() is None else (QSize(), QImage())
+        self._image_size = size
+        self.view.set_image(img)
+        self._label()
 
     def go(self, index: int):
         if not self.paths:
@@ -236,10 +279,17 @@ class PictureViewer(QDialog):
         self.index = index % len(self.paths)      # round from the last back to the first
         path = self.paths[self.index]
         if path != self._loaded_path:
-            self._image_size = QImageReader(path).size()
-            self.view.set_image(read_image(path, QSize(2048, 2048)))
             self._loaded_path = path
-        img = self.view.img
+            job = _readers.submit(_read, path, BIG)
+            wait([job], timeout=WAIT_S)     # most are small cut-outs: here at once
+            if job.done():
+                self._big = None
+                self._show_read(job)
+            else:
+                self._big = job
+                self._image_size = QSize()
+                self.view.set_image(QImage(), loading=True)
+                self._poll.start()
         for i, b in enumerate(self.tiles):
             b.setChecked(i == self.index)
         if self.tiles:
@@ -247,10 +297,18 @@ class PictureViewer(QDialog):
         many = len(self.paths) > 1
         self.btn_prev.setVisible(many)
         self.btn_next.setVisible(many)
+        self._label()
+
+    def _label(self):
+        """The line above the picture: which one, its name, its size, its zoom."""
+        if not self.paths:
+            return
+        path, img, many = self.paths[self.index], self.view.img, len(self.paths) > 1
         parts = [f"Picture {self.index + 1} of {len(self.paths)}" if many else "",
                  Path(path).name]
         if not img.isNull():
-            parts.append(f"{self._image_size.width()}×{self._image_size.height()} px")
+            if self._image_size.isValid():
+                parts.append(f"{self._image_size.width()}×{self._image_size.height()} px")
             if self.describe:
                 parts.append(self.describe(img))
             z = self.view.zoom()
@@ -260,8 +318,7 @@ class PictureViewer(QDialog):
 
     def resizeEvent(self, ev):
         super().resizeEvent(ev)
-        if self.paths:
-            self.go(self.index)         # the "shown 4× bigger" follows the window
+        self._label()                   # the "shown 4× bigger" follows the window
 
     # ------------------------------------------------------------------ actions
     def _swap(self):
