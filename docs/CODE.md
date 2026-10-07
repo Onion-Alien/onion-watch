@@ -115,7 +115,7 @@ then installs that file instead of downloading.
 | `onionwatch/ui/categories.py` | a category's section in the list (fold, switch, counts, menu, its colours and picture; its cards made only once opened), the Categories window (each one's look) and the Profiles window |
 | `onionwatch/ui/windowpicker.py` | the window list with live thumbnails; ticking several windows and screens, or every copy of a game |
 | `onionwatch/ui/snip.py` | cutting a picture out of a capture; picking a trigger's area and a bar's colour |
-| `onionwatch/ui/viewer.py` | a trigger's pictures shown big (whole pixels, full screen), to swap or remove them |
+| `onionwatch/ui/viewer.py` | a trigger's pictures shown big (whole pixels, full screen), to swap or remove them; read on threads so a big one never freezes the window |
 | `onionwatch/ui/chances.py` | Live chances: the card's score bar (with the trigger's line) and the window, from the Playing now bar's Chances button, with every trigger's chance right now ("show_chances" hides the button) |
 | `onionwatch/ui/history.py` | "What went off": the latest alerts with a picture of each moment (in memory only) |
 | `onionwatch/ui/deleted.py` | Recently deleted triggers (kept 30 days with their pictures, in the saved settings) |

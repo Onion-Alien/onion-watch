@@ -17,6 +17,7 @@ in (host.data_dir / "triggers").
 from __future__ import annotations
 
 import dataclasses
+import functools
 import logging
 import math
 import os
@@ -52,6 +53,29 @@ from onionwatch.wheelguard import no_wheel
 from onionwatch.i18n import _, ngettext
 
 log = logging.getLogger(__name__)
+
+
+def needs_part(fallback=None):
+    """For a TriggersTab method that opens a window from one of Onion Watch's own
+    files, imported inside it: when that file is missing or out of step (an update that
+    only half went in once crashed "Recently deleted"), say so plainly and return
+    `fallback` instead. The import stays a plain one in the method, outside any `try`,
+    so scripts/build_module.py still sees the file is needed and packs it."""
+    def wrap(method):
+        @functools.wraps(method)
+        def run(self, *args, **kwargs):
+            try:
+                return method(self, *args, **kwargs)
+            except ImportError:
+                log.exception("part of Onion Watch is missing (%s)", method.__name__)
+                QMessageBox.warning(
+                    self, _("Part of Onion Watch is missing"),
+                    _("This window can't open: one of Onion Watch's files is missing, most "
+                      "likely because an update didn't finish.\n\nUpdate or reinstall Onion "
+                      "Watch to fix it. Your triggers and pictures are safe."))
+                return fallback
+        return run
+    return wrap
 
 PICTURE_EXTS = "*.png *.jpg *.jpeg *.bmp *.webp *.gif"
 ADD = "__add__"         # the sound list's "+ Add sound…" entry (its resting state)
@@ -3678,6 +3702,7 @@ class TriggersTab(QWidget):
         return (len(self.triggers), len(on),
                 sum(len(t.images) for t in on if t.uses_pictures))
 
+    @needs_part()
     def show_watching(self):
         from onionwatch.ui.watching import WatchingDialog
         WatchingDialog(self, self).exec()
@@ -4515,6 +4540,7 @@ class TriggersTab(QWidget):
             return None, _("The screen couldn't be copied."), None
         return px, source_label(src, mons), mon
 
+    @needs_part(fallback=(None, [], ""))
     def _cut(self, src, threshold: float = Trigger.threshold
              ) -> tuple[QImage | None, list[str], str]:
         """Cut a picture from a window or screen: (the piece or None, what's worth
@@ -4658,6 +4684,7 @@ class TriggersTab(QWidget):
         if self._add_pictures(row.t, [img]):
             self._store()
 
+    @needs_part()
     def _view_picture(self, row: TriggerRow, index: int = 0):
         """A thumbnail was clicked: its picture big, with the trigger's others."""
         from onionwatch.ui.viewer import PictureViewer
@@ -4898,6 +4925,7 @@ class TriggersTab(QWidget):
         self.host.save()
         self._label_bin()
 
+    @needs_part()
     def show_deleted(self):
         from onionwatch.ui.deleted import DeletedDialog
         self.undo_bar.finish()
@@ -4905,6 +4933,7 @@ class TriggersTab(QWidget):
         self._label_bin()
 
     # ------------------------------------------------------------------ areas, copies
+    @needs_part()
     def _pick_area(self, row: TriggerRow):
         """The card's "Area…" / "Bar and colour…": drag the part of the window to look
         in (and for a colour trigger, check its colour)."""
