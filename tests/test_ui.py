@@ -174,6 +174,17 @@ def test_a_card_says_when_its_window_is_not_open(tab, qapp, monkeypatch):
     assert not row.state.text().startswith("Waiting")
 
 
+def test_a_card_stops_saying_watching_once_watching_stops(tab, qapp, monkeypatch):
+    monkeypatch.setattr(tab, "isVisible", lambda: True)    # the poll only paints when shown
+    tab._new(as_qimage(banner()), "Rare")
+    row = next(iter(tab.rows.values()))
+    tab.watcher.interval = 0.01
+    tab.set_watching(True)
+    assert process_events(qapp, lambda: row.watching)
+    tab.set_watching(False)
+    assert not row.watching and "Watching" not in row.live.text()
+
+
 def test_a_card_says_when_its_window_never_comes_out(tab, qapp, monkeypatch):
     """A window PrintWindow can't copy gives nothing, ever: the card says so instead
     of showing "Watching" while the trigger can never go off."""

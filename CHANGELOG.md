@@ -2,8 +2,15 @@
 
 What changed between releases, for the release notes. Newest first.
 
-## Unreleased
+## 0.9.1 (2026-10-07)
 
+- **Live chances**: each trigger card shows a small bar filled to how close it is
+  to going off right now, with a mark where it fires (green once it's over). A new
+  **Chances** button on the Playing now bar opens a window with every trigger's
+  chance, closest first.
+- Text over a moving scene (HUD text, cut-outs) is found more reliably, with fewer
+  false alarms from scenery in other games.
+- A card no longer keeps saying "Watching" after you stop watching.
 - **14 more languages**: Italiano, Nederlands, Polski, Türkçe, Bahasa Indonesia,
   Tiếng Việt, Українська, العربية (right to left), हिन्दी, ไทย, 简体中文, 繁體中文,
   日本語 and 한국어, the same as Onion Board. Windows in Hong Kong or Macau picks
