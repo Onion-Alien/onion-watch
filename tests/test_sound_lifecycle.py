@@ -47,8 +47,10 @@ def test_clicking_a_sound_again_starts_it_over(tab, card):
 def test_a_test_stops_when_the_trigger_is_deleted(tab, card):
     card.t.pick = "all"
     card.btn_test.click()
-    card.btn_test.click()                                  # again: over, not on top
     assert playing(tab) == [f"{card.t.id}/{ALARM}", f"{card.t.id}/{BELL}"]
+    card.btn_test.click()                                  # again (it says Stop): stops
+    assert playing(tab) == []
+    card.btn_test.click()
     tab._remove(card)
     assert playing(tab) == []
 

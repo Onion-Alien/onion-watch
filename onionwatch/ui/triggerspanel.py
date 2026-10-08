@@ -4273,7 +4273,7 @@ class TriggersTab(QWidget):
         row.area_wanted.connect(self._pick_area)
         row.duplicate.connect(self._duplicate)
         row.hear.connect(lambda sid, r=row: self._hear(r.t, sid))
-        row.test.connect(lambda r: self._play_trigger(r.t, test=True))
+        row.test.connect(lambda r: self.test_trigger(r.t))
         row.remove.connect(self.ask_remove)
 
     def _place_row(self, t: Trigger, sec: CategorySection, open_: bool = False) -> TriggerRow:
@@ -5080,7 +5080,29 @@ class TriggersTab(QWidget):
                 out.append((t, ring))
             else:
                 del self._live[tid]
+        self._show_tests({t.id for t, __ in out})
         return out
+
+    def test_trigger(self, t: Trigger):
+        """A card's Test: play it as it would go off, shown in Playing now like any
+        other; pressed again while it plays (it says Stop then), stop it."""
+        if any(x.id == t.id for x, __ in self.playing_now()):
+            self.stop_trigger(t.id)
+            return
+        if self._play_trigger(t, test=True):
+            self._live[t.id] = time.monotonic()
+            self.playing_changed.emit()
+
+    def _show_tests(self, live: set[str]):
+        """Each card's Test says Stop while its trigger plays."""
+        for row in [*self.rows.values(), self.editor]:
+            if row is None:
+                continue
+            on = row.t.id in live
+            if row.btn_test.property("stops") != on:
+                row.btn_test.setProperty("stops", on)
+                row.btn_test.setText(_("Stop") if on else _("Test"))
+                icons.set_icon(row.btn_test, "stop" if on else "play", size=14)
 
     def stop_trigger(self, tid: str):
         """Stop what trigger `tid` is playing now, its ring too (Playing now's Stop)."""
