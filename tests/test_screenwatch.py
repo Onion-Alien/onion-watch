@@ -181,6 +181,36 @@ def test_a_look_alike_with_one_glyph_different_is_told_apart():
         assert sw.one_part_off(covered, gray, mask) == 1.0
 
 
+def test_a_look_alike_missing_a_small_last_glyph_is_told_apart():
+    """'READY' scored 0.85 against 'READY?': the '?' is small and thin, in one strip
+    only, and with the cut-out's outline round it that strip is near plain. One strip
+    off in both strip widths over the same columns drops the score all the same; the
+    thing itself still keeps all of it."""
+    word = [0b111101101101111, 0b010010010010111, 0b111001111100111,
+            0b111001111001111, 0b101101111001001]
+    gray, mask = glyphs(word + [0])
+    gray, mask = gray[:, :-12].copy(), mask[:, :-12].copy()
+    h, w = gray.shape
+    bits = np.array([[1, 1, 1], [0, 0, 1], [0, 1, 0], [0, 0, 0], [0, 1, 0]], bool)
+    ink = np.zeros((h, w), bool)
+    ink[20:35, w - 9:w] = np.kron(bits, np.ones((3, 3), bool))
+    edge = ink.copy()
+    for dy in (-1, 0, 1):
+        for dx in (-1, 0, 1):
+            edge |= np.roll(np.roll(ink, dy, 0), dx, 1)
+    q_gray, q_mask = np.where(ink, 1.0, gray).astype(np.float32), mask | edge
+    rng = np.random.default_rng(3)
+    for _ in range(4):
+        area = sw.gaussian_filter(
+            (rng.random((h + 6, w + 6)) * 0.5 + 0.2).astype(np.float32), 0.8)
+        real = area.copy()
+        real[3:-3, 3:-3][q_mask] = q_gray[q_mask]
+        assert sw.one_part_off(real, q_gray, q_mask) == 1.0
+        bare = area.copy()
+        bare[3:-3, 3:-3][mask] = gray[mask]
+        assert sw.one_part_off(bare, q_gray, q_mask) < 0.75
+
+
 def test_the_twin_check_runs_again_only_when_the_pixels_change(monkeypatch):
     """A thing that stays up is matched every check, and the twin check's few ms on
     each would space all the checks out (the pacing goes by what they cost): its
