@@ -65,10 +65,8 @@ class HistoryView(QWidget):
         self.empty.setAlignment(Qt.AlignCenter)
         v.addWidget(self.empty)
         self.btn_clear = QPushButton(_("Clear"))
-        self.btn_clear.setToolTip(_("Empty the list"))
         self.btn_clear.clicked.connect(self._clear)
         self.btn_save = QPushButton(_("Save to a file…"))
-        self.btn_save.setToolTip(_("Write the list out as a text file"))
         self.btn_save.clicked.connect(self.save)
         self._shown: list = []      # the alerts in the list, oldest first
         self._behind = False        # history changed while it was hidden

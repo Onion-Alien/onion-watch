@@ -194,7 +194,6 @@ class PictureViewer(QDialog):
         # the dialog's own from the start: shown before foot is laid out, a parentless
         # button flashed up on the desktop as a little window of its own
         self.btn_swap = QPushButton(_("Swap for a file…"), self)
-        self.btn_swap.setToolTip(_("Put another picture file in this one's place"))
         icons.set_icon(self.btn_swap, "folder", size=14)
         self.btn_swap.clicked.connect(self._swap)
         self.btn_swap.setVisible(swap is not None)
