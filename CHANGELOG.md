@@ -2,6 +2,12 @@
 
 What changed between releases, for the release notes. Newest first.
 
+## 0.9.4 (2026-10-08)
+
+- **Fewer false alarms on look-alike text.** A cut-out trigger for text with a small
+  mark at the end (like "READY?") no longer goes off on the same text without it
+  ("READY"). The small, thin mark used to be too faint to count.
+
 ## 0.9.3 (2026-10-08)
 
 - **Test shows it's playing.** A card's *Test* now shows in *Playing now* like a
