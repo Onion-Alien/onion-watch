@@ -2,8 +2,13 @@
 
 What changed between releases, for the release notes. Newest first.
 
-## Unreleased
+## 0.9.3 (2026-10-08)
 
+- **Test shows it's playing.** A card's *Test* now shows in *Playing now* like a
+  trigger going off, with its own stop and a working *Stop all*, and the Test button
+  says *Stop* while the sound plays. Before, the bar said "Nothing playing" and only
+  the board's own Stop all stopped it.
+- Fewer hover tips: the ones that only repeated a button's own words are gone.
 - **13 more languages**, so every Onion Board language has an Onion Watch one:
   Bahasa Melayu, Čeština, Dansk, Español (Latinoamérica), Filipino, Magyar, Norsk,
   Português (Portugal), Română, Suomi, Svenska, Ελληνικά and Български. A Bulgarian
