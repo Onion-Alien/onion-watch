@@ -234,7 +234,13 @@ COARSE_NEAR = 0.15
 # but the strips its different glyph is in. Two side by side at TWIN_LOW or less
 # (TWIN_RUN on average) and the score drops to their mean. Strips with little in
 # them (grey spread under TWIN_PLAIN: soft scenery, unsure there) or flat on the
-# screen (TWIN_FLAT: covered) don't count.
+# screen (TWIN_FLAT: covered) don't count. A glyph missing at a thing's end ("READY"
+# for "READY?") is in one strip only: one strip at TWIN_ONE or less in both strip
+# widths, over the same columns (TWIN_ONE_RUN on average), drops it the same way;
+# a thin glyph's strip counts for this from TWIN_ONE_PLAIN of grey spread.
+TWIN_ONE = 0.78
+TWIN_ONE_PLAIN = 0.06
+TWIN_ONE_RUN = 0.72
 TWIN_SIZE = 0.04
 TWIN_ALIGN = 3
 TWIN_STRIPS = (0.2, 0.3)
@@ -1291,20 +1297,27 @@ def one_part_off(area: np.ndarray, gray: np.ndarray, mask: np.ndarray | None) ->
     # disagrees at full detail; a different glyph's strokes still do
     t = gaussian_filter(gray.astype(np.float32), TWIN_BLUR)
     a = gaussian_filter(area.astype(np.float32), TWIN_BLUR)
+    lone: list[list[tuple[int, int, float]]] = []     # each width's low strips (x0, x1, score)
     for share in TWIN_STRIPS:
         n = max(1, round(tw / max(4, round(th * share))))
         parts: list[float | None] = []
+        faint: list[float | None] = []      # parts, and the thin strips' (TWIN_ONE_PLAIN)
         for i in range(n):
             x0, x1 = i * tw // n, (i + 1) * tw // n
             tt, mm = t[:, x0:x1], m[:, x0:x1]
-            if mm.sum() < 6 or float(tt[mm > 0].std()) < TWIN_PLAIN:
+            spread = float(tt[mm > 0].std()) if mm.sum() >= 6 else 0.0
+            if spread < TWIN_ONE_PLAIN:
                 parts.append(None)          # plain scenery: nothing to tell by
+                faint.append(None)
                 continue
             here = a[y:y + th, x + x0:x + x1]
             if float(here[mm > 0].std()) < TWIN_FLAT:
                 parts.append(None)          # flat on the screen: covered
+                faint.append(None)
                 continue
-            parts.append(_ncc_shifted(a, tt, mm, y, x + x0))
+            v = _ncc_shifted(a, tt, mm, y, x + x0)
+            parts.append(v if spread >= TWIN_PLAIN else None)
+            faint.append(v)
         got = [v for v in parts if v is not None]
         if len(got) < 3 or float(np.median(got)) < TWIN_MED:
             continue
@@ -1315,6 +1328,19 @@ def one_part_off(area: np.ndarray, gray: np.ndarray, mask: np.ndarray | None) ->
                 if (TWIN_LETTERS and mask is None
                         and _letters_agree(area[y:y + th, x:x + tw], gray, x0, x1)):
                     continue                # only what's behind it changed there
+                return max(0.0, (u + v) / 2)
+        lone.append([(i * tw // n, (i + 1) * tw // n, v) for i, v in enumerate(faint)
+                     if v is not None and v <= TWIN_ONE])
+    if len(lone) == 2:
+        for x0, x1, u in lone[0]:
+            for y0, y1, v in lone[1]:
+                lo, hi = max(x0, y0), min(x1, y1)
+                if hi <= lo or (u + v) / 2 > TWIN_ONE_RUN:
+                    continue
+                if (TWIN_LETTERS and mask is None
+                        and _letters_agree(area[y:y + th, x:x + tw], gray,
+                                           min(x0, y0), max(x1, y1))):
+                    continue
                 return max(0.0, (u + v) / 2)
     return 1.0
 
