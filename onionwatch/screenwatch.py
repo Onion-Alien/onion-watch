@@ -1155,6 +1155,29 @@ TWIN_LETTERS = True     # ...and the look-alike strips judged on the thing (_let
 SHARP_LOW = 0.65
 SHARP_PER_CHECK = 2
 SHARP_ON = True
+# A thing shown blurred (a soft UI layer, depth of field, a scaled window) scores under
+# the line against its sharp picture. A place scoring SOFT_LOW or more but under it,
+# whose pixels on the working-size frame have under SOFT_RATIO of the picture's fine
+# detail (soft_detail), is matched again with the picture softened by each of
+# SOFT_SIGMAS px, and takes the best if it's SOFT_SURE or more (blurred, a sharp
+# thing's picture matches soft scenery much better than its sharp self: only a near
+# exact match counts); SOFT_PER_CHECK places a check, each answer kept until its
+# pixels change.
+SOFT_LOW = 0.65
+SOFT_SURE = 0.9
+SOFT_RATIO = 0.45
+SOFT_SIGMAS = (0.8, 1.3, 2.0)
+SOFT_PER_CHECK = 2
+SOFT_ON = True
+
+
+def soft_detail(g: np.ndarray) -> float:
+    """How much fine detail grey `g` has: its Laplacian's RMS over its spread."""
+    if g.shape[0] < 3 or g.shape[1] < 3:
+        return 0.0
+    g = g.astype(np.float32)
+    lap = 4 * g[1:-1, 1:-1] - g[:-2, 1:-1] - g[2:, 1:-1] - g[1:-1, :-2] - g[1:-1, 2:]
+    return float(np.sqrt(np.mean(lap * lap))) / max(float(g.std()), 1e-6)
 
 
 def thing_mask(g: np.ndarray) -> np.ndarray | None:
@@ -2936,6 +2959,7 @@ class _Capture:
         self.colour_left = 0              # colour_cover's (COLOUR_PER_CHECK)
         self.hue_left = 0                 # _hue_off's (HUE_PER_CHECK)
         self.sharp_left = 0               # _sharp()'s (SHARP_PER_CHECK)
+        self.soft_left = 0                # _soft()'s (SOFT_PER_CHECK)
         self.turns: dict[str, int] = {}   # "any size": which picture each trigger sweeps next
         self.swept: dict[str, int] = {}   # ...and the check it last swept on (SWEEPERS)
         # "any size": changed patches still to look in at every size (HUNT_*):
@@ -3558,6 +3582,7 @@ class Watcher:
             cap.colour_left = COLOUR_PER_CHECK
             cap.hue_left = HUE_PER_CHECK
             cap.sharp_left = SHARP_PER_CHECK
+            cap.soft_left = SOFT_PER_CHECK
             for it in sorted(items, key=lambda i: cap.swept.get(i.id, -1)):
                 looks = cap.scaled.get(it.id)
                 got = memo.get(it.id) if same and it.id not in self._quiet else None
@@ -3737,6 +3762,8 @@ class Watcher:
                     if (SHARP_ON and lk.mask is not None and twin is not None and area is None
                             and SHARP_LOW <= sc < it.threshold):
                         sc = max(sc, Watcher._sharp(cap, it.id, twin, b, lk, gray.shape))
+                    if SOFT_ON and area is None and SOFT_LOW <= sc < it.threshold:
+                        sc = max(sc, Watcher._soft(cap, it.id, gray, b, lk))
                     if (COVER_ON and check and twin is not None and area is None
                             and COVER_LOW <= sc < it.threshold):
                         cs = Watcher._grey_cover(cap, it.id, twin, raw, b, lk, gray.shape,
@@ -4020,6 +4047,49 @@ class Watcher:
             return lambda y0, y1, x0, x1: frame_rgb(full[y0:y1, x0:x1])
         cut = getattr(type(grab), "full_rgb", None)
         return None if cut is None else cut.__get__(grab)
+
+    @staticmethod
+    def _soft(cap: _Capture, key: str, gray: np.ndarray, box: tuple, lk: Look) -> float:
+        """`lk` matched again softened (SOFT_SIGMAS) about `box` (y0, y1, x0, x1) on
+        the working-size frame `gray`, when the pixels there have under SOFT_RATIO of
+        the picture's fine detail; else 0.0. Kept in `cap.twins` by those pixels;
+        SOFT_PER_CHECK new places a check."""
+        y0, y1, x0, x1 = box
+        th, tw = lk.gray.shape
+        k = ((y1 - y0) / th + (x1 - x0) / tw) / 2
+        g, mk = lk.gray, lk.mask
+        if abs(k - 1) >= 0.02:
+            g = resize(lk.gray, k)
+            mk = None if lk.mask is None else shrink_mask(lk.mask, k)
+        gh, gw = g.shape
+        if gh < 6 or gw < 6:
+            return 0.0
+        pad = TWIN_ALIGN
+        H, W = gray.shape
+        ay0, ax0 = max(0, y0 - pad), max(0, x0 - pad)
+        area = gray[ay0:min(H, y0 + gh + pad), ax0:min(W, x0 + gw + pad)]
+        if area.shape[0] < gh or area.shape[1] < gw:
+            return 0.0
+        ck, px = ("soft", key, gh, gw), area.tobytes()
+        got = cap.twins.get(ck)
+        if got is not None and got[0] is lk.gray and got[1] == px:
+            return got[2]
+        if cap.soft_left <= 0:
+            return 0.0
+        cap.soft_left -= 1
+        score = 0.0
+        here = gray[y0:y0 + gh, x0:x0 + gw]
+        if (here.shape == g.shape
+                and soft_detail(here) < SOFT_RATIO * soft_detail(g)):
+            a = area.astype(np.float32)
+            for s in SOFT_SIGMAS:
+                q = Pattern(gaussian_filter(g.astype(np.float32), s), mk)
+                if q.ok:
+                    score = max(score, float(_ncc_at(a, q)[0]))
+            if score < SOFT_SURE:
+                score = 0.0
+        cap.twins[ck] = (lk.gray, px, score)
+        return score
 
     @staticmethod
     def _sharp(cap: _Capture, key: str, full: tuple, box: tuple, lk: Look,
