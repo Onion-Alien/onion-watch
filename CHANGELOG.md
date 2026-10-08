@@ -16,6 +16,13 @@ What changed between releases, for the release notes. Newest first.
   Appearance, Updates and privacy, About), cards on the right, theme previews instead
   of a drop-down, and Done at the bottom.
 - Inside Onion Board nothing changes: the Triggers tab follows the board's language.
+- Inside Onion Board, Hoot's lines, the trigger modes, the ring options and the check
+  speeds were always in English whatever the board's language (the board loads the
+  add-on's files before it says which language). They follow the board now.
+- Hoot's speech bubble goes onto two lines when a translation doesn't fit, instead of
+  being cut off.
+- Fixed: with a language other than English, pictures in an imported trigger pack
+  were lost.
 
 ## 0.9.2 (2026-10-07)
 
