@@ -15,8 +15,8 @@ until you're back.
 ## ⬇️ [Download Onion Watch for Windows](https://github.com/Onion-Alien/onion-watch/releases/latest/download/OnionWatch-Installer.exe)
 
 <!-- release -->
-Version **0.9.2** · Windows 10 / 11 · free, no account, no internet needed ·
-[VirusTotal: 69 of 69 clean](https://www.virustotal.com/gui/file/2a58084fef95637347bacc6c84e420d1a74c8108532f4bd0164b5a003f5e83bd) · [what's new](https://github.com/Onion-Alien/onion-watch/releases/latest)
+Version **0.9.3** · Windows 10 / 11 · free, no account, no internet needed ·
+[VirusTotal: 68 of 68 clean](https://www.virustotal.com/gui/file/f2858165fab17e5d5780292a9c873bc0500bcb6ccc189220fd1fd26b86c9cf3c) · [what's new](https://github.com/Onion-Alien/onion-watch/releases/latest)
 <!-- /release -->
 
 ![Onion Watch watching a game, one trigger open](docs/screenshots/main.png?v=9ef68566)
