@@ -42,6 +42,36 @@ def test_the_bar_names_what_plays_and_stops_one_or_all(make):  # noqa: F811
     pages.deleteLater()
 
 
+
+def test_a_cards_test_shows_in_the_bar_and_stops_from_its_button(make):  # noqa: F811
+    tab = make({"triggers": [raw(1)]})
+    tab.host.now = []
+    play, stop = tab.host.play, tab.host.stop_tag
+
+    def play_(sid, loop=False, tag=""):
+        tab.host.now.append(tag)
+        return play(sid, loop, tag)
+
+    def stop_tag(tag):
+        if tag in tab.host.now:
+            tab.host.now.remove(tag)
+        stop(tag)
+    tab.host.play, tab.host.stop_tag = play_, stop_tag
+    tab.host.playing = lambda: list(tab.host.now)
+    pages = TriggerPages(tab)
+    bar, row = pages.playing, tab.rows["t1"]
+    row.btn_test.click()
+    assert bar.title.text() == "Playing now:" and bar.btn_stop_all.isEnabled()
+    assert row.btn_test.text() == "Stop"
+    row.btn_test.click()                                # Stop, on the card itself
+    assert tab.host.now == [] and bar.title.text() == "Nothing playing"
+    assert row.btn_test.text() == "Test"
+    row.btn_test.click()
+    tab.host.now.clear()                                # it finished by itself
+    bar.update_bar()
+    assert bar.title.text() == "Nothing playing" and row.btn_test.text() == "Test"
+    pages.deleteLater()
+
 def test_a_sound_that_ends_leaves_the_bar(make):  # noqa: F811
     tab = make({"triggers": [raw(1)]})
     tab.host.playing = lambda: list(tab.host.now)
