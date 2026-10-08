@@ -209,7 +209,6 @@
   "Keeps to the processor use above.": "Yukarıdaki işlemci kullanımına uyar.",
   "LIVE CHANCES": "CANLI OLASILIKLAR",
   "LOG PICTURES": "GÜNLÜK RESİMLERİ",
-  "LOOK": "GÖRÜNÜM",
   "Language": "Dil",
   "Later": "Sonra",
   "Learned the background: {share:.0%} of the picture is scenery and left out": "Arka plan öğrenildi: resmin {share:.0%} kadarı manzara ve dışarıda bırakıldı",
@@ -380,7 +379,6 @@
   "Rename category": "Kategoriyi yeniden adlandır",
   "Rename…": "Yeniden adlandır…",
   "Report a problem": "Sorun bildir",
-  "Restart Onion Watch to finish": "Bitirmek için Onion Watch'u yeniden başlat",
   "Restart now": "Şimdi yeniden başlat",
   "Right now, in the place closest to going off": "Şu an, tetiklenmeye en yakın yerde",
   "Right now: how well it matches (the best of its pictures)": "Şu an: ne kadar iyi eşleştiği (resimlerinin en iyisi)",
@@ -717,5 +715,16 @@
   "{what} in {place}, {score}%": "{place} içinde {what}, %{score}",
   "{what} in {place}.": "{place}: {what}.",
   "{where} comes out black, so there's nothing to cut. Some games can only be seen on the screen: pick its screen under Look in instead.": "{where} siyah çıkıyor, bu yüzden kesilecek bir şey yok. Bazı oyunlar sadece ekranda görülebilir: onun yerine Nereye bak altından ekranını seç.",
-  "{width}×{height} pixels": "{width}×{height} piksel"
+  "{width}×{height} pixels": "{width}×{height} piksel",
+  "About": "Hakkında",
+  "Alerts": "Uyarılar",
+  "Appearance": "Dış görünüş",
+  "Done": "Tamamlamak",
+  "No language matches “{text}”": "“{text}” ile eşleşen dil yok",
+  "Onion Watch shows {name} after a restart.": "Soğan İzleme, yeniden başlatmanın ardından {name} öğesini gösteriyor.",
+  "Pick the language Onion Watch is shown in": "Onion Watch'ın gösterildiği dili seçin",
+  "Search languages": "Dilleri ara",
+  "Search languages…": "Dilleri ara…",
+  "Settings categories": "Ayarlar kategorileri",
+  "Updates and privacy": "Güncellemeler ve gizlilik"
 }

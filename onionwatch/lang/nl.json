@@ -209,7 +209,6 @@
   "Keeps to the processor use above.": "Houdt zich aan het processorgebruik hierboven.",
   "LIVE CHANCES": "LIVE KANSEN",
   "LOG PICTURES": "LOG-AFBEELDINGEN",
-  "LOOK": "UITERLIJK",
   "Language": "Taal",
   "Later": "Later",
   "Learned the background: {share:.0%} of the picture is scenery and left out": "Achtergrond geleerd: {share:.0%} van de afbeelding is decor en wordt weggelaten",
@@ -380,7 +379,6 @@
   "Rename category": "Categorie hernoemen",
   "Rename…": "Hernoemen…",
   "Report a problem": "Een probleem melden",
-  "Restart Onion Watch to finish": "Herstart Onion Watch om af te ronden",
   "Restart now": "Nu herstarten",
   "Right now, in the place closest to going off": "Nu, op de plek die het dichtst bij afgaan is",
   "Right now: how well it matches (the best of its pictures)": "Nu: hoe goed het matcht (de beste van de afbeeldingen)",
@@ -717,5 +715,16 @@
   "{what} in {place}, {score}%": "{what} in {place}, {score}%",
   "{what} in {place}.": "{what} in {place}.",
   "{where} comes out black, so there's nothing to cut. Some games can only be seen on the screen: pick its screen under Look in instead.": "{where} komt er zwart uit, dus er valt niets te knippen. Sommige games zijn alleen op het scherm te zien: kies in plaats daarvan het scherm ervan onder Zoeken in.",
-  "{width}×{height} pixels": "{width}×{height} pixels"
+  "{width}×{height} pixels": "{width}×{height} pixels",
+  "About": "Over",
+  "Alerts": "Waarschuwingen",
+  "Appearance": "Verschijning",
+  "Done": "Klaar",
+  "No language matches “{text}”": "Er komt geen taal overeen met “{text}”",
+  "Onion Watch shows {name} after a restart.": "Onion Watch toont {name} na een herstart.",
+  "Pick the language Onion Watch is shown in": "Kies de taal waarin Onion Watch wordt weergegeven",
+  "Search languages": "Zoek talen",
+  "Search languages…": "Talen zoeken…",
+  "Settings categories": "Instellingen categorieën",
+  "Updates and privacy": "Updates en privacy"
 }

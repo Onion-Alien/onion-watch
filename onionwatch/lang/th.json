@@ -205,7 +205,6 @@
   "Keeps to the processor use above.": "ใช้โปรเซสเซอร์ตามด้านบน",
   "LIVE CHANCES": "โอกาสสด",
   "LOG PICTURES": "รูปในล็อก",
-  "LOOK": "หน้าตา",
   "Language": "ภาษา",
   "Later": "ไว้ทีหลัง",
   "Learned the background: {share:.0%} of the picture is scenery and left out": "เรียนรู้พื้นหลังแล้ว: {share:.0%} ของรูปเป็นฉากหลังและไม่นับ",
@@ -376,7 +375,6 @@
   "Rename category": "เปลี่ยนชื่อหมวดหมู่",
   "Rename…": "เปลี่ยนชื่อ…",
   "Report a problem": "รายงานปัญหา",
-  "Restart Onion Watch to finish": "รีสตาร์ท Onion Watch เพื่อให้เสร็จ",
   "Restart now": "รีสตาร์ทเลย",
   "Right now, in the place closest to going off": "ตอนนี้ ในจุดที่ใกล้ทำงานที่สุด",
   "Right now: how well it matches (the best of its pictures)": "ตอนนี้: เหมือนแค่ไหน (รูปที่ดีที่สุดของมัน)",
@@ -705,5 +703,16 @@
   "{what} in {place}, {score}%": "{what} ใน {place}, {score}%",
   "{what} in {place}.": "{what} ใน {place}",
   "{where} comes out black, so there's nothing to cut. Some games can only be seen on the screen: pick its screen under Look in instead.": "{where} ออกมาเป็นสีดำ จึงไม่มีอะไรให้ตัด บางเกมเห็นได้บนหน้าจอเท่านั้น: เลือกหน้าจอของมันใน ดูใน แทน",
-  "{width}×{height} pixels": "{width}×{height} พิกเซล"
+  "{width}×{height} pixels": "{width}×{height} พิกเซล",
+  "About": "เกี่ยวกับ",
+  "Alerts": "การแจ้งเตือน",
+  "Appearance": "รูปร่าง",
+  "Done": "เสร็จแล้ว",
+  "No language matches “{text}”": "ไม่มีภาษาที่ตรงกับ “{text}”",
+  "Onion Watch shows {name} after a restart.": "Onion Watch แสดง {name} หลังจากรีสตาร์ท",
+  "Pick the language Onion Watch is shown in": "เลือกภาษาที่ Onion Watch จะแสดง",
+  "Search languages": "ค้นหาภาษา",
+  "Search languages…": "ค้นหาภาษา…",
+  "Settings categories": "หมวดหมู่การตั้งค่า",
+  "Updates and privacy": "การอัปเดตและความเป็นส่วนตัว"
 }

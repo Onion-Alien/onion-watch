@@ -213,7 +213,6 @@
   "Keeps to the processor use above.": "Trzyma się użycia procesora powyżej.",
   "LIVE CHANCES": "SZANSE NA ŻYWO",
   "LOG PICTURES": "OBRAZY W DZIENNIKU",
-  "LOOK": "WYGLĄD",
   "Language": "Język",
   "Later": "Później",
   "Learned the background: {share:.0%} of the picture is scenery and left out": "Nauczono się tła: {share:.0%} obrazu to sceneria, pominięta",
@@ -384,7 +383,6 @@
   "Rename category": "Zmień nazwę kategorii",
   "Rename…": "Zmień nazwę…",
   "Report a problem": "Zgłoś problem",
-  "Restart Onion Watch to finish": "Uruchom ponownie Onion Watch, by dokończyć",
   "Restart now": "Uruchom ponownie",
   "Right now, in the place closest to going off": "Teraz, w miejscu najbliższym zadziałania",
   "Right now: how well it matches (the best of its pictures)": "Teraz: jak dobrze pasuje (najlepszy z jego obrazów)",
@@ -729,5 +727,16 @@
   "{what} in {place}, {score}%": "{what} w {place}, {score}%",
   "{what} in {place}.": "{what} w {place}.",
   "{where} comes out black, so there's nothing to cut. Some games can only be seen on the screen: pick its screen under Look in instead.": "{where} wychodzi czarne, więc nie ma czego wyciąć. Niektóre gry widać tylko na ekranie: wybierz zamiast tego ich ekran w Patrz w.",
-  "{width}×{height} pixels": "{width}×{height} pikseli"
+  "{width}×{height} pixels": "{width}×{height} pikseli",
+  "About": "O",
+  "Alerts": "Alerty",
+  "Appearance": "Wygląd",
+  "Done": "Zrobione",
+  "No language matches “{text}”": "Żaden język nie pasuje do „{text}”",
+  "Onion Watch shows {name} after a restart.": "Onion Watch pokazuje {name} po ponownym uruchomieniu.",
+  "Pick the language Onion Watch is shown in": "Wybierz język, w którym będzie wyświetlany Onion Watch",
+  "Search languages": "Wyszukaj języki",
+  "Search languages…": "Wyszukaj języki…",
+  "Settings categories": "Kategorie ustawień",
+  "Updates and privacy": "Aktualizacje i prywatność"
 }

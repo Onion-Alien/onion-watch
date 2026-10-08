@@ -209,7 +209,6 @@
   "Keeps to the processor use above.": "ऊपर दिए प्रोसेसर इस्तेमाल के अंदर रहता है।",
   "LIVE CHANCES": "लाइव चांस",
   "LOG PICTURES": "लॉग तस्वीरें",
-  "LOOK": "दिखावट",
   "Language": "भाषा",
   "Later": "बाद में",
   "Learned the background: {share:.0%} of the picture is scenery and left out": "बैकग्राउंड सीख लिया: तस्वीर का {share:.0%} नज़ारा है और छोड़ दिया गया",
@@ -380,7 +379,6 @@
   "Rename category": "कैटेगरी का नाम बदलें",
   "Rename…": "नाम बदलें…",
   "Report a problem": "समस्या बताएँ",
-  "Restart Onion Watch to finish": "पूरा करने के लिए Onion Watch रीस्टार्ट करें",
   "Restart now": "अभी रीस्टार्ट करें",
   "Right now, in the place closest to going off": "अभी, उस जगह पर जो ट्रिगर होने के सबसे क़रीब है",
   "Right now: how well it matches (the best of its pictures)": "अभी: यह कितना मैच करता है (इसकी तस्वीरों में सबसे अच्छा)",
@@ -717,5 +715,16 @@
   "{what} in {place}, {score}%": "{place} में {what}, {score}%",
   "{what} in {place}.": "{place} में {what}।",
   "{where} comes out black, so there's nothing to cut. Some games can only be seen on the screen: pick its screen under Look in instead.": "{where} काला आता है, इसलिए काटने को कुछ नहीं है। कुछ गेम सिर्फ़ स्क्रीन पर ही दिखते हैं: इसके बजाय कहाँ देखें में इसकी स्क्रीन चुनें।",
-  "{width}×{height} pixels": "{width}×{height} पिक्सेल"
+  "{width}×{height} pixels": "{width}×{height} पिक्सेल",
+  "About": "बारे में",
+  "Alerts": "अलर्ट",
+  "Appearance": "दिखावट",
+  "Done": "हो गया",
+  "No language matches “{text}”": "कोई भी भाषा \"{text}\" से मेल नहीं खाती",
+  "Onion Watch shows {name} after a restart.": "पुनरारंभ के बाद ओनियन वॉच {name} दिखाती है।",
+  "Pick the language Onion Watch is shown in": "वह भाषा चुनें जिसमें ओनियन वॉच दिखाई गई है",
+  "Search languages": "भाषाएँ खोजें",
+  "Search languages…": "भाषाएँ खोजें…",
+  "Settings categories": "सेटिंग्स श्रेणियां",
+  "Updates and privacy": "अद्यतन और गोपनीयता"
 }

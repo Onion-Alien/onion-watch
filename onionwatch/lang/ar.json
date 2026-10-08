@@ -225,7 +225,6 @@
   "Keeps to the processor use above.": "يلتزم باستهلاك المعالج أعلاه.",
   "LIVE CHANCES": "الاحتمالات المباشرة",
   "LOG PICTURES": "صور السجل",
-  "LOOK": "المظهر",
   "Language": "اللغة",
   "Later": "لاحقًا",
   "Learned the background: {share:.0%} of the picture is scenery and left out": "تعلّم الخلفية: {share:.0%} من الصورة مشهد خلفي وتم استبعاده",
@@ -396,7 +395,6 @@
   "Rename category": "إعادة تسمية الفئة",
   "Rename…": "إعادة تسمية…",
   "Report a problem": "أبلغ عن مشكلة",
-  "Restart Onion Watch to finish": "أعد تشغيل Onion Watch للإنهاء",
   "Restart now": "أعِد التشغيل الآن",
   "Right now, in the place closest to going off": "الآن، في المكان الأقرب إلى الانطلاق",
   "Right now: how well it matches (the best of its pictures)": "الآن: مدى التطابق (أفضل صوره)",
@@ -765,5 +763,16 @@
   "{what} in {place}, {score}%": "{what} في {place}، {score}%",
   "{what} in {place}.": "{what} في {place}.",
   "{where} comes out black, so there's nothing to cut. Some games can only be seen on the screen: pick its screen under Look in instead.": "{where} يظهر أسود، فلا شيء لاقتطاعه. بعض الألعاب لا تُرى إلا على الشاشة: اختر شاشتها في ابحث في بدلًا من ذلك.",
-  "{width}×{height} pixels": "{width}×{height} بكسل"
+  "{width}×{height} pixels": "{width}×{height} بكسل",
+  "About": "عن",
+  "Alerts": "التنبيهات",
+  "Appearance": "مظهر",
+  "Done": "منتهي",
+  "No language matches “{text}”": "لا توجد لغة تطابق \"{text}\"",
+  "Onion Watch shows {name} after a restart.": "تعرض Onion Watch {name} بعد إعادة التشغيل.",
+  "Pick the language Onion Watch is shown in": "اختر اللغة التي تظهر بها Onion Watch",
+  "Search languages": "لغات البحث",
+  "Search languages…": "بحث في اللغات…",
+  "Settings categories": "فئات الإعدادات",
+  "Updates and privacy": "التحديثات والخصوصية"
 }

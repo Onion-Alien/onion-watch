@@ -497,6 +497,10 @@ QComboBox QAbstractItemView::item { min-height:28px; padding:0 10px; border-radi
 QComboBox QAbstractItemView::item:hover { background:$btn_hover; color:$text_hi; }
 QComboBox QAbstractItemView::item:selected { background:$accent; color:$on_accent; }
 QListWidget::item:selected { background:$accent; color:$on_accent; border-radius:8px; }
+QListWidget#settingscategories { background:$panel; border:1px solid $border; outline:0; }
+QListWidget#settingscategories::item { padding:4px; }
+QListWidget#settingscategories::item:selected { background:$accent; color:$on_accent; }
+QListWidget#settingscategories::item:hover:!selected { background:$inset; }
 QComboBox QAbstractItemView::item:disabled { color:$faint; }
 QPushButton::menu-indicator { image:url("$down"); width:9px; height:9px;
     subcontrol-origin:padding; subcontrol-position:center right; right:2px; }
@@ -552,6 +556,7 @@ QPushButton#hkbtn { min-width:150px; font-weight:600; }
 QPushButton#themecard { background:$panel; border:2px solid $border; border-radius:12px; padding:0; }
 QPushButton#themecard:hover { border-color:$border_hi; }
 QPushButton#themecard:checked { background:$panel; border:2px solid $accent; }
+QFrame#card QPushButton#themecard, QFrame#card QPushButton#themecard:checked { background:$panel; }
 QFrame#card QFrame#chip { background:$btn; border:1px solid $border; border-radius:11px; }
 QFrame#card QFrame#chip:hover { border-color:$border_hi; }
 QFrame#card QFrame#chip[sel="true"] { border-color:$accent; }

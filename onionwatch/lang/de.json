@@ -209,7 +209,6 @@
   "Keeps to the processor use above.": "Hält sich an die Prozessornutzung oben.",
   "LIVE CHANCES": "LIVE-CHANCEN",
   "LOG PICTURES": "PROTOKOLLBILDER",
-  "LOOK": "AUSSEHEN",
   "Language": "Sprache",
   "Later": "Später",
   "Learned the background: {share:.0%} of the picture is scenery and left out": "Hintergrund gelernt: {share:.0%} des Bildes ist Kulisse und wird ignoriert",
@@ -380,7 +379,6 @@
   "Rename category": "Kategorie umbenennen",
   "Rename…": "Umbenennen…",
   "Report a problem": "Problem melden",
-  "Restart Onion Watch to finish": "Onion Watch neu starten, um abzuschließen",
   "Restart now": "Jetzt neu starten",
   "Right now, in the place closest to going off": "Gerade jetzt, an der Stelle, die dem Auslösen am nächsten ist",
   "Right now: how well it matches (the best of its pictures)": "Gerade jetzt: wie gut es passt (das beste seiner Bilder)",
@@ -717,5 +715,16 @@
   "Window": "Fenster",
   "{name} (every copy)": "{name} (jede Kopie)",
   "{name} (copy {n})": "{name} (Kopie {n})",
-  "{ms} ms": "{ms} ms"
+  "{ms} ms": "{ms} ms",
+  "About": "Info",
+  "Alerts": "Warnungen",
+  "Appearance": "Aussehen",
+  "Done": "Fertig",
+  "No language matches “{text}”": "Keine Sprache passt zu „{text}“",
+  "Onion Watch shows {name} after a restart.": "Onion Watch zeigt nach einem Neustart {name} an.",
+  "Pick the language Onion Watch is shown in": "Wählen Sie die Sprache aus, in der Onion Watch angezeigt wird",
+  "Search languages": "Sprachen suchen",
+  "Search languages…": "Sprachen suchen…",
+  "Settings categories": "Einstellungskategorien",
+  "Updates and privacy": "Updates und Datenschutz"
 }

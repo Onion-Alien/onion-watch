@@ -205,7 +205,6 @@
   "Keeps to the processor use above.": "Giữ trong mức dùng CPU ở trên.",
   "LIVE CHANCES": "TỈ LỆ TRỰC TIẾP",
   "LOG PICTURES": "ẢNH TRONG NHẬT KÝ",
-  "LOOK": "GIAO DIỆN",
   "Language": "Ngôn ngữ",
   "Later": "Để sau",
   "Learned the background: {share:.0%} of the picture is scenery and left out": "Đã học nền: {share:.0%} của ảnh là cảnh nền và được bỏ qua",
@@ -376,7 +375,6 @@
   "Rename category": "Đổi tên danh mục",
   "Rename…": "Đổi tên…",
   "Report a problem": "Báo lỗi",
-  "Restart Onion Watch to finish": "Khởi động lại Onion Watch để hoàn tất",
   "Restart now": "Khởi động lại ngay",
   "Right now, in the place closest to going off": "Ngay lúc này, ở chỗ gần báo nhất",
   "Right now: how well it matches (the best of its pictures)": "Ngay lúc này: khớp tốt đến đâu (ảnh tốt nhất của nó)",
@@ -705,5 +703,16 @@
   "{what} in {place}, {score}%": "{what} trong {place}, {score}%",
   "{what} in {place}.": "{what} trong {place}.",
   "{where} comes out black, so there's nothing to cut. Some games can only be seen on the screen: pick its screen under Look in instead.": "{where} ra màu đen, nên không có gì để cắt. Một số game chỉ thấy được trên màn hình: hãy chọn màn hình của nó trong Tìm trong.",
-  "{width}×{height} pixels": "{width}×{height} pixel"
+  "{width}×{height} pixels": "{width}×{height} pixel",
+  "About": "Về",
+  "Alerts": "Cảnh báo",
+  "Appearance": "Vẻ bề ngoài",
+  "Done": "Xong",
+  "No language matches “{text}”": "Không có ngôn ngữ nào khớp với “{text}”",
+  "Onion Watch shows {name} after a restart.": "Onion Watch hiển thị {name} sau khi khởi động lại.",
+  "Pick the language Onion Watch is shown in": "Chọn ngôn ngữ Onion Watch được hiển thị trong",
+  "Search languages": "Tìm kiếm ngôn ngữ",
+  "Search languages…": "Tìm kiếm ngôn ngữ…",
+  "Settings categories": "Danh mục cài đặt",
+  "Updates and privacy": "Cập nhật và quyền riêng tư"
 }

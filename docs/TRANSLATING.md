@@ -57,11 +57,23 @@ catalog is complete and keeps the placeholders.
 A new language: copy a catalog to `<code>.json` (a Windows language code: `it`,
 `pl`, `zh-CN`…), set `_meta.name` to the language's own name, translate, and add its
 plural rule to `PLURALS` (and its number of forms to `FORMS`) if it isn't one / other.
-Add it to Onion Board too, so the two keep the same languages.
+Run `python scripts/make_langnames.py` so the Language picker can name it in every
+language (from Unicode CLDR). Add it to Onion Board too, so the two keep the same
+languages: a board language Onion Watch hasn't got shows an English Triggers tab.
 
 ## The languages and what's special about them
 
-The same languages as Onion Board, with the same words for shared things: English, Deutsch, Español, Français, Italiano, Nederlands, Polski, Português (Brasil), Türkçe, Bahasa Indonesia, Tiếng Việt, Русский, Українська, العربية, हिन्दी, ไทย, 简体中文, 繁體中文, 日本語 and 한국어.
+The same 32 languages as Onion Board, with the same words for shared things:
+English, Bahasa Indonesia, Bahasa Melayu, Čeština, Dansk, Deutsch, Español (España),
+Español (Latinoamérica), Filipino, Français, Italiano, Magyar, Nederlands, Norsk,
+Polski, Português (Brasil), Português (Portugal), Română, Suomi, Svenska, Tiếng Việt,
+Türkçe, Ελληνικά, Български, Русский, Українська, العربية, हिन्दी, ไทย, 简体中文,
+繁體中文, 日本語 and 한국어. Plural rules (`PLURALS`, `FORMS`) and fonts (`FONTS`) match
+the board's `i18n.py`.
+
+- **Regions**: Spain's Spanish is `es`, every other Spanish `es-419`; Brazil's
+  Portuguese (and a plain `pt`) is `pt-BR`, the rest `pt-PT`; Norwegian (`nb`, `nn`,
+  `no`) is `nb` (`i18n._regional`).
 
 - **Chinese** goes by region: Windows' `zh-HK`, `zh-MO`, `zh-TW` and `zh-Hant…` get
   Traditional (`zh-TW`), the rest (`zh-CN`, `zh-SG`, `zh-Hans…`) Simplified (`zh-CN`).
@@ -82,11 +94,16 @@ The same languages as Onion Board, with the same words for shared things: Englis
 
 ## Which language
 
-- The app: Settings → Look → **Language**. *Windows' language* (the default) uses
-  Windows' display language when there's a catalog for it, else English. A change
-  shows after a restart (*Restart now*). Saved as `language` in `config.json`.
+- The app: Settings → Appearance → **Language**, a button opening a window of tiles,
+  one per language, with a search (`ui/langpick.py`, the same window as Onion
+  Board's). *Windows' language* (the first tile, and the default: `language` is `""`)
+  uses Windows' display language when there's a catalog for it, else English. The
+  card's title is in Windows' language too, and what it says about restarting is in
+  the language picked. A change shows after a restart (*Restart now*). Saved as
+  `language` in `config.json`; a code there that isn't shipped reads as English.
 - Inside Onion Board: the board's language (its host's optional `language()`), else
-  Windows'.
+  Windows'. The tab has no Language setting of its own: the board's (Settings →
+  Appearance → Language) is the only one.
 - `ONIONWATCH_LANG=de` (or `xx`) overrides both, for checking a translation from
   source.
 

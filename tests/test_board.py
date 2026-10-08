@@ -99,3 +99,30 @@ def test_in_arabic_the_tab_is_mirrored_unless_the_board_already_is(
         qapp.setLayoutDirection(Qt.LeftToRight)
         i18n.set_language(i18n.ENGLISH)
         theme.set_current(theme.DEFAULT)
+
+
+@pytest.mark.parametrize("lang, word", [("bg", "Тригери"), ("sw", "Triggers")])
+def test_the_tab_follows_the_boards_language_and_has_no_picker_of_its_own(
+        qapp, tmp_path, monkeypatch, lang, word):
+    """A board in Bulgarian (one of the newer languages) gets a Bulgarian tab; a board
+    language Onion Watch hasn't got (Swahili) gets English, without errors. Either way
+    the only language setting is the board's: the tab has none."""
+    from PySide6.QtWidgets import QWidget
+
+    from onionwatch import i18n
+    monkeypatch.setattr(sw, "monitors", lambda: [Monitor(0, 0, W, H, True)])
+    monkeypatch.setattr(sw, "open_grabber", FakeGrabber)
+    monkeypatch.delenv(i18n.ENV, raising=False)
+    host = FakeHost(tmp_path / "board")
+    host.language = lambda: lang
+    try:
+        tab = board.create(host)
+        assert i18n.current() == (lang if lang != "sw" else "en")
+        assert i18n._("Triggers") == word
+        names = " ".join(w.objectName() + type(w).__name__ for w in tab.findChildren(QWidget))
+        assert "LanguageDialog" not in names and "LangTile" not in names
+        assert not hasattr(tab.panel, "lang_button")
+        tab.shutdown()
+    finally:
+        i18n.set_language(i18n.ENGLISH)
+        theme.set_current(theme.DEFAULT)

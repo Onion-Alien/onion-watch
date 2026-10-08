@@ -32,7 +32,8 @@ def test_it_holds_the_page_and_engine_but_not_the_app(built):
                  "ui/viewer.py", "ui/deleted.py", "ui/watching.py"):  # opened only when asked
         assert top + want in names, want
     for app_only in ("app.py", "apphost.py", "player.py", "sounds.py", "settings.py",
-                     "singleinstance.py", "ui/mainwindow.py", "ui/settingsdialog.py"):
+                     "singleinstance.py", "ui/mainwindow.py", "ui/settingsdialog.py",
+                     "ui/langpick.py", "langnames_data.py"):   # the board has its own picker
         assert top + app_only not in names, app_only
     assert {"onion-watch/module.json", "onion-watch/LICENSE"} <= names
     # the language catalogs ride along (and nothing else that isn't code)
