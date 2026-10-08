@@ -213,7 +213,6 @@
   "Keeps to the processor use above.": "Держится в рамках нагрузки на процессор выше.",
   "LIVE CHANCES": "ШАНСЫ ВЖИВУЮ",
   "LOG PICTURES": "КАРТИНКИ В ЖУРНАЛЕ",
-  "LOOK": "ВИД",
   "Language": "Язык",
   "Later": "Позже",
   "Learned the background: {share:.0%} of the picture is scenery and left out": "Фон изучен: {share:.0%} картинки — это фон, он не учитывается",
@@ -384,7 +383,6 @@
   "Rename category": "Переименовать категорию",
   "Rename…": "Переименовать…",
   "Report a problem": "Сообщить о проблеме",
-  "Restart Onion Watch to finish": "Перезапусти Onion Watch, чтобы закончить",
   "Restart now": "Перезапустить",
   "Right now, in the place closest to going off": "Прямо сейчас, в месте, ближайшем к срабатыванию",
   "Right now: how well it matches (the best of its pictures)": "Прямо сейчас: насколько совпадает (лучшая из картинок)",
@@ -729,5 +727,16 @@
   "Window": "Окно",
   "{name} (every copy)": "{name} (все копии)",
   "{name} (copy {n})": "{name} (копия {n})",
-  "{ms} ms": "{ms} мс"
+  "{ms} ms": "{ms} мс",
+  "About": "О программе",
+  "Alerts": "Оповещения",
+  "Appearance": "Внешний вид",
+  "Done": "Готово",
+  "No language matches “{text}”": "Ни один язык не соответствует «{text}»",
+  "Onion Watch shows {name} after a restart.": "Onion Watch показывает {name} после перезапуска.",
+  "Pick the language Onion Watch is shown in": "Выберите язык, на котором отображается Onion Watch.",
+  "Search languages": "Поиск языков",
+  "Search languages…": "Поиск языков…",
+  "Settings categories": "Разделы настроек",
+  "Updates and privacy": "Обновления и конфиденциальность"
 }

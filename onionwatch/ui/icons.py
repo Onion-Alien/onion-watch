@@ -419,6 +419,31 @@ def _bell(p, fill):
     p.drawArc(QRectF(9.5, 17.5, 5, 4), 180 * 16, 180 * 16)
 
 
+def _shield(p, fill):
+    """Privacy: a shield with a tick."""
+    path = QPainterPath(QPointF(12, 3))
+    path.lineTo(19.5, 6)
+    path.lineTo(19.5, 11.5)
+    path.cubicTo(QPointF(19.5, 16), QPointF(16.5, 19.3), QPointF(12, 21))
+    path.cubicTo(QPointF(7.5, 19.3), QPointF(4.5, 16), QPointF(4.5, 11.5))
+    path.lineTo(4.5, 6)
+    path.closeSubpath()
+    p.drawPath(path)
+    p.drawLine(QPointF(8.8, 12), QPointF(11, 14.3))
+    p.drawLine(QPointF(11, 14.3), QPointF(15.4, 9.6))
+
+
+def _star(p, fill, solid=False):
+    path = QPainterPath()
+    for i in range(10):
+        a = -math.pi / 2 + i * math.pi / 5
+        r = 9 if i % 2 == 0 else 4.2
+        point = QPointF(12 + r * math.cos(a), 12 + r * math.sin(a))
+        path.moveTo(point) if i == 0 else path.lineTo(point)
+    path.closeSubpath()
+    fill(path) if solid else p.drawPath(path)
+
+
 def _chevron(direction):
     """A fold-out's state: > closed, v open."""
     def draw(p, fill):
@@ -446,7 +471,7 @@ SHAPES = {
     "palette": _palette, "gamepad": _gamepad, "image": _image, "radio": _radio,
     "apps": _apps, "triggers": _eye, "fold": _chevron("right"), "fold_open": _chevron("down"),
     "window": _window, "crop": _crop, "bell": _bell, "search": _search,
-    "gauge": _gauge,
+    "gauge": _gauge, "shield": _shield, "star": _star,
 }
 
 
@@ -478,14 +503,17 @@ def pixmap(name: str, size: int, color: str) -> QPixmap:
 _cache: dict[tuple, QIcon] = {}
 
 
-def icon(name: str, color: str | None = None, checked_color: str | None = None) -> QIcon:
+def icon(name: str, color: str | None = None, checked_color: str | None = None,
+         selected: str = "accent") -> QIcon:
     """`color`/`checked_color` are theme token names (e.g. "text", "on_accent") or
-    literal colours ("#ff4d4f")."""
+    literal colours ("#ff4d4f"). `selected` colours the current tab / a highlighted
+    list item (accent, not Qt's washed-out tint)."""
     def resolve(c):
         return theme.T.get(c, c)
     normal = resolve(color or "text")
     on = resolve(checked_color or "on_accent")
-    key = (name, normal, on)
+    sel = resolve(selected)
+    key = (name, normal, on, sel)
     if key not in _cache:
         ic = QIcon()
         for s in SIZES:
@@ -493,7 +521,7 @@ def icon(name: str, color: str | None = None, checked_color: str | None = None) 
             ic.addPixmap(pixmap(name, s, resolve("muted")), QIcon.Disabled, QIcon.Off)
             ic.addPixmap(pixmap(name, s, on), QIcon.Normal, QIcon.On)
             # the current tab / a highlighted item: accent, not Qt's washed-out tint
-            ic.addPixmap(pixmap(name, s, resolve("accent")), QIcon.Selected, QIcon.Off)
+            ic.addPixmap(pixmap(name, s, sel), QIcon.Selected, QIcon.Off)
             ic.addPixmap(pixmap(name, s, normal), QIcon.Active, QIcon.Off)
         _cache[key] = ic
     return _cache[key]

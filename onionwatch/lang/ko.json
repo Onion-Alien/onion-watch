@@ -205,7 +205,6 @@
   "Keeps to the processor use above.": "위의 프로세서 사용량을 지켜요.",
   "LIVE CHANCES": "실시간 확률",
   "LOG PICTURES": "로그 이미지",
-  "LOOK": "모양",
   "Language": "언어",
   "Later": "나중에",
   "Learned the background: {share:.0%} of the picture is scenery and left out": "배경을 학습했어요: 이미지의 {share:.0%}는 배경이라 제외해요",
@@ -376,7 +375,6 @@
   "Rename category": "카테고리 이름 변경",
   "Rename…": "이름 변경…",
   "Report a problem": "문제 신고",
-  "Restart Onion Watch to finish": "완료하려면 Onion Watch를 다시 시작하세요",
   "Restart now": "지금 다시 시작",
   "Right now, in the place closest to going off": "지금, 작동에 가장 가까운 위치에서",
   "Right now: how well it matches (the best of its pictures)": "지금 얼마나 일치하는지(이미지 중 가장 높은 값)",
@@ -705,5 +703,16 @@
   "{what} in {place}, {score}%": "{place}에서 {what}, {score}%",
   "{what} in {place}.": "{place}에서 {what}.",
   "{where} comes out black, so there's nothing to cut. Some games can only be seen on the screen: pick its screen under Look in instead.": "{where}이(가) 검게 나와서 잘라낼 게 없어요. 화면에서만 보이는 게임도 있어요: 대신 감시 위치에서 그 화면을 고르세요.",
-  "{width}×{height} pixels": "{width}×{height} 픽셀"
+  "{width}×{height} pixels": "{width}×{height} 픽셀",
+  "About": "에 대한",
+  "Alerts": "경고",
+  "Appearance": "모습",
+  "Done": "완료",
+  "No language matches “{text}”": "“{text}”와 일치하는 언어가 없습니다.",
+  "Onion Watch shows {name} after a restart.": "Onion Watch는 다시 시작한 후 {name} 표시합니다.",
+  "Pick the language Onion Watch is shown in": "Onion Watch가 표시되는 언어를 선택하세요.",
+  "Search languages": "언어 검색",
+  "Search languages…": "언어 검색…",
+  "Settings categories": "설정 카테고리",
+  "Updates and privacy": "업데이트 및 개인정보 보호"
 }

@@ -2,6 +2,21 @@
 
 What changed between releases, for the release notes. Newest first.
 
+## Unreleased
+
+- **13 more languages**, so every Onion Board language has an Onion Watch one:
+  Bahasa Melayu, Čeština, Dansk, Español (Latinoamérica), Filipino, Magyar, Norsk,
+  Português (Portugal), Română, Suomi, Svenska, Ελληνικά and Български. A Bulgarian
+  board no longer shows an English Triggers tab.
+- **Language picker**: Settings → Appearance → Language opens a window of tiles, one
+  per language in its own name, with a search (any name, English, or the code).
+  *Windows' language* stays the default. The card's title is also in Windows'
+  language, and the restart note is in the language picked.
+- **Settings look like Onion Board's**: categories on the left (Audio, Alerts,
+  Appearance, Updates and privacy, About), cards on the right, theme previews instead
+  of a drop-down, and Done at the bottom.
+- Inside Onion Board nothing changes: the Triggers tab follows the board's language.
+
 ## 0.9.2 (2026-10-07)
 
 - **Lighter Triggers tab**: a closed trigger card makes its editor only when it's

@@ -205,7 +205,6 @@
   "Keeps to the processor use above.": "上のプロセッサ使用量を守ります。",
   "LIVE CHANCES": "リアルタイム確率",
   "LOG PICTURES": "ログの画像",
-  "LOOK": "見た目",
   "Language": "言語",
   "Later": "後で",
   "Learned the background: {share:.0%} of the picture is scenery and left out": "背景を学習しました: 画像の {share:.0%} は背景なので除外します",
@@ -376,7 +375,6 @@
   "Rename category": "カテゴリ名を変更",
   "Rename…": "名前を変更…",
   "Report a problem": "問題を報告",
-  "Restart Onion Watch to finish": "完了するには Onion Watch を再起動してください",
   "Restart now": "今すぐ再起動",
   "Right now, in the place closest to going off": "現在、最も発動に近い場所",
   "Right now: how well it matches (the best of its pictures)": "現在の一致度（画像の中で最も高いもの）",
@@ -705,5 +703,16 @@
   "{what} in {place}, {score}%": "{place}: {what}、{score}%",
   "{what} in {place}.": "{place}: {what}。",
   "{where} comes out black, so there's nothing to cut. Some games can only be seen on the screen: pick its screen under Look in instead.": "{where} が真っ黒になるので、切り取るものがありません。画面上でしか見えないゲームもあります: 代わりに「探す場所」でその画面を選んでください。",
-  "{width}×{height} pixels": "{width}×{height} ピクセル"
+  "{width}×{height} pixels": "{width}×{height} ピクセル",
+  "About": "情報",
+  "Alerts": "アラート",
+  "Appearance": "外観",
+  "Done": "完了",
+  "No language matches “{text}”": "「{text}」に一致する言語はありません",
+  "Onion Watch shows {name} after a restart.": "再起動後、Onion Watch に{name}が表示されます。",
+  "Pick the language Onion Watch is shown in": "Onion Watch が表示される言語を選択してください",
+  "Search languages": "検索言語",
+  "Search languages…": "言語を検索…",
+  "Settings categories": "設定カテゴリ",
+  "Updates and privacy": "アップデートとプライバシー"
 }

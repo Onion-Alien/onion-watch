@@ -213,7 +213,6 @@
   "Keeps to the processor use above.": "Тримається використання процесора вище.",
   "LIVE CHANCES": "ШАНСИ НАЖИВО",
   "LOG PICTURES": "КАРТИНКИ В ЖУРНАЛІ",
-  "LOOK": "ВИГЛЯД",
   "Language": "Мова",
   "Later": "Пізніше",
   "Learned the background: {share:.0%} of the picture is scenery and left out": "Фон вивчено: {share:.0%} картинки — це оточення, його не враховано",
@@ -384,7 +383,6 @@
   "Rename category": "Перейменувати категорію",
   "Rename…": "Перейменувати…",
   "Report a problem": "Повідомити про проблему",
-  "Restart Onion Watch to finish": "Перезапусти Onion Watch, щоб завершити",
   "Restart now": "Перезапустити зараз",
   "Right now, in the place closest to going off": "Прямо зараз, у місці, найближчому до спрацювання",
   "Right now: how well it matches (the best of its pictures)": "Прямо зараз: наскільки збігається (найкраща з його картинок)",
@@ -729,5 +727,16 @@
   "{what} in {place}, {score}%": "{what} у {place}, {score}%",
   "{what} in {place}.": "{what} у {place}.",
   "{where} comes out black, so there's nothing to cut. Some games can only be seen on the screen: pick its screen under Look in instead.": "{where} виходить чорним, тож нема чого вирізати. Деякі ігри видно лише на екрані: вибери натомість його екран у «Шукати в».",
-  "{width}×{height} pixels": "{width}×{height} пікселів"
+  "{width}×{height} pixels": "{width}×{height} пікселів",
+  "About": "про",
+  "Alerts": "Оповіщення",
+  "Appearance": "Зовнішній вигляд",
+  "Done": "Готово",
+  "No language matches “{text}”": "Жодна мова не відповідає “{text}”",
+  "Onion Watch shows {name} after a restart.": "Onion Watch показує {name} після перезавантаження.",
+  "Pick the language Onion Watch is shown in": "Виберіть мову, якою буде показано Onion Watch",
+  "Search languages": "Пошук мов",
+  "Search languages…": "Пошук мов…",
+  "Settings categories": "Категорії налаштувань",
+  "Updates and privacy": "Оновлення та конфіденційність"
 }

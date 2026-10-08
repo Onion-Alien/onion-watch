@@ -205,7 +205,6 @@
   "Keeps to the processor use above.": "遵守上方的處理器用量。",
   "LIVE CHANCES": "即時機率",
   "LOG PICTURES": "記錄圖片",
-  "LOOK": "外觀",
   "Language": "語言",
   "Later": "稍後",
   "Learned the background: {share:.0%} of the picture is scenery and left out": "已學習背景：圖片中有 {share:.0%} 是背景，已排除",
@@ -376,7 +375,6 @@
   "Rename category": "重新命名分類",
   "Rename…": "重新命名…",
   "Report a problem": "回報問題",
-  "Restart Onion Watch to finish": "重新啟動 Onion Watch 來完成",
   "Restart now": "立即重新啟動",
   "Right now, in the place closest to going off": "現在，在最接近觸發的位置",
   "Right now: how well it matches (the best of its pictures)": "現在：符合程度（取它的圖片中最好的）",
@@ -705,5 +703,16 @@
   "{what} in {place}, {score}%": "在 {place} {what}，{score}%",
   "{what} in {place}.": "在 {place} {what}。",
   "{where} comes out black, so there's nothing to cut. Some games can only be seen on the screen: pick its screen under Look in instead.": "{where} 擷取出來是黑的，所以沒有東西可以擷取。有些遊戲只能從螢幕上看到：請改在「監看位置」選擇它所在的螢幕。",
-  "{width}×{height} pixels": "{width}×{height} 像素"
+  "{width}×{height} pixels": "{width}×{height} 像素",
+  "About": "關於",
+  "Alerts": "警報",
+  "Appearance": "外觀",
+  "Done": "完成",
+  "No language matches “{text}”": "沒有語言匹配“{text}”",
+  "Onion Watch shows {name} after a restart.": "Onion Watch 重新啟動後顯​​示{name} 。",
+  "Pick the language Onion Watch is shown in": "選擇 Onion Watch 顯示的語言",
+  "Search languages": "搜尋語言",
+  "Search languages…": "搜尋語言…",
+  "Settings categories": "設定類別",
+  "Updates and privacy": "更新和隱私"
 }

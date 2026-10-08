@@ -54,7 +54,9 @@ def _slavic(n):            # ru, uk: one (1, 21, 31…), few (2-4, 22-24…), ma
 
 PLURALS = {
     "en": _one_other, "de": _one_other, "es": _one_other, "it": _one_other,
-    "nl": _one_other, "tr": _one_other,
+    "nl": _one_other, "tr": _one_other, "es-419": _one_other, "pt-PT": _one_other,
+    "el": _one_other, "sv": _one_other, "da": _one_other, "nb": _one_other,
+    "fi": _one_other, "bg": _one_other, "hu": _one_other,
     "pt-BR": lambda n: 0 if n in (0, 1) else 1,
     "fr": lambda n: 0 if n in (0, 1) else 1,
     "hi": lambda n: 0 if n in (0, 1) else 1,
@@ -62,15 +64,21 @@ PLURALS = {
     # one (1), few (2-4, 22-24…, not 12-14), many (the rest)
     "pl": lambda n: 0 if n == 1
     else 1 if 2 <= n % 10 <= 4 and not 12 <= n % 100 <= 14 else 2,
+    # one (1), few (2-4), other
+    "cs": lambda n: 0 if n == 1 else 1 if 2 <= n <= 4 else 2,
+    # one (1), few (0, 2-19, 101-119…), other (20-100, 120…)
+    "ro": lambda n: 0 if n == 1 else 1 if n == 0 or 1 <= n % 100 <= 19 else 2,
+    # one (1, 2, 3, and anything not ending in 4, 6 or 9), other
+    "fil": lambda n: 0 if n in (1, 2, 3) or n % 10 not in (4, 6, 9) else 1,
     # one form for every number
     "zh-CN": lambda n: 0, "zh-TW": lambda n: 0, "ja": lambda n: 0, "ko": lambda n: 0,
-    "id": lambda n: 0, "vi": lambda n: 0, "th": lambda n: 0,
+    "id": lambda n: 0, "vi": lambda n: 0, "th": lambda n: 0, "ms": lambda n: 0,
     # zero, one, two, few (3-10, 103-110…), many (11-99, 111-199…), other
     "ar": lambda n: 0 if n == 0 else 1 if n == 1 else 2 if n == 2
     else 3 if 3 <= n % 100 <= 10 else 4 if 11 <= n % 100 <= 99 else 5,
 }
-FORMS = {"ru": 3, "uk": 3, "pl": 3, "ar": 6,
-         **dict.fromkeys(("zh-CN", "zh-TW", "ja", "ko", "id", "vi", "th"), 1)}
+FORMS = {"ru": 3, "uk": 3, "pl": 3, "cs": 3, "ro": 3, "ar": 6,
+         **dict.fromkeys(("zh-CN", "zh-TW", "ja", "ko", "id", "vi", "th", "ms"), 1)}
 
 
 def forms(code: str) -> int:
@@ -127,20 +135,47 @@ def current() -> str:
     return _lang
 
 
+def _files() -> list[Path]:
+    try:
+        return [f for f in sorted(LANG_DIR.glob("*.json")) if f.stem not in (ENGLISH, PSEUDO)]
+    except OSError:
+        return []
+
+
+def codes() -> list[str]:
+    """The code of every catalog shipped, English first (no catalog is read)."""
+    return [ENGLISH, *(f.stem for f in _files())]
+
+
+_META_NAME = re.compile(r'^\{\s*"_meta"\s*:\s*\{\s*"name"\s*:\s*("(?:[^"\\]|\\.)*")')
+
+
+def _own_name(f: Path) -> str:
+    """Catalog `f`'s `_meta.name`, from its first lines when it's at the top (a whole
+    catalog is ~100 KB: reading all of them at start-up added up), else from the whole
+    file."""
+    try:
+        with f.open(encoding="utf-8") as fh:
+            m = _META_NAME.match(fh.read(512))
+        if m:
+            return json.loads(m.group(1)) or f.stem
+    except (OSError, ValueError):
+        pass
+    meta = _read(f).get("_meta", {})
+    return meta.get("name", f.stem) if isinstance(meta, dict) else f.stem
+
+
 def available() -> list[tuple[str, str]]:
     """(code, the language's own name) for every catalog shipped, English first."""
-    out = [(ENGLISH, "English")]
-    try:
-        files = sorted(LANG_DIR.glob("*.json"))
-    except OSError:
-        files = []
-    for f in files:
-        code = f.stem
-        if code in (ENGLISH, PSEUDO):
-            continue
-        meta = _read(f).get("_meta", {})
-        out.append((code, meta.get("name", code) if isinstance(meta, dict) else code))
-    return out
+    return [(ENGLISH, "English"), *((f.stem, _own_name(f)) for f in _files())]
+
+
+def name_of(code: str) -> str:
+    """Language `code`'s own name ("Deutsch"), or the code."""
+    if code == ENGLISH:
+        return "English"
+    f = LANG_DIR / f"{code}.json"
+    return _own_name(f) if f.is_file() else code
 
 
 def windows_language() -> str:
@@ -162,17 +197,20 @@ def windows_language() -> str:
 def resolve(setting: str) -> str:
     """The catalog to use for a language setting (`WINDOWS`: Windows' own, if shipped).
     Also takes Onion Board's language codes as they are."""
-    codes = [c for c, _n in available()]
+    codes_ = codes()
     want = setting if setting and setting != WINDOWS else windows_language()
     if want == PSEUDO:
         return PSEUDO
-    if want in codes:
+    if want in codes_:
         return want
     chinese = _chinese(want)
     if chinese:
-        return chinese if chinese in codes else ENGLISH
+        return chinese if chinese in codes_ else ENGLISH
+    regional = _regional(want)
+    if regional in codes_:
+        return regional
     base = want.split("-")[0].lower()
-    for c in codes:                       # "de-AT" -> "de", "pt-PT" -> "pt-BR"
+    for c in codes_:                       # "de-AT" -> "de", "pt-PT" -> "pt-BR"
         if c.split("-")[0].lower() == base:
             return c
     return ENGLISH
@@ -188,6 +226,22 @@ def _chinese(name: str) -> str | None:
     if "hant" in parts or {"hk", "mo", "tw"} & set(parts[1:]):
         return "zh-TW"
     return "zh-CN"
+
+
+def _regional(name: str) -> str | None:
+    """The catalog for a region a plain base-language match would get wrong: Spain's
+    Spanish (es) or Latin America's (es-419, every other es-XX); Brazil's Portuguese
+    (pt-BR, also a plain "pt") or Portugal's (pt-PT, the other pt-XX); Norwegian
+    (nb, nn, no) is nb. None: no rule."""
+    parts = [p.lower() for p in name.split("-")]
+    lang, region = parts[0], parts[-1] if len(parts) > 1 else ""
+    if lang == "es" and region:
+        return "es" if region == "es" else "es-419"
+    if lang == "pt":
+        return "pt-BR" if region in ("", "br") else "pt-PT"
+    if lang in ("nb", "nn", "no"):
+        return "nb"
+    return None
 
 
 def is_rtl(code: str | None = None) -> bool:
@@ -221,6 +275,18 @@ def set_language(code: str) -> str:
     _lang = code
     _catalog = {k: v for k, v in data.items() if not k.startswith("_")}
     return code
+
+
+def in_language(code: str, make):
+    """What `make()` returns with language `code` on for the call (the Language picker
+    speaks the language picked before the app has switched to it)."""
+    global _lang, _catalog
+    old = _lang, _catalog
+    set_language(code)
+    try:
+        return make()
+    finally:
+        _lang, _catalog = old
 
 
 def startup(app_dir: Path) -> str:
@@ -280,9 +346,12 @@ def translate_qt_buttons(app) -> bool:
 
     class ButtonWords(QTranslator):
         def translate(self, context, source, disambiguation=None, n=-1):
+            # None, not "": Qt takes "" as a translation (an empty one) and stops there,
+            # which broke more than buttons: QImage.loadFromData() failed on every PNG
+            # (a trigger pack's pictures) once a language other than English was on
             if context == "QPlatformTheme" and source:
-                return _qt_button(source) or ""
-            return ""
+                return _qt_button(source)
+            return None
 
         def isEmpty(self):
             return False

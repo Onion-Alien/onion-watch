@@ -205,7 +205,6 @@
   "Keeps to the processor use above.": "Mengikuti pemakaian prosesor di atas.",
   "LIVE CHANCES": "PELUANG LIVE",
   "LOG PICTURES": "GAMBAR LOG",
-  "LOOK": "TAMPILAN",
   "Language": "Bahasa",
   "Later": "Nanti",
   "Learned the background: {share:.0%} of the picture is scenery and left out": "Latar dipelajari: {share:.0%} gambar adalah latar dan diabaikan",
@@ -376,7 +375,6 @@
   "Rename category": "Ganti nama kategori",
   "Rename…": "Ganti nama…",
   "Report a problem": "Laporkan masalah",
-  "Restart Onion Watch to finish": "Restart Onion Watch untuk menyelesaikan",
   "Restart now": "Restart sekarang",
   "Right now, in the place closest to going off": "Saat ini, di tempat yang paling dekat terpicu",
   "Right now: how well it matches (the best of its pictures)": "Saat ini: seberapa cocok (yang terbaik dari gambar-gambarnya)",
@@ -705,5 +703,16 @@
   "{what} in {place}, {score}%": "{what} di {place}, {score}%",
   "{what} in {place}.": "{what} di {place}.",
   "{where} comes out black, so there's nothing to cut. Some games can only be seen on the screen: pick its screen under Look in instead.": "{where} hasilnya hitam, jadi tidak ada yang bisa dipotong. Beberapa game hanya terlihat di layar: pilih layarnya di Lihat di.",
-  "{width}×{height} pixels": "{width}×{height} piksel"
+  "{width}×{height} pixels": "{width}×{height} piksel",
+  "About": "Tentang",
+  "Alerts": "Peringatan",
+  "Appearance": "Penampilan",
+  "Done": "Selesai",
+  "No language matches “{text}”": "Tidak ada bahasa yang cocok dengan “{text}”",
+  "Onion Watch shows {name} after a restart.": "Onion Watch menampilkan {name} setelah dimulai ulang.",
+  "Pick the language Onion Watch is shown in": "Pilih bahasa yang digunakan dalam Onion Watch",
+  "Search languages": "Cari bahasa",
+  "Search languages…": "Cari bahasa…",
+  "Settings categories": "Kategori pengaturan",
+  "Updates and privacy": "Pembaruan dan privasi"
 }

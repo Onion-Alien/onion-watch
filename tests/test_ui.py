@@ -362,7 +362,7 @@ def test_settings_change_the_theme_and_volume_live(qapp, app_dir, fake_screen):
     win = MainWindow(Config())
     try:
         dlg = SettingsDialog(win)
-        dlg.theme.setCurrentIndex(dlg.theme.findData("Midnight"))
+        dlg._pick_theme("Midnight")
         assert win.cfg.theme == "Midnight"
         dlg.volume.setValue(40)
         assert win.player.volume == pytest.approx(0.4) and win.cfg.volume == pytest.approx(0.4)

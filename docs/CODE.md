@@ -121,13 +121,14 @@ then installs that file instead of downloading.
 | `onionwatch/ui/deleted.py` | Recently deleted triggers (kept 30 days with their pictures, in the saved settings) |
 | `onionwatch/packs.py` | saving triggers to a .zip with their pictures and loading them back |
 | `onionwatch/ui/mainwindow.py` | the window, the tray icon, notifications |
-| `onionwatch/ui/settingsdialog.py` | output device, volume, notifications, tray, theme and language, updates and privacy |
+| `onionwatch/ui/settingsdialog.py` | Settings, laid out like Onion Board's (categories on the left): output device, volume, notifications, tray, language and theme, updates and privacy, about |
+| `onionwatch/ui/langpick.py`, `onionwatch/langnames_data.py` | the Language picker: a tile per language with a search; language names from Unicode CLDR (`scripts/make_langnames.py` writes them) |
 | `onionwatch/ui/updatedialog.py` | "a new version is out": Update now / Later / Skip |
 | `onionwatch/ui/watching.py` | the Triggers bar's ⚙: how much of the processor watching may use, "Max detection", and how often each trigger is checked now |
 | `onionwatch/owl.py` | Hoot, the mascot owl, drawn in code (Onion Board's Bun's style), and `OwlWidget`: Hoot animated, waiting for a trigger |
 | `onionwatch/theme.py`, `ui/icons.py`, `ui/panel.py` | themes, the logo, painted icons and layout helpers, shared with Onion Board |
 | `onionwatch/singleinstance.py` | one copy at a time: a second launch brings the running one to the front (a restart waits for the old copy to close) |
-| `onionwatch/i18n.py`, `onionwatch/lang/*.json` | other languages: `_()` / `ngettext()`, the catalogs (inside the package, so they ride in the add-on zip), which language (Settings → Look → Language; inside Onion Board, the board's own), Qt's OK / Cancel words, the `xx` pseudo-language. See [TRANSLATING.md](TRANSLATING.md) |
+| `onionwatch/i18n.py`, `onionwatch/lang/*.json` | other languages: `_()` / `ngettext()`, the catalogs (inside the package, so they ride in the add-on zip), which language (Settings → Appearance → Language; inside Onion Board, the board's own), Qt's OK / Cancel words, the `xx` pseudo-language. See [TRANSLATING.md](TRANSLATING.md) |
 | `onionwatch/ui/fit.py` | dialogs grow to fit their wrapped text (a translation is often longer), shared with Onion Board |
 | `scripts/i18n_extract.py` | the wrapped texts against the catalogs: what's missing or unused per language, `--update`, `--check` |
 | `onionwatch/shuffle.py`, `wheelguard.py` | picking sounds "at random" without repeats; the mouse wheel scrolls the page instead of changing a box |
