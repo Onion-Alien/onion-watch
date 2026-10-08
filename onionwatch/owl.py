@@ -551,9 +551,17 @@ class OwlWidget(QWidget):
         f.setBold(True)
         p.setFont(f)
         fm = p.fontMetrics()
-        tw = min(fm.horizontalAdvance(text), self.width() - 20)
+        room = self.width() - 20
+        lines = [text]
+        if fm.horizontalAdvance(text) > room and " " in text:
+            # a longer translation goes on two lines, broken at the space nearest the
+            # middle, rather than losing its end to "…"
+            spaces = [i for i, c in enumerate(text) if c == " "]
+            cut = min(spaces, key=lambda i: abs(i - len(text) / 2))
+            lines = [text[:cut], text[cut + 1:]]
+        tw = min(max(fm.horizontalAdvance(t) for t in lines), room)
         pad = 7
-        bw, bh = tw + 2 * pad, fm.height() + 2 * pad - 4
+        bw, bh = tw + 2 * pad, fm.height() * len(lines) + 2 * pad - 4
         x = max(2.0, min(body.right() + 2, self.width() - bw - 2))
         y = max(2.0, body.top() - bh * 0.35)
         box = QRectF(x, y, bw, bh)
@@ -561,11 +569,12 @@ class OwlWidget(QWidget):
         tail.lineTo(body.center().x() + body.width() * 0.34, body.top() + body.height() * 0.27)
         tail.lineTo(box.left() + 22, box.bottom() - 2)
         shape = QPainterPath()
-        shape.addRoundedRect(box, bh / 2, bh / 2)
+        radius = (fm.height() + 2 * pad - 4) / 2   # one line's: two lines aren't a pill
+        shape.addRoundedRect(box, radius, radius)
         shape = shape.united(tail)
         p.setPen(QPen(INK, 1.6))
         p.setBrush(BUBBLE)
         p.drawPath(shape)
         p.setPen(INK)
         p.drawText(box.adjusted(pad, 0, -pad, 0), Qt.AlignCenter,
-                   fm.elidedText(text, Qt.ElideRight, round(tw)))
+                   "\n".join(fm.elidedText(t, Qt.ElideRight, round(tw)) for t in lines))

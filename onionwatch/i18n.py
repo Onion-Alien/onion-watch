@@ -321,6 +321,28 @@ def follow_host(host) -> str:
     return code
 
 
+BOARD_I18N = "soundboard.i18n"   # Onion Board's own i18n module, once it's running
+
+
+def _board_language_now() -> None:
+    """Inside Onion Board, take the board's language as this module loads: the board
+    imports every file of the add-on before it calls create(host), so text made as a
+    module loads (Hoot's lines, the trigger modes, the check speeds…) would otherwise
+    stay English whatever the board's language. follow_host() confirms it later.
+    Standalone, and on a board too old to have languages, this does nothing."""
+    board = sys.modules.get(BOARD_I18N)
+    if board is None:
+        return
+    try:
+        want = os.environ.get(ENV) or board.current()
+    except Exception:  # noqa: BLE001 - a board's mistake mustn't stop the add-on loading
+        log.warning("couldn't read Onion Board's language", exc_info=True)
+        return
+    if isinstance(want, str) and want:
+        code = set_language(resolve(want))
+        log.info("language: %s (Onion Board's %r, as the add-on loads)", code, want)
+
+
 def _qt_button(source: str) -> str | None:
     """Qt's own words on standard buttons (OK, Cancel… in message boxes and dialogs), in
     the current language; None for words not here."""
@@ -427,3 +449,6 @@ def unwrapped_texts(root) -> list[tuple[str, str]]:
                 check(w, w.tabText(i))
         check(w, w.toolTip())
     return found
+
+
+_board_language_now()   # (last: it needs everything above)

@@ -126,3 +126,31 @@ def test_the_tab_follows_the_boards_language_and_has_no_picker_of_its_own(
     finally:
         i18n.set_language(i18n.ENGLISH)
         theme.set_current(theme.DEFAULT)
+
+
+def test_text_made_as_modules_load_is_in_the_boards_language(monkeypatch):
+    """Onion Board imports every file of the add-on before create(host): Onion Watch's
+    i18n takes the board's language as it loads (_board_language_now, run at the end of
+    the module), so module-level text (Hoot's lines, the trigger modes…) isn't left in
+    English."""
+    import sys
+    import types
+
+    from onionwatch import i18n
+    board = types.ModuleType("soundboard.i18n")
+    board.current = lambda: "de"
+    monkeypatch.setitem(sys.modules, i18n.BOARD_I18N, board)
+    monkeypatch.delenv(i18n.ENV, raising=False)
+    try:
+        i18n._board_language_now()
+        assert i18n.current() == "de"
+        assert i18n._("let's watch something!") == "lass uns was beobachten!"
+        board.current = lambda: "zz"          # a language Onion Watch hasn't got: English
+        i18n._board_language_now()
+        assert i18n.current() == "en"
+        i18n.set_language("ru")
+        monkeypatch.delitem(sys.modules, i18n.BOARD_I18N)   # standalone: untouched
+        i18n._board_language_now()
+        assert i18n.current() == "ru"
+    finally:
+        i18n.set_language(i18n.ENGLISH)
