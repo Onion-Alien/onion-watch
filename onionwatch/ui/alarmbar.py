@@ -37,7 +37,6 @@ class AlarmBar(QFrame):
         self.text.setWordWrap(True)
         h.addWidget(self.text, 1)
         self.btn_stop = QPushButton(_("Stop"))
-        self.btn_stop.setToolTip(_("Stop the ringing"))
         self.btn_stop.clicked.connect(self.stop)
         h.addWidget(self.btn_stop)
         self.hide()

@@ -172,3 +172,18 @@ def test_settings_pages_like_the_boards(win):
         assert d.pages.currentIndex() == d.page_keys.index(key)
     assert d.width() <= 900
     d.close()
+
+
+def test_settings_list_names_have_no_tip_saying_the_same(win):
+    """Hovering a page name that fits shows nothing: the tip only repeated it. A name
+    cut short (a long translation) still shows in full on hover."""
+    from onionwatch.ui.settingsdialog import SettingsDialog
+    d = SettingsDialog(win)
+    items = [d.categories.item(i) for i in range(d.categories.count())]
+    assert not next(it for it in items if it.text() == "Audio").toolTip()
+    fm = d.categories.fontMetrics()
+    for it in items:
+        room = d.categories.width() - d.categories.iconSize().width() - 24
+        cut = fm.horizontalAdvance(it.text()) > room
+        assert it.toolTip() == (it.text() if cut else "")
+    d.close()

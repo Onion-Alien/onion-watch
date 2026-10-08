@@ -148,11 +148,15 @@ class SettingsDialog(QDialog):
         self.categories.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.categories.setFixedWidth(196)
         self.pages = QStackedWidget()
+        # room for a name beside its icon (borders, padding and the gap take the rest)
+        room = self.categories.width() - self.categories.iconSize().width() - 24
+        fm = self.categories.fontMetrics()
         for _key, title, icon, build in pages:
             self.pages.addWidget(self._scroll(build()))
             item = QListWidgetItem(icons.icon(icon, selected="on_accent"), title)
             item.setData(Qt.UserRole, icon)
-            item.setToolTip(title)   # (a long translation is cut short in the list)
+            if fm.horizontalAdvance(title) > room:   # only a name cut short needs a tip
+                item.setToolTip(title)
             item.setSizeHint(QSize(180, 38))
             self.categories.addItem(item)
         self.categories.currentRowChanged.connect(self.pages.setCurrentIndex)

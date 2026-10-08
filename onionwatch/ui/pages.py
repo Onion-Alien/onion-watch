@@ -131,7 +131,6 @@ class TriggerPages(QWidget):
         self.tabs.setExpanding(False)
         self.tabs.addTab(_("Triggers"))
         self.tabs.addTab(_("Log"))
-        self.tabs.setTabToolTip(1, _("What went off and when, newest first"))
         v.addWidget(self.tabs)
         for w in top:
             v.addWidget(w)

@@ -187,8 +187,9 @@ class ChanceRow(QFrame):
             return
         self._look = look
         fm = self.name.fontMetrics()
-        self.name.setText(fm.elidedText(t.name, Qt.ElideRight, NAME_W - 16))
-        self.name.setToolTip(t.name)
+        shown = fm.elidedText(t.name, Qt.ElideRight, NAME_W - 16)
+        self.name.setText(shown)
+        self.name.setToolTip(t.name if shown != t.name else "")   # only when cut short
         self.sub.setText(" · ".join(x for x in (WHAT.get(t.mode, ""), category) if x))
         self.thumb.setPixmap(_thumb(t))
 

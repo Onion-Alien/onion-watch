@@ -1407,7 +1407,6 @@ class TriggerRow(QFrame):
         no_wheel(self.pick)
         self.pick.currentIndexChanged.connect(self._on_pick)
         self.btn_test = QPushButton(_("Test"), self)
-        self.btn_test.setToolTip(_("Play now, as the trigger would, to check it"))
         icons.set_icon(self.btn_test, "play", size=14)
         self.btn_test.clicked.connect(lambda: self.test.emit(self))
         bv.addWidget(self.sounds_box)
@@ -2490,7 +2489,6 @@ class TriggersTab(QWidget):
         search_layout.addWidget(self.search_text, 3)
         self.search_scope = WideCombo(min_width=140)
         self.search_scope.setAccessibleName(_("Search category"))
-        self.search_scope.setToolTip(_("Search every category, or only one"))
         no_wheel(self.search_scope)
         align_control(self.search_scope)
         search_layout.addWidget(self.search_scope)
@@ -2716,7 +2714,6 @@ class TriggersTab(QWidget):
             self.btn_info = QPushButton(_("Help"))
             self.btn_info.setObjectName("small")
             self.btn_info.setCursor(Qt.PointingHandCursor)
-            self.btn_info.setToolTip(_("What is this?"))
             self.btn_info.clicked.connect(
                 lambda: QMessageBox.information(self, *self.info))
             self.btn_info.setParent(self)
