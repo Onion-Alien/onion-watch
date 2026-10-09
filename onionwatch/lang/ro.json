@@ -272,7 +272,6 @@
   "No triggers": "Fără declanșatoare",
   "No triggers in this category yet. Click + to make one here, drag one in, or pick it with Category, under a trigger's More options.": "Nu există încă declanșatori în această categorie. Faceți clic pe + pentru a crea unul aici, trageți unul sau alegeți-l cu Categorie, sub Mai multe opțiuni ale unui declanșator.",
   "No triggers yet. Add one on the Triggers page.": "Niciun declanșator încă. Adăugați unul pe pagina Declanșatoare.",
-  "No triggers yet. Pick your game window below, then click Cut picture… and drag a box around the thing to watch for.": "Niciun declanșator încă. Alegeți fereastra jocului de mai jos, apoi faceți clic pe Decupați imaginea… și trageți o casetă în jurul obiectului de urmărit.",
   "No windows open": "Nicio fereastră deschisă",
   "Normal — up to 2 %": "Normal - până la 2 %",
   "Not a picture": "Nu o poză",
@@ -723,5 +722,8 @@
   "Search languages…": "Căutați limbi…",
   "Settings categories": "Categorii de setări",
   "This window can't open: one of Onion Watch's files is missing, most likely because an update didn't finish.\n\nUpdate or reinstall Onion Watch to fix it. Your triggers and pictures are safe.": "Această fereastră nu se poate deschide: unul dintre fișierele Onion Watch lipsește, cel mai probabil pentru că o actualizare nu s-a terminat. Actualizați sau reinstalați Onion Watch pentru a o remedia. Declanșatoarele și imaginile dvs. sunt în siguranță.",
-  "Updates and privacy": "Actualizări și confidențialitate"
+  "Updates and privacy": "Actualizări și confidențialitate",
+  "A new trigger without a picture: it watches part of the window, and its card says what it waits for. To watch for a picture, use Cut picture… below.": "Un nou declanșator fără imagine: urmărește o parte a ferestrei, iar cardul său spune ce așteaptă. Pentru a urmări o imagine, utilizați Decupați imaginea... de mai jos.",
+  "New trigger": "Declanșator nou",
+  "No triggers yet. Pick your game window below, then click Cut picture… and drag a box around the thing to watch for. Or click + New trigger above for one without a picture.": "Niciun declanșator încă. Alegeți fereastra jocului de mai jos, apoi faceți clic pe Decupați imaginea... și trageți o casetă în jurul obiectului de urmărit. Sau faceți clic pe + Declanșator nou mai sus pentru unul fără imagine."
 }

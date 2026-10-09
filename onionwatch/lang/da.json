@@ -268,7 +268,6 @@
   "No triggers": "Ingen udløsere",
   "No triggers in this category yet. Click + to make one here, drag one in, or pick it with Category, under a trigger's More options.": "Ingen udløsere i denne kategori endnu. Klik på + for at lave en her, træk en ind, eller vælg den med Kategori under en triggers Flere muligheder.",
   "No triggers yet. Add one on the Triggers page.": "Ingen udløsere endnu. Tilføj en på Triggers-siden.",
-  "No triggers yet. Pick your game window below, then click Cut picture… and drag a box around the thing to watch for.": "Ingen udløsere endnu. Vælg dit spilvindue nedenfor, klik derefter på Klip billede… og træk en boks rundt om den ting, du skal holde øje med.",
   "No windows open": "Ingen vinduer åbne",
   "Normal — up to 2 %": "Normal - op til 2 %",
   "Not a picture": "Ikke et billede",
@@ -711,5 +710,8 @@
   "Search languages…": "Søg efter sprog…",
   "Settings categories": "Kategorier i indstillinger",
   "This window can't open: one of Onion Watch's files is missing, most likely because an update didn't finish.\n\nUpdate or reinstall Onion Watch to fix it. Your triggers and pictures are safe.": "Dette vindue kan ikke åbnes: en af ​​Onion Watchs filer mangler, sandsynligvis fordi en opdatering ikke blev færdig. Opdater eller geninstaller Onion Watch for at rette det. Dine triggere og billeder er sikre.",
-  "Updates and privacy": "Opdateringer og privatliv"
+  "Updates and privacy": "Opdateringer og privatliv",
+  "A new trigger without a picture: it watches part of the window, and its card says what it waits for. To watch for a picture, use Cut picture… below.": "En ny udløser uden billede: den holder øje med en del af vinduet, og dens kort siger, hvad den venter på. For at se efter et billede, brug Klip billede... nedenfor.",
+  "New trigger": "Ny udløser",
+  "No triggers yet. Pick your game window below, then click Cut picture… and drag a box around the thing to watch for. Or click + New trigger above for one without a picture.": "Ingen udløsere endnu. Vælg dit spilvindue nedenfor, klik derefter på Klip billede... og træk en boks rundt om den ting, du skal holde øje med. Eller klik på + Ny trigger ovenfor for en uden billede."
 }

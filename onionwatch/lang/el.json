@@ -268,7 +268,6 @@
   "No triggers": "Χωρίς ερεθίσματα",
   "No triggers in this category yet. Click + to make one here, drag one in, or pick it with Category, under a trigger's More options.": "Δεν υπάρχουν ακόμα εναύσματα σε αυτήν την κατηγορία. Κάντε κλικ στο + για να δημιουργήσετε ένα εδώ, σύρετε ένα ή επιλέξτε το με την Κατηγορία, κάτω από τις περισσότερες επιλογές ενός κανόνα ετικέτας.",
   "No triggers yet. Add one on the Triggers page.": "Δεν υπάρχουν ακόμη έναυσμα. Προσθέστε ένα στη σελίδα Κανόνες.",
-  "No triggers yet. Pick your game window below, then click Cut picture… and drag a box around the thing to watch for.": "Δεν υπάρχουν ακόμη έναυσμα. Επιλέξτε το παράθυρο του παιχνιδιού σας παρακάτω και, στη συνέχεια, κάντε κλικ στην Αποκοπή εικόνας… και σύρετε ένα πλαίσιο γύρω από το αντικείμενο που θέλετε να παρακολουθήσετε.",
   "No windows open": "Δεν υπάρχουν παράθυρα ανοιχτά",
   "Normal — up to 2 %": "Κανονικό — έως 2 %",
   "Not a picture": "Όχι εικόνα",
@@ -711,5 +710,8 @@
   "Search languages…": "Αναζήτηση γλωσσών…",
   "Settings categories": "Κατηγορίες ρυθμίσεων",
   "This window can't open: one of Onion Watch's files is missing, most likely because an update didn't finish.\n\nUpdate or reinstall Onion Watch to fix it. Your triggers and pictures are safe.": "Αυτό το παράθυρο δεν μπορεί να ανοίξει: ένα από τα αρχεία του Onion Watch λείπει, πιθανότατα επειδή δεν ολοκληρώθηκε μια ενημέρωση. Ενημερώστε ή επανεγκαταστήστε το Onion Watch για να το διορθώσετε. Οι σκανδάλες και οι φωτογραφίες σας είναι ασφαλείς.",
-  "Updates and privacy": "Ενημερώσεις και απόρρητο"
+  "Updates and privacy": "Ενημερώσεις και απόρρητο",
+  "A new trigger without a picture: it watches part of the window, and its card says what it waits for. To watch for a picture, use Cut picture… below.": "Μια νέα σκανδάλη χωρίς εικόνα: παρακολουθεί μέρος του παραθύρου και η κάρτα του λέει τι περιμένει. Για να παρακολουθήσετε μια εικόνα, χρησιμοποιήστε το Cut picture… παρακάτω.",
+  "New trigger": "Νέα σκανδάλη",
+  "No triggers yet. Pick your game window below, then click Cut picture… and drag a box around the thing to watch for. Or click + New trigger above for one without a picture.": "Δεν υπάρχουν ακόμη έναυσμα. Επιλέξτε το παράθυρο του παιχνιδιού σας παρακάτω και, στη συνέχεια, κάντε κλικ στην Αποκοπή εικόνας… και σύρετε ένα πλαίσιο γύρω από το αντικείμενο που θέλετε να παρακολουθήσετε. Ή κάντε κλικ στο + Νέος κανόνας ετικέτας παραπάνω για ένα χωρίς εικόνα."
 }

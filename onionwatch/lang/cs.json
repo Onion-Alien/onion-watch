@@ -272,7 +272,6 @@
   "No triggers": "Žádné spouštěče",
   "No triggers in this category yet. Click + to make one here, drag one in, or pick it with Category, under a trigger's More options.": "V této kategorii zatím nejsou žádné spouštěče. Klikněte na + a vytvořte ji zde, přetáhněte ji dovnitř nebo ji vyberte pomocí kategorie v části Další možnosti spouštěče.",
   "No triggers yet. Add one on the Triggers page.": "Zatím žádné spouštěče. Přidejte jeden na stránce Spouštěče.",
-  "No triggers yet. Pick your game window below, then click Cut picture… and drag a box around the thing to watch for.": "Zatím žádné spouštěče. Níže si vyberte své herní okno, klikněte na Vyjmout obrázek… a přetáhněte rámeček kolem věci, kterou chcete sledovat.",
   "No windows open": "Nejsou otevřená žádná okna",
   "Normal — up to 2 %": "Normální – až 2 %",
   "Not a picture": "Žádný obrázek",
@@ -723,5 +722,8 @@
   "Search languages…": "Hledat jazyky…",
   "Settings categories": "Kategorie nastavení",
   "This window can't open: one of Onion Watch's files is missing, most likely because an update didn't finish.\n\nUpdate or reinstall Onion Watch to fix it. Your triggers and pictures are safe.": "Toto okno nelze otevřít: chybí jeden ze souborů Onion Watch, pravděpodobně proto, že nebyla dokončena aktualizace. Aktualizujte nebo přeinstalujte Onion Watch, abyste to opravili. Vaše spouštěče a obrázky jsou v bezpečí.",
-  "Updates and privacy": "Aktualizace a soukromí"
+  "Updates and privacy": "Aktualizace a soukromí",
+  "A new trigger without a picture: it watches part of the window, and its card says what it waits for. To watch for a picture, use Cut picture… below.": "Nový spouštěč bez obrázku: sleduje část okna a jeho karta říká, na co čeká. Chcete-li se podívat na obrázek, použijte Vyjmout obrázek… níže.",
+  "New trigger": "Nová spoušť",
+  "No triggers yet. Pick your game window below, then click Cut picture… and drag a box around the thing to watch for. Or click + New trigger above for one without a picture.": "Zatím žádné spouštěče. Níže vyberte své herní okno, klikněte na Vyjmout obrázek… a přetáhněte rámeček kolem věci, kterou chcete sledovat. Nebo klikněte na + Nový spouštěč výše pro spuštění bez obrázku."
 }

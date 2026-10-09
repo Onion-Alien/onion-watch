@@ -269,7 +269,6 @@
   "No triggers": "Sin disparadores",
   "No triggers in this category yet. Click + to make one here, drag one in, or pick it with Category, under a trigger's More options.": "Aún no hay disparadores en esta categoría. Haz clic en + para crear uno aquí, arrastra uno, o elígela en Categoría, en «Más opciones» de un disparador.",
   "No triggers yet. Add one on the Triggers page.": "Aún no hay disparadores. Añade uno en la página Disparadores.",
-  "No triggers yet. Pick your game window below, then click Cut picture… and drag a box around the thing to watch for.": "Aún no hay disparadores. Elige abajo la ventana de tu juego, haz clic en Recortar imagen… y arrastra un recuadro alrededor de lo que quieres vigilar.",
   "No windows open": "No hay ventanas abiertas",
   "Normal — up to 2 %": "Normal: hasta 2 %",
   "Not a picture": "No es una imagen",
@@ -711,5 +710,8 @@
   "Search languages": "Idiomas de búsqueda",
   "Search languages…": "Buscar idiomas…",
   "Settings categories": "Categorías de ajustes",
-  "Updates and privacy": "Actualizaciones y privacidad"
+  "Updates and privacy": "Actualizaciones y privacidad",
+  "A new trigger without a picture: it watches part of the window, and its card says what it waits for. To watch for a picture, use Cut picture… below.": "Un nuevo disparador sin imagen: observa parte de la ventana y su tarjeta dice lo que espera. Para buscar una imagen, use Cortar imagen... a continuación.",
+  "New trigger": "Nuevo disparador",
+  "No triggers yet. Pick your game window below, then click Cut picture… and drag a box around the thing to watch for. Or click + New trigger above for one without a picture.": "Aún no hay desencadenantes. Elige la ventana de tu juego a continuación, luego haz clic en Cortar imagen... y arrastra un cuadro alrededor de lo que deseas observar. O haga clic en + Nuevo activador arriba para uno sin imagen."
 }

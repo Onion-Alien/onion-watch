@@ -273,7 +273,6 @@
   "No triggers": "Немає тригерів",
   "No triggers in this category yet. Click + to make one here, drag one in, or pick it with Category, under a trigger's More options.": "У цій категорії ще немає тригерів. Натисни +, щоб створити тут, перетягни сюди або вибери її в «Категорія» в «Більше параметрів» тригера.",
   "No triggers yet. Add one on the Triggers page.": "Тригерів ще немає. Додай на сторінці «Тригери».",
-  "No triggers yet. Pick your game window below, then click Cut picture… and drag a box around the thing to watch for.": "Тригерів ще немає. Вибери вікно гри нижче, потім натисни «Вирізати картинку…» й обведи рамкою те, що треба відстежувати.",
   "No windows open": "Немає відкритих вікон",
   "Normal — up to 2 %": "Звичайно — до 2 %",
   "Not a picture": "Не картинка",
@@ -723,5 +722,8 @@
   "Search languages": "Пошук мов",
   "Search languages…": "Пошук мов…",
   "Settings categories": "Категорії налаштувань",
-  "Updates and privacy": "Оновлення та конфіденційність"
+  "Updates and privacy": "Оновлення та конфіденційність",
+  "A new trigger without a picture: it watches part of the window, and its card says what it waits for. To watch for a picture, use Cut picture… below.": "Новий тригер без картинки: він стежить за частиною вікна, а його картка каже, чого чекає. Щоб спостерігати за зображенням, використовуйте Вирізати зображення… нижче.",
+  "New trigger": "Новий тригер",
+  "No triggers yet. Pick your game window below, then click Cut picture… and drag a box around the thing to watch for. Or click + New trigger above for one without a picture.": "Тригерів ще немає. Виберіть вікно гри нижче, натисніть «Вирізати зображення…» і перетягніть рамку навколо того, на що потрібно звернути увагу. Або натисніть + Новий тригер вище, щоб отримати тригер без зображення."
 }

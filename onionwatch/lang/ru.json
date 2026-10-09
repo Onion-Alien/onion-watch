@@ -273,7 +273,6 @@
   "No triggers": "Нет триггеров",
   "No triggers in this category yet. Click + to make one here, drag one in, or pick it with Category, under a trigger's More options.": "В этой категории пока нет триггеров. Нажми +, чтобы создать его здесь, перетащи сюда или выбери её в «Категория» в разделе «Больше настроек» триггера.",
   "No triggers yet. Add one on the Triggers page.": "Триггеров пока нет. Добавь на странице «Триггеры».",
-  "No triggers yet. Pick your game window below, then click Cut picture… and drag a box around the thing to watch for.": "Триггеров пока нет. Выбери окно игры ниже, нажми «Вырезать картинку…» и обведи рамкой то, что нужно ловить.",
   "No windows open": "Нет открытых окон",
   "Normal — up to 2 %": "Обычная — до 2 %",
   "Not a picture": "Это не картинка",
@@ -723,5 +722,8 @@
   "Search languages": "Поиск языков",
   "Search languages…": "Поиск языков…",
   "Settings categories": "Разделы настроек",
-  "Updates and privacy": "Обновления и конфиденциальность"
+  "Updates and privacy": "Обновления и конфиденциальность",
+  "A new trigger without a picture: it watches part of the window, and its card says what it waits for. To watch for a picture, use Cut picture… below.": "Новый триггер без картинки: он смотрит часть окна, а его карточка говорит, чего он ждет. Чтобы просмотреть изображение, используйте «Вырезать изображение…» ниже.",
+  "New trigger": "Новый триггер",
+  "No triggers yet. Pick your game window below, then click Cut picture… and drag a box around the thing to watch for. Or click + New trigger above for one without a picture.": "Триггеров пока нет. Выберите окно игры ниже, затем нажмите «Вырезать картинку…» и обведите рамкой объект, за которым нужно следить. Или нажмите + Новый триггер выше, чтобы получить триггер без изображения."
 }

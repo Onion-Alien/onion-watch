@@ -265,7 +265,6 @@
   "No triggers": "트리거 없음",
   "No triggers in this category yet. Click + to make one here, drag one in, or pick it with Category, under a trigger's More options.": "이 카테고리에 아직 트리거가 없어요. +를 눌러 여기에 만들거나, 끌어다 넣거나, 트리거의 추가 옵션에 있는 카테고리에서 고르세요.",
   "No triggers yet. Add one on the Triggers page.": "아직 트리거가 없어요. 트리거 페이지에서 추가하세요.",
-  "No triggers yet. Pick your game window below, then click Cut picture… and drag a box around the thing to watch for.": "아직 트리거가 없어요. 아래에서 게임 창을 고르고, 이미지 잘라내기…를 클릭해서 감시할 대상 주위로 상자를 끄세요.",
   "No windows open": "열린 창 없음",
   "Normal — up to 2 %": "보통 — 최대 2 %",
   "Not a picture": "이미지가 아니에요",
@@ -699,5 +698,8 @@
   "Search languages": "언어 검색",
   "Search languages…": "언어 검색…",
   "Settings categories": "설정 카테고리",
-  "Updates and privacy": "업데이트 및 개인정보 보호"
+  "Updates and privacy": "업데이트 및 개인정보 보호",
+  "A new trigger without a picture: it watches part of the window, and its card says what it waits for. To watch for a picture, use Cut picture… below.": "그림이 없는 새로운 트리거: 창의 일부를 관찰하고 카드에 기다리는 내용이 표시됩니다. 사진을 보려면 아래 사진 자르기…를 사용하세요.",
+  "New trigger": "새로운 트리거",
+  "No triggers yet. Pick your game window below, then click Cut picture… and drag a box around the thing to watch for. Or click + New trigger above for one without a picture.": "아직 트리거가 없습니다. 아래에서 게임 창을 선택한 다음 사진 잘라내기...를 클릭하고 관찰할 항목 주위에 상자를 드래그합니다. 또는 그림이 없는 트리거를 보려면 위의 + 새 트리거를 클릭하세요."
 }

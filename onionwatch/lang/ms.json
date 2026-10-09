@@ -264,7 +264,6 @@
   "No triggers": "Tiada pencetus",
   "No triggers in this category yet. Click + to make one here, drag one in, or pick it with Category, under a trigger's More options.": "Belum ada pencetus dalam kategori ini. Klik + untuk membuat satu di sini, seret satu ke dalam, atau pilihnya dengan Kategori, di bawah Lagi pilihan pencetus.",
   "No triggers yet. Add one on the Triggers page.": "Belum ada pencetus. Tambah satu di halaman Pencetus.",
-  "No triggers yet. Pick your game window below, then click Cut picture… and drag a box around the thing to watch for.": "Belum ada pencetus. Pilih tetingkap permainan anda di bawah, kemudian klik Potong gambar… dan seret kotak di sekeliling benda yang hendak dipantau.",
   "No windows open": "Tiada tetingkap dibuka",
   "Normal — up to 2 %": "Normal — sehingga 2%",
   "Not a picture": "Bukan gambar",
@@ -699,5 +698,8 @@
   "Search languages…": "Cari bahasa…",
   "Settings categories": "Kategori tetapan",
   "This window can't open: one of Onion Watch's files is missing, most likely because an update didn't finish.\n\nUpdate or reinstall Onion Watch to fix it. Your triggers and pictures are safe.": "Tetingkap ini tidak boleh dibuka: salah satu fail Onion Watch tiada, kemungkinan besar kerana kemas kini tidak selesai. Kemas kini atau pasang semula Onion Watch untuk membetulkannya. Pencetus dan gambar anda selamat.",
-  "Updates and privacy": "Kemas kini dan privasi"
+  "Updates and privacy": "Kemas kini dan privasi",
+  "A new trigger without a picture: it watches part of the window, and its card says what it waits for. To watch for a picture, use Cut picture… below.": "Pencetus baharu tanpa gambar: ia memerhati sebahagian daripada tetingkap, dan kadnya menyatakan apa yang ditunggu. Untuk melihat gambar, gunakan Potong gambar… di bawah.",
+  "New trigger": "Pencetus baru",
+  "No triggers yet. Pick your game window below, then click Cut picture… and drag a box around the thing to watch for. Or click + New trigger above for one without a picture.": "Tiada pencetus lagi. Pilih tetingkap permainan anda di bawah, kemudian klik Potong gambar... dan seret kotak di sekeliling perkara yang perlu diperhatikan. Atau klik + Pencetus baharu di atas untuk yang tanpa gambar."
 }

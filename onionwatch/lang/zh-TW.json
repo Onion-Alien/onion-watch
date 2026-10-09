@@ -265,7 +265,6 @@
   "No triggers": "沒有觸發器",
   "No triggers in this category yet. Click + to make one here, drag one in, or pick it with Category, under a trigger's More options.": "這個分類還沒有觸發器。按 + 在這裡建立一個、拖一個進來，或在觸發器的「更多選項」裡用「分類」選擇。",
   "No triggers yet. Add one on the Triggers page.": "還沒有觸發器。請在「觸發器」頁面新增一個。",
-  "No triggers yet. Pick your game window below, then click Cut picture… and drag a box around the thing to watch for.": "還沒有觸發器。請在下方選擇你的遊戲視窗，然後按「擷取圖片…」並框住要監看的東西。",
   "No windows open": "沒有開啟的視窗",
   "Normal — up to 2 %": "一般——最多 2 %",
   "Not a picture": "不是圖片",
@@ -699,5 +698,8 @@
   "Search languages": "搜尋語言",
   "Search languages…": "搜尋語言…",
   "Settings categories": "設定類別",
-  "Updates and privacy": "更新和隱私"
+  "Updates and privacy": "更新和隱私",
+  "A new trigger without a picture: it watches part of the window, and its card says what it waits for. To watch for a picture, use Cut picture… below.": "一個沒有圖片的新觸發器：它監視視窗的一部分，並且它的卡片說明它在等待什麼。要觀看圖片，請使用下面的“剪切圖片...”。",
+  "New trigger": "新觸發器",
+  "No triggers yet. Pick your game window below, then click Cut picture… and drag a box around the thing to watch for. Or click + New trigger above for one without a picture.": "還沒有觸發器。在下面選擇您的遊戲窗口，然後點擊“剪切圖片...”並在要監視的內容周圍拖曳一個框。或對於沒有圖片的觸發器，請點擊上面的 + 新觸發器。"
 }

@@ -269,7 +269,6 @@
   "No triggers": "कोई ट्रिगर नहीं",
   "No triggers in this category yet. Click + to make one here, drag one in, or pick it with Category, under a trigger's More options.": "इस कैटेगरी में अभी कोई ट्रिगर नहीं। यहाँ बनाने के लिए + पर क्लिक करें, कोई ट्रिगर इसमें खींचें, या ट्रिगर के और विकल्प में कैटेगरी से इसे चुनें।",
   "No triggers yet. Add one on the Triggers page.": "अभी कोई ट्रिगर नहीं। ट्रिगर पेज पर एक जोड़ें।",
-  "No triggers yet. Pick your game window below, then click Cut picture… and drag a box around the thing to watch for.": "अभी कोई ट्रिगर नहीं। नीचे अपनी गेम विंडो चुनें, फिर तस्वीर काटें… पर क्लिक करें और जिस चीज़ पर नज़र रखनी है उसके चारों ओर बॉक्स खींचें।",
   "No windows open": "कोई विंडो खुली नहीं",
   "Normal — up to 2 %": "सामान्य — 2 % तक",
   "Not a picture": "तस्वीर नहीं है",
@@ -711,5 +710,8 @@
   "Search languages": "भाषाएँ खोजें",
   "Search languages…": "भाषाएँ खोजें…",
   "Settings categories": "सेटिंग्स श्रेणियां",
-  "Updates and privacy": "अद्यतन और गोपनीयता"
+  "Updates and privacy": "अद्यतन और गोपनीयता",
+  "A new trigger without a picture: it watches part of the window, and its card says what it waits for. To watch for a picture, use Cut picture… below.": "चित्र के बिना एक नया ट्रिगर: यह खिड़की के हिस्से को देखता है, और इसका कार्ड बताता है कि यह किसका इंतजार कर रहा है। कोई चित्र देखने के लिए, नीचे कट चित्र... का उपयोग करें।",
+  "New trigger": "नया ट्रिगर",
+  "No triggers yet. Pick your game window below, then click Cut picture… and drag a box around the thing to watch for. Or click + New trigger above for one without a picture.": "अभी तक कोई ट्रिगर नहीं. नीचे अपनी गेम विंडो चुनें, फिर चित्र काटें... पर क्लिक करें और देखने वाली चीज़ के चारों ओर एक बॉक्स खींचें। या बिना चित्र वाले एक के लिए ऊपर + नया ट्रिगर पर क्लिक करें।"
 }

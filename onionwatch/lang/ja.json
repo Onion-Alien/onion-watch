@@ -265,7 +265,6 @@
   "No triggers": "トリガーなし",
   "No triggers in this category yet. Click + to make one here, drag one in, or pick it with Category, under a trigger's More options.": "このカテゴリにはまだトリガーがありません。+ をクリックしてここに作るか、ドラッグで入れるか、トリガーの「その他のオプション」の「カテゴリ」で選んでください。",
   "No triggers yet. Add one on the Triggers page.": "まだトリガーがありません。トリガーページで追加してください。",
-  "No triggers yet. Pick your game window below, then click Cut picture… and drag a box around the thing to watch for.": "まだトリガーがありません。下でゲームのウィンドウを選び、「画像を切り取る…」をクリックして、見張りたいものをドラッグで囲んでください。",
   "No windows open": "開いているウィンドウはありません",
   "Normal — up to 2 %": "標準 — 最大 2 %",
   "Not a picture": "画像ではありません",
@@ -699,5 +698,8 @@
   "Search languages": "検索言語",
   "Search languages…": "言語を検索…",
   "Settings categories": "設定カテゴリ",
-  "Updates and privacy": "アップデートとプライバシー"
+  "Updates and privacy": "アップデートとプライバシー",
+  "A new trigger without a picture: it watches part of the window, and its card says what it waits for. To watch for a picture, use Cut picture… below.": "画像のない新しいトリガー: ウィンドウの一部を監視し、カードが何を待っているかを示します。画像を視聴するには、下の「画像を切り取る…」を使用してください。",
+  "New trigger": "新しいトリガー",
+  "No triggers yet. Pick your game window below, then click Cut picture… and drag a box around the thing to watch for. Or click + New trigger above for one without a picture.": "まだトリガーはありません。以下からゲーム ウィンドウを選択し、[画像の切り取り…] をクリックして、監視対象の周囲にボックスをドラッグします。または、画像のないトリガーの場合は、上の [+ 新しいトリガー] をクリックします。"
 }

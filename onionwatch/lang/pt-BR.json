@@ -269,7 +269,6 @@
   "No triggers": "Nenhum gatilho",
   "No triggers in this category yet. Click + to make one here, drag one in, or pick it with Category, under a trigger's More options.": "Nenhum gatilho nesta categoria ainda. Clique em + para criar um aqui, arraste um para cá, ou escolha em Categoria, em “Mais opções” de um gatilho.",
   "No triggers yet. Add one on the Triggers page.": "Nenhum gatilho ainda. Adicione um na página Gatilhos.",
-  "No triggers yet. Pick your game window below, then click Cut picture… and drag a box around the thing to watch for.": "Nenhum gatilho ainda. Escolha a janela do seu jogo abaixo, clique em Recortar imagem… e arraste uma caixa em volta da coisa a vigiar.",
   "No windows open": "Nenhuma janela aberta",
   "Normal — up to 2 %": "Normal — até 2 %",
   "Not a picture": "Não é uma imagem",
@@ -711,5 +710,8 @@
   "Search languages": "Idiomas de pesquisa",
   "Search languages…": "Pesquisar idiomas…",
   "Settings categories": "Categorias das configurações",
-  "Updates and privacy": "Atualizações e privacidade"
+  "Updates and privacy": "Atualizações e privacidade",
+  "A new trigger without a picture: it watches part of the window, and its card says what it waits for. To watch for a picture, use Cut picture… below.": "Um novo gatilho sem imagem: ele observa parte da janela e seu cartão diz o que espera. Para observar uma imagem, use Cortar imagem… abaixo.",
+  "New trigger": "Novo gatilho",
+  "No triggers yet. Pick your game window below, then click Cut picture… and drag a box around the thing to watch for. Or click + New trigger above for one without a picture.": "Ainda não há gatilhos. Escolha a janela do jogo abaixo, clique em Cortar imagem… e arraste uma caixa ao redor do item a ser observado. Ou clique em + Novo gatilho acima para um sem imagem."
 }
