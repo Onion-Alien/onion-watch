@@ -55,7 +55,7 @@ def test_deleting_the_picked_trigger_moves_the_editor_on(tab, qapp, monkeypatch)
     first, second = two(tab)
     wide(tab, qapp)
     first.set_open(True)
-    tab.editor.act_del.trigger()
+    tab.editor.btn_del.click()
     assert [t.name for t in tab.triggers] == ["Second"]
     assert tab.editor is not None and tab.editor.t is second.t
 
@@ -88,7 +88,7 @@ def test_a_duplicate_is_picked_in_the_editor(tab, qapp):
     first, _second = two(tab)
     wide(tab, qapp)
     first.set_open(True)
-    tab.editor.act_dup.trigger()
+    tab.editor.btn_dup.click()
     copy = tab.editor.t
     assert copy is not first.t and copy.name.endswith("(copy)")
     assert tab.rows[copy.id].selected and not tab.rows[first.t.id].selected

@@ -28,15 +28,20 @@ def test_a_new_card_opens_and_its_header_closes_it(tab, qapp):
 def test_fine_tune_is_folded_behind_a_summary(tab):
     row = new_card(tab)
     assert row.tune.isHidden()
-    assert row.tune_text.text().startswith("Match 80 % · any size · plays at once")
-    row.delay.setValue(2.0)
+    assert row.tune_text.text() == "" and row.tune_text.isHidden()   # all left as they come
+    row.delay.setValue(2.0)             # (the header says the wait)
+    row.chk_ring.setChecked(True)       # ...and the ringing
+    assert row.tune_text.text() == ""
     row.chk_quiet.setChecked(True)
     row.chk_size.setChecked(False)
-    assert "waits 2 s" in row.tune_text.text()
-    assert "quiet while you're in it" in row.tune_text.text()
-    assert "one size" in row.tune_text.text()
+    row.cooldown.setValue(10)
+    assert row.tune_text.text() == "one size · not again for 10 s · quiet while you're in it"
+    assert not row.tune_text.isHidden()
     row.btn_tune.click()
     assert not row.tune.isHidden()
+    assert row.tune_text.isHidden()     # open, the settings say it themselves
+    row.btn_tune.click()
+    assert not row.tune_text.isHidden()
 
 
 def test_a_bars_level_is_under_watch_for_a_pictures_match_in_fine_tune(tab, monkeypatch):
