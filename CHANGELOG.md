@@ -2,6 +2,11 @@
 
 What changed between releases, for the release notes. Newest first.
 
+## 0.9.6 (2026-10-09)
+
+- **Roomier Triggers screen.** More space between rows, cards and the list, so it's
+  easier to read at a glance.
+
 ## 0.9.5 (2026-10-09)
 
 - **+ New trigger button.** Right by the search box: one click makes a trigger that
