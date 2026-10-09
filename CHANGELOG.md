@@ -2,6 +2,12 @@
 
 What changed between releases, for the release notes. Newest first.
 
+## 0.9.5 (2026-10-09)
+
+- **+ New trigger button.** Right by the search box: one click makes a trigger that
+  watches part of the window, no picture needed (it used to hide in *Add*'s menu).
+- **Roomier bottom bar.** More space between *Start watching*, *Cut picture…* and the rest.
+
 ## 0.9.4 (2026-10-08)
 
 - **Fewer false alarms on look-alike text.** A cut-out trigger for text with a small
