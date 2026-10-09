@@ -557,7 +557,7 @@ QPushButton#themecard { background:$panel; border:2px solid $border; border-radi
 QPushButton#themecard:hover { border-color:$border_hi; }
 QPushButton#themecard:checked { background:$panel; border:2px solid $accent; }
 QFrame#card QPushButton#themecard, QFrame#card QPushButton#themecard:checked { background:$panel; }
-QFrame#card QFrame#chip { background:$btn; border:1px solid $border; border-radius:11px; }
+QFrame#card QFrame#chip { background:$btn; border:1px solid $border; border-radius:8px; }
 QFrame#card QFrame#chip:hover { border-color:$border_hi; }
 QFrame#card QFrame#chip[sel="true"] { border-color:$accent; }
 QFrame#card QFrame#chip QPushButton { background:transparent; border:none; }

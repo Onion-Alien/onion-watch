@@ -27,16 +27,22 @@ def test_the_bottom_bar_keeps_its_margins_when_it_wraps(tab, qapp):
     assert len({w.y() for w in kids}) > 1     # it did wrap at this width
 
 
-def test_test_duplicate_and_delete_sit_on_more_options_line(tab, qapp):
+def test_more_options_is_top_right_and_test_duplicate_delete_share_a_line(tab, qapp):
     tab._new(as_qimage(banner()), "Rare")
     row = list(tab.rows.values())[-1]
     tab.resize(1100, 700)
     tab.show()
     qapp.processEvents()
     row = tab.editor or row         # a wide window: the trigger is in the editor
-    tune_y = row.btn_tune.mapTo(row, row.btn_tune.rect().center()).y()
-    for b in (row.btn_test, row.btn_dup, row.btn_del):
-        assert abs(b.mapTo(row, b.rect().center()).y() - tune_y) <= 2
+
+    def centre(w):
+        return w.mapTo(row, w.rect().center())
+    assert abs(centre(row.btn_tune).y() - centre(row.mode).y()) <= 2      # the When line
+    assert centre(row.btn_tune).x() > centre(row.mode).x()
+    test_y = centre(row.btn_test).y()
+    for b in (row.btn_dup, row.btn_del):
+        assert abs(centre(b).y() - test_y) <= 2
+    assert test_y > centre(row.cb_category).y()                         # under the rest
 
 
 @pytest.mark.parametrize("width", [360, 600, 900, 1200])
@@ -62,11 +68,12 @@ def test_controls_fit_and_share_heights_across_window_sizes(tab, qapp, styled, w
     for w in controls:
         assert w.mapTo(row, w.rect().topLeft()).x() >= 0
         assert w.mapTo(row, w.rect().topRight()).x() < row.width()
-    # Mixed-height labels and checkboxes sit on the same centre line as the buttons
-    # (when there's room for them on one line).
-    if width >= 900:
-        assert abs(row.chk_size.mapTo(row, row.chk_size.rect().center()).y()
-                   - row.btn_area.mapTo(row, row.btn_area.rect().center()).y()) <= 1
+    # each label under More options sits on its control's centre line
+    for group in row.tune.groups:
+        for lab, w, _inner in group:
+            if lab is not None and w.isVisibleTo(row.tune):
+                assert abs(lab.mapTo(row, lab.rect().center()).y()
+                           - w.mapTo(row, w.rect().center()).y()) <= 1
 
 
 @pytest.mark.parametrize("width", [500, 1100])

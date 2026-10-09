@@ -37,7 +37,7 @@ def test_switching_the_kind_of_trigger_shows_its_controls(tab):
     assert t.mode == "change" and t.level == 0.05
     assert row.chk_size.isHidden() and row.badge.isVisibleTo(row)
     assert row._in[row.btn_area] is row._watch_row     # the area is what it's about
-    assert row.lbl_number.text() == "Changes over" and row.threshold.value() == 5
+    assert row.lbl_number.text() == "Amount of change" and row.threshold.value() == 5
     assert tab.host.screen["triggers"][0]["mode"] == "change"
     row.threshold.setValue(12)
     assert t.level == 0.12 and t.threshold == 0.8          # the picture's number is kept
@@ -95,7 +95,7 @@ def test_one_card_looks_in_several_windows(tab, monkeypatch):
     raw = tab.host.screen["triggers"][0]
     assert raw["windows"] == [GAME.to_raw(), GAME2.to_raw()] and raw["screens"] == [0]
     assert "in 3 places" in row.state.text()
-    row.where.setCurrentIndex(0)                    # "Same as below"
+    row.where.setCurrentIndex(0)                    # "Default (…)"
     row.where.activated.emit(0)
     assert row.t.sources == []
 
