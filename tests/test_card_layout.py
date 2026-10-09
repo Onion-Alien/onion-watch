@@ -35,7 +35,8 @@ def test_fine_tune_is_folded_behind_a_summary(tab):
     row.chk_quiet.setChecked(True)
     row.chk_size.setChecked(False)
     row.cooldown.setValue(10)
-    assert row.tune_text.text() == "one size · not again for 10 s · quiet while you're in it"
+    assert row.tune_text.text() == ("exact size only · cooldown 10 s · "
+                                    "quiet while you're in the window")
     assert not row.tune_text.isHidden()
     row.btn_tune.click()
     assert not row.tune.isHidden()

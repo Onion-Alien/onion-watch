@@ -155,7 +155,7 @@ def ringing_card(tab, stop: str):
 def test_a_card_picks_what_stops_its_ring(tab):
     row = ringing_card(tab, "focus")
     assert tab.host.screen["triggers"][0]["stop"] == "focus"
-    assert row.state.text().startswith("Rings until you switch to the game")
+    assert "keeps playing until you switch to the game" in row.state.text()
     assert tab.alert_text(row.t).endswith("Ringing until you switch to it.")
     row.chk_ring.setChecked(False)
     assert row.until.isHidden()

@@ -116,7 +116,7 @@ def test_a_ringing_trigger_raises_the_alarm_bar_until_stopped(qapp, app_dir, fak
         row = next(iter(win.triggers.rows.values()))
         row.chk_ring.setChecked(True)
         assert cfg.screen["triggers"][0]["ring"] is True
-        assert row.state.text().startswith("Rings until the game moves")
+        assert "keeps playing until the game moves" in row.state.text()
         win.triggers._fire(row.t.id, win.triggers._gen)
         assert win.player.ringing == [row.t.id]
         assert not win.alarm.isHidden() and row.t.name in win.alarm.text.text()

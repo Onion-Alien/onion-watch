@@ -111,29 +111,34 @@ WEB_GUESS = (1920, 1080)          # ...what's watched, when that isn't known
 THUMB = QSize(112, 64)
 STRIP_THUMBS = 3        # thumbnails a card's strip shows before it scrolls
 CHIP_CHARS = 24         # a sound chip's name is cut to this many characters
-PICKS = (("random", _("Random")), ("order", _("In order")), ("all", _("All at once")))
-MODES = (("appear", _("it shows up")), ("vanish", _("it goes away")),
-         ("change", _("the area changes")), ("still", _("the area stops changing")),
-         ("colour", _("a bar runs low")))
+PICKS = (("random", _("Play one at random")), ("order", _("Play them in turn")),
+         ("all", _("Play all at once")))
+MODES = (("appear", _("The picture shows up")), ("vanish", _("The picture goes away")),
+         ("change", _("Something changes in an area")),
+         ("still", _("An area stops changing")), ("colour", _("A bar runs low")))
 LEVELS = {"change": 0.05, "still": 0.01, "colour": 0.30}   # a new mode's starting level
 # what stops a ringing trigger by itself (Trigger.stop): its words on the card, on
 # its state line and in the alert, and a tooltip
 UNTILS = {
-    "moves": (_("until the game moves"), _("Rings until the game moves"),
+    "moves": (_("until the game moves"), _("keeps playing until the game moves"),
               _("Ringing until the game moves."),
               _("Stops once anything moves where it looks (you're back and playing), or "
                 "when it goes away. It waits for the screen to settle first, so a fade-in "
                 "doesn't stop it. A bar: once it's back over its line.")),
-    "focus": (_("until I switch to the game"), _("Rings until you switch to the game"),
+    "focus": (_("until I switch to the game"),
+              _("keeps playing until you switch to the game"),
               _("Ringing until you switch to it."),
               _("Stops when you alt-tab back to its window. Watching a whole screen: when "
                 "you switch to any other window.")),
-    "gone": (_("until it's gone"), _("Rings until it's gone"), _("Ringing until it's gone."),
+    "gone": (_("until it's gone"), _("keeps playing until it's gone"),
+             _("Ringing until it's gone."),
              _("Stops when the picture goes away (or the bar is back, or the area settles).")),
-    "input": (_("until I touch mouse or keys"), _("Rings until you touch the mouse or keyboard"),
+    "input": (_("until I touch mouse or keys"),
+              _("keeps playing until you touch the mouse or keyboard"),
               _("Ringing until you touch the mouse or keyboard."),
               _("Stops as soon as you move the mouse or press a key, anywhere.")),
-    "manual": (_("until I click Stop"), _("Rings until stopped"), _("Ringing until you stop it."),
+    "manual": (_("until I click Stop"), _("keeps playing until you click Stop"),
+               _("Ringing until you stop it."),
                _("Only the Stop button on the red bar (or the tray icon) stops it.")),
 }
 INPUT_POLL_MS = 100     # how often an "input" ring checks for the mouse or keyboard
@@ -753,7 +758,7 @@ class Strip(QScrollArea):
 
 def fill_sources(cb: QComboBox, mons: list[Monitor], places: list,
                  default_label: str = "", pick_label: str = "") -> None:
-    """Fill a "Look in" list: "Same as below" (when `default_label`), each screen,
+    """Fill a "Look in" list: "Default (…)" (when `default_label`), each screen,
     the chosen window(s), then `pick_label`. The current choice is selected: the
     places when there are some (one screen, or its windows and screens in a few
     words), else the default (or the first screen)."""
@@ -973,6 +978,44 @@ def control_height(widget: QWidget) -> int:
 def capital(text: str) -> str:
     """ "then play" -> "Then play" (nothing changes where there are no capitals)."""
     return text[:1].upper() + text[1:]
+
+
+class ShrinkButton(QPushButton):
+    """A button that, short of room, shows just its icon (its tooltip still says
+    what it does), so a narrow card isn't held wide by it."""
+
+    def __init__(self, text: str, parent=None):
+        super().__init__(text, parent)
+        self._text = text
+        self._hint: QSize | None = None
+        self.setAccessibleName(text)     # (still said with just its icon showing)
+        # (a button's Minimum policy makes its full width its least)
+        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+
+    def _full(self) -> QSize:
+        """Its size with its words (worked out while they're showing)."""
+        if self.text() or self._hint is None:
+            shown = self.text()
+            if not shown:
+                self.blockSignals(True)
+                QPushButton.setText(self, self._text)
+            self._hint = super().sizeHint()
+            if not shown:
+                QPushButton.setText(self, "")
+                self.blockSignals(False)
+        return self._hint
+
+    def sizeHint(self) -> QSize:
+        return self._full()
+
+    def minimumSizeHint(self) -> QSize:
+        return QSize(self.iconSize().width() + 22, self._full().height())
+
+    def resizeEvent(self, ev):
+        super().resizeEvent(ev)
+        want = "" if ev.size().width() < self._full().width() else self._text
+        if self.text() != want:
+            self.setText(want)
 
 
 class TuneGrid(QWidget):
@@ -1464,6 +1507,7 @@ class TriggerRow(QFrame):
         self._built = False
         self._categories: list[str] | None = None   # set_categories, kept till then
         self._default_ms: int | None = None          # set_default_interval, likewise
+        self.default_place = ""         # where "Default" looks (set_default_place)
 
         self._flash = QTimer(self)
         self._flash.setSingleShot(True)
@@ -1554,14 +1598,14 @@ class TriggerRow(QFrame):
         self.where.setToolTip(_("Where to look: game windows (watched even while other windows "
                                 "cover them, but not while they're minimized) or whole screens. "
                                 "“Pick windows…” can tick several, or every copy of a game. "
-                                "“Same as below” is the choice at the bottom."))
+                                "“Default” is the Look in on the bottom bar."))
         no_wheel(self.where)
         self.where.activated.connect(self._on_where)
         self.where_box = self.where
         form.addWidget(form_label(_("When"), "history"), 0, 0, Qt.AlignTop | Qt.AlignLeft)
         form.addWidget(sentence, 0, 1)
-        self.btn_tune = QPushButton(_("More options"))
-        form.addWidget(self.btn_tune, 0, 2, Qt.AlignRight | Qt.AlignTop)
+        self.btn_tune = ShrinkButton(_("More options"))
+        form.addWidget(self.btn_tune, 0, 2, Qt.AlignTop)     # (no left/right: it may shrink)
         form.addWidget(form_label(_("Look in"), "window"), 1, 0, Qt.AlignTop | Qt.AlignLeft)
         form.addWidget(self.where, 1, 1, Qt.AlignLeft)
         self._watch_row = row
@@ -1652,7 +1696,7 @@ class TriggerRow(QFrame):
                                    "processor, so with a lot on it may check less often."))
         no_wheel(self.interval)
         self.interval.currentIndexChanged.connect(self._on_interval)
-        self.chk_size = QCheckBox(_("Any size"))
+        self.chk_size = QCheckBox(_("Find it at any size"))
         self.chk_size.setToolTip(
             _("Find the pictures even when the game shows them bigger or smaller than when they "
               "were cut: cut in fullscreen, played in a window, or another UI scale.\nUntick it "
@@ -1674,7 +1718,7 @@ class TriggerRow(QFrame):
         self.match_box = match = labelled("", self.threshold, in_card=True)
         match.layout().insertWidget(0, self.lbl_number)
         match.layout().insertWidget(1, self.below)
-        self.chk_ring = QCheckBox(_("Ring"))
+        self.chk_ring = QCheckBox(_("Keep playing"))
         self.chk_ring.setToolTip(_("Keep playing the sound over and over — for when you're away "
                                    "from the keyboard. The Stop button on the red bar always "
                                    "stops it; pick what else does next to it."))
@@ -1716,14 +1760,14 @@ class TriggerRow(QFrame):
         hold.layout().insertWidget(0, self.lbl_hold)
         # box -> where it is now: More options, or up on the When line
         self._in: dict = {match: self.tune, hold: self.tune, self.btn_area: self.tune}
-        self.chk_quiet = QCheckBox(_("Not while I'm in that window"))
+        self.chk_quiet = QCheckBox(_("Stay quiet while I'm in that window"))
         self.chk_quiet.setToolTip(_("Stay quiet while the window it went off in is the one "
                                     "you're using: you can see it yourself"))
         self.chk_quiet.setChecked(t.unfocused)
         self.chk_quiet.toggled.connect(self._on_quiet)
-        self.tune.add_group([(QLabel(_("Wait")), self.delay, None),
+        self.tune.add_group([(QLabel(_("Delay")), self.delay, None),
                              (None, hold, self.lbl_hold),
-                             (QLabel(_("Not again for")), self.cooldown, None)])
+                             (QLabel(_("Cooldown")), self.cooldown, None)])
         self.tune.add_group([(QLabel(_("Area")), self.btn_area, None),
                              (None, match, self.lbl_number),
                              (QLabel(_("Check every")), self.interval, None)])
@@ -1737,7 +1781,7 @@ class TriggerRow(QFrame):
             w.valueChanged.connect(self._on_numbers)
         self._show_mode_body()
         self._fill_sounds()
-        fill_sources(self.where, self._mons, t.sources, _("Same as below"),
+        fill_sources(self.where, self._mons, t.sources, self._default_label(),
                      _("Pick windows…"))
         if self._categories is not None:
             self.set_categories(self._categories)
@@ -2045,17 +2089,17 @@ class TriggerRow(QFrame):
             if round(t.number * 100) != round(d.threshold * 100):
                 parts.append(_("Match {n} %", n=round(t.number * 100)))
             if not t.any_size:
-                parts.append(_("one size"))
+                parts.append(_("exact size only"))
         if t.hold and t.mode != "still":
-            parts.append(_("must last {s:g} s", s=t.hold))
+            parts.append(_("only if it lasts {s:g} s", s=t.hold))
         if t.delay and t.mode != "appear":      # (appear: the header says it)
-            parts.append(_("waits {s:g} s", s=t.delay))
+            parts.append(_("delay {s:g} s", s=t.delay))
         if t.cooldown != d.cooldown:
-            parts.append(_("not again for {s:g} s", s=t.cooldown))
+            parts.append(_("cooldown {s:g} s", s=t.cooldown))
         if t.uses_pictures and t.region is not None:
             parts.append(_("part of the window"))
         if t.unfocused:
-            parts.append(_("quiet while you're in it"))
+            parts.append(_("quiet while you're in the window"))
         return " · ".join(parts)
 
     # ------------------------------------------------------------------ view
@@ -2101,7 +2145,8 @@ class TriggerRow(QFrame):
             self.threshold.setValue(round(t.level * 100))
         self.threshold.blockSignals(False)
         self.lbl_number.setText({"appear": _("Match"), "vanish": _("Match"),
-                                 "change": _("Changes over"), "still": _("Moves under"),
+                                 "change": _("Amount of change"),
+                                 "still": _("Still if under"),
                                  "colour": _("Colour")}[t.mode])
         self.threshold.setToolTip({
             "appear": _("How alike the picture must be to count. Lower it if the picture is "
@@ -2115,7 +2160,7 @@ class TriggerRow(QFrame):
             "colour": _("How much of the area is the colour, as a share: a bar that's full "
                         "reads about 100 %, half empty about 50 %."),
         }[t.mode])
-        self.lbl_hold.setText(_("Still for") if t.mode == "still" else _("Must last"))
+        self.lbl_hold.setText(_("Still for") if t.mode == "still" else _("Only if it lasts"))
         for lab in (self.lbl_number, self.lbl_hold):     # (the grid sizes them again)
             lab.setMinimumWidth(0)
             lab.setMaximumWidth(16777215)
@@ -2220,7 +2265,8 @@ class TriggerRow(QFrame):
         self._mons = list(mons)
         self._screens = len(mons)
         if self._built:
-            fill_sources(self.where, mons, t.sources, _("Same as below"), _("Pick windows…"))
+            fill_sources(self.where, mons, t.sources, self._default_label(),
+                         _("Pick windows…"))
         self.fallback = any(not 0 <= m < len(mons) for m in t.screens)
         self._update_state()
 
@@ -2330,15 +2376,18 @@ class TriggerRow(QFrame):
             text, tone = self.note
             retarget = self.waiting is not None
         else:
-            how = UNTILS[t.stop][1] if t.ring else _("Plays")
-            what = self._what()
+            # when, then what it does, each a whole phrase of its own (no English
+            # glued into another language's sentence)
+            parts = [capital(self._what())]
+            if t.ring:
+                parts.append(UNTILS[t.stop][1])
+            elif n <= 1:
+                parts.append(_("plays its sound once"))
             if n > 1:
-                sounds = {"random": _("one of its {n} sounds at random", n=n),
-                          "order": _("its {n} sounds in turn", n=n),
-                          "all": _("all {n} sounds at once", n=n)}[t.pick]
-                text = _("{how}: {sounds}, {what}", how=how, sounds=sounds, what=what)
-            else:
-                text = _("{how} {what}", how=how, what=what)
+                parts.append({"random": _("one of its {n} sounds at random", n=n),
+                              "order": _("its {n} sounds in turn", n=n),
+                              "all": _("all {n} sounds at once", n=n)}[t.pick])
+            text = " · ".join(parts)
             if len(t.sources) > 1 or any(isinstance(s, WindowRef) and s.every
                                          for s in t.sources):
                 place = places_label(t.sources) if len(t.sources) > 1 else t.sources[0].label
@@ -2376,6 +2425,17 @@ class TriggerRow(QFrame):
         self.t.interval_ms = self.interval.currentData()
         self._update_state()
         self.changed.emit(self)
+
+    def _default_label(self) -> str:
+        """The Look in list's first choice: the bottom bar's, by name."""
+        return (_("Default ({place})", place=self.default_place) if self.default_place
+                else _("Default"))
+
+    def set_default_place(self, place: str):
+        """Say where "Default" looks now (the Look in on the bottom bar)."""
+        self.default_place = place
+        if self._built and self.where.count() and self.where.itemData(0) == DEFAULT:
+            self.where.setItemText(0, self._default_label())
 
     def set_default_interval(self, ms: int):
         """Say what "Default" is now (the speed picked under ⚙)."""
@@ -2904,7 +2964,7 @@ class TriggersTab(QWidget):
         # as wide as "Screen 1: 1920×1080" when there's room (at 150 it always read
         # "Screen 1: 1…"); a long window title stays in the popup and the tooltip
         self.cb_where.setMaximumWidth(260)
-        self.cb_where.setToolTip(_("Where triggers that say “Same as below” look: your game's "
+        self.cb_where.setToolTip(_("Where triggers set to “Default” look: your game's "
                                    "window, or a whole screen"))
         self.cb_where.activated.connect(self._on_where)
         no_wheel(self.cb_where)
@@ -3008,6 +3068,7 @@ class TriggersTab(QWidget):
         self._wire(ed)
         ed.set_categories(self.groups.names())
         ed.set_default_interval(self.default_interval)
+        ed.set_default_place(places_label([self.watcher.default]))
         ed.set_open(True)
         ed.watching = row.watching
         ed.show_score(row._score)       # what its tile shows, until the next check
@@ -3762,7 +3823,9 @@ class TriggersTab(QWidget):
         mons = screenwatch.monitors()
         d = self.watcher.default
         fill_sources(self.cb_where, mons, [d])
+        place = places_label([d])
         for row in self._cards():
+            row.set_default_place(place)
             row.set_screens(mons)
         if mons != self._mons and self.watcher.running:
             self.watcher.rescan()
@@ -4457,6 +4520,7 @@ class TriggersTab(QWidget):
         row.set_advanced(self.chk_advanced.isChecked())
         row.set_categories(self.groups.names())
         row.set_default_interval(self.default_interval)
+        row.set_default_place(places_label([self.watcher.default]))
         self.rows[t.id] = row
         if split:
             row.on_open = self._select
