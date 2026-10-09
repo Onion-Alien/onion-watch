@@ -20,6 +20,7 @@ def test_daily_hit_and_first_start_once():
     assert [h["path"] for h in out] == [f"/onion-watch/app/{__version__}",
                                        "onion-watch/first-start"]
     assert all(h["session"] == c.stats_id and len(c.stats_id) == 32 for h in out)
+    assert {h["ref"] for h in out} == {usage.user_tag(c.stats_id)}
     c.stats_sent = 1_000_000.0
     assert usage.hits(c, 1_000_000.0 + 3600) == []            # not due yet
     later = usage.hits(c, 1_000_000.0 + usage.EVERY_S)
