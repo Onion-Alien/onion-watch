@@ -265,7 +265,6 @@
   "No triggers": "Tidak ada pemicu",
   "No triggers in this category yet. Click + to make one here, drag one in, or pick it with Category, under a trigger's More options.": "Belum ada pemicu di kategori ini. Klik + untuk membuatnya di sini, seret satu ke sini, atau pilih lewat Kategori di Opsi lainnya sebuah pemicu.",
   "No triggers yet. Add one on the Triggers page.": "Belum ada pemicu. Tambahkan di halaman Pemicu.",
-  "No triggers yet. Pick your game window below, then click Cut picture… and drag a box around the thing to watch for.": "Belum ada pemicu. Pilih jendela game-mu di bawah, lalu klik Potong gambar… dan seret kotak di sekitar hal yang mau diawasi.",
   "No windows open": "Tidak ada jendela terbuka",
   "Normal — up to 2 %": "Normal — sampai 2 %",
   "Not a picture": "Bukan gambar",
@@ -699,5 +698,8 @@
   "Search languages": "Cari bahasa",
   "Search languages…": "Cari bahasa…",
   "Settings categories": "Kategori pengaturan",
-  "Updates and privacy": "Pembaruan dan privasi"
+  "Updates and privacy": "Pembaruan dan privasi",
+  "A new trigger without a picture: it watches part of the window, and its card says what it waits for. To watch for a picture, use Cut picture… below.": "Pemicu baru tanpa gambar: ia mengawasi sebagian jendela, dan kartunya mengatakan apa yang ditunggunya. Untuk melihat gambar, gunakan Potong gambar… di bawah.",
+  "New trigger": "Pemicu baru",
+  "No triggers yet. Pick your game window below, then click Cut picture… and drag a box around the thing to watch for. Or click + New trigger above for one without a picture.": "Belum ada pemicu. Pilih jendela permainan Anda di bawah, lalu klik Potong gambar… dan seret kotak di sekitar objek yang ingin diperhatikan. Atau klik + Pemicu baru di atas untuk pemicu tanpa gambar."
 }

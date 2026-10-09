@@ -269,7 +269,6 @@
   "No triggers": "Keine Trigger",
   "No triggers in this category yet. Click + to make one here, drag one in, or pick it with Category, under a trigger's More options.": "Noch keine Trigger in dieser Kategorie. Klick +, um hier einen zu machen, zieh einen hinein, oder wähl ihn bei Kategorie unter „Weitere Optionen“ eines Triggers.",
   "No triggers yet. Add one on the Triggers page.": "Noch keine Trigger. Füg einen auf der Trigger-Seite hinzu.",
-  "No triggers yet. Pick your game window below, then click Cut picture… and drag a box around the thing to watch for.": "Noch keine Trigger. Wähl unten dein Spielfenster, klick dann auf „Bild ausschneiden…“ und zieh einen Rahmen um das, worauf geachtet werden soll.",
   "No windows open": "Keine Fenster offen",
   "Normal — up to 2 %": "Normal — bis 2 %",
   "Not a picture": "Kein Bild",
@@ -711,5 +710,8 @@
   "Search languages": "Sprachen suchen",
   "Search languages…": "Sprachen suchen…",
   "Settings categories": "Einstellungskategorien",
-  "Updates and privacy": "Updates und Datenschutz"
+  "Updates and privacy": "Updates und Datenschutz",
+  "A new trigger without a picture: it watches part of the window, and its card says what it waits for. To watch for a picture, use Cut picture… below.": "Ein neuer Auslöser ohne Bild: Er beobachtet einen Teil des Fensters und seine Karte sagt, worauf er wartet. Um nach einem Bild zu suchen, verwenden Sie unten „Bild ausschneiden…“.",
+  "New trigger": "Neuer Auslöser",
+  "No triggers yet. Pick your game window below, then click Cut picture… and drag a box around the thing to watch for. Or click + New trigger above for one without a picture.": "Noch keine Auslöser. Wählen Sie unten Ihr Spielfenster aus, klicken Sie dann auf Bild ausschneiden… und ziehen Sie ein Kästchen um das Objekt, auf das Sie achten möchten. Oder klicken Sie oben auf + Neuer Auslöser für einen Auslöser ohne Bild."
 }

@@ -269,7 +269,6 @@
   "No triggers": "Geen triggers",
   "No triggers in this category yet. Click + to make one here, drag one in, or pick it with Category, under a trigger's More options.": "Nog geen triggers in deze categorie. Klik op + om er hier een te maken, sleep er een in, of kies hem bij Categorie, onder Meer opties van een trigger.",
   "No triggers yet. Add one on the Triggers page.": "Nog geen triggers. Voeg er een toe op de pagina Triggers.",
-  "No triggers yet. Pick your game window below, then click Cut picture… and drag a box around the thing to watch for.": "Nog geen triggers. Kies hieronder je gamevenster, klik dan op Afbeelding knippen… en sleep een kader om het ding waar je op wilt letten.",
   "No windows open": "Geen vensters open",
   "Normal — up to 2 %": "Normaal — tot 2 %",
   "Not a picture": "Geen afbeelding",
@@ -711,5 +710,8 @@
   "Search languages": "Zoek talen",
   "Search languages…": "Talen zoeken…",
   "Settings categories": "Instellingen categorieën",
-  "Updates and privacy": "Updates en privacy"
+  "Updates and privacy": "Updates en privacy",
+  "A new trigger without a picture: it watches part of the window, and its card says what it waits for. To watch for a picture, use Cut picture… below.": "Een nieuwe trigger zonder afbeelding: hij bekijkt een deel van het venster en de kaart zegt waar hij op wacht. Om naar een foto te kijken, gebruik Afbeelding knippen... hieronder.",
+  "New trigger": "Nieuwe trigger",
+  "No triggers yet. Pick your game window below, then click Cut picture… and drag a box around the thing to watch for. Or click + New trigger above for one without a picture.": "Nog geen triggers. Kies hieronder je spelvenster, klik vervolgens op Afbeelding knippen... en sleep een kader rond het ding waar je op moet letten. Of klik hierboven op + Nieuwe trigger voor een trigger zonder afbeelding."
 }

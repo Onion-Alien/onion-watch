@@ -269,7 +269,6 @@
   "No triggers": "Tetikleyici yok",
   "No triggers in this category yet. Click + to make one here, drag one in, or pick it with Category, under a trigger's More options.": "Bu kategoride henüz tetikleyici yok. Burada oluşturmak için + tıkla, içine birini sürükle ya da bir tetikleyicinin Diğer seçenekler'i altındaki Kategori ile seç.",
   "No triggers yet. Add one on the Triggers page.": "Henüz tetikleyici yok. Tetikleyiciler sayfasından bir tane ekle.",
-  "No triggers yet. Pick your game window below, then click Cut picture… and drag a box around the thing to watch for.": "Henüz tetikleyici yok. Aşağıdan oyun pencereni seç, sonra Resim kes…'e tıkla ve izlenecek şeyin etrafına bir kutu çiz.",
   "No windows open": "Açık pencere yok",
   "Normal — up to 2 %": "Normal — en fazla %2",
   "Not a picture": "Resim değil",
@@ -711,5 +710,8 @@
   "Search languages": "Dilleri ara",
   "Search languages…": "Dilleri ara…",
   "Settings categories": "Ayarlar kategorileri",
-  "Updates and privacy": "Güncellemeler ve gizlilik"
+  "Updates and privacy": "Güncellemeler ve gizlilik",
+  "A new trigger without a picture: it watches part of the window, and its card says what it waits for. To watch for a picture, use Cut picture… below.": "Resimsiz yeni bir tetikleyici: Pencerenin bir kısmını izliyor ve kartı ne beklediğini söylüyor. Bir resmi izlemek için aşağıdaki Resmi kes… seçeneğini kullanın.",
+  "New trigger": "Yeni tetikleyici",
+  "No triggers yet. Pick your game window below, then click Cut picture… and drag a box around the thing to watch for. Or click + New trigger above for one without a picture.": "Henüz tetikleyici yok. Aşağıdan oyun pencerenizi seçin, ardından Resmi kes… seçeneğine tıklayın ve izlenecek şeyin etrafına bir kutu sürükleyin. Veya resimsiz bir tetikleyici için yukarıdaki + Yeni tetikleyiciye tıklayın."
 }

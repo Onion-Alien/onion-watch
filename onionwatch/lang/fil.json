@@ -268,7 +268,6 @@
   "No triggers": "Walang trigger",
   "No triggers in this category yet. Click + to make one here, drag one in, or pick it with Category, under a trigger's More options.": "Wala pang trigger sa kategoryang ito. I-click ang + para gumawa dito, mag-drag ng isa papasok, o piliin ito sa Kategorya, sa More options ng trigger.",
   "No triggers yet. Add one on the Triggers page.": "Wala pang trigger. Magdagdag sa Triggers page.",
-  "No triggers yet. Pick your game window below, then click Cut picture… and drag a box around the thing to watch for.": "Wala pang trigger. Piliin ang game window mo sa ibaba, tapos i-click ang I-cut ang larawan… at mag-drag ng kahon sa paligid ng babantayan.",
   "No windows open": "Walang bukas na window",
   "Normal — up to 2 %": "Normal — hanggang 2 %",
   "Not a picture": "Hindi larawan",
@@ -711,5 +710,8 @@
   "Search languages…": "Maghanap ng mga wika…",
   "Settings categories": "Mga kategorya ng Settings",
   "This window can't open: one of Onion Watch's files is missing, most likely because an update didn't finish.\n\nUpdate or reinstall Onion Watch to fix it. Your triggers and pictures are safe.": "Hindi mabuksan ang window na ito: nawawala ang isa sa mga file ng Onion Watch, malamang dahil hindi natapos ang isang update. I-update o muling i-install ang Onion Watch para ayusin ito. Ligtas ang iyong mga trigger at larawan.",
-  "Updates and privacy": "Mga update at privacy"
+  "Updates and privacy": "Mga update at privacy",
+  "A new trigger without a picture: it watches part of the window, and its card says what it waits for. To watch for a picture, use Cut picture… below.": "Isang bagong trigger na walang larawan: pinapanood nito ang bahagi ng window, at sinasabi ng card nito kung ano ang hinihintay nito. Upang manood ng isang larawan, gamitin ang Gupitin ang larawan... sa ibaba.",
+  "New trigger": "Bagong trigger",
+  "No triggers yet. Pick your game window below, then click Cut picture… and drag a box around the thing to watch for. Or click + New trigger above for one without a picture.": "Wala pang trigger. Piliin ang window ng iyong laro sa ibaba, pagkatapos ay i-click ang Gupitin ang larawan... at i-drag ang isang kahon sa paligid ng bagay na babantayan. O i-click ang + Bagong trigger sa itaas para sa isang walang larawan."
 }

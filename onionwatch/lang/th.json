@@ -265,7 +265,6 @@
   "No triggers": "ไม่มีทริกเกอร์",
   "No triggers in this category yet. Click + to make one here, drag one in, or pick it with Category, under a trigger's More options.": "ยังไม่มีทริกเกอร์ในหมวดหมู่นี้ คลิก + เพื่อสร้างที่นี่ ลากเข้ามา หรือเลือกด้วย หมวดหมู่ ใน ตัวเลือกเพิ่มเติม ของทริกเกอร์",
   "No triggers yet. Add one on the Triggers page.": "ยังไม่มีทริกเกอร์ เพิ่มได้ในหน้า ทริกเกอร์",
-  "No triggers yet. Pick your game window below, then click Cut picture… and drag a box around the thing to watch for.": "ยังไม่มีทริกเกอร์ เลือกหน้าต่างเกมด้านล่าง แล้วคลิก ตัดรูป… และลากกรอบรอบสิ่งที่จะเฝ้าดู",
   "No windows open": "ไม่มีหน้าต่างที่เปิดอยู่",
   "Normal — up to 2 %": "ปกติ — สูงสุด 2 %",
   "Not a picture": "ไม่ใช่รูป",
@@ -699,5 +698,8 @@
   "Search languages": "ค้นหาภาษา",
   "Search languages…": "ค้นหาภาษา…",
   "Settings categories": "หมวดหมู่การตั้งค่า",
-  "Updates and privacy": "การอัปเดตและความเป็นส่วนตัว"
+  "Updates and privacy": "การอัปเดตและความเป็นส่วนตัว",
+  "A new trigger without a picture: it watches part of the window, and its card says what it waits for. To watch for a picture, use Cut picture… below.": "ทริกเกอร์ใหม่ที่ไม่มีรูปภาพ: มันจะเฝ้าดูส่วนหนึ่งของหน้าต่าง และการ์ดจะบอกว่ามันกำลังรออะไรอยู่ หากต้องการดูภาพ ให้ใช้ Cut picture... ด้านล่าง",
+  "New trigger": "ทริกเกอร์ใหม่",
+  "No triggers yet. Pick your game window below, then click Cut picture… and drag a box around the thing to watch for. Or click + New trigger above for one without a picture.": "ยังไม่มีทริกเกอร์ เลือกหน้าต่างเกมของคุณด้านล่าง จากนั้นคลิก ตัดภาพ... แล้วลากกล่องไปรอบๆ สิ่งที่คุณต้องการดู หรือคลิก + ทริกเกอร์ใหม่ด้านบนสำหรับทริกเกอร์ที่ไม่มีรูปภาพ"
 }

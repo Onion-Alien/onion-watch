@@ -269,7 +269,6 @@
   "No triggers": "Nessun trigger",
   "No triggers in this category yet. Click + to make one here, drag one in, or pick it with Category, under a trigger's More options.": "Ancora nessun trigger in questa categoria. Clicca + per crearne uno qui, trascinane dentro uno, o sceglila con Categoria, in Altre opzioni di un trigger.",
   "No triggers yet. Add one on the Triggers page.": "Ancora nessun trigger. Aggiungine uno nella pagina Trigger.",
-  "No triggers yet. Pick your game window below, then click Cut picture… and drag a box around the thing to watch for.": "Ancora nessun trigger. Scegli qui sotto la finestra del gioco, poi clicca Ritaglia immagine… e trascina un rettangolo intorno alla cosa da sorvegliare.",
   "No windows open": "Nessuna finestra aperta",
   "Normal — up to 2 %": "Normale: fino al 2 %",
   "Not a picture": "Non è un'immagine",
@@ -711,5 +710,8 @@
   "Search languages": "Cerca lingue",
   "Search languages…": "Cerca lingue…",
   "Settings categories": "Categorie di impostazioni",
-  "Updates and privacy": "Aggiornamenti e privacy"
+  "Updates and privacy": "Aggiornamenti e privacy",
+  "A new trigger without a picture: it watches part of the window, and its card says what it waits for. To watch for a picture, use Cut picture… below.": "Un nuovo trigger senza immagine: guarda parte della finestra e la sua carta dice cosa aspetta. Per guardare un'immagine, utilizzare Taglia immagine... di seguito.",
+  "New trigger": "Nuovo innesco",
+  "No triggers yet. Pick your game window below, then click Cut picture… and drag a box around the thing to watch for. Or click + New trigger above for one without a picture.": "Nessun trigger ancora. Scegli la finestra di gioco qui sotto, quindi fai clic su Taglia immagine... e trascina una casella attorno all'oggetto da tenere d'occhio. Oppure fai clic su + Nuovo trigger sopra per uno senza immagine."
 }

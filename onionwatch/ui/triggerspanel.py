@@ -2486,6 +2486,16 @@ class TriggersTab(QWidget):
                                                        QLineEdit.LeadingPosition)
         align_control(self.search_text)
         self.search_text.setMinimumWidth(SEARCH_MIN)
+        # + New trigger: one without a picture (it watches part of the window), right
+        # where the list starts; a picture one is Cut picture… in the bar below
+        self.btn_new = QPushButton(_("New trigger"))
+        self.btn_new.setToolTip(_("A new trigger without a picture: it watches part of the "
+                                  "window, and its card says what it waits for. To watch for "
+                                  "a picture, use Cut picture… below."))
+        icons.set_icon(self.btn_new, "plus")
+        self.btn_new.clicked.connect(self.add_area_trigger)
+        align_control(self.btn_new)
+        search_layout.addWidget(self.btn_new)
         search_layout.addWidget(self.search_text, 3)
         self.search_scope = WideCombo(min_width=140)
         self.search_scope.setAccessibleName(_("Search category"))
@@ -2566,7 +2576,8 @@ class TriggersTab(QWidget):
         self.hoot = owl.OwlWidget(96)   # waiting (sadly) for something to watch
         ev.addWidget(self.hoot, 0, Qt.AlignHCenter)
         hint = hint_label(_("No triggers yet. Pick your game window below, then click Cut "
-                            "picture… and drag a box around the thing to watch for."))
+                            "picture… and drag a box around the thing to watch for. Or "
+                            "click + New trigger above for one without a picture."))
         hint.setAlignment(Qt.AlignCenter)
         ev.addWidget(hint)
         self.list_layout.addWidget(self.empty)
@@ -2624,8 +2635,8 @@ class TriggersTab(QWidget):
         # roomier buttons than elsewhere: the bar's few big actions read as buttons, not a
         # packed strip (only padding: their colours stay the theme's)
         f.setStyleSheet("QPushButton { padding: 8px 16px; }")
-        h = BarFlow(f, gap=10)
-        h.setContentsMargins(12, 10, 12, 10)
+        h = BarFlow(f, gap=18)   # room between them: at 10 the bar looked packed
+        h.setContentsMargins(14, 10, 14, 10)
         self.btn_watch = QPushButton()
         self.btn_watch.setObjectName("live")
         self.btn_watch.setCheckable(True)

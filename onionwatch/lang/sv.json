@@ -268,7 +268,6 @@
   "No triggers": "Inga triggers",
   "No triggers in this category yet. Click + to make one here, drag one in, or pick it with Category, under a trigger's More options.": "Inga triggers i den här kategorin än. Klicka + för att skapa en här, dra in en, eller välj den med Kategori, under en triggers Fler alternativ.",
   "No triggers yet. Add one on the Triggers page.": "Inga triggers än. Lägg till en på sidan Triggers.",
-  "No triggers yet. Pick your game window below, then click Cut picture… and drag a box around the thing to watch for.": "Inga triggers än. Välj ditt spelfönster nedan, klicka sedan Klipp ut bild… och dra en ruta runt det som ska bevakas.",
   "No windows open": "Inga fönster öppna",
   "Normal — up to 2 %": "Normal — upp till 2 %",
   "Not a picture": "Inte en bild",
@@ -711,5 +710,8 @@
   "Search languages…": "Sök efter språk…",
   "Settings categories": "Inställningskategorier",
   "This window can't open: one of Onion Watch's files is missing, most likely because an update didn't finish.\n\nUpdate or reinstall Onion Watch to fix it. Your triggers and pictures are safe.": "Det här fönstret kan inte öppnas: en av Onion Watchs filer saknas, troligen för att en uppdatering inte slutfördes. Uppdatera eller installera om Onion Watch för att fixa det. Dina triggers och bilder är säkra.",
-  "Updates and privacy": "Uppdateringar och sekretess"
+  "Updates and privacy": "Uppdateringar och sekretess",
+  "A new trigger without a picture: it watches part of the window, and its card says what it waits for. To watch for a picture, use Cut picture… below.": "En ny trigger utan bild: den tittar på en del av fönstret och dess kort säger vad den väntar på. För att titta efter en bild, använd Klipp ut bild... nedan.",
+  "New trigger": "Ny trigger",
+  "No triggers yet. Pick your game window below, then click Cut picture… and drag a box around the thing to watch for. Or click + New trigger above for one without a picture.": "Inga utlösare än. Välj ditt spelfönster nedan, klicka sedan på Klipp ut bild... och dra en ruta runt saken du ska titta efter. Eller klicka på + Ny utlösare ovan för en utan bild."
 }

@@ -268,7 +268,6 @@
   "No triggers": "Ei laukaisimia",
   "No triggers in this category yet. Click + to make one here, drag one in, or pick it with Category, under a trigger's More options.": "Tässä luokassa ei vielä triggereitä. Napsauta + luodaksesi yhden tästä, vedä se sisään tai valitse se Luokka-kohdasta, liipaisimen Lisää vaihtoehtoja -kohdasta.",
   "No triggers yet. Add one on the Triggers page.": "Ei vielä laukaisimia. Lisää yksi Triggers-sivulle.",
-  "No triggers yet. Pick your game window below, then click Cut picture… and drag a box around the thing to watch for.": "Ei vielä laukaisimia. Valitse peliikkunasi alta, napsauta sitten Leikkaa kuva… ja vedä laatikko katsottavan kohteen ympärille.",
   "No windows open": "Ei ikkunoita auki",
   "Normal — up to 2 %": "Normaali - jopa 2 %",
   "Not a picture": "Ei kuva",
@@ -711,5 +710,8 @@
   "Search languages…": "Hae kieliä…",
   "Settings categories": "Asetusten kategoriat",
   "This window can't open: one of Onion Watch's files is missing, most likely because an update didn't finish.\n\nUpdate or reinstall Onion Watch to fix it. Your triggers and pictures are safe.": "Tätä ikkunaa ei voi avata: yksi Onion Watchin tiedostoista puuttuu, todennäköisesti siksi, että päivitys ei päättynyt. Korjaa se päivittämällä tai asentamalla Onion Watch uudelleen. Liipaisimet ja kuvasi ovat turvassa.",
-  "Updates and privacy": "Päivitykset ja yksityisyys"
+  "Updates and privacy": "Päivitykset ja yksityisyys",
+  "A new trigger without a picture: it watches part of the window, and its card says what it waits for. To watch for a picture, use Cut picture… below.": "Uusi laukaisin ilman kuvaa: se tarkkailee osaa ikkunasta ja sen kortti kertoo mitä se odottaa. Katso kuvaa käyttämällä Leikkaa kuva… alla.",
+  "New trigger": "Uusi laukaisin",
+  "No triggers yet. Pick your game window below, then click Cut picture… and drag a box around the thing to watch for. Or click + New trigger above for one without a picture.": "Ei vielä laukaisimia. Valitse peliikkunasi alta, napsauta sitten Leikkaa kuva… ja vedä laatikko katsottavan kohteen ympärille. Tai klikkaa yllä + Uusi laukaisinta ilman kuvaa."
 }

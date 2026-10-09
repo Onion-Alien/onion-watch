@@ -265,7 +265,6 @@
   "No triggers": "Không có kích hoạt",
   "No triggers in this category yet. Click + to make one here, drag one in, or pick it with Category, under a trigger's More options.": "Danh mục này chưa có kích hoạt nào. Bấm + để tạo ở đây, kéo một cái vào, hoặc chọn nó bằng Danh mục, trong Tùy chọn khác của kích hoạt.",
   "No triggers yet. Add one on the Triggers page.": "Chưa có kích hoạt nào. Thêm một cái ở trang Kích hoạt.",
-  "No triggers yet. Pick your game window below, then click Cut picture… and drag a box around the thing to watch for.": "Chưa có kích hoạt nào. Chọn cửa sổ game bên dưới, rồi bấm Cắt ảnh… và kéo một khung quanh thứ cần theo dõi.",
   "No windows open": "Không có cửa sổ nào mở",
   "Normal — up to 2 %": "Thường — tối đa 2 %",
   "Not a picture": "Không phải ảnh",
@@ -699,5 +698,8 @@
   "Search languages": "Tìm kiếm ngôn ngữ",
   "Search languages…": "Tìm kiếm ngôn ngữ…",
   "Settings categories": "Danh mục cài đặt",
-  "Updates and privacy": "Cập nhật và quyền riêng tư"
+  "Updates and privacy": "Cập nhật và quyền riêng tư",
+  "A new trigger without a picture: it watches part of the window, and its card says what it waits for. To watch for a picture, use Cut picture… below.": "Một trình kích hoạt mới không có hình ảnh: nó xem một phần cửa sổ và thẻ của nó cho biết nó đang chờ đợi điều gì. Để xem ảnh, hãy sử dụng Cắt ảnh… bên dưới.",
+  "New trigger": "Trình kích hoạt mới",
+  "No triggers yet. Pick your game window below, then click Cut picture… and drag a box around the thing to watch for. Or click + New trigger above for one without a picture.": "Chưa có trình kích hoạt nào. Chọn cửa sổ trò chơi của bạn bên dưới, sau đó nhấp vào Cắt ảnh… và kéo một hộp xung quanh đối tượng cần quan sát. Hoặc nhấp vào + Trình kích hoạt mới ở trên cho một trình kích hoạt không có hình ảnh."
 }

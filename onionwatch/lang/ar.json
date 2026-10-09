@@ -285,7 +285,6 @@
   "No triggers": "لا محفّزات",
   "No triggers in this category yet. Click + to make one here, drag one in, or pick it with Category, under a trigger's More options.": "لا محفّزات في هذه الفئة بعد. انقر + لإنشاء واحد هنا، أو اسحب واحدًا إليها، أو اخترها من الفئة ضمن خيارات أخرى في المحفّز.",
   "No triggers yet. Add one on the Triggers page.": "لا محفّزات بعد. أضف واحدًا في صفحة المحفّزات.",
-  "No triggers yet. Pick your game window below, then click Cut picture… and drag a box around the thing to watch for.": "لا محفّزات بعد. اختر نافذة لعبتك في الأسفل، ثم انقر اقتطاع صورة… واسحب مربعًا حول الشيء المطلوب مراقبته.",
   "No windows open": "لا نوافذ مفتوحة",
   "Normal — up to 2 %": "عادي — حتى 2 %",
   "Not a picture": "ليست صورة",
@@ -759,5 +758,8 @@
   "Search languages": "لغات البحث",
   "Search languages…": "بحث في اللغات…",
   "Settings categories": "فئات الإعدادات",
-  "Updates and privacy": "التحديثات والخصوصية"
+  "Updates and privacy": "التحديثات والخصوصية",
+  "A new trigger without a picture: it watches part of the window, and its card says what it waits for. To watch for a picture, use Cut picture… below.": "مشغل جديد بدون صورة: يراقب جزءًا من النافذة، وبطاقته تقول ما ينتظره. لمشاهدة صورة، استخدم قص الصورة... أدناه.",
+  "New trigger": "الزناد الجديد",
+  "No triggers yet. Pick your game window below, then click Cut picture… and drag a box around the thing to watch for. Or click + New trigger above for one without a picture.": "لا توجد مشغلات حتى الآن. اختر نافذة لعبتك أدناه، ثم انقر فوق قص الصورة... واسحب مربعًا حول الشيء الذي تريد مراقبته. أو انقر فوق + مشغل جديد أعلاه للحصول على مشغل بدون صورة."
 }

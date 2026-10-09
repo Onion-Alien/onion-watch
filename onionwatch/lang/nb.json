@@ -268,7 +268,6 @@
   "No triggers": "Ingen utløsere",
   "No triggers in this category yet. Click + to make one here, drag one in, or pick it with Category, under a trigger's More options.": "Ingen utløsere i denne kategorien ennå. Klikk på + for å lage en her, dra en inn, eller velg den med kategori, under en utløsers Flere alternativer.",
   "No triggers yet. Add one on the Triggers page.": "Ingen utløsere ennå. Legg til en på Trigger-siden.",
-  "No triggers yet. Pick your game window below, then click Cut picture… and drag a box around the thing to watch for.": "Ingen utløsere ennå. Velg spillvinduet ditt nedenfor, klikk deretter Klipp ut bilde… og dra en boks rundt tingen du vil se etter.",
   "No windows open": "Ingen vinduer åpne",
   "Normal — up to 2 %": "Normal – opptil 2 %",
   "Not a picture": "Ikke et bilde",
@@ -711,5 +710,8 @@
   "Search languages…": "Søk etter språk…",
   "Settings categories": "Innstillingskategorier",
   "This window can't open: one of Onion Watch's files is missing, most likely because an update didn't finish.\n\nUpdate or reinstall Onion Watch to fix it. Your triggers and pictures are safe.": "Dette vinduet kan ikke åpnes: en av Onion Watch sine filer mangler, mest sannsynlig fordi en oppdatering ikke ble fullført. Oppdater eller installer Onion Watch på nytt for å fikse det. Dine utløsere og bilder er trygge.",
-  "Updates and privacy": "Oppdateringer og personvern"
+  "Updates and privacy": "Oppdateringer og personvern",
+  "A new trigger without a picture: it watches part of the window, and its card says what it waits for. To watch for a picture, use Cut picture… below.": "En ny utløser uten bilde: den ser på en del av vinduet, og kortet sier hva den venter på. For å se etter et bilde, bruk Klipp ut bilde... nedenfor.",
+  "New trigger": "Ny trigger",
+  "No triggers yet. Pick your game window below, then click Cut picture… and drag a box around the thing to watch for. Or click + New trigger above for one without a picture.": "Ingen utløsere ennå. Velg spillvinduet ditt nedenfor, klikk deretter Klipp ut bilde... og dra en boks rundt tingen du vil se etter. Eller klikk på + Ny utløser ovenfor for en uten bilde."
 }

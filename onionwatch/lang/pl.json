@@ -273,7 +273,6 @@
   "No triggers": "Brak wyzwalaczy",
   "No triggers in this category yet. Click + to make one here, drag one in, or pick it with Category, under a trigger's More options.": "W tej kategorii nie ma jeszcze wyzwalaczy. Kliknij +, by utworzyć tu jeden, przeciągnij jakiś tutaj albo wybierz ją w Kategoria, w Więcej opcji wyzwalacza.",
   "No triggers yet. Add one on the Triggers page.": "Nie ma jeszcze wyzwalaczy. Dodaj jeden na stronie Wyzwalacze.",
-  "No triggers yet. Pick your game window below, then click Cut picture… and drag a box around the thing to watch for.": "Nie ma jeszcze wyzwalaczy. Wybierz okno gry poniżej, potem kliknij Wytnij obraz… i zaznacz ramką to, na co czekać.",
   "No windows open": "Brak otwartych okien",
   "Normal — up to 2 %": "Normalny — do 2 %",
   "Not a picture": "To nie obraz",
@@ -723,5 +722,8 @@
   "Search languages": "Wyszukaj języki",
   "Search languages…": "Wyszukaj języki…",
   "Settings categories": "Kategorie ustawień",
-  "Updates and privacy": "Aktualizacje i prywatność"
+  "Updates and privacy": "Aktualizacje i prywatność",
+  "A new trigger without a picture: it watches part of the window, and its card says what it waits for. To watch for a picture, use Cut picture… below.": "Nowy wyzwalacz bez obrazka: obserwuje część okna, a jego karta mówi, na co czeka. Aby obejrzeć zdjęcie, użyj opcji Wytnij zdjęcie… poniżej.",
+  "New trigger": "Nowy spust",
+  "No triggers yet. Pick your game window below, then click Cut picture… and drag a box around the thing to watch for. Or click + New trigger above for one without a picture.": "Nie ma jeszcze wyzwalaczy. Wybierz poniżej okno gry, a następnie kliknij Wytnij obraz… i przeciągnij ramkę wokół rzeczy, na którą chcesz zwrócić uwagę. Możesz też kliknąć + Nowy wyzwalacz powyżej, aby wybrać wyzwalacz bez obrazu."
 }

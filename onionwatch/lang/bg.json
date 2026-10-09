@@ -268,7 +268,6 @@
   "No triggers": "Без тригери",
   "No triggers in this category yet. Click + to make one here, drag one in, or pick it with Category, under a trigger's More options.": "Все още няма тригери в тази категория. Щракнете върху +, за да направите такъв тук, плъзнете един или го изберете с Категория под Още опции на тригера.",
   "No triggers yet. Add one on the Triggers page.": "Все още няма тригери. Добавете такъв на страницата Тригери.",
-  "No triggers yet. Pick your game window below, then click Cut picture… and drag a box around the thing to watch for.": "Все още няма тригери. Изберете прозореца на вашата игра по-долу, след това щракнете върху Изрежи картина… и плъзнете поле около нещото, за което да следите.",
   "No windows open": "Няма отворени прозорци",
   "Normal — up to 2 %": "Нормално - до 2%",
   "Not a picture": "Не е снимка",
@@ -711,5 +710,8 @@
   "Search languages…": "Търсене на езици…",
   "Settings categories": "Категории настройки",
   "This window can't open: one of Onion Watch's files is missing, most likely because an update didn't finish.\n\nUpdate or reinstall Onion Watch to fix it. Your triggers and pictures are safe.": "Този прозорец не може да се отвори: един от файловете на Onion Watch липсва, най-вероятно защото актуализацията не е завършила. Актуализирайте или преинсталирайте Onion Watch, за да го поправите. Вашите тригери и снимки са в безопасност.",
-  "Updates and privacy": "Актуализации и поверителност"
+  "Updates and privacy": "Актуализации и поверителност",
+  "A new trigger without a picture: it watches part of the window, and its card says what it waits for. To watch for a picture, use Cut picture… below.": "Нов тригер без картина: наблюдава част от прозореца и картата му казва какво чака. За да гледате за снимка, използвайте Изрязване на картина… по-долу.",
+  "New trigger": "Нов спусък",
+  "No triggers yet. Pick your game window below, then click Cut picture… and drag a box around the thing to watch for. Or click + New trigger above for one without a picture.": "Все още няма тригери. Изберете прозореца на вашата игра по-долу, след това щракнете върху Изрежи картина… и плъзнете поле около нещото, за което да следите. Или щракнете върху + Нов тригер по-горе за такъв без картина."
 }

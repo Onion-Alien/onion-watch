@@ -269,7 +269,6 @@
   "No triggers": "Aucun déclencheur",
   "No triggers in this category yet. Click + to make one here, drag one in, or pick it with Category, under a trigger's More options.": "Pas encore de déclencheur dans cette catégorie. Clique sur + pour en créer un ici, fais-en glisser un, ou choisis-la avec Catégorie, sous « Plus d'options » d'un déclencheur.",
   "No triggers yet. Add one on the Triggers page.": "Pas encore de déclencheur. Ajoutes-en un sur la page Déclencheurs.",
-  "No triggers yet. Pick your game window below, then click Cut picture… and drag a box around the thing to watch for.": "Pas encore de déclencheur. Choisis la fenêtre de ton jeu en bas, puis clique sur Découper une image… et trace un cadre autour de ce qu'il faut surveiller.",
   "No windows open": "Aucune fenêtre ouverte",
   "Normal — up to 2 %": "Normal — jusqu'à 2 %",
   "Not a picture": "Pas une image",
@@ -711,5 +710,8 @@
   "Search languages": "Langues de recherche",
   "Search languages…": "Rechercher des langues…",
   "Settings categories": "Catégories des paramètres",
-  "Updates and privacy": "Mises à jour et confidentialité"
+  "Updates and privacy": "Mises à jour et confidentialité",
+  "A new trigger without a picture: it watches part of the window, and its card says what it waits for. To watch for a picture, use Cut picture… below.": "Un nouveau déclencheur sans image : il surveille une partie de la fenêtre, et sa carte dit ce qu'il attend. Pour regarder une image, utilisez Couper l’image… ci-dessous.",
+  "New trigger": "Nouveau déclencheur",
+  "No triggers yet. Pick your game window below, then click Cut picture… and drag a box around the thing to watch for. Or click + New trigger above for one without a picture.": "Aucun déclencheur pour l'instant. Choisissez votre fenêtre de jeu ci-dessous, puis cliquez sur Couper l'image… et faites glisser un cadre autour de l'élément à surveiller. Ou cliquez sur + Nouveau déclencheur ci-dessus pour un déclencheur sans image."
 }
