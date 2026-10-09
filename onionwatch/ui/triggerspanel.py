@@ -31,10 +31,11 @@ import numpy as np
 from PySide6.QtCore import QEvent, QPoint, QRect, QRectF, QSize, Qt, QTimer, Signal
 from PySide6.QtGui import (QColor, QFontMetrics, QIcon, QImage, QKeySequence, QPainter,
                            QPixmap, QShortcut)
-from PySide6.QtWidgets import (QApplication, QBoxLayout, QCheckBox, QComboBox, QDoubleSpinBox,
+from PySide6.QtWidgets import (QAbstractSpinBox, QApplication, QBoxLayout, QCheckBox,
+                               QComboBox, QDoubleSpinBox,
                                QFileDialog, QFrame, QGridLayout, QHBoxLayout, QLabel,
                                QLineEdit, QMenu, QMessageBox, QPushButton, QScrollArea,
-                               QSizePolicy, QSpinBox, QStyle, QStyleOptionComboBox,
+                               QSizePolicy, QSpacerItem, QSpinBox, QStyle, QStyleOptionComboBox,
                                QStyleOptionSpinBox,
                                QVBoxLayout, QWidget)
 
@@ -964,6 +965,145 @@ def tall(w: QWidget) -> int:
     return max(w.sizeHint().height(), w.minimumHeight())
 
 
+def control_height(widget: QWidget) -> int:
+    """The one height align_control gives a control (a label beside it matches it)."""
+    return max(34, widget.fontMetrics().height() + 16)
+
+
+def capital(text: str) -> str:
+    """ "then play" -> "Then play" (nothing changes where there are no capitals)."""
+    return text[:1].upper() + text[1:]
+
+
+class TuneGrid(QWidget):
+    """More options as tidy columns: each column a group (finding it, timing, the
+    rest), each setting its label then its control, the labels in a column one width
+    so the controls line up, the columns spread over the whole width. Fewer columns
+    when it's narrow. A setting moved up to the When line (`removeWidget`) leaves its
+    place until it comes back (`addWidget`)."""
+
+    GAP = 28    # px between columns
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setObjectName("labelled")     # see-through (CARD_CSS)
+        self.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
+        self.grid = QGridLayout(self)
+        self.grid.setContentsMargins(0, 0, 0, 0)
+        self.grid.setHorizontalSpacing(6)
+        self.grid.setVerticalSpacing(8)
+        self.groups: list[list[tuple]] = []   # [(label, widget, inner label), …] each
+        self.out: set = set()
+        self._cols = 0
+
+    def add_group(self, items: list[tuple]):
+        for lab, w, inner in items:
+            for x in (lab, w):
+                if x is not None:
+                    x.setParent(self)
+            for x in (lab, inner):
+                if x is not None:
+                    x.setObjectName("formlabel")    # the controls' font size
+            if isinstance(w, QCheckBox):
+                w.setObjectName("formcheck")
+            elif isinstance(w, Pair) and isinstance(w.first, QCheckBox):
+                w.first.setObjectName("formcheck")
+        self.groups.append(items)
+
+    def removeWidget(self, w: QWidget):
+        self.out.add(w)
+        self.grid.removeWidget(w)
+        self.relayout()
+
+    def addWidget(self, w: QWidget):
+        w.setParent(self)
+        w.show()
+        self.out.discard(w)
+        self.relayout()
+
+    def _columns(self, n: int) -> list[list[tuple]]:
+        shown = [[it for it in g if it[1] not in self.out and it[1].isVisibleTo(self)]
+                 for g in self.groups]
+        if n >= len(shown):
+            return shown
+        # fewer columns than groups: a group stays whole, under the shortest column
+        cols: list[list[tuple]] = [[] for _i in range(n)]
+        for i, g in enumerate(shown):
+            target = cols[i] if i < n else min(cols, key=len)
+            target.extend(g)
+        return cols
+
+    @staticmethod
+    def _label_w(col: list[tuple]) -> int:
+        return max([x.sizeHint().width() for lab, _w, inner in col for x in (lab, inner)
+                    if x is not None] or [0])
+
+    def relayout(self):
+        """Lay it out in as many columns (3, 2, 1) as fit its width."""
+        width = self.width()
+        for n in (3, 2, 1):
+            self._lay(n)
+            if width <= 0 or n == 1 or self.grid.sizeHint().width() <= width:
+                break
+        self.updateGeometry()
+
+    def _lay(self, n: int):
+        g = self.grid
+        while g.count():
+            g.takeAt(0)
+        for c in range(g.columnCount()):
+            g.setColumnStretch(c, 0)
+            g.setColumnMinimumWidth(c, 0)
+        self._cols = n
+        # packed left: the space left over goes to an empty column at the end
+        g.addItem(QSpacerItem(0, 0, QSizePolicy.Expanding, QSizePolicy.Minimum), 0, 3 * n)
+        g.setColumnStretch(3 * n, 1000)
+        for group in self.groups:
+            for lab, w, _inner in group:
+                if lab is not None:
+                    lab.setVisible(w not in self.out and w.isVisibleTo(self))
+        for c, col in enumerate(self._columns(n)):
+            lc = 3 * c
+            lw = self._label_w(col)
+            g.setColumnMinimumWidth(lc, lw)
+            # room a wide row (Ring and its list) needs goes to the controls' column,
+            # never the labels': the controls stay lined up (packed left: no spreading)
+            g.setColumnStretch(lc + 1, 1)
+            if c < n - 1:
+                g.setColumnMinimumWidth(lc + 2, self.GAP - 12)
+            # the number boxes in a column one width, so their arrows line up too
+            spins = [sp for _lab, w, _inner in col
+                     for sp in ([w] if isinstance(w, QAbstractSpinBox) else [])
+                     + w.findChildren(QAbstractSpinBox)]
+            for sp in spins:
+                sp.setMinimumWidth(0)
+            widest = max([sp.sizeHint().width() for sp in spins] or [0])
+            for sp in spins:
+                sp.setMinimumWidth(widest)
+            for r, (lab, w, inner) in enumerate(col):
+                if lab is not None:
+                    if isinstance(w, QComboBox):    # never squeezed to cut its text
+                        w.setMinimumWidth(w.sizeHint().width())
+                    lab.setFixedHeight(control_height(w))
+                    g.addWidget(lab, r, lc, Qt.AlignLeft | Qt.AlignVCenter)
+                    g.addWidget(w, r, lc + 1, Qt.AlignLeft | Qt.AlignVCenter)
+                else:
+                    # (a Pair's height-for-width comes out 0 in a grid cell, and it
+                    # stays on one line: its sizeHint alone lets it be squeezed)
+                    w.setMinimumHeight(control_height(w))
+                    if isinstance(w, Pair):
+                        w.setMinimumWidth(w.first.sizeHint().width() + w.GAP
+                                          + w.second.sizeHint().width())
+                    if inner is not None:       # its label inside it, as wide as the rest
+                        inner.setFixedWidth(lw)
+                    g.addWidget(w, r, lc, 1, 2, Qt.AlignLeft | Qt.AlignVCenter)
+
+    def resizeEvent(self, ev):
+        super().resizeEvent(ev)
+        if ev.size().width() != ev.oldSize().width():
+            self.relayout()
+
+
 class Pair(QWidget):
     """Two labelled controls that read as one ("Look in [game] every [100 ms]"): on
     one line while it's wide enough for both, the second under the first when it
@@ -1088,6 +1228,15 @@ def section_title(icon: str, text: str) -> QPushButton:
 CARD_CSS = (
     "QWidget#labelled { background: transparent; }"      # labelled(), indented()...
     "QFrame#carddivider { background: palette(mid); border: none; }"
+    # a sound on the card: the shape and height of the boxes beside it, not a pill
+    "QLabel#formlabel, QCheckBox#formcheck { font-size: 9pt; }"
+    "QFrame#chip { border-radius: 8px; }"
+    "QFrame#chip QPushButton#chipname { font-size: 9pt; font-weight: normal;"
+    " padding: 0 4px; }"
+    "QComboBox#addsound { padding: 0 0 0 9px; }"
+    "QComboBox#addsound::drop-down { width: 0; border: none; }"
+    "QComboBox#addsound::down-arrow { image: none; }"
+    "QFrame#chip QPushButton#chipstop { border-radius: 6px; }"
     'QPushButton#fold[section="true"] { text-align:left; padding-left:0; }'
     f'*[aligned="true"], *[aligned="true"] * {{ {ALIGN_CSS} }}'     # align_control()
     # a picture in the strip (Thumb): its plate is painted; its ✕, its + and its "+3"
@@ -1306,7 +1455,7 @@ class TriggerRow(QFrame):
         sp.setHeightForWidth(True)          # its rows wrap: taller when narrower
         self.body.setSizePolicy(sp)
         bv = QVBoxLayout(self.body)
-        bv.setContentsMargins(0, 0, 0, 0)
+        bv.setContentsMargins(0, 0, 0, 2)     # the card's 8 at the bottom: 10, as at its sides
         bv.setSpacing(10)    # room between the editor's rows: at 4 they looked packed
         v.addWidget(self.body)
         v.addStretch(1)     # a tile taller than it needs (its line's tallest): space below
@@ -1334,9 +1483,9 @@ class TriggerRow(QFrame):
     EDITOR = frozenset({
         "mode", "where", "where_box", "_watch_row", "sounds_box", "sounds_row",
         "lbl_play", "chips", "sound", "pick", "btn_test", "btn_tune", "tune_text",
-        "btn_dup", "btn_del", "tune", "_tune_row", "btn_area", "interval",
+        "btn_dup", "btn_del", "tune", "tune_div", "_tune_row", "btn_area", "interval",
         "chk_size", "chk_ring", "until", "ring_box", "delay", "cooldown", "hold",
-        "lbl_hold", "hold_box", "threshold", "below", "lbl_number", "match_box", "_in", "_home",
+        "lbl_hold", "hold_box", "threshold", "below", "lbl_number", "match_box", "_in",
         "chk_quiet", "cb_category"})
 
     def __getattr__(self, name: str):
@@ -1364,11 +1513,33 @@ class TriggerRow(QFrame):
         # summing it up
         bv.addWidget(divider())
         bv.addSpacing(2)
+        # When / Look in / Then play / Category: one row each, the labels in one
+        # column (the controls' font size), the controls lined up after them
+        form = QGridLayout()
+        form.setContentsMargins(0, 0, 0, 0)
+        form.setHorizontalSpacing(12)
+        form.setVerticalSpacing(8)
+        form.setColumnStretch(1, 1)
+
+        def form_label(text: str, icon: str) -> QWidget:
+            box = QWidget()
+            box.setObjectName("labelled")       # see-through (CARD_CSS)
+            h = QHBoxLayout(box)
+            h.setContentsMargins(0, 0, 0, 0)
+            h.setSpacing(7)
+            pic = QLabel()
+            pic.setPixmap(icons.icon(icon, "muted").pixmap(15, 15))
+            h.addWidget(pic)
+            lab = QLabel(capital(text))
+            lab.setObjectName("formlabel")
+            h.addWidget(lab)
+            box.setFixedHeight(control_height(lab))
+            return box
         sentence = FlowBox(gap=8)
         row = sentence.flow
         self.mode = WideCombo(min_width=120)
         for key, label in MODES:
-            self.mode.addItem(label, key)
+            self.mode.addItem(capital(label), key)     # a choice of its own, not mid-sentence
         self.mode.setCurrentIndex(max(self.mode.findData(t.mode), 0))
         self.mode.setToolTip(
             _("What sets it off:\n• it shows up: one of its pictures appears\n• it goes away: "
@@ -1378,7 +1549,7 @@ class TriggerRow(QFrame):
               "its area is one colour (a health bar)"))
         no_wheel(self.mode)
         self.mode.activated.connect(self._on_mode)
-        row.addWidget(labelled(_("When"), self.mode, in_card=True))
+        row.addWidget(self.mode)
         self.where = WideCombo(min_width=120)
         self.where.setToolTip(_("Where to look: game windows (watched even while other windows "
                                 "cover them, but not while they're minimized) or whole screens. "
@@ -1386,15 +1557,22 @@ class TriggerRow(QFrame):
                                 "“Same as below” is the choice at the bottom."))
         no_wheel(self.where)
         self.where.activated.connect(self._on_where)
-        self.where_box = labelled(_("in"), self.where, in_card=True)
-        row.addWidget(self.where_box)
-        bv.addWidget(sentence)
+        self.where_box = self.where
+        form.addWidget(form_label(_("When"), "history"), 0, 0, Qt.AlignTop | Qt.AlignLeft)
+        form.addWidget(sentence, 0, 1)
+        self.btn_tune = QPushButton(_("More options"))
+        form.addWidget(self.btn_tune, 0, 2, Qt.AlignRight | Qt.AlignTop)
+        form.addWidget(form_label(_("Look in"), "window"), 1, 0, Qt.AlignTop | Qt.AlignLeft)
+        form.addWidget(self.where, 1, 1, Qt.AlignLeft)
         self._watch_row = row
         self.sounds_box = FlowBox(gap=8)
         self.sounds_row = self.sounds_box.flow
-        self.lbl_play = QLabel(_("then play"))
+        self.lbl_play = form_label(_("then play"), "volume")
         self.chips: list[QFrame] = []
-        self.sound = WideCombo()        # as wide as its resting "+ Add sound…"
+        self.sound = QComboBox()        # a square +: its list opens wide enough
+        self.sound.setObjectName("addsound")
+        self.sound.setAccessibleName(_("+ Add sound…"))
+        self.sound.view().setMinimumWidth(260)
         self.sound.setToolTip(_("Add a sound to play: a built-in alert, or a sound file of yours"))
         no_wheel(self.sound)
         self.sound.activated.connect(self._on_sound)
@@ -1410,36 +1588,31 @@ class TriggerRow(QFrame):
         self.btn_test.setObjectName("small")
         icons.set_icon(self.btn_test, "play", size=14)
         self.btn_test.clicked.connect(lambda: self.test.emit(self))
-        bv.addWidget(self.sounds_box)
+        form.addWidget(self.lbl_play, 2, 0, Qt.AlignTop | Qt.AlignLeft)
+        form.addWidget(self.sounds_box, 2, 1)
         self.cb_category = WideCombo(min_width=120)
         self.cb_category.setToolTip(_("The category this trigger is in: a whole category can be "
                                       "switched on or off at once"))
         no_wheel(self.cb_category)
         self.cb_category.activated.connect(self._on_category)
-        cat_line = QHBoxLayout()
-        cat_line.addWidget(labelled(_("Category"), self.cb_category, in_card=True))
-        cat_line.addStretch(1)
-        bv.addLayout(cat_line)
+        form.addWidget(form_label(_("Category"), "folder"), 3, 0, Qt.AlignTop | Qt.AlignLeft)
+        form.addWidget(self.cb_category, 3, 1, Qt.AlignLeft)
+        bv.addLayout(form)
 
-        # More options: the line summing them up, and the ⋯ menu (Duplicate, Delete)
-        bv.addSpacing(4)
+        # the bottom line: Test, Duplicate, Delete, and what More options has changed
         tune = QHBoxLayout()
         tune.setSpacing(12)
-        self.btn_tune = QPushButton(_("More options"))
         self.btn_tune.setObjectName("small")
         self.btn_tune.setCheckable(True)
         self.btn_tune.setToolTip(_("Where in the window, how alike, how long, how often, "
                                    "ringing, and when to keep quiet"))
         icons.set_icon(self.btn_tune, "setup", size=14)
         self.btn_tune.toggled.connect(self._on_tune)
-        tune.addWidget(self.btn_tune)
         self.tune_text = ElideLabel()
         self.tune_text.setObjectName("hint")
         self.tune_text.setWordWrap(True)    # wraps when narrow, never cut short
         self.tune_text.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
-        tune.addWidget(self.tune_text, 100)
-        tune.addStretch(1)      # nothing to sum up: the buttons stay their own size
-        tune.addWidget(self.btn_test)       # on this line: the sounds' line stays short
+        tune.addWidget(self.btn_test)
         # Duplicate and Delete in words, not behind a ⋯ nobody could read
         self.btn_dup = QPushButton(_("Duplicate"))
         self.btn_dup.setObjectName("small")
@@ -1452,27 +1625,22 @@ class TriggerRow(QFrame):
         self.btn_del.setToolTip(_("Delete this trigger (Recently deleted keeps it a while)"))
         self.btn_del.clicked.connect(lambda: self.remove.emit(self))
         tune.addWidget(self.btn_del)
-        bv.addLayout(tune)
-        tune_col = indented(bv, 6)
-        # opened: three short rows, not one long jumble. Finding it (where, how alike,
-        # any size, how often), timing (wait, must last, not again for), and the rest
-        # (ringing, keeping quiet, its category)
-        self.tune = QWidget()
-        self.tune.setObjectName("labelled")     # see-through (CARD_CSS)
+        tune.addSpacing(6)
+        tune.addWidget(self.tune_text, 100)
+        tune.addStretch(1)      # with nothing to sum up the buttons keep their size
+        self._tune_line = tune      # (added under the options, below)
+        # opened: three columns. Timing (wait, must last, not again for); what it looks
+        # at (the area, how alike, how often); then the tick boxes together. A line
+        # sets them apart from the rest above (the editor's 10 px either side of it)
+        self.tune_div = divider()
+        self.tune_div.setVisible(False)
+        bv.addWidget(self.tune_div)
+        self.tune = TuneGrid()
         self.tune.setVisible(False)
-        rows = QVBoxLayout(self.tune)
-        rows.setContentsMargins(0, 0, 0, 0)
-        rows.setSpacing(8)
-        boxes = [FlowBox(gap=10) for _i in range(3)]
-        for box in boxes:
-            rows.addWidget(box)
-        find_row, time_row, rest_row = (box.flow for box in boxes)
-        row = find_row
-        self._tune_row = row
-        self.btn_area = QPushButton()
+        self._tune_row = self.tune
+        self.btn_area = QPushButton(self.tune)
         self.btn_area.setObjectName("small")
         self.btn_area.clicked.connect(lambda: self.area_wanted.emit(self))
-        row.addWidget(self.btn_area)
         self.interval = WideCombo(min_width=100)
         self.interval.addItem(_("Default"), 0)       # its text: set_default_interval
         for ms in sorted(set(INTERVALS_MS) | {t.interval_ms} - {0}):
@@ -1506,10 +1674,6 @@ class TriggerRow(QFrame):
         self.match_box = match = labelled("", self.threshold, in_card=True)
         match.layout().insertWidget(0, self.lbl_number)
         match.layout().insertWidget(1, self.below)
-        row.addWidget(match)
-        row.addWidget(self.chk_size)
-        row.addWidget(labelled(_("Check every"), self.interval, in_card=True))
-        row = rest_row
         self.chk_ring = QCheckBox(_("Ring"))
         self.chk_ring.setToolTip(_("Keep playing the sound over and over — for when you're away "
                                    "from the keyboard. The Stop button on the red bar always "
@@ -1526,8 +1690,6 @@ class TriggerRow(QFrame):
         no_wheel(self.until)
         self.until.currentIndexChanged.connect(self._on_until)
         self.ring_box = Pair(self.chk_ring, self.until)
-        row.addWidget(self.ring_box)
-        row = time_row
         self.delay = FitDoubleSpin()
         self.delay.setRange(0.0, 60.0)
         self.delay.setDecimals(1)
@@ -1535,7 +1697,6 @@ class TriggerRow(QFrame):
         self.delay.setSuffix(" s")
         self.delay.setValue(t.delay)
         self.delay.setToolTip(_("How long after it goes off to play the sound (0 = straight away)"))
-        row.addWidget(labelled(_("Wait"), self.delay, in_card=True))
         self.cooldown = FitDoubleSpin()
         self.cooldown.setRange(0.0, 600.0)
         self.cooldown.setDecimals(0)
@@ -1544,7 +1705,6 @@ class TriggerRow(QFrame):
         self.cooldown.setValue(t.cooldown)
         self.cooldown.setToolTip(_("After playing, ignore this trigger for this long. It also "
                                    "has to stop before it can play again."))
-        row.addWidget(labelled(_("Not again for"), self.cooldown, in_card=True))
         self.hold = FitDoubleSpin()
         self.hold.setRange(0.0, screenwatch.MAX_HOLD)
         self.hold.setDecimals(1)
@@ -1554,18 +1714,24 @@ class TriggerRow(QFrame):
         self.lbl_hold = QLabel()
         self.hold_box = hold = labelled("", self.hold, in_card=True)
         hold.layout().insertWidget(0, self.lbl_hold)
-        row.addWidget(hold)
-        # box -> its Flow now, and the one it goes back to from the When line
-        self._in: dict = {match: find_row, hold: time_row, self.btn_area: find_row}
-        self._home = dict(self._in)
-        row = rest_row
+        # box -> where it is now: More options, or up on the When line
+        self._in: dict = {match: self.tune, hold: self.tune, self.btn_area: self.tune}
         self.chk_quiet = QCheckBox(_("Not while I'm in that window"))
         self.chk_quiet.setToolTip(_("Stay quiet while the window it went off in is the one "
                                     "you're using: you can see it yourself"))
         self.chk_quiet.setChecked(t.unfocused)
         self.chk_quiet.toggled.connect(self._on_quiet)
-        row.addWidget(self.chk_quiet)
-        tune_col.addWidget(self.tune)
+        self.tune.add_group([(QLabel(_("Wait")), self.delay, None),
+                             (None, hold, self.lbl_hold),
+                             (QLabel(_("Not again for")), self.cooldown, None)])
+        self.tune.add_group([(QLabel(_("Area")), self.btn_area, None),
+                             (None, match, self.lbl_number),
+                             (QLabel(_("Check every")), self.interval, None)])
+        self.tune.add_group([(None, self.ring_box, None), (None, self.chk_size, None),
+                             (None, self.chk_quiet, None)])
+        bv.addWidget(self.tune)
+        bv.addSpacing(4)
+        bv.addLayout(tune)          # Test, Duplicate, Delete: last, under everything
         for w in (self.delay, self.cooldown, self.hold, self.threshold):
             no_wheel(w)
             w.valueChanged.connect(self._on_numbers)
@@ -1583,6 +1749,8 @@ class TriggerRow(QFrame):
                         self.btn_del, self.delay,
                         self.cooldown, self.hold, self.threshold, self.below, self.cb_category):
             align_control(control, in_card=True)
+        self.sound.setFixedWidth(self.sound.height())     # square, like the +
+        self.tune.relayout()        # (the controls' sizes are their real ones now)
 
     def _show_title(self, _text: str = ""):
         self.title.setText(self.name.text().strip() or _("No name"))
@@ -1858,6 +2026,7 @@ class TriggerRow(QFrame):
 
     def _on_tune(self, on: bool):
         self.tune.setVisible(on)
+        self.tune_div.setVisible(on)
         self.tune_text.setVisible(not on and bool(self.tune_text.text()))  # the controls say it
 
     def _set_tune_text(self):
@@ -1893,7 +2062,7 @@ class TriggerRow(QFrame):
     def _place(self, box: QWidget, main: bool):
         """Put a setting in the "When … in …" line (`main`: it's what the trigger is
         about, a bar's level) or under More options."""
-        want = self._watch_row if main else self._home[box]
+        want = self._watch_row if main else self.tune
         if self._in[box] is not want:
             self._in[box].removeWidget(box)
             want.addWidget(box)
@@ -1947,11 +2116,15 @@ class TriggerRow(QFrame):
                         "reads about 100 %, half empty about 50 %."),
         }[t.mode])
         self.lbl_hold.setText(_("Still for") if t.mode == "still" else _("Must last"))
+        for lab in (self.lbl_number, self.lbl_hold):     # (the grid sizes them again)
+            lab.setMinimumWidth(0)
+            lab.setMaximumWidth(16777215)
         self.hold.setToolTip(
             _("How long nothing may change before it plays") if t.mode == "still" else
             _("It only counts once it has gone on this long, so a flicker or a loading screen "
               "doesn't set it off (0 = at once)"))
         self._label_area()
+        self.tune.relayout()
 
     def _label_area(self):
         if not self._built:
@@ -1985,12 +2158,13 @@ class TriggerRow(QFrame):
         cb = self.sound
         cb.blockSignals(True)
         cb.clear()
-        cb.addItem(_("+ Add sound…"), ADD)
+        cb.addItem(icons.icon("plus"), "", ADD)     # what the closed box shows
         for sid, name in sounds:
             cb.addItem(name, sid)
         cb.insertSeparator(cb.count())
         cb.addItem(icons.icon("folder"), _("Choose a sound file…"), FILE)
         cb.setCurrentIndex(0)
+        cb.view().setRowHidden(0, True)                # ...but not a choice in the list
         cb.blockSignals(False)
         names = dict(sounds)
         old, self.chips = self.chips, []
@@ -2010,7 +2184,7 @@ class TriggerRow(QFrame):
         """Put the sounds row's widgets back in order (the Flow layout has no insert)."""
         while self.sounds_row.count():
             self.sounds_row.takeAt(0)
-        for w in (self.lbl_play, *self.chips, self.sound, self.pick):
+        for w in (*self.chips, self.sound, self.pick):
             self.sounds_row.addWidget(w)
         self.sounds_row.invalidate()
         self.sounds_box._fit()
@@ -2019,6 +2193,7 @@ class TriggerRow(QFrame):
         """A sound the trigger plays: its name (click to hear it) and a ✕."""
         chip = QFrame()
         chip.setObjectName("chip")
+        chip.setFixedHeight(control_height(chip))
         h = QHBoxLayout(chip)
         h.setContentsMargins(4, 0, 2, 0)
         h.setSpacing(2)
