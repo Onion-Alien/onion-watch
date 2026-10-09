@@ -1170,8 +1170,8 @@ class TriggerRow(QFrame):
         self.selected = False           # it's the one the editor is showing
         self.setAcceptDrops(True)           # picture files dropped on it are added
         v = QVBoxLayout(self)
-        v.setContentsMargins(10, 6, 10, 6)
-        v.setSpacing(4)
+        v.setContentsMargins(10, 8, 10, 8)
+        v.setSpacing(6)
 
         # the header, always shown: its pictures (and a + to add more), name, what it
         # does (or what's wrong), the live match, on / off, and open / close. Click it
@@ -1307,7 +1307,7 @@ class TriggerRow(QFrame):
         self.body.setSizePolicy(sp)
         bv = QVBoxLayout(self.body)
         bv.setContentsMargins(0, 0, 0, 0)
-        bv.setSpacing(4)
+        bv.setSpacing(10)    # room between the editor's rows: at 4 they looked packed
         v.addWidget(self.body)
         v.addStretch(1)     # a tile taller than it needs (its line's tallest): space below
         # the editor under the header is made the first time the card opens
@@ -1363,7 +1363,7 @@ class TriggerRow(QFrame):
         # adds more); everything else is folded away under More options, behind a line
         # summing it up
         bv.addWidget(divider())
-        bv.addSpacing(4)
+        bv.addSpacing(2)
         sentence = FlowBox(gap=8)
         row = sentence.flow
         self.mode = WideCombo(min_width=120)
@@ -1412,7 +1412,7 @@ class TriggerRow(QFrame):
         bv.addWidget(self.sounds_box)
 
         # More options: the line summing them up, and the ⋯ menu (Duplicate, Delete)
-        bv.addSpacing(2)
+        bv.addSpacing(4)
         tune = QHBoxLayout()
         tune.setSpacing(12)
         self.btn_tune = QPushButton(_("More options"))
@@ -2415,7 +2415,7 @@ class TriggersTab(QWidget):
 
         v = QVBoxLayout(self)
         v.setContentsMargins(0, 0, 0, 0)
-        v.setSpacing(8)
+        v.setSpacing(12)
         head, hv = card(_("Play a sound when something shows up in your game"),
                         _("Pick the game window, cut out the thing to watch for — a rare "
                           "spawn's name, a “queue ready” banner, a message — and choose the "
@@ -2568,7 +2568,7 @@ class TriggersTab(QWidget):
         self.list = QWidget()
         self.list_layout = QVBoxLayout(self.list)
         self.list_layout.setContentsMargins(0, 0, 0, 0)
-        self.list_layout.setSpacing(8)
+        self.list_layout.setSpacing(10)
         self.empty = QWidget()
         ev = QVBoxLayout(self.empty)
         ev.setContentsMargins(0, 24, 0, 0)
