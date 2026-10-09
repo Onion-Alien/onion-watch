@@ -27,7 +27,7 @@ def test_the_bottom_bar_keeps_its_margins_when_it_wraps(tab, qapp):
     assert len({w.y() for w in kids}) > 1     # it did wrap at this width
 
 
-def test_test_and_the_menu_sit_on_more_options_line(tab, qapp):
+def test_test_duplicate_and_delete_sit_on_more_options_line(tab, qapp):
     tab._new(as_qimage(banner()), "Rare")
     row = list(tab.rows.values())[-1]
     tab.resize(1100, 700)
@@ -35,7 +35,7 @@ def test_test_and_the_menu_sit_on_more_options_line(tab, qapp):
     qapp.processEvents()
     row = tab.editor or row         # a wide window: the trigger is in the editor
     tune_y = row.btn_tune.mapTo(row, row.btn_tune.rect().center()).y()
-    for b in (row.btn_test, row.btn_menu):
+    for b in (row.btn_test, row.btn_dup, row.btn_del):
         assert abs(b.mapTo(row, b.rect().center()).y() - tune_y) <= 2
 
 
@@ -56,7 +56,8 @@ def test_controls_fit_and_share_heights_across_window_sizes(tab, qapp, styled, w
         for _ in range(12):
             qapp.processEvents()
     controls = [row.mode, row.where, row.btn_area, row.interval, row.sound, row.until,
-                row.btn_test, row.delay, row.cooldown, row.threshold, row.btn_menu]
+                row.btn_test, row.delay, row.cooldown, row.threshold, row.btn_tune,
+                row.btn_dup, row.btn_del]
     assert len({w.height() for w in controls}) == 1
     for w in controls:
         assert w.mapTo(row, w.rect().topLeft()).x() >= 0

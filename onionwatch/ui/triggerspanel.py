@@ -1334,9 +1334,9 @@ class TriggerRow(QFrame):
     EDITOR = frozenset({
         "mode", "where", "where_box", "_watch_row", "sounds_box", "sounds_row",
         "lbl_play", "chips", "sound", "pick", "btn_test", "btn_tune", "tune_text",
-        "btn_menu", "act_dup", "act_del", "tune", "_tune_row", "btn_area", "interval",
+        "btn_dup", "btn_del", "tune", "_tune_row", "btn_area", "interval",
         "chk_size", "chk_ring", "until", "ring_box", "delay", "cooldown", "hold",
-        "lbl_hold", "hold_box", "threshold", "below", "lbl_number", "match_box", "_in",
+        "lbl_hold", "hold_box", "threshold", "below", "lbl_number", "match_box", "_in", "_home",
         "chk_quiet", "cb_category"})
 
     def __getattr__(self, name: str):
@@ -1407,48 +1407,67 @@ class TriggerRow(QFrame):
         no_wheel(self.pick)
         self.pick.currentIndexChanged.connect(self._on_pick)
         self.btn_test = QPushButton(_("Test"), self)
+        self.btn_test.setObjectName("small")
         icons.set_icon(self.btn_test, "play", size=14)
         self.btn_test.clicked.connect(lambda: self.test.emit(self))
         bv.addWidget(self.sounds_box)
+        self.cb_category = WideCombo(min_width=120)
+        self.cb_category.setToolTip(_("The category this trigger is in: a whole category can be "
+                                      "switched on or off at once"))
+        no_wheel(self.cb_category)
+        self.cb_category.activated.connect(self._on_category)
+        cat_line = QHBoxLayout()
+        cat_line.addWidget(labelled(_("Category"), self.cb_category, in_card=True))
+        cat_line.addStretch(1)
+        bv.addLayout(cat_line)
 
         # More options: the line summing them up, and the ⋯ menu (Duplicate, Delete)
         bv.addSpacing(4)
         tune = QHBoxLayout()
         tune.setSpacing(12)
         self.btn_tune = QPushButton(_("More options"))
-        self.btn_tune.setObjectName("fold")
+        self.btn_tune.setObjectName("small")
         self.btn_tune.setCheckable(True)
         self.btn_tune.setToolTip(_("Where in the window, how alike, how long, how often, "
                                    "ringing, and when to keep quiet"))
-        icons.set_icon(self.btn_tune, "setup", "section", "section", size=13)
+        icons.set_icon(self.btn_tune, "setup", size=14)
         self.btn_tune.toggled.connect(self._on_tune)
         tune.addWidget(self.btn_tune)
         self.tune_text = ElideLabel()
         self.tune_text.setObjectName("hint")
         self.tune_text.setWordWrap(True)    # wraps when narrow, never cut short
         self.tune_text.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
-        tune.addWidget(self.tune_text, 1)
+        tune.addWidget(self.tune_text, 100)
+        tune.addStretch(1)      # nothing to sum up: the buttons stay their own size
         tune.addWidget(self.btn_test)       # on this line: the sounds' line stays short
-        self.btn_menu = QPushButton("⋯")
-        self.btn_menu.setObjectName("small")
-        self.btn_menu.setFixedWidth(34)
-        self.btn_menu.setAccessibleName(_("More actions"))
-        self.btn_menu.setToolTip(_("Duplicate or delete this trigger"))
-        menu = QMenu(self.btn_menu)
-        self.act_dup = menu.addAction(_("Duplicate"),
-                                      lambda: self.duplicate.emit(self))
-        self.act_dup.setToolTip(_("Make a copy of this trigger (pictures, sounds and all)"))
-        self.act_del = menu.addAction(icons.icon("trash"), _("Delete"),
-                                      lambda: self.remove.emit(self))
-        self.act_del.setToolTip(_("Delete this trigger (Recently deleted keeps it a while)"))
-        self.btn_menu.clicked.connect(        # (not setMenu: no arrow on a ⋯)
-            lambda: menu.exec(self.btn_menu.mapToGlobal(QPoint(0, self.btn_menu.height()))))
-        tune.addWidget(self.btn_menu)
+        # Duplicate and Delete in words, not behind a ⋯ nobody could read
+        self.btn_dup = QPushButton(_("Duplicate"))
+        self.btn_dup.setObjectName("small")
+        self.btn_dup.setToolTip(_("Make a copy of this trigger (pictures, sounds and all)"))
+        self.btn_dup.clicked.connect(lambda: self.duplicate.emit(self))
+        tune.addWidget(self.btn_dup)
+        self.btn_del = QPushButton(_("Delete"))
+        self.btn_del.setObjectName("small")
+        icons.set_icon(self.btn_del, "trash", size=14)
+        self.btn_del.setToolTip(_("Delete this trigger (Recently deleted keeps it a while)"))
+        self.btn_del.clicked.connect(lambda: self.remove.emit(self))
+        tune.addWidget(self.btn_del)
         bv.addLayout(tune)
         tune_col = indented(bv, 6)
-        self.tune = FlowBox(gap=10)
+        # opened: three short rows, not one long jumble. Finding it (where, how alike,
+        # any size, how often), timing (wait, must last, not again for), and the rest
+        # (ringing, keeping quiet, its category)
+        self.tune = QWidget()
+        self.tune.setObjectName("labelled")     # see-through (CARD_CSS)
         self.tune.setVisible(False)
-        row = self.tune.flow
+        rows = QVBoxLayout(self.tune)
+        rows.setContentsMargins(0, 0, 0, 0)
+        rows.setSpacing(8)
+        boxes = [FlowBox(gap=10) for _i in range(3)]
+        for box in boxes:
+            rows.addWidget(box)
+        find_row, time_row, rest_row = (box.flow for box in boxes)
+        row = find_row
         self._tune_row = row
         self.btn_area = QPushButton()
         self.btn_area.setObjectName("small")
@@ -1465,7 +1484,6 @@ class TriggerRow(QFrame):
                                    "processor, so with a lot on it may check less often."))
         no_wheel(self.interval)
         self.interval.currentIndexChanged.connect(self._on_interval)
-        row.addWidget(labelled(_("Check every"), self.interval, in_card=True))
         self.chk_size = QCheckBox(_("Any size"))
         self.chk_size.setToolTip(
             _("Find the pictures even when the game shows them bigger or smaller than when they "
@@ -1473,7 +1491,25 @@ class TriggerRow(QFrame):
               "if a picture only ever shows at one size and it goes off by mistake."))
         self.chk_size.setChecked(t.any_size)
         self.chk_size.toggled.connect(self._on_size)
+        self.threshold = FitSpin()
+        self.threshold.setObjectName("stepper")   # arrows like Wait / Not again for
+        self.threshold.setSuffix(" %")
+        self.below = WideCombo(min_width=70)
+        self.below.addItem("below", True)
+        self.below.addItem("above", False)
+        self.below.setCurrentIndex(0 if t.below else 1)
+        self.below.setToolTip(_("Go off when less of the area is the colour (a bar running low), "
+                                "or when more of it is"))
+        no_wheel(self.below)
+        self.below.currentIndexChanged.connect(self._on_below)
+        self.lbl_number = QLabel()
+        self.match_box = match = labelled("", self.threshold, in_card=True)
+        match.layout().insertWidget(0, self.lbl_number)
+        match.layout().insertWidget(1, self.below)
+        row.addWidget(match)
         row.addWidget(self.chk_size)
+        row.addWidget(labelled(_("Check every"), self.interval, in_card=True))
+        row = rest_row
         self.chk_ring = QCheckBox(_("Ring"))
         self.chk_ring.setToolTip(_("Keep playing the sound over and over — for when you're away "
                                    "from the keyboard. The Stop button on the red bar always "
@@ -1491,6 +1527,7 @@ class TriggerRow(QFrame):
         self.until.currentIndexChanged.connect(self._on_until)
         self.ring_box = Pair(self.chk_ring, self.until)
         row.addWidget(self.ring_box)
+        row = time_row
         self.delay = FitDoubleSpin()
         self.delay.setRange(0.0, 60.0)
         self.delay.setDecimals(1)
@@ -1518,35 +1555,16 @@ class TriggerRow(QFrame):
         self.hold_box = hold = labelled("", self.hold, in_card=True)
         hold.layout().insertWidget(0, self.lbl_hold)
         row.addWidget(hold)
-        self.threshold = FitSpin()
-        self.threshold.setObjectName("stepper")   # arrows like Wait / Not again for
-        self.threshold.setSuffix(" %")
-        self.below = WideCombo(min_width=70)
-        self.below.addItem("below", True)
-        self.below.addItem("above", False)
-        self.below.setCurrentIndex(0 if t.below else 1)
-        self.below.setToolTip(_("Go off when less of the area is the colour (a bar running low), "
-                                "or when more of it is"))
-        no_wheel(self.below)
-        self.below.currentIndexChanged.connect(self._on_below)
-        self.lbl_number = QLabel()
-        self.match_box = match = labelled("", self.threshold, in_card=True)
-        match.layout().insertWidget(0, self.lbl_number)
-        match.layout().insertWidget(1, self.below)
-        row.addWidget(match)
-        self._in: dict = {match: row, hold: row, self.btn_area: row}   # box -> its Flow now
+        # box -> its Flow now, and the one it goes back to from the When line
+        self._in: dict = {match: find_row, hold: time_row, self.btn_area: find_row}
+        self._home = dict(self._in)
+        row = rest_row
         self.chk_quiet = QCheckBox(_("Not while I'm in that window"))
         self.chk_quiet.setToolTip(_("Stay quiet while the window it went off in is the one "
                                     "you're using: you can see it yourself"))
         self.chk_quiet.setChecked(t.unfocused)
         self.chk_quiet.toggled.connect(self._on_quiet)
         row.addWidget(self.chk_quiet)
-        self.cb_category = WideCombo(min_width=120)
-        self.cb_category.setToolTip(_("The category this trigger is in: a whole category can be "
-                                      "switched on or off at once"))
-        no_wheel(self.cb_category)
-        self.cb_category.activated.connect(self._on_category)
-        row.addWidget(labelled(_("Category"), self.cb_category, in_card=True))
         tune_col.addWidget(self.tune)
         for w in (self.delay, self.cooldown, self.hold, self.threshold):
             no_wheel(w)
@@ -1559,9 +1577,10 @@ class TriggerRow(QFrame):
             self.set_categories(self._categories)
         if self._default_ms is not None:
             self.set_default_interval(self._default_ms)
-        self.tune_text.setText(self._tune_summary())
+        self._set_tune_text()
         for control in (self.mode, self.where, self.btn_area, self.interval, self.sound,
-                        self.pick, self.until, self.btn_test, self.btn_menu, self.delay,
+                        self.pick, self.until, self.btn_test, self.btn_tune, self.btn_dup,
+                        self.btn_del, self.delay,
                         self.cooldown, self.hold, self.threshold, self.below, self.cb_category):
             align_control(control, in_card=True)
 
@@ -1839,34 +1858,42 @@ class TriggerRow(QFrame):
 
     def _on_tune(self, on: bool):
         self.tune.setVisible(on)
+        self.tune_text.setVisible(not on and bool(self.tune_text.text()))  # the controls say it
+
+    def _set_tune_text(self):
+        text = self._tune_summary()
+        self.tune_text.setText(text)
+        self.tune_text.setVisible(bool(text) and not self.btn_tune.isChecked())
 
     def _tune_summary(self) -> str:
-        """More options in a line: "Match 80 % · any size · plays at once · …"."""
-        t = self.t
+        """What's been changed under More options, in a line: "Match 90 % · one size".
+        Only what's off its default, and not what the card already says (ringing and
+        the wait are in its header, its category is the section it's in): empty when
+        nothing is."""
+        t, d = self.t, Trigger(id="")
         parts = []
         if t.uses_pictures:     # (otherwise the level is in the When line)
-            parts += [_("Match {n} %", n=round(t.number * 100)),
-                      _("any size") if t.any_size else _("one size")]
+            if round(t.number * 100) != round(d.threshold * 100):
+                parts.append(_("Match {n} %", n=round(t.number * 100)))
+            if not t.any_size:
+                parts.append(_("one size"))
         if t.hold and t.mode != "still":
             parts.append(_("must last {s:g} s", s=t.hold))
-        parts.append(_("waits {s:g} s", s=t.delay) if t.delay else _("plays at once"))
-        parts.append(_("not again for {s:g} s", s=t.cooldown))
-        if t.ring:
-            until = UNTILS[t.stop][1]
-            parts.append(until[:1].lower() + until[1:])
+        if t.delay and t.mode != "appear":      # (appear: the header says it)
+            parts.append(_("waits {s:g} s", s=t.delay))
+        if t.cooldown != d.cooldown:
+            parts.append(_("not again for {s:g} s", s=t.cooldown))
         if t.uses_pictures and t.region is not None:
             parts.append(_("part of the window"))
         if t.unfocused:
             parts.append(_("quiet while you're in it"))
-        if t.category:
-            parts.append(_("in {category}", category=t.category))
         return " · ".join(parts)
 
     # ------------------------------------------------------------------ view
     def _place(self, box: QWidget, main: bool):
         """Put a setting in the "When … in …" line (`main`: it's what the trigger is
         about, a bar's level) or under More options."""
-        want = self._watch_row if main else self._tune_row
+        want = self._watch_row if main else self._home[box]
         if self._in[box] is not want:
             self._in[box].removeWidget(box)
             want.addWidget(box)
@@ -2147,7 +2174,7 @@ class TriggerRow(QFrame):
         self.btn_retarget.setVisible(retarget)
         self._fit_lines()
         if self._built:
-            self.tune_text.setText(self._tune_summary())
+            self._set_tune_text()
         sounds = dict(self._sounds)
         self.sound_summary.setText("♪ " + (", ".join(sounds.get(s, _("Removed sound"))
                                                     for s in t.sounds) or _("Choose a sound")))

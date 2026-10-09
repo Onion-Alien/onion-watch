@@ -110,7 +110,7 @@ def test_a_trigger_moves_between_categories_from_its_card(make):
     t1 = tab.triggers[0]
     assert t1.category == "Raids" and tab.host.screen["triggers"][0]["category"] == "Raids"
     assert tab.rows["t1"].parentWidget() is tab.sections["Raids"].body
-    assert "in Raids" in tab.rows["t1"]._tune_summary()
+    assert "Raids" not in tab.rows["t1"]._tune_summary()    # its section says it
     # a new trigger goes in the category last opened or used
     tab.add_area_trigger()
     assert tab.triggers[-1].category == "Raids"
