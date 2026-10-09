@@ -83,6 +83,7 @@ class MainWindow(QMainWindow):
         self.triggers = TriggersTab(self.host)
         self.triggers.fired.connect(self._on_fired)
         self.triggers.active_changed.connect(self._on_active)
+        self.triggers.trigger_added.connect(lambda: self._step("added-trigger"))
         # the alarm bar: shown while a trigger rings, with the one button that matters
         self.alarm = AlarmBar(self.triggers)
         self.pages = TriggerPages(self.triggers, top=[self.alarm])
@@ -156,6 +157,8 @@ class MainWindow(QMainWindow):
         self.activateWindow()
 
     def _on_active(self, on: bool):
+        if on:
+            self._step("started-watching")
         self.act_watch.blockSignals(True)
         self.act_watch.setChecked(on)
         self.act_watch.blockSignals(False)
@@ -165,6 +168,9 @@ class MainWindow(QMainWindow):
 
     # ------------------------------------------------------------------ alarms
     def _on_fired(self, t):
+        from onionwatch import usage
+        usage.fired(self.cfg)
+        self._step("trigger-fired")
         text = self.triggers.alert_text(t)
         self._notify(t.name, text + (" " + _("Click here to stop.") if t.ring else ""))
         QApplication.alert(self, 0 if t.ring else 3000)   # flash the taskbar button
@@ -225,6 +231,11 @@ class MainWindow(QMainWindow):
         from onionwatch import usage
         usage.maybe_send(self.cfg, self.settings_changed.emit)
 
+    def _step(self, name: str):
+        """A new install's first time doing `name` (usage.STEPS): counted once."""
+        from onionwatch import usage
+        usage.step(self.cfg, name, self.settings_changed.emit)
+
     # ------------------------------------------------------------------ closing
     def closeEvent(self, ev: QCloseEvent):
         if not self._quitting and self.cfg.tray and self.tray.isVisible():
@@ -253,7 +264,10 @@ class MainWindow(QMainWindow):
         self.triggers.shutdown()
         self.player.close()
         self.cfg.geometry = bytes(self.saveGeometry().toHex()).decode()
+        from onionwatch import settings, usage
+        usage.remember(self.cfg)   # features used / problems since the last count
         self.save_now()
+        usage.mark_stopped(settings.APP_DIR)
         self.tray.hide()
 
     def about(self) -> str:

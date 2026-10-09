@@ -39,7 +39,7 @@ from PySide6.QtWidgets import (QAbstractSpinBox, QApplication, QBoxLayout, QChec
                                QStyleOptionSpinBox,
                                QVBoxLayout, QWidget)
 
-from onionwatch import cutout, owl, packs, profiles, screenwatch, theme, windows
+from onionwatch import cutout, owl, packs, profiles, screenwatch, theme, usage, windows
 from onionwatch.screenwatch import (INTERVALS_MS, MAX_PICTURES, MAX_SOUNDS, Monitor, Picture,
                                     Trigger, Watched, WindowRef)
 from onionwatch.shuffle import ShuffleBag
@@ -2597,6 +2597,7 @@ class TriggersTab(QWidget):
     `host` (onionwatch.host.Host) keeps the settings and has the sounds."""
     active_changed = Signal(bool)       # watching or not
     fired = Signal(object)              # a Trigger just went off (its sound started)
+    trigger_added = Signal()            # a new trigger was made (not one brought back)
     ringing_changed = Signal()          # a sound started or stopped ringing
     history_changed = Signal()          # something went off (TriggersTab.history)
     playing_changed = Signal()          # a trigger's sound started, or was stopped
@@ -3321,6 +3322,7 @@ class TriggersTab(QWidget):
         return dlg.places if dlg.exec() else None
 
     def _pick_for(self, row: TriggerRow):
+        usage.used("pick-windows")
         places = self.pick_places(row.t.sources)
         if places:
             row.set_places(places)
@@ -3413,6 +3415,7 @@ class TriggersTab(QWidget):
             self.btn_watch.setChecked(on)
             self.btn_watch.blockSignals(False)
         if on:
+            usage.used("watching")
             self._fill_sources()
             self._sync()
             self.watcher.start()
@@ -3616,6 +3619,7 @@ class TriggersTab(QWidget):
                 self._watch_ring(t)
             self._live[t.id] = time.monotonic()
             self.playing_changed.emit()
+            usage.used("went-off")
             self.fired.emit(t)
 
     def place_name(self, place) -> str:
@@ -4673,6 +4677,7 @@ class TriggersTab(QWidget):
         if self._web_added:
             self._web_tip(row)
         self._store()
+        self.trigger_added.emit()
         QTimer.singleShot(0, row, lambda: self.scroll.ensureWidgetVisible(row))
         row.name.setFocus()
         row.name.selectAll()
@@ -4951,6 +4956,7 @@ class TriggersTab(QWidget):
                 win.setWindowOpacity(was)
 
     def add_from_cut(self):
+        usage.used("cut-from-window")
         piece, notes, flash = self._cut(self.watcher.default)
         if piece is not None:
             t = self._new(piece, _("Trigger {n}", n=len(self.triggers) + 1), notes)
@@ -4958,6 +4964,7 @@ class TriggersTab(QWidget):
                 self.rows[t.id].flash(flash, 5000)
 
     def _cut_picture(self, row: TriggerRow):
+        usage.used("cut-from-window")
         src = row.t.source if row.t.source is not None else self.watcher.default
         piece, notes, flash = self._cut(src, row.t.threshold)
         if piece is not None and self._add_pictures(row.t, [piece], notes=notes):
@@ -4967,12 +4974,14 @@ class TriggersTab(QWidget):
 
     # ------------------------------------------------------------------ files
     def add_from_file(self):
+        usage.used("picture-file")
         path, __ = QFileDialog.getOpenFileName(self, _("Picture to look for"), str(Path.home()),
                                               picture_filter())
         if path:
             self._new(picture_file(path), Path(path).stem)
 
     def add_from_clipboard(self):
+        usage.used("paste-picture")
         img = copied_picture()
         if img.isNull():
             QMessageBox.information(self, _("No picture copied"),
@@ -4983,6 +4992,7 @@ class TriggersTab(QWidget):
 
     def _add_picture_files(self, row: TriggerRow):
         """The card's "+ Add pictures…": any number of files onto this trigger."""
+        usage.used("picture-file")
         paths, __ = QFileDialog.getOpenFileNames(self, _("Pictures to look for"),
                                                 str(Path.home()), picture_filter())
         if paths and self._add_pictures(row.t, [picture_file(p) for p in paths],
@@ -4991,6 +5001,7 @@ class TriggersTab(QWidget):
 
     def _add_dropped_files(self, row: TriggerRow, paths: list[str]):
         """Picture files dropped on a card: onto its trigger."""
+        usage.used("picture-file")
         if paths and self._add_pictures(row.t, [picture_file(p) for p in paths],
                                         [Path(p).name for p in paths]):
             self._store()
@@ -5002,6 +5013,7 @@ class TriggersTab(QWidget):
 
     def _paste_picture(self, row: TriggerRow):
         """The card's "Paste picture": the copied picture onto this trigger."""
+        usage.used("paste-picture")
         img = copied_picture()
         if img.isNull():
             QMessageBox.information(self, _("No picture copied"),
@@ -5239,6 +5251,7 @@ class TriggersTab(QWidget):
         self._store()
         self._label_bin()
         QTimer.singleShot(0, row, lambda: self.scroll.ensureWidgetVisible(row))
+        usage.used("restore-deleted")
         return True
 
     def forget_deleted(self, entry_id: str):
@@ -5283,6 +5296,7 @@ class TriggersTab(QWidget):
 
     def _duplicate(self, row: TriggerRow):
         """A copy of the trigger (its pictures copied too), just below it."""
+        usage.used("duplicate")
         if len(self.triggers) >= MAX_TRIGGERS:
             QMessageBox.information(self, _("Too many triggers"),
                                     _("You can have up to {max_triggers} triggers.",
@@ -5307,6 +5321,7 @@ class TriggersTab(QWidget):
         self.triggers.insert(i, t)
         row = self._add_row(t)
         self._store()
+        self.trigger_added.emit()
         QTimer.singleShot(0, row, lambda: self.scroll.ensureWidgetVisible(row))
         return row
 
@@ -5314,6 +5329,7 @@ class TriggersTab(QWidget):
         """A new trigger that watches an area rather than looking for a picture: it
         starts as "the area stops changing" (a game stuck or idle); the card picks
         another kind."""
+        usage.used("area-trigger")
         if len(self.triggers) >= MAX_TRIGGERS:
             QMessageBox.information(self, _("Too many triggers"),
                                     _("You can have up to {max_triggers} triggers.",
@@ -5328,6 +5344,7 @@ class TriggersTab(QWidget):
         row.name.selectAll()
 
     def show_history(self):
+        usage.used("history")
         if self.pages is not None:
             self.pages.show_log()
         else:
@@ -5363,6 +5380,7 @@ class TriggersTab(QWidget):
     def test_trigger(self, t: Trigger):
         """A card's Test: play it as it would go off, shown in Playing now like any
         other; pressed again while it plays (it says Stop then), stop it."""
+        usage.used("test")
         if any(x.id == t.id for x, __ in self.playing_now()):
             self.stop_trigger(t.id)
             return
@@ -5421,6 +5439,7 @@ class TriggersTab(QWidget):
         except OSError as e:
             QMessageBox.warning(self, _("Couldn't save the triggers"), str(e))
             return
+        usage.used("pack-export")
         QMessageBox.information(
             self, _("Triggers saved"),
             ngettext("{n} trigger saved to {name}, pictures and all, each in its category "
@@ -5449,6 +5468,7 @@ class TriggersTab(QWidget):
                 t.category = name
         added = self.add_pack(found)
         if added:
+            usage.used("pack-import")
             self.add_pack_looks(packs.read_categories(path))
         if found and not added:
             QMessageBox.information(self, _("Too many triggers"),

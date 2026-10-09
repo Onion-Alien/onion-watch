@@ -6,7 +6,10 @@
 ;     things the app does online (the daily update check and the anonymous count)
 ;   - a Start menu shortcut, a Desktop one if ticked, and "Count me in" (the anonymous
 ;     daily count, onionwatch/usage.py; ticked). Unticked runs OnionWatch.exe
-;     --usage-count off before the first start, so nothing is ever sent
+;     --usage-count off before the first start: the only thing ever sent is one
+;     anonymous "opt-out/installer" (no ID)
+;   - uninstalling runs OnionWatch.exe --uninstall-count: one "uninstall/<version>",
+;     only if the count is on
 ;   - a new install with Count me in ticked: "Where did you hear about Onion Watch?"
 ;     (HeardPage), sent once with the first-start count
 ;   - then opens Onion Watch
@@ -70,13 +73,13 @@ CloseApplications=yes
 WelcomeLabel1=Let's set up Onion Watch
 WelcomeLabel2=Onion Watch plays a sound when something shows up in your game: a rare spawn, a queue pop, a whisper, even while you're alt-tabbed away. It only looks: it never clicks, types or touches the game.%n%nDid Windows or your browser warn you before this opened ("Windows protected your PC", "not commonly downloaded")? That's normal for a free app that isn't code-signed. Next time: More info, then Run anyway.%n%nClick Next to start.
 FinishedHeadingLabel=All done!
-FinishedLabel=Onion Watch is installed. You can find it later in the Start menu.%n%nPrivacy: no account or ads. The only thing counted is the anonymous "still here" if you left Count me in ticked. Settings > Updates and privacy can switch it and the update check off.
+FinishedLabel=Onion Watch is installed. You can find it later in the Start menu.%n%nPrivacy: no account or ads. If you left Count me in ticked, it sends anonymous usage stats once a day (never your name, IP address or device info). Settings > Updates and privacy can switch it and the update check off.
 WizardSelectTasks=Pick what you want
 SelectTasksDesc=Tick what you'd like. If you're not sure, leave the boxes as they are.
 
 [Tasks]
 Name: "desktopicon"; Description: "Put an Onion Watch shortcut on my Desktop"; GroupDescription: "Shortcuts"
-Name: "countme"; Description: "Count me in: an anonymous ""still here"" once a day, so we know people use it"; GroupDescription: "Privacy (optional)"
+Name: "countme"; Description: "Count me in: anonymous usage stats (features used, crash counts)"; GroupDescription: "Privacy (optional)"
 
 [InstallDelete]
 ; the last version's runtime: cleared first so files a release no longer ships don't
@@ -95,7 +98,7 @@ Name: "{autoprograms}\{#AppName}"; Filename: "{app}\{#AppExeName}.exe"; AppUserM
 
 [Run]
 ; "Count me in" (onionwatch/usage.py): unticked, it's switched off before the first
-; start, so nothing is ever sent. Ticked on a page the user saw, it's switched on (an
+; start; the only thing ever sent is one anonymous "opt-out/installer" (no ID). Ticked on a page the user saw, it's switched on (an
 ; old install had it off); a silent update never switches it on.
 Filename: "{app}\{#AppExeName}.exe"; Parameters: "--usage-count off"; \
   StatusMsg: "Switching off the usage count..."; \
@@ -158,8 +161,9 @@ begin
     'It goes online for just two things, once a day:' + #13#10 +
     Bullet + 'to check GitHub for a new version (nothing downloads until you click ' +
     'Update now)' + #13#10 +
-    Bullet + 'to send an anonymous "still here" if Count me in is ticked on the next ' +
-    'page: the version number and a random number made on this PC.' + #13#10#13#10 +
+    Bullet + 'to send anonymous usage stats if Count me in is ticked on the next ' +
+    'page: the version, which features are used, crash counts and a random number ' +
+    'made on this PC. Never your name, IP address or device info.' + #13#10#13#10 +
     'You can switch both off any time in Settings > Updates and privacy.';
   Body.AdjustHeight;
   Link := TNewStaticText.Create(PrivacyPage);
@@ -311,4 +315,16 @@ end;
 procedure CurPageChanged(CurPageID: Integer);
 begin
   UpdateInstallCaption;
+end;
+
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var
+  Code: Integer;
+begin
+  if CurUninstallStep <> usUninstall then
+    exit;
+  // the anonymous usage count's "uninstall/<version>" (onionwatch/usage.py): the app
+  // sends it only if the count is switched on, and gives up after 15 s offline
+  Exec(ExpandConstant('{app}\{#AppExeName}.exe'), '--uninstall-count', '', SW_HIDE,
+       ewWaitUntilTerminated, Code);
 end;

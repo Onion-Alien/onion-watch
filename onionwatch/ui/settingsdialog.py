@@ -8,6 +8,7 @@ restarts (Restart now)."""
 from __future__ import annotations
 
 import os
+import threading
 import webbrowser
 
 from PySide6.QtCore import QRectF, QSize, Qt
@@ -403,16 +404,39 @@ class SettingsDialog(QDialog):
         self.check_status = hint_label("")
         self.check_status.hide()
         cv.addWidget(self.check_status)
-        self.usage = QCheckBox(_("Count me in: an anonymous \"still here\""))
+        row = QHBoxLayout()
+        self.usage = QCheckBox(_("Count me in"))
         self.usage.setChecked(cfg.usage_count)
-        self.usage.toggled.connect(lambda on: self._set("usage_count", on))
-        cv.addWidget(self.usage)
-        cv.addWidget(hint_label(_("Once a day: the version and a random number made on this "
-                                  "PC, so we know people use it. Never your triggers, "
-                                  "pictures, windows or games.")))
+        self.usage.toggled.connect(self._on_usage)
+        row.addWidget(self.usage)
+        # the eye: what it sends, as a small table (ui/countdialog.py)
+        self.count_eye = QPushButton()
+        self.count_eye.setFlat(True)
+        icons.set_icon(self.count_eye, "eye")
+        self.count_eye.setToolTip(_("See what's sent"))
+        self.count_eye.setAccessibleName(_("See what's sent"))
+        self.count_eye.clicked.connect(self._show_count)
+        row.addWidget(self.count_eye)
+        row.addStretch(1)
+        cv.addLayout(row)
+        cv.addWidget(hint_label(_("Anonymous usage stats once a day, to see what to improve. "
+                                  "Never your name, IP address or device info.")))
         v.addWidget(card)
         v.addStretch(1)
         return w
+
+    def _on_usage(self, on: bool):
+        if not on and self.win.cfg.usage_count:
+            # Count me in switched off: one anonymous "opt-out/settings" (usage.opt_out:
+            # no ID), then nothing
+            from onionwatch import usage
+            threading.Thread(target=usage.opt_out, args=("settings",), daemon=True,
+                             name="usage-opt-out").start()
+        self._set("usage_count", on)
+
+    def _show_count(self):
+        from onionwatch.ui import countdialog
+        self.count_dialog = countdialog.show(self)
 
     def _about(self):
         w, v = self._page()
