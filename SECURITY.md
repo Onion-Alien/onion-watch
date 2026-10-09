@@ -16,7 +16,7 @@ private reporting instead: go to the repository's **Security** tab and choose
 | Settings and log | `%APPDATA%\OnionWatch` | |
 | Network: update check | `api.github.com` once a day, unless switched off | is there a newer release? Nothing downloads until you click *Update now* |
 | Network: *Update now* | this project's GitHub release files only | the new installer, checked against the SHA-256 GitHub lists, then run over the installed copy |
-| Network: usage count | `onionalien.goatcounter.com` once a day, unless switched off | an anonymous "still here": the version and a random ID made on your PC, a one-off first start (with where you heard about it, if you picked that in the installer) and *Update now* events. Never triggers, pictures, window names, games or anything you type |
+| Network: usage count | `onionalien.goatcounter.com` once a day, unless switched off | an anonymous "still here": the version and a random ID made on your PC (it links your counts together so we can see how people use the app over time and what to improve; it isn't tied to your name or anything else about you), a one-off first start (with where you heard about it, if you picked that in the installer) and *Update now* events. Never triggers, pictures, window names, games or anything you type |
 | Send feedback / Report a problem | opens your browser | the app itself sends nothing |
 | A local socket (`OnionWatch.App`) | this PC only | a second launch asks the running copy to come to the front |
 

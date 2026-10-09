@@ -2,7 +2,8 @@
 
 Once a day the installed app sends one "still here" to the project's GoatCounter
 (a privacy-friendly counter, the same one Onion Board uses): the version number and
-a random ID made on this PC, so the same person isn't counted twice. Also a one-off
+a random ID made on this PC, so the same person isn't counted twice and we can see how
+people use the app over time. Also a one-off
 "first start" (with where they heard about the app, if they picked it on the
 installer's last page), and "updated" when *Update now* installs a new version.
 Nothing else: no name, triggers, pictures, windows, games or IP address in the
