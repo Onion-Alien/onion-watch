@@ -18,6 +18,7 @@ developer's own PCs and test VMs, the same switch Onion Board obeys). Inside Oni
 Board (as its Triggers tab) this module isn't used at all: the board counts itself."""
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
@@ -63,6 +64,13 @@ def install_id(cfg) -> str:
     return cfg.stats_id
 
 
+def user_tag(sid: str) -> str:
+    """A short tag made from the random ID, sent as each count's "ref". GoatCounter
+    swaps "session" for its own number that starts over after 8 hours, so one person's
+    daily counts only link up across days through this. A hash, not the ID itself."""
+    return "u-" + hashlib.sha256(sid.encode()).hexdigest()[:12]
+
+
 def _wordlike(w: str) -> bool:
     """A word, a short name ("tv") or a number: not keyboard mashing ("asdfgh")."""
     return w.isdigit() or ((len(w) <= 3 or bool(re.search(r"[aeiouy]", w)))
@@ -97,15 +105,17 @@ def hits(cfg, now: float, event: str = "") -> list[dict]:
     (and "first-start" the first time ever), or the one `event`."""
     sid = install_id(cfg)
     if event:
-        return [{"path": event, "title": event, "event": True, "session": sid}]
+        return [{"path": event, "title": event, "event": True, "session": sid,
+                 "ref": user_tag(sid)}]
     if now - cfg.stats_sent < EVERY_S:
         return []
     out = [{"path": f"/{PREFIX}/app/{__version__}", "title": f"Onion Watch {__version__}",
-            "session": sid}]
+            "session": sid, "ref": user_tag(sid)}]
     if not cfg.stats_sent:
         heard = heard_tag(cfg.stats_heard)
         first = f"{PREFIX}/first-start" + (f"/heard-{heard}" if heard else "")
-        out.append({"path": first, "title": first, "event": True, "session": sid})
+        out.append({"path": first, "title": first, "event": True, "session": sid,
+                    "ref": user_tag(sid)})
     return out
 
 
