@@ -27,7 +27,6 @@ def rows() -> list[tuple[str, str, str]]:
         (_("Crashes and errors"), "error/0.9.6", _("Find and fix bugs")),
         (_("Your answers, if you give them"), _("heard of it on YouTube"),
          _("Know where people find the app")),
-        (_("A random ID"), "3f9a1c…", _("See if people come back")),
     ]
 
 
