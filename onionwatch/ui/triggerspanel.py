@@ -2832,9 +2832,8 @@ class TriggersTab(QWidget):
         self.list_layout = QVBoxLayout(self.list)
         self.list_layout.setContentsMargins(0, 0, 0, 0)
         self.list_layout.setSpacing(10)
-        self.empty = QWidget()
-        ev = QVBoxLayout(self.empty)
-        ev.setContentsMargins(0, 24, 0, 0)
+        self.empty, ev = card()
+        ev.setContentsMargins(16, 24, 16, 24)
         ev.setSpacing(10)
         self.hoot = owl.OwlWidget(96)   # waiting (sadly) for something to watch
         ev.addWidget(self.hoot, 0, Qt.AlignHCenter)

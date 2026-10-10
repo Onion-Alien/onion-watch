@@ -2,6 +2,10 @@
 
 What changed between releases, for the release notes. Newest first.
 
+## Unreleased
+
+- The empty trigger list keeps Hoot and his guidance inside a padded card.
+
 ## 0.9.6 (2026-10-09)
 
 - **Roomier Triggers screen.** More space between rows, cards and the list, so it's
