@@ -471,7 +471,7 @@ SHAPES = {
     "palette": _palette, "gamepad": _gamepad, "image": _image, "radio": _radio,
     "apps": _apps, "triggers": _eye, "fold": _chevron("right"), "fold_open": _chevron("down"),
     "window": _window, "crop": _crop, "bell": _bell, "search": _search,
-    "gauge": _gauge, "shield": _shield, "star": _star,
+    "gauge": _gauge, "shield": _shield, "star": _star, "eye": _eye,
 }
 
 

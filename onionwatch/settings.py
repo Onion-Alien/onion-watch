@@ -58,6 +58,14 @@ class Config:
     stats_id: str = ""
     stats_sent: float = 0.0
     stats_heard: str = ""
+    # ...and the daily count's picture of how it's used: when this install started
+    # (age/), the first steps sent, features used and triggers gone off since the last
+    # one, and problems not sent yet
+    stats_started: float = 0.0
+    stats_steps: list = field(default_factory=list)
+    stats_used: list = field(default_factory=list)
+    stats_fired: int = 0
+    stats_problems: list = field(default_factory=list)
     # Settings → Look → Language: a catalog's code ("de", "pt-BR"…), or "" for Windows'
     # own. Read on its own by i18n.startup() before anything else, as the app starts
     language: str = ""

@@ -71,6 +71,12 @@ class Host(Protocol):
 #         """The host's language ("en", "de", "pt-BR", the pseudo-language "xx"…): the
 #         page shows in it where Onion Watch has that language. Without it the page
 #         follows Windows' language."""
+#
+#     def count(self, key: str) -> None:
+#         """A feature of the page was used or is set up (`key`: one of
+#         onionwatch.usage.FEATURES), for the host's own anonymous usage count:
+#         Onion Board sends it as used/triggers-<key> with its daily count, when
+#         that's switched on. Without it nothing is counted."""
 
 
 def missing(host) -> list[str]:

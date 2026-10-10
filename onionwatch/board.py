@@ -14,7 +14,7 @@ from __future__ import annotations
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QApplication, QVBoxLayout, QWidget
 
-from onionwatch import __version__, i18n, theme
+from onionwatch import __version__, i18n, theme, usage
 from onionwatch.host import API_VERSION, missing
 from onionwatch.i18n import _
 
@@ -71,6 +71,9 @@ class BoardPanel(QWidget):
         v = QVBoxLayout(self)
         v.setContentsMargins(0, 8, 0, 0)
         v.setSpacing(8)
+        # the features used go to the board's own anonymous count (its optional
+        # count(): an older board has none, and then nothing is counted at all)
+        usage.forward_to(getattr(host, "count", None))
         self.panel = TriggersTab(host)
         self.btn_more = self.panel.btn_more   # the board adds "Remove Onion Watch…" to it
         self.alarm = AlarmBar(self.panel)
@@ -78,7 +81,16 @@ class BoardPanel(QWidget):
         self.panel.pages = self.pages
         v.addWidget(self.pages, 1)
         self.panel.active_changed.connect(self.active_changed)
+        self.panel.active_changed.connect(self._count_setup)
         self.panel.fired.connect(self._on_fired)
+        self._count_setup(True)
+
+    def _count_setup(self, on: bool):
+        """The features the triggers are set up with (usage.SET_UP), for the board's
+        count: now, and each time watching starts."""
+        if on:
+            for key in usage.setup_features(self.host.screen):
+                usage.used(key)
 
     def _on_fired(self, t):
         self.host.notify(t.name, self.panel.alert_text(t))
@@ -112,3 +124,4 @@ class BoardPanel(QWidget):
     def shutdown(self):
         self.panel.stop_ringing()
         self.panel.shutdown()
+        usage.forward_to(None)

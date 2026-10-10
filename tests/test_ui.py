@@ -3,11 +3,14 @@ plays the default alert when it shows up, a ringing trigger raises the alarm bar
 until it's stopped, a trigger can be pointed at a window (picked from a list with
 thumbnails), a picture can be cut straight out of a window, and a card says when
 its window isn't open. Stand-in captures only; nothing is heard."""
+import threading
+
 import numpy as np
 import pytest
 from conftest import SilentOutputStream, process_events
 from PySide6.QtCore import QPoint, QPointF, QRect, Qt
 from PySide6.QtGui import QImage, QMouseEvent
+from PySide6.QtWidgets import QLabel
 
 from onionwatch import screenwatch as sw
 from onionwatch import windows
@@ -597,3 +600,25 @@ def test_max_detection_is_picked_behind_the_cog_and_kept(tab, qapp, monkeypatch)
     odd = TriggersTab(tab.host)
     odd.shutdown()
     assert odd.watcher.max_detect == "off"
+
+
+def test_count_me_in_off_sends_one_opt_out_and_the_eye_shows_what_is_sent(
+        qapp, app_dir, fake_screen, monkeypatch):
+    from onionwatch import usage
+    from onionwatch.ui.mainwindow import MainWindow
+    from onionwatch.ui.settingsdialog import SettingsDialog
+    where = []
+    monkeypatch.setattr(usage, "opt_out", lambda w: where.append(w) or True)
+    win = MainWindow(Config())
+    try:
+        dlg = SettingsDialog(win)
+        dlg.count_eye.click()
+        assert dlg.count_dialog.isVisible() and len(dlg.count_dialog.findChildren(QLabel)) > 10
+        dlg.count_dialog.close()
+        dlg.usage.setChecked(False)
+        for t in threading.enumerate():
+            if t.name == "usage-opt-out":
+                t.join(5)
+        assert where == ["settings"] and win.cfg.usage_count is False
+    finally:
+        win.quit()

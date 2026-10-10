@@ -14,6 +14,7 @@ import ctypes  # noqa: E402
 import logging  # noqa: E402
 import logging.handlers  # noqa: E402
 import sys  # noqa: E402
+import threading  # noqa: E402
 
 from PySide6.QtWidgets import QApplication  # noqa: E402
 
@@ -61,7 +62,27 @@ def setup_logging() -> None:
 
     def hook(t, e, tb):
         log.critical("unhandled exception", exc_info=(t, e, tb))
+        _count_error(t, tb)
     sys.excepthook = hook
+
+    def thread_hook(a):
+        if a.exc_type is SystemExit:
+            return
+        log.critical("unhandled exception in thread %s",
+                     getattr(a.thread, "name", "?"), exc_info=(a.exc_type, a.exc_value,
+                                                             a.exc_traceback))
+        _count_error(a.exc_type, a.exc_traceback)
+    threading.excepthook = thread_hook
+
+
+def _count_error(etype, tb) -> None:
+    """An error the app didn't expect, for the anonymous usage count (its type and
+    where in our code only: onionwatch.usage.error_event)."""
+    try:
+        from onionwatch import usage
+        usage.note(usage.error_event(etype, tb))
+    except Exception:  # noqa: BLE001 - never a second error out of the first
+        pass
 
 
 def selftest() -> int:
@@ -92,10 +113,18 @@ def set_usage_count(argv: list[str]) -> int:
     """`OnionWatch.exe --usage-count on|off [--heard-from <answer>]`: the installer's
     "Count me in" box (and its "Where did you hear about Onion Watch?" page), saved
     to config.json before the app's first start, so an unticked box means nothing is
-    ever sent. Other settings are kept; nothing connects; no window. 0 once saved."""
+    ever sent but one anonymous "opt-out/installer" (usage.opt_out: no ID) when it was
+    on until now. Other settings are kept; no window. 0 once saved."""
     i = argv.index("--usage-count")
     on = argv[i + 1:i + 2] == ["on"]
     cfg = settings.Config.load()
+    if not on and cfg.usage_count:   # on until now: one anonymous opt-out first
+        try:
+            from onionwatch import usage
+            log.info("--usage-count off: opt-out %s",
+                     "sent" if usage.opt_out("installer") else "not sent")
+        except Exception:  # noqa: BLE001 - never in the installer's way
+            log.warning("--usage-count off: opt-out failed", exc_info=True)
     cfg.usage_count = on
     if on and "--heard-from" in argv:
         j = argv.index("--heard-from")
@@ -110,12 +139,29 @@ def set_usage_count(argv: list[str]) -> int:
     return 0
 
 
+def uninstall_count() -> int:
+    """`OnionWatch.exe --uninstall-count`: the uninstaller's one "uninstall/<version>"
+    for the anonymous usage count, only if it's switched on and was ever sent. No
+    window. Always 0: an uninstall never waits on, or fails for, this."""
+    try:
+        from onionwatch import usage
+        cfg = settings.Config.load()
+        if cfg.stats_id:   # never counted: switched off, or from before the count
+            log.info("--uninstall-count: %s", "sent" if usage.send_now(
+                cfg, usage.uninstall_event()) else "not sent")
+    except Exception:  # noqa: BLE001 - never in the uninstaller's way
+        log.warning("--uninstall-count failed", exc_info=True)
+    return 0
+
+
 def main():
     if "--selftest" in sys.argv:
         sys.exit(selftest())
     setup_logging()
     if "--usage-count" in sys.argv:
         sys.exit(set_usage_count(sys.argv))
+    if "--uninstall-count" in sys.argv:
+        sys.exit(uninstall_count())
     log.info("Onion Watch %s starting", __version__)
     # the language first: text is made in it from here on, some of it as modules load
     from onionwatch import i18n
@@ -136,6 +182,8 @@ def main():
     if not claim_single_instance(RESTART_WAIT_S if RESTART_ARG in sys.argv else 0.0):
         log.info("another Onion Watch is running; asked it to come to the front")
         sys.exit(0)
+    from onionwatch import usage
+    usage.note(usage.mark_running(settings.APP_DIR))   # the last run didn't close itself?
     holder = {}
     app.instance_server = listen_for_second_launch(app, lambda: holder.get("w"))
     from onionwatch.ui import splash
