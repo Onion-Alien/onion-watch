@@ -11,6 +11,33 @@ from onionwatch.ui import triggerspanel
 make = test_categories.make
 
 
+def test_new_trigger_glow_tracks_library_and_theme(make, qapp):
+    from PySide6.QtGui import QColor
+
+    from onionwatch import theme
+
+    tab = make({})
+    glow = tab.btn_new.graphicsEffect()
+    assert glow.isEnabled()
+    old_theme = theme.current_name
+    try:
+        theme.apply(qapp, "Light")
+        tab.retheme()
+        assert glow.color().rgb() == QColor(theme.T["accent"]).rgb()
+        tab.add_area_trigger()
+        assert not glow.isEnabled()
+        assert tab.btn_new.styleSheet() == ""
+        tab.search_text.setText("no match")
+        assert not glow.isEnabled()
+        tab.clear_search()
+        tab._remove(tab.rows[tab.triggers[0].id])
+        assert glow.isEnabled()
+        tab.undo_bar.undo()
+        assert not glow.isEnabled()
+    finally:
+        theme.apply(qapp, old_theme)
+
+
 def visible_ids(tab):
     return {tid for tid, row in tab.rows.items()
             if not row.isHidden() and not tab.sections[row.t.category].isHidden()}

@@ -33,7 +33,8 @@ from PySide6.QtGui import (QColor, QFontMetrics, QIcon, QImage, QKeySequence, QP
                            QPixmap, QShortcut)
 from PySide6.QtWidgets import (QAbstractSpinBox, QApplication, QBoxLayout, QCheckBox,
                                QComboBox, QDoubleSpinBox,
-                               QFileDialog, QFrame, QGridLayout, QHBoxLayout, QLabel,
+                               QFileDialog, QFrame, QGraphicsDropShadowEffect, QGridLayout,
+                               QHBoxLayout, QLabel,
                                QLineEdit, QMenu, QMessageBox, QPushButton, QScrollArea,
                                QSizePolicy, QSpacerItem, QSpinBox, QStyle, QStyleOptionComboBox,
                                QStyleOptionSpinBox,
@@ -2752,6 +2753,11 @@ class TriggersTab(QWidget):
         # + New trigger: one without a picture (it watches part of the window), right
         # where the list starts; a picture one is Cut picture… in the bar below
         self.btn_new = QPushButton(_("New trigger"))
+        self.btn_new.setObjectName("newtrigger")
+        self._new_trigger_glow = QGraphicsDropShadowEffect(self.btn_new)
+        self._new_trigger_glow.setBlurRadius(16)
+        self._new_trigger_glow.setOffset(0, 0)
+        self.btn_new.setGraphicsEffect(self._new_trigger_glow)
         self.btn_new.setToolTip(_("A new trigger without a picture: it watches part of the "
                                   "window, and its card says what it waits for. To watch for "
                                   "a picture, use Cut picture… below."))
@@ -3504,6 +3510,7 @@ class TriggersTab(QWidget):
         """The theme changed (onionwatch.theme.T has the new colours): redraw what
         was coloured by hand."""
         icons.retheme()
+        self._update_new_trigger_glow()
         self._search_icon.setIcon(icons.icon("search", "muted"))
         self.undo_bar.restyle()
         for sec in self.sections.values():
@@ -4090,8 +4097,25 @@ class TriggersTab(QWidget):
             return _("watching tick {s:.2f} s · individual intervals", s=self.watcher.gap)
         return _("each checked every {s:.1f} s", s=self.watcher.gap)
 
+    def _update_new_trigger_glow(self):
+        """Point to the first action only while the whole library is empty."""
+        empty = not self.triggers
+        self._new_trigger_glow.setEnabled(empty)
+        if empty:
+            accent = QColor(theme.T.get("accent", theme.THEMES[theme.DEFAULT]["accent"]))
+            accent.setAlpha(95)
+            self._new_trigger_glow.setColor(accent)
+            self.btn_new.setStyleSheet(
+                "QPushButton#newtrigger { border-color:rgba("
+                f"{accent.red()}, {accent.green()}, {accent.blue()}, 110); }}"
+                "QPushButton#newtrigger:focus { border-color:"
+                f"{accent.name()}; }}")
+        else:
+            self.btn_new.setStyleSheet("")
+
     def _refresh_counts(self):
         """The numbers on the sections' headers and the Profile line."""
+        self._update_new_trigger_glow()
         per: dict[str, list[int]] = {}
         for t in self.triggers:
             n = per.setdefault(t.category, [0, 0, 0])
