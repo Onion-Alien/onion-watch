@@ -5,7 +5,7 @@ own Stop, and Stop all; and the Chances button (ui.chances), unless it's switche
 off in Watching settings."""
 from __future__ import annotations
 
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QSize, QTimer
 from PySide6.QtWidgets import (QFrame, QHBoxLayout, QLabel, QPushButton, QStackedWidget,
                                QTabBar, QVBoxLayout, QWidget)
 
@@ -131,6 +131,9 @@ class TriggerPages(QWidget):
         self.tabs.setExpanding(False)
         self.tabs.addTab(_("Triggers"))
         self.tabs.addTab(_("Log"))
+        self.tabs.setIconSize(QSize(18, 18))
+        icons.set_tab_icon(self.tabs, 0, "triggers")
+        icons.set_tab_icon(self.tabs, 1, "history")
         v.addWidget(self.tabs)
         for w in top:
             v.addWidget(w)
