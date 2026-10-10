@@ -2865,12 +2865,8 @@ class TriggersTab(QWidget):
         ep = QVBoxLayout(self.editor_pane)
         ep.setContentsMargins(0, 0, 0, 0)
         ep.setSpacing(8)
-        # nothing picked: a soft outlined box filling the pane, the hint in its middle
-        self.editor_empty = QFrame()
-        self.editor_empty.setObjectName("editorempty")
-        self.editor_empty.setStyleSheet("QFrame#editorempty { border: 1px dashed palette(mid);"
-                                        " border-radius: 12px; }")
-        ee = QVBoxLayout(self.editor_empty)
+        # nothing picked: match the empty list's card, with the hint in its middle
+        self.editor_empty, ee = card()
         ee.setContentsMargins(32, 24, 32, 24)
         ee.setSpacing(10)
         ee.addStretch(1)
