@@ -2294,6 +2294,8 @@ class TriggerRow(QFrame):
             word, dot = _("Waiting"), theme.status("warn")
         elif self.watching and time.monotonic() < self.cooldown_until:
             word, dot = _("Cooldown"), theme.status("warn")
+        elif not TriggersTab.ready(self.t) or not self.t.sounds:
+            word, dot = _("Not set up"), muted    # as Chances says: nothing to watch yet
         elif score is None:
             word, dot = (_("Watching"), accent) if self.watching else (_("Ready"), muted)
         else:
