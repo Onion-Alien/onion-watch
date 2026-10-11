@@ -306,3 +306,16 @@ def test_cards_get_the_sounds_again_only_when_they_changed(tab, qapp, styled):
     assert len(calls) == first
     tab.sounds_changed(force=True)               # the theme changed, say
     assert len(calls) == first + 3
+
+
+def test_a_card_with_nothing_to_watch_or_play_says_not_set_up(tab):
+    """Not "Ready" while it has no picture or no sound (the Chances list's word)."""
+    (a,) = cards(tab, 1)
+    a.show_score(None)
+    assert "Ready" in a.live.text()
+    a.t.sounds = []
+    a.show_score(None)
+    assert "Not set up" in a.live.text()
+    a.t.sounds, a.t.images = ["builtin:rising"], []
+    a.show_score(None)
+    assert "Not set up" in a.live.text()
