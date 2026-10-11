@@ -4,6 +4,9 @@ What changed between releases, for the release notes. Newest first.
 
 ## Unreleased
 
+- The anonymous daily usage count goes by the day on your PC's clock, not every 24
+  hours: using the app in the evening and again the next afternoon counts as two days
+  (it used to count as one, and the second looked like a day off). Still one count a day.
 - The empty trigger list keeps Hoot and his guidance inside a padded card.
 
 ## 0.9.6 (2026-10-09)

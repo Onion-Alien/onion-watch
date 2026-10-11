@@ -220,3 +220,13 @@ def test_uninstall_count(monkeypatch, tmp_path):
     settings.Config(stats_id="abc").save(tmp_path)
     assert app.uninstall_count() == 0
     assert sent == [f"onion-watch/uninstall/{__version__}"]
+
+
+def test_the_daily_count_goes_by_the_calendar_day():
+    """8 pm, then 6 pm the next day: both days count (22 hours isn't a whole day)."""
+    import time
+    eight_pm = time.mktime((2026, 10, 12, 20, 0, 0, 0, 0, -1))
+    assert usage.due(eight_pm, eight_pm + 22 * 3600)
+    assert not usage.due(eight_pm, eight_pm + 60)            # the same evening
+    assert usage.due(eight_pm, eight_pm + usage.EVERY_S)    # a whole day
+    assert not usage.due(1e18, eight_pm)                     # the clock went back

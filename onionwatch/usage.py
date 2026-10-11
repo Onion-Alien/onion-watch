@@ -144,6 +144,16 @@ def _event(name: str, sid: str) -> dict:
     return {"path": name, "title": name, "event": True, "session": sid, "ref": user_tag(sid)}
 
 
+def due(sent: float, now: float) -> bool:
+    """Is the daily count due: a new day on this PC's clock since the last one, or a
+    whole day gone by. By the calendar, not 24 hours: someone who used it at 8 pm
+    and again at 6 pm the next day counts on both days (with a 24-hour rule the
+    second day went with the third, and looked like a day off)."""
+    if now - sent >= EVERY_S:
+        return True
+    return now > sent and time.localtime(now)[:3] != time.localtime(sent)[:3]
+
+
 def hits(cfg, now: float, event: str = "", extra=()) -> list[dict]:
     """What a send would say: the daily "still here" for this version if one is due
     (with "first-start" the first time ever, and about() with it), or the one
@@ -152,7 +162,7 @@ def hits(cfg, now: float, event: str = "", extra=()) -> list[dict]:
     if event:
         return [_event(event, sid)]
     out = [_event(e, sid) for e in extra]
-    if now - cfg.stats_sent < EVERY_S:
+    if not due(cfg.stats_sent, now):
         return out
     out.insert(0, {"path": f"/{PREFIX}/app/{__version__}",
                    "title": f"Onion Watch {__version__}", "session": sid,
