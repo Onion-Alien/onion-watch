@@ -4,6 +4,8 @@ What changed between releases, for the release notes. Newest first.
 
 ## Unreleased
 
+- Loaded inside Onion Board, Onion Watch no longer tries to start a second copy of
+  itself as a stand-alone app (Board logged an error about it every time).
 - The anonymous daily usage count goes by the day on your PC's clock, not every 24
   hours: using the app in the evening and again the next afternoon counts as two days
   (it used to count as one, and the second looked like a day off). Still one count a day.
