@@ -2,6 +2,7 @@
 from copy import deepcopy
 
 import pytest
+from PySide6.QtGui import QColor
 
 import test_categories
 from test_categories import raw, watched
@@ -12,28 +13,32 @@ make = test_categories.make
 
 
 def test_new_trigger_glow_tracks_library_and_theme(make, qapp):
-    from PySide6.QtGui import QColor
+    from PySide6.QtWidgets import QWidget
 
     from onionwatch import theme
 
     tab = make({})
-    glow = tab.btn_new.graphicsEffect()
-    assert glow.isEnabled()
+    # no QGraphicsEffect anywhere on an empty library's page: one on New trigger left
+    # Onion Board's bottom bar unpainted until something else redrew the window
+    assert not [w for w in tab.findChildren(QWidget)
+                if w.graphicsEffect() is not None and not w.isHidden()]
+    assert tab.btn_new.property("glow")
     old_theme = theme.current_name
     try:
         theme.apply(qapp, "Light")
         tab.retheme()
-        assert glow.color().rgb() == QColor(theme.T["accent"]).rgb()
+        accent = QColor(theme.T["accent"])
+        assert f"{accent.red()}, {accent.green()}, {accent.blue()}" in tab.btn_new.styleSheet()
         tab.add_area_trigger()
-        assert not glow.isEnabled()
+        assert not tab.btn_new.property("glow")
         assert tab.btn_new.styleSheet() == ""
         tab.search_text.setText("no match")
-        assert not glow.isEnabled()
+        assert not tab.btn_new.property("glow")
         tab.clear_search()
         tab._remove(tab.rows[tab.triggers[0].id])
-        assert glow.isEnabled()
+        assert tab.btn_new.property("glow")
         tab.undo_bar.undo()
-        assert not glow.isEnabled()
+        assert not tab.btn_new.property("glow")
     finally:
         theme.apply(qapp, old_theme)
 
