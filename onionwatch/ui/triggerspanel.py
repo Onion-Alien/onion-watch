@@ -33,7 +33,7 @@ from PySide6.QtGui import (QColor, QFontMetrics, QIcon, QImage, QKeySequence, QP
                            QPixmap, QShortcut)
 from PySide6.QtWidgets import (QAbstractSpinBox, QApplication, QBoxLayout, QCheckBox,
                                QComboBox, QDoubleSpinBox,
-                               QFileDialog, QFrame, QGraphicsDropShadowEffect, QGridLayout,
+                               QFileDialog, QFrame, QGridLayout,
                                QHBoxLayout, QLabel,
                                QLineEdit, QMenu, QMessageBox, QPushButton, QScrollArea,
                                QSizePolicy, QSpacerItem, QSpinBox, QStyle, QStyleOptionComboBox,
@@ -2756,10 +2756,8 @@ class TriggersTab(QWidget):
         # where the list starts; a picture one is Cut picture… in the bar below
         self.btn_new = QPushButton(_("New trigger"))
         self.btn_new.setObjectName("newtrigger")
-        self._new_trigger_glow = QGraphicsDropShadowEffect(self.btn_new)
-        self._new_trigger_glow.setBlurRadius(16)
-        self._new_trigger_glow.setOffset(0, 0)
-        self.btn_new.setGraphicsEffect(self._new_trigger_glow)
+        # (lit up by its own colours, _update_new_trigger_glow: a drop shadow on it left
+        # the bottom bar unpainted in Onion Board until something else redrew the window)
         self.btn_new.setToolTip(_("A new trigger without a picture: it watches part of the "
                                   "window, and its card says what it waits for. To watch for "
                                   "a picture, use Cut picture… below."))
@@ -4100,18 +4098,19 @@ class TriggersTab(QWidget):
         return _("each checked every {s:.1f} s", s=self.watcher.gap)
 
     def _update_new_trigger_glow(self):
-        """Point to the first action only while the whole library is empty."""
+        """Point to the first action only while the whole library is empty: an accent
+        border and a faint accent fill. Never a QGraphicsEffect: one on this button
+        stopped Onion Board painting the bottom bar of an empty library."""
         empty = not self.triggers
-        self._new_trigger_glow.setEnabled(empty)
+        self.btn_new.setProperty("glow", empty)
         if empty:
-            accent = QColor(theme.T.get("accent", theme.THEMES[theme.DEFAULT]["accent"]))
-            accent.setAlpha(95)
-            self._new_trigger_glow.setColor(accent)
+            a = QColor(theme.T.get("accent", theme.THEMES[theme.DEFAULT]["accent"]))
+            rgb = f"{a.red()}, {a.green()}, {a.blue()}"
             self.btn_new.setStyleSheet(
-                "QPushButton#newtrigger { border-color:rgba("
-                f"{accent.red()}, {accent.green()}, {accent.blue()}, 110); }}"
-                "QPushButton#newtrigger:focus { border-color:"
-                f"{accent.name()}; }}")
+                f"QPushButton#newtrigger {{ border-color:rgba({rgb}, 150); "
+                f"background-color:rgba({rgb}, 40); }}"
+                f"QPushButton#newtrigger:hover {{ background-color:rgba({rgb}, 70); }}"
+                f"QPushButton#newtrigger:focus {{ border-color:{a.name()}; }}")
         else:
             self.btn_new.setStyleSheet("")
 
