@@ -273,6 +273,11 @@ def _copy(p, fill):
     p.drawPath(path)
 
 
+def _close(p, fill):
+    p.drawLine(QPointF(6, 6), QPointF(18, 18))
+    p.drawLine(QPointF(18, 6), QPointF(6, 18))
+
+
 def _trash(p, fill):
     p.drawLine(QPointF(4, 6.5), QPointF(20, 6.5))
     p.drawLine(QPointF(9.5, 6.5), QPointF(10, 3.5))
@@ -485,7 +490,8 @@ SHAPES = {
     "settings": _gear, "history": _history, "leaf": _leaf, "live": _live,
     "back": _arrow("back"), "forward": _arrow("forward"), "reload": _reload,
     "speech": _speech, "cable": _cable, "check": _check, "warn": _warn, "folder": _folder,
-    "next": _next, "edit": _edit, "trash": _trash, "copy": _copy, "keyboard": _keyboard,
+    "next": _next, "edit": _edit, "trash": _trash, "copy": _copy, "close": _close,
+    "keyboard": _keyboard,
     "palette": _palette, "gamepad": _gamepad, "image": _image, "radio": _radio,
     "apps": _apps, "triggers": _eye, "fold": _chevron("right"), "fold_open": _chevron("down"),
     "window": _window, "crop": _crop, "bell": _bell, "search": _search,

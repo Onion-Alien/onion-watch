@@ -36,7 +36,8 @@ from PySide6.QtWidgets import (QAbstractSpinBox, QApplication, QBoxLayout, QChec
                                QFileDialog, QFrame, QGridLayout,
                                QHBoxLayout, QLabel,
                                QLineEdit, QMenu, QMessageBox, QPushButton, QScrollArea,
-                               QSizePolicy, QSpacerItem, QSpinBox, QStyle, QStyleOptionComboBox,
+                               QSizePolicy, QSpacerItem, QSpinBox, QSplitter, QStyle,
+                               QStyleOptionComboBox,
                                QStyleOptionSpinBox,
                                QVBoxLayout, QWidget)
 
@@ -45,7 +46,7 @@ from onionwatch.screenwatch import (INTERVALS_MS, MAX_PICTURES, MAX_SOUNDS, Moni
                                     Trigger, Watched, WindowRef)
 from onionwatch.shuffle import ShuffleBag
 from onionwatch.ui import icons
-from onionwatch.ui.categories import (MAX_PER_ROW, CategoriesDialog, CategorySection,
+from onionwatch.ui.categories import (MAX_PER_ROW, PAD, CategoriesDialog, CategorySection,
                                       ProfilesDialog,
                                       counts_text)
 from onionwatch.ui.chances import LiveLabel, goes_below
@@ -98,6 +99,8 @@ OLD_TRIGGERS = 50
 SEARCH_MIN = 200        # px: the search box never gets narrower (it was squeezed to "Sea…")
 SEARCH_ROOM = 260       # px it keeps before the view's controls go to a line of their own
 LIST_VIEW = -1          # the View list's "List and editor"
+PADS_VIEW = -2          # ...and its "Pads"
+PADS_SHARE = 0.3        # how much of the width the pads keep beside an editor at first
 SPLIT_MIN = 760         # px: from this wide, the list on the left and one trigger's editor
 LIST_WIDTH = 300        # ...on the right; the list is this wide
 MAX_SIDE = 8192         # bigger pictures are refused (kept pixel for pixel, never resized)
@@ -665,6 +668,7 @@ class Thumb(QWidget):
 
 
 TILE_THUMB = QSize(60, 36)  # a closed card's (a tile's) one thumbnail
+PAD_THUMB = QSize(124, 64)  # ...and a pad's (the Pads view), over its name
 
 
 class Strip(QScrollArea):
@@ -1493,6 +1497,7 @@ class TriggerRow(QFrame):
         self.btn_open.setAccessibleName(_("Edit trigger"))
         self.btn_open.toggled.connect(self.set_open)
         self._tile: bool | None = None      # how the header is laid out now (_arrange)
+        self.pad = False                    # closed, it's a pad: the picture over the name
         self._said: bool | None = None      # a tile's line is saying what's wrong
         v.addLayout(top)
 
@@ -1836,9 +1841,21 @@ class TriggerRow(QFrame):
         self.btn_open.setToolTip(_("Close this trigger") if on else _("Open this trigger to change "
                                                                    "it"))
 
+    def set_pad(self, on: bool):
+        """Closed, a pad (the Pads view: the picture over the name, how it's doing and
+        the switch) or a tile (all on one line)."""
+        if on != self.pad:
+            self.pad = on
+            self._tile = None
+            self._arrange(not self.is_open)
+
+    def _thumb_size(self) -> QSize:
+        return (THUMB if not self._tile else PAD_THUMB if self.pad else TILE_THUMB)
+
     def _arrange(self, tile: bool):
         """The header as a tile's (a small picture, the name over one line: how it's
-        doing and what it plays, or what's wrong; the switch) or the open card's (the
+        doing and what it plays, or what's wrong; the switch), a pad's (the picture
+        over the name, and how it's doing beside the switch) or the open card's (the
         whole width: its pictures, the name to type in over what it does and plays,
         the live state and the switch)."""
         if tile == self._tile:
@@ -1850,14 +1867,30 @@ class TriggerRow(QFrame):
             top.removeWidget(widget)
         for col in range(5):
             top.setColumnStretch(col, 0)
-        size = TILE_THUMB if tile else THUMB
+        size = self._thumb_size()
         self.strip.set_look(size, 1 if tile else STRIP_THUMBS)
         self.badge.setFixedSize(size + QSize(8, 8))
         self.btn_open.setFixedSize(20 if tile else 28, 28)
         middle = Qt.AlignVCenter
-        top.addWidget(self.pics, 0, 0, 2, 1, Qt.AlignLeft | middle)
-        top.addWidget(self.badge, 0, 0, 2, 1, Qt.AlignLeft | middle)
-        if tile:
+        pad = tile and self.pad
+        if pad:
+            top.addWidget(self.pics, 0, 0, 1, 2, Qt.AlignHCenter)
+            top.addWidget(self.badge, 0, 0, 1, 2, Qt.AlignHCenter)
+        else:
+            top.addWidget(self.pics, 0, 0, 2, 1, Qt.AlignLeft | middle)
+            top.addWidget(self.badge, 0, 0, 2, 1, Qt.AlignLeft | middle)
+        # (a pad has no arrow: a click opens it)
+        self.btn_open.setVisible(not pad and self.on_open is None and not self.pinned)
+        if pad:
+            top.addWidget(self.name_line, 1, 0, 1, 2)
+            top.addWidget(self.live, 2, 0, Qt.AlignLeft | middle)
+            top.addWidget(self.names, 2, 0, Qt.AlignLeft | middle)    # (_fit_lines)
+            top.addWidget(self.chk_on, 2, 1, Qt.AlignRight | middle)
+            top.addWidget(self.details, 3, 0, 1, 2)
+            top.setColumnStretch(0, 1)
+            self.setCursor(Qt.PointingHandCursor)
+            self.setToolTip(_("Click to open it, drag to move it"))
+        elif tile:
             top.addWidget(self.name_line, 0, 1, 1, 2, Qt.AlignBottom)
             top.addWidget(self.live, 1, 1, Qt.AlignLeft | Qt.AlignTop)
             top.addWidget(self.names, 1, 2, Qt.AlignTop)    # (_fit_lines moves it)
@@ -1904,10 +1937,15 @@ class TriggerRow(QFrame):
         when there's something to say, else how it's doing and what it plays. Open,
         all of them."""
         say = bool(self.state.property("tone")) or self.btn_retarget.isVisibleTo(self)
+        pad = bool(self._tile) and self.pad
         self.state.setVisible(not self._tile or say)
-        self.sound_summary.setVisible(not self._tile or not say)
+        # a pad: what's wrong, else how it's doing, beside its switch (no sounds line)
+        self.sound_summary.setVisible(not self._tile or not (say or pad))
+        self.names.setVisible(not pad or say)
         self.live.setVisible(not self._tile or not say)
-        if self._tile and say != self._said:    # under the name, where the state was
+        if pad:
+            self._said = say
+        elif self._tile and say != self._said:    # under the name, where the state was
             self._said = say
             self.top.removeWidget(self.names)
             self.top.addWidget(self.names, 1, 1 if say else 2, 1, 2 if say else 1,
@@ -1947,7 +1985,7 @@ class TriggerRow(QFrame):
         # the +: with no picture yet it's the slot the first one goes in; after that
         # it follows the open card's pictures, and is on a closed card's thumbnail
         some = bool(self.t.images)
-        size = TILE_THUMB if self._tile else THUMB
+        size = self._thumb_size()
         self.strip.setVisible(some)
         self.btn_add_pic.setVisible(not some or not self._tile)
         self.btn_add_pic.setFixedSize(28 if some else size.width() + 8, size.height() + 8)
@@ -2812,15 +2850,17 @@ class TriggersTab(QWidget):
                                      "that open where they are: as many as fit at their usual "
                                      "size (Auto), or a number of your own."))
         self.cb_per_row.addItem(_("List and editor"), LIST_VIEW)
+        self.cb_per_row.addItem(_("Pads"), PADS_VIEW)
         self.cb_per_row.addItem(_("Auto per row"), 0)
         for k in range(1, MAX_PER_ROW + 1):
             self.cb_per_row.addItem(_("{k} per row", k=k), k)
         per_row = host.screen.get("cards_per_row")
         self.per_row = per_row if type(per_row) is int and 0 < per_row <= MAX_PER_ROW else 0
-        # (a key of its own: an older version reads cards_per_row, and knows no list)
+        # (a key of its own: an older version reads cards_per_row, and knows no list;
+        # one that knows no pads reads "pads" as the list)
         self.list_view = host.screen.get("view") != "cards"
-        self.cb_per_row.setCurrentIndex(self.cb_per_row.findData(
-            LIST_VIEW if self.list_view else self.per_row))
+        self.pads = host.screen.get("view") == "pads"   # (the pads beside the editor)
+        self.cb_per_row.setCurrentIndex(self.cb_per_row.findData(self._view_data()))
         no_wheel(self.cb_per_row)
         align_control(self.cb_per_row)
         self.cb_per_row.activated.connect(self._on_view)
@@ -2882,8 +2922,20 @@ class TriggersTab(QWidget):
         self.body = QWidget()
         bh = QHBoxLayout(self.body)
         bh.setContentsMargins(0, 0, 0, 0)
-        bh.setSpacing(10)
-        bh.addWidget(self.scroll, 1)
+        bh.setSpacing(0)
+        # the list and the editor side by side, the gap between them a handle: in the
+        # Pads view it's dragged to share the width out (kept as "pads_split")
+        self.splitter = QSplitter(Qt.Horizontal)
+        self.splitter.setChildrenCollapsible(False)
+        self.splitter.setHandleWidth(10)
+        self.splitter.setStyleSheet(
+            "QSplitter { background: transparent; }"
+            "QSplitter::handle { background: transparent; }"
+            "QSplitter::handle:enabled:hover { background: palette(mid); margin: 0 3px;"
+            " border-radius: 2px; }")
+        self.splitter.splitterMoved.connect(self._on_split_moved)
+        bh.addWidget(self.splitter, 1)
+        self.splitter.addWidget(self.scroll)
         self.editor_scroll = QScrollArea()
         self.editor_scroll.setWidgetResizable(True)
         self.editor_scroll.setFrameShape(QFrame.NoFrame)
@@ -2909,7 +2961,14 @@ class TriggersTab(QWidget):
         ep.addStretch(0)        # under a picked trigger: the gap (_empty_shown)
         self.editor_scroll.setWidget(self.editor_pane)
         self.editor_scroll.hide()
-        bh.addWidget(self.editor_scroll, 1)
+        self.splitter.addWidget(self.editor_scroll)
+        self.splitter.setStretchFactor(0, 0)
+        self.splitter.setStretchFactor(1, 1)
+        self.splitter.handle(1).setEnabled(False)   # only the Pads view drags it
+        self._split_save = QTimer(self)     # the handle's place, saved once it stops
+        self._split_save.setSingleShot(True)
+        self._split_save.setInterval(400)
+        self._split_save.timeout.connect(self.host.save)
         self.editor: TriggerRow | None = None   # the trigger shown on the right
         self.split = False
         v.addWidget(self.body, 1)
@@ -3055,7 +3114,10 @@ class TriggersTab(QWidget):
     def resizeEvent(self, event):
         super().resizeEvent(event)
         self._fit_top()
+        was = self.split
         self._set_split(self.list_view and self.width() >= SPLIT_MIN)
+        if was and self.split:
+            self._fit_split(resized=True)
 
     # ------------------------------------------------------------------ list and editor
     def _set_split(self, on: bool):
@@ -3064,27 +3126,58 @@ class TriggersTab(QWidget):
         if on == self.split:
             return
         self.split = on
-        self.scroll.setMaximumWidth(LIST_WIDTH if on else 16777215)
-        self.scroll.setMinimumWidth(LIST_WIDTH if on else 0)
+        self._fit_split()
         self._fit_top()     # (the line over it in the same two columns)
-        self.body.layout().setStretch(0, 0 if on else 1)
-        self.editor_scroll.setVisible(on)
         picked = self.editor.t.id if self.editor is not None else None
         for row in self.rows.values():
             row.on_open = self._select if on else None
-            row.btn_open.setVisible(not on)     # a click picks it; the editor never folds
+            # a click picks it; the editor never folds (a pad has no arrow at all)
+            row.btn_open.setVisible(not on and not row.pad)
             if on and row.is_open:
                 picked = picked or row.t.id
                 row.set_open(False)
         if on:
-            if picked is None and self.triggers:
-                picked = self.triggers[0].id
+            if picked is None and self.triggers and not self.pads:
+                picked = self.triggers[0].id    # (the pads stay whole until one's picked)
             if picked in self.rows:
                 self._select(self.rows[picked])
         else:
             self._drop_editor()
             if picked in self.rows:
                 self.rows[picked].set_open(True)
+
+    def _fit_split(self, resized: bool = False):
+        """The list and the editor's shares of the width: the list LIST_WIDTH wide
+        beside the editor; the pads as wide as the handle was left (PADS_SHARE at
+        first), or the whole width with no trigger picked; the list alone, all of it."""
+        on, pads = self.split, self.split and self.pads
+        shown = on and (not pads or self.editor is not None)
+        was = not self.editor_scroll.isHidden()
+        fixed = on and not pads
+        self.scroll.setMaximumWidth(LIST_WIDTH if fixed else 16777215)
+        self.scroll.setMinimumWidth(LIST_WIDTH if fixed else PAD + 20 if pads else 0)
+        self.editor_scroll.setVisible(shown)
+        self.splitter.handle(1).setEnabled(pads and shown)
+        self.splitter.handle(1).setCursor(Qt.SplitHCursor if pads and shown
+                                          else Qt.ArrowCursor)
+        if self.editor is not None:
+            self.editor.btn_close.setVisible(pads and shown)
+        # (the page's width: the splitter's own is still the old one in a resize)
+        m = self.layout().contentsMargins()
+        total = max(1, self.width() - m.left() - m.right() - self.splitter.handleWidth())
+        if fixed:   # (the handle may have been left anywhere by the Pads view)
+            self.splitter.setSizes([LIST_WIDTH, max(1, total - LIST_WIDTH)])
+        elif pads and shown and (resized or not was):   # (its share kept as it grows)
+            share = self.host.screen.get("pads_split")
+            share = share if type(share) is float and 0.1 <= share <= 0.9 else PADS_SHARE
+            self.splitter.setSizes([round(total * share), total - round(total * share)])
+
+    def _on_split_moved(self, _pos: int, _index: int):
+        """The handle was dragged (the Pads view): keep the pads' share for next time."""
+        a, b = self.splitter.sizes()
+        if self.pads and a + b > 0:
+            self.host.screen["pads_split"] = round(a / (a + b), 3)
+            self._split_save.start()
 
     def _select(self, row: TriggerRow):
         """Show `row`'s trigger in the editor on the right."""
@@ -3105,11 +3198,22 @@ class TriggersTab(QWidget):
         ed.set_open(True)
         ed.watching = row.watching
         ed.show_score(row._score)       # what its tile shows, until the next check
+        # its ✕, shown in the Pads view (_fit_split): the pads back across the width
+        ed.btn_close = QPushButton(ed)
+        ed.btn_close.setObjectName("fold")
+        ed.btn_close.setFixedSize(28, 28)
+        ed.btn_close.setAccessibleName(_("Close this trigger"))
+        ed.btn_close.setToolTip(_("Close this trigger"))
+        icons.set_icon(ed.btn_close, "close", "muted", "muted", size=16)
+        ed.btn_close.clicked.connect(self._drop_editor)
+        ed.btn_close.hide()
+        ed.top.addWidget(ed.btn_close, 0, 5, 2, 1, Qt.AlignVCenter)
         self.editor = ed
         self.editor_pane.layout().insertWidget(0, ed)
         self._empty_shown(False)
         for r in self.rows.values():
             r.set_selected(r.t is t)
+        self._fit_split()
 
     def _drop_editor(self):
         ed, self.editor = self.editor, None
@@ -3120,6 +3224,7 @@ class TriggersTab(QWidget):
         for r in self.rows.values():
             r.set_selected(False)
         self._empty_shown(True)
+        self._fit_split()       # (the Pads view: the pads the whole width again)
 
     def _empty_shown(self, on: bool):
         """The nothing-picked box, filling the pane; or the gap under a picked trigger."""
@@ -3200,10 +3305,10 @@ class TriggersTab(QWidget):
         # as wide as the list, the search box from where the editor starts. Only while
         # the search box keeps its room (with categories, a search or a profile on the
         # line too, New trigger stays its own width)
-        gap = self.body.layout().spacing()
+        gap = self.splitter.handleWidth()
         rest = (_row_width(line, least=False) + counts
                 + (_row_width(view, least=False) + 8 if one_line else 0))
-        columns = (self.split and not stacked
+        columns = (self.split and not self.pads and not stacked
                    and width - LIST_WIDTH - gap - rest - 8 >= SEARCH_ROOM)
         self.btn_new.setMinimumWidth(LIST_WIDTH if columns else 0)
         self.btn_new.setMaximumWidth(LIST_WIDTH if columns else 16777215)
@@ -3211,29 +3316,48 @@ class TriggersTab(QWidget):
 
     def _on_view(self, i: int):
         n = self.cb_per_row.itemData(i)
-        if n == LIST_VIEW:
-            self.set_list_view(True)
+        if n in (LIST_VIEW, PADS_VIEW):
+            self.set_list_view(True, pads=n == PADS_VIEW)
         else:
             self.set_list_view(False)
             self.set_per_row(n)
 
-    def set_list_view(self, on: bool):
-        """The list beside an editor, or cards that open where they are; kept for the
-        next start."""
+    def _view_data(self):
+        """The View list's entry for the view in use."""
+        return (PADS_VIEW if self.list_view and self.pads else LIST_VIEW if self.list_view
+                else self.per_row)
+
+    def set_list_view(self, on: bool, pads: bool = False):
+        """The list beside an editor (`pads`: pads, as many to a line as fit, beside
+        it), or cards that open where they are; kept for the next start."""
+        pads = on and pads
+        if pads != self.pads and self.split:
+            self._set_split(False)      # (laid out again for the other kind below)
         self.list_view = on
-        self.host.screen["view"] = "list" if on else "cards"
+        self.pads = pads
+        self.host.screen["view"] = "pads" if pads else "list" if on else "cards"
         self.host.save()
-        want = self.cb_per_row.findData(LIST_VIEW if on else self.per_row)
+        want = self.cb_per_row.findData(self._view_data())
         if self.cb_per_row.currentIndex() != want:
             self.cb_per_row.setCurrentIndex(want)
+        self._show_pads()
         self._set_split(on and self.width() >= SPLIT_MIN)
+
+    def _show_pads(self):
+        """Every card and category grid as pads (the Pads view) or as tiles."""
+        for sec in self.sections.values():
+            sec.body_layout.set_pads(self.pads)
+        for row in self.rows.values():
+            row.set_pad(self.pads)
+        for sec in self.sections.values():
+            sec.body._fit()
 
     def set_per_row(self, n: int):
         """`n` closed cards to a line (0: as many as fit), kept for the next start."""
         self.per_row = n if 0 < n <= MAX_PER_ROW else 0
         self.host.screen["cards_per_row"] = self.per_row
         self.host.save()
-        want = self.cb_per_row.findData(LIST_VIEW if self.list_view else self.per_row)
+        want = self.cb_per_row.findData(self._view_data())
         if self.cb_per_row.currentIndex() != want:
             self.cb_per_row.setCurrentIndex(want)
         for sec in self.sections.values():
@@ -3920,6 +4044,7 @@ class TriggersTab(QWidget):
         sec.add_wanted.connect(self._category_add_menu)
         sec.search_wanted.connect(self.show_search)
         sec.body_layout.set_per_row(self.per_row)
+        sec.body_layout.set_pads(self.pads)
         sec.card_dropped.connect(self.reorder)
         sec.drag_at.connect(self._scroll_for_drag)
         sec.set_look(self.groups.find(name), self.host.data_dir)
@@ -4589,6 +4714,7 @@ class TriggersTab(QWidget):
         row.set_categories(self.groups.names())
         row.set_default_interval(self.default_interval)
         row.set_default_place(places_label([self.watcher.default]))
+        row.set_pad(self.pads)
         self.rows[t.id] = row
         if split:
             row.on_open = self._select

@@ -24,6 +24,7 @@ from onionwatch.i18n import _, ngettext
 NAME = Qt.UserRole              # a list item's category name / profile id / exe
 TILE = 320                      # px: the least a closed card (a tile in the grid) is wide
 SMALL_TILE = 210                # ...when a number of cards to a line is asked for
+PAD = 150                       # ...as a pad (the Pads view: picture over the name)
 MAX_PER_ROW = 6                 # the most cards to a line that can be asked for
 PICTURE_PX = 128                # a category's picture is kept at most this big
 HEADER_PICTURE = 26             # px: ...and shown this big in its header
@@ -281,6 +282,7 @@ class CardGrid(Flow):
     `per_row` cards to a line when it's set (as long as they'd still be readable),
     else as many as fit at their usual width."""
     per_row = 0
+    pads = False    # the Pads view: as many PAD-wide pads as fit, stretched to the width
 
     def __init__(self, parent=None, gap: int = 6):
         super().__init__(parent, gap)
@@ -326,6 +328,8 @@ class CardGrid(Flow):
         self.invalidate()
 
     def columns(self, width: int) -> int:
+        if self.pads:
+            return max(1, (width + self._gap) // (PAD + self._gap))
         if self.per_row:
             return max(1, min(self.per_row, (width + self._gap) // (SMALL_TILE + self._gap)))
         return max(1, (width + self._gap) // (TILE + self._gap))
@@ -333,6 +337,11 @@ class CardGrid(Flow):
     def set_per_row(self, n: int):
         if n != self.per_row:
             self.per_row = n
+            self.invalidate()
+
+    def set_pads(self, on: bool):
+        if on != self.pads:
+            self.pads = on
             self.invalidate()
 
     def _place(self, rect: QRect, move: bool) -> int:

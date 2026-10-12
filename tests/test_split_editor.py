@@ -92,3 +92,39 @@ def test_a_duplicate_is_picked_in_the_editor(tab, qapp):
     copy = tab.editor.t
     assert copy is not first.t and copy.name.endswith("(copy)")
     assert tab.rows[copy.id].selected and not tab.rows[first.t.id].selected
+
+
+def test_pads_fill_the_page_until_one_is_picked_then_share_it(tab, qapp):
+    """The Pads view: every trigger a pad, the whole width; a click opens it in the
+    editor beside the pads (PADS_SHARE of the width at first), its handle dragged
+    to share the width out (kept), its ✕ putting the pads back across it all."""
+    from onionwatch.ui.triggerspanel import PADS_SHARE
+    first, second = two(tab)
+    wide(tab, qapp, 1300)
+    tab.set_list_view(True, pads=True)
+    assert tab.host.screen["view"] == "pads"
+    assert first.pad and second.pad and first.btn_open.isHidden()
+    if tab.editor is not None:
+        tab.editor.btn_close.click()
+    for _ in range(3):
+        qapp.processEvents()
+    assert tab.editor is None and tab.editor_scroll.isHidden()
+    assert not tab.splitter.handle(1).isEnabled()
+    first.set_open(True)                                    # a click on a pad
+    for _ in range(3):
+        qapp.processEvents()
+    assert tab.editor is not None and tab.editor.t is first.t and first.selected
+    assert not tab.editor.btn_close.isHidden() and tab.splitter.handle(1).isEnabled()
+    a, b = tab.splitter.sizes()
+    assert abs(a / (a + b) - PADS_SHARE) < 0.02
+    tab.splitter.moveSplitter(a + 200, 1)                   # dragged wider
+    a2, b2 = tab.splitter.sizes()
+    assert a2 > a and tab.host.screen["pads_split"] == round(a2 / (a2 + b2), 3)
+    second.set_open(True)                                   # another pad: same share
+    assert tab.splitter.sizes()[0] == a2
+    tab.editor.btn_close.click()
+    assert tab.editor is None and tab.editor_scroll.isHidden()
+    tab.set_list_view(True)                                 # the list again
+    for _ in range(3):
+        qapp.processEvents()
+    assert not first.pad and tab.scroll.width() == LIST_WIDTH and tab.editor is not None
