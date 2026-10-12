@@ -81,7 +81,7 @@ class BoardPanel(QWidget):
         self.panel = TriggersTab(host, self)
         self.btn_more = self.panel.btn_more   # the board adds "Remove Onion Watch…" to it
         self.alarm = AlarmBar(self.panel)
-        self.pages = TriggerPages(self.panel, top=[self.alarm], parent=self)
+        self.pages = TriggerPages(self.panel, top=[self.alarm], parent=self, logo=True)
         self.panel.pages = self.pages
         v.addWidget(self.pages, 1)
         self.panel.active_changed.connect(self.active_changed)

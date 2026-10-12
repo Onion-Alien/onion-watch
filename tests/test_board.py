@@ -2,6 +2,8 @@
 can't run in, and the tab it gives back rings through the board, says so with the
 board's notification and stops with the board's Stop all. Stand-in screens and a
 stand-in board; nothing is heard."""
+import inspect
+
 import pytest
 from PySide6.QtWidgets import QWidget
 from conftest import process_events
@@ -12,6 +14,7 @@ from onionwatch import board, theme
 from onionwatch import screenwatch as sw
 from onionwatch.host import API_VERSION
 from onionwatch.screenwatch import Monitor
+from onionwatch.ui.pages import TriggerPages
 
 
 @pytest.fixture
@@ -41,6 +44,16 @@ def test_it_takes_the_boards_colours_now_and_when_they_change(tab):
     tab.host.colours = {"accent": "#abcdef"}
     tab.retheme()
     assert theme.T["accent"] == "#abcdef"
+
+
+def test_the_tab_shows_the_logo_left_of_its_tabs(tab):
+    # the board has no Onion Watch header, so the owl sits in the tab row; the app's
+    # own window shows it in its header instead (TriggerPages' default: none)
+    pages = tab.pages
+    assert pages.logo is not None and pages.logo.toolTip() == "Onion Watch"
+    row = pages.layout().itemAt(0).layout()
+    assert row.itemAt(0).widget() is pages.logo and row.itemAt(1).widget() is pages.tabs
+    assert inspect.signature(TriggerPages).parameters["logo"].default is False
 
 
 def test_a_ringing_trigger_notifies_and_stop_all_stops_it(tab, qapp):
