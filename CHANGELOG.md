@@ -2,7 +2,7 @@
 
 What changed between releases, for the release notes. Newest first.
 
-## Unreleased
+## 0.10.0 (2026-10-13)
 
 - **The Triggers tab opens about twice as fast in Onion Board.** Opening it made the
   hidden editor of every trigger card, and moved the finished tab into the board twice
