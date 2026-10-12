@@ -250,7 +250,7 @@ def is_rtl(code: str | None = None) -> bool:
 
 
 def use_fonts(families) -> None:
-    """After the QApplication is made: the theme fonts `families` (Segoe UI, Consolas…)
+    """After the QApplication is made: the theme fonts `families` (Bahnschrift, Consolas…)
     fall back to the current language's own font for letters they haven't got."""
     own = FONTS.get(_lang)
     if not own:
