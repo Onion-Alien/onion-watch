@@ -4,6 +4,10 @@ What changed between releases, for the release notes. Newest first.
 
 ## Unreleased
 
+- **Light themes: every button and box shows.** Buttons are a shade darker than the
+  window, and boxes and drop-downs have a fill instead of white on a white card.
+- The main buttons (Cut picture, Watching) get Onion Board's soft gradient and light
+  top edge, with the rest of its current look.
 - **Same look as Onion Board.** Buttons, boxes, chips and cards are flat with no
   outlines, headings are plain bold, the keyboard focus shows a ring, and the theme
   colours match Board's readability fixes. Trigger cards light up on hover instead of
