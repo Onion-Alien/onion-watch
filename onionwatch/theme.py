@@ -12,7 +12,7 @@ from string import Template
 
 from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import (QColor, QIcon, QImage, QLinearGradient, QPainter, QPainterPath,
-                           QPen, QPixmap)
+                           QPen, QPixmap, QTransform)
 
 # Status colours (inline ok / warn / error messages, danger buttons) most themes share:
 # the bright ones read on dark backgrounds, the deep ones on light.
@@ -86,7 +86,7 @@ THEMES: dict[str, dict[str, str]] = {
         btn="#f8e1e8", btn_hover="#f4d3de", btn_press="#eec3d1",
         border="#efc9d5", border_hi="#d98aa5", groove="#f0cdd8", inset="#f6e3e9",
         text="#3a1f2b", text_hi="#2a1520", muted="#8a5d6e", faint="#b48898", section="#a9607c",
-        accent="#e75480", accent_hi="#f06a93", accent2="#ffb7c5", on_accent="#ffffff",
+        accent="#d23f6a", accent_hi="#e0527e", accent2="#ffb7c5", on_accent="#ffffff",
         off="#dcb0c0", badge="#f6dde5", badge_text="#5a2f40",
         danger_bg="#ffe3e3", danger_border="#f2a9a9", danger_text="#c0282d", danger_hover="#ffd3d3",
         warn_bg="#fff1d6", warn_text="#855000",
@@ -110,7 +110,7 @@ THEMES: dict[str, dict[str, str]] = {
         btn="#16161c", btn_hover="#1f1f27", btn_press="#292932",
         border="#25252e", border_hi="#45455a", groove="#22222b", inset="#070709",
         text="#e8e8ee", text_hi="#ffffff", muted="#85859a", faint="#5e5e70", section="#9090a8",
-        accent="#5b8cff", accent_hi="#7aa2ff", accent2="#b36bff", on_accent="#ffffff",
+        accent="#336bed", accent_hi="#5a8aff", accent2="#b36bff", on_accent="#ffffff",
         off="#3a3a48", badge="#1f1f27", badge_text="#d8d8e4", **_DARK_STATUS,
     ),
     "Slate": dict(   # blue-grey with teal and brass
@@ -172,7 +172,7 @@ THEMES: dict[str, dict[str, str]] = {
         bg="#1c1714", panel="#251e1a", card="#2d2520", card_hi="#362c26",
         btn="#312822", btn_hover="#3b302a", btn_press="#473a32",
         border="#45382f", border_hi="#6e5a4b", groove="#413429", inset="#171210",
-        text="#efe4da", text_hi="#fbf3ec", muted="#a8927f", faint="#7d6a5b", section="#d0a77f",
+        text="#efe4da", text_hi="#fbf3ec", muted="#a8927f", faint="#7d6a5b", section="#b9b0a8",
         accent="#d4915a", accent_hi="#e0a36e", accent2="#a86a4a", on_accent="#1c120a",
         off="#5a4a3f", badge="#3b302a", badge_text="#e8dccf", **_DARK_STATUS,
     ),
@@ -198,7 +198,7 @@ THEMES: dict[str, dict[str, str]] = {
         btn="#352040", btn_hover="#40274d", btn_press="#4c2f5b",
         border="#4a2f57", border_hi="#7a4f8e", groove="#472c54", inset="#170e1d",
         text="#f3e6f7", text_hi="#fbf5fd", muted="#b596c2", faint="#846a90", section="#9ad36a",
-        accent="#b04ad8", accent_hi="#c064e4", accent2="#8fd14f", on_accent="#ffffff",
+        accent="#ae45d7", accent_hi="#c064e4", accent2="#8fd14f", on_accent="#ffffff",
         off="#5e416b", badge="#40274d", badge_text="#ecdcf2",
         **_DARK_STATUS | dict(error_text="#ff6b6b"),
     ),
@@ -207,7 +207,7 @@ THEMES: dict[str, dict[str, str]] = {
         btn="#dcefe6", btn_hover="#cfe7db", btn_press="#bfdecf",
         border="#c3ddd1", border_hi="#7fb39b", groove="#c9e2d6", inset="#e0f0e8",
         text="#16322a", text_hi="#0c231c", muted="#4d6e62", faint="#85a498", section="#3f7f68",
-        accent="#0f9373", accent_hi="#12a882", accent2="#3f8cff", on_accent="#ffffff",
+        accent="#0e8669", accent_hi="#10a07c", accent2="#3f8cff", on_accent="#ffffff",
         off="#a9cbbd", badge="#dcefe6", badge_text="#1e3d33", **_LIGHT_STATUS,
     ),
     # ---- wild
@@ -216,7 +216,7 @@ THEMES: dict[str, dict[str, str]] = {
         btn="#2f1553", btn_hover="#3b1b66", btn_press="#472179",
         border="#4a2280", border_hi="#7a3bd1", groove="#45206f", inset="#140824",
         text="#fbe6ff", text_hi="#ffffff", muted="#c49be0", faint="#8a64a8", section="#36f9f6",
-        accent="#ff2a6d", accent_hi="#ff4f88", accent2="#36f9f6", on_accent="#ffffff",
+        accent="#e5155a", accent_hi="#ff3d7c", accent2="#36f9f6", on_accent="#ffffff",
         off="#5a3585", badge="#3b1b66", badge_text="#f5d7ff",
         **_DARK_STATUS | dict(ok_text="#36f9a0", error_text="#ff6b8b"),
         texture="grid",
@@ -226,7 +226,7 @@ THEMES: dict[str, dict[str, str]] = {
         btn="#f5d5ec", btn_hover="#efc4e4", btn_press="#e6b1d9",
         border="#e9bfdc", border_hi="#c47fb5", groove="#eac6e0", inset="#f6dcee",
         text="#3b1d4a", text_hi="#2a1236", muted="#74508a", faint="#a888b8", section="#1f8a83",
-        accent="#a94dff", accent_hi="#b96bff", accent2="#05e0a1", on_accent="#ffffff",
+        accent="#9f3dff", accent_hi="#b060ff", accent2="#05e0a1", on_accent="#ffffff",
         off="#d9b3d6", badge="#f5d5ec", badge_text="#4a2860", **_LIGHT_STATUS,
     ),
     "Blood Moon": dict(   # crimson on black
@@ -271,17 +271,17 @@ THEMES: dict[str, dict[str, str]] = {
     "Flashbang": dict(   # light mode, but worse. Your eyes will thank you (they won't)
         bg="#ffffff", panel="#ffffff", card="#ffffff", card_hi="#fafafa",
         btn="#ffffff", btn_hover="#fff9c4", btn_press="#fff176",
-        border="#eeeeee", border_hi="#ffd600", groove="#eeeeee", inset="#fafafa",
+        border="#eeeeee", border_hi="#d4b000", groove="#e0e0e0", inset="#fafafa",
         text="#222222", text_hi="#000000", muted="#666666", faint="#9e9e9e", section="#8a6500",
-        accent="#ffd600", accent_hi="#ffea00", accent2="#ff9100", on_accent="#000000",
-        off="#d6d6d6", badge="#fffde7", badge_text="#333333", **_LIGHT_STATUS,
+        accent="#ffd600", accent_hi="#a38600", accent2="#ff9100", on_accent="#000000",
+        off="#bdbdbd", badge="#fffde7", badge_text="#333333", **_LIGHT_STATUS,
     ),
     "Barbie": dict(   # everything is pink. Everything.
         bg="#ffb3d9", panel="#ffc9e4", card="#ffdcee", card_hi="#ffd0e8",
         btn="#ff9ccf", btn_hover="#ff85c4", btn_press="#ff6eb8",
         border="#ff5fb0", border_hi="#e0218a", groove="#ff8cc6", inset="#ffc0e0",
         text="#4a0027", text_hi="#330019", muted="#7a1650", faint="#a8407c", section="#a3005a",
-        accent="#d6157f", accent_hi="#e82a91", accent2="#ff00a0", on_accent="#ffffff",
+        accent="#d6157f", accent_hi="#d91a84", accent2="#ff00a0", on_accent="#ffffff",
         off="#e889bd", badge="#ff9ccf", badge_text="#4a0027",
         **_LIGHT_STATUS | dict(ok_text="#044a22", warn_text="#5e3700", error_text="#7a0017",
                                danger_bg="#ffe0e8", danger_text="#9a0f25"),
@@ -313,7 +313,7 @@ THEMES: dict[str, dict[str, str]] = {
         btn="#d4d0c8", btn_hover="#e0ddd6", btn_press="#b8b4ac",
         border="#808080", border_hi="#404040", groove="#a0a0a0", inset="#ffffff",
         text="#000000", text_hi="#000000", muted="#3a3a3a", faint="#6d6d6d", section="#000080",
-        accent="#000080", accent_hi="#1084d0", accent2="#008080", on_accent="#ffffff",
+        accent="#000080", accent_hi="#0e6fae", accent2="#008080", on_accent="#ffffff",
         off="#a0a0a0", badge="#ffffff", badge_text="#000000",
         **_LIGHT_STATUS | dict(ok_text="#005a1e", warn_text="#6b3f00", error_text="#9a0000"),
         font="Tahoma",
@@ -323,7 +323,7 @@ THEMES: dict[str, dict[str, str]] = {
         btn="#ffe97a", btn_hover="#ffe14d", btn_press="#ffd41a",
         border="#f2c200", border_hi="#d99a00", groove="#f5dc70", inset="#fff3a0",
         text="#2b1d00", text_hi="#1a1100", muted="#63500f", faint="#a08530", section="#c2006b",
-        accent="#e8198b", accent_hi="#f7349c", accent2="#1aa7ec", on_accent="#ffffff",
+        accent="#e01686", accent_hi="#f7349c", accent2="#1aa7ec", on_accent="#ffffff",
         off="#e0c860", badge="#ffe97a", badge_text="#3a2a00",
         **_LIGHT_STATUS | dict(ok_text="#085a2d", warn_text="#6b3f00", error_text="#a0142e"),
         font="Comic Sans MS",
@@ -333,12 +333,77 @@ THEMES: dict[str, dict[str, str]] = {
         btn="#29004f", btn_hover="#3a0070", btn_press="#4b0091",
         border="#7a00ff", border_hi="#c6ff00", groove="#3d0073", inset="#08000f",
         text="#c6ff00", text_hi="#eaff80", muted="#ff70ff", faint="#b347d9", section="#00ffea",
-        accent="#ff00d4", accent_hi="#ff40df", accent2="#c6ff00", on_accent="#ffffff",
+        accent="#ff00d4", accent_hi="#ff40df", accent2="#c6ff00", on_accent="#000000",
         off="#52307a", badge="#3a0070", badge_text="#eaff80",
         **_DARK_STATUS | dict(ok_text="#00ffea", error_text="#ff8080"),
         texture="grid",
     ),
 }
+
+
+def _contrast(a: str, b: str) -> float:
+    """WCAG contrast ratio of two colours (1 = same, 21 = black on white)."""
+    def lum(hex_: str) -> float:
+        c = QColor(hex_)
+        ch = [v / 255 for v in (c.red(), c.green(), c.blue())]
+        ch = [v / 12.92 if v <= 0.03928 else ((v + 0.055) / 1.055) ** 2.4 for v in ch]
+        return 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2]
+    hi, lo = sorted((lum(a), lum(b)), reverse=True)
+    return (hi + 0.05) / (lo + 0.05)
+
+
+def _mix(a: str, b: str, t: float) -> str:
+    """`a` moved fraction `t` of the way to `b`."""
+    ca, cb = QColor(a), QColor(b)
+    return QColor(*(round(x + (y - x) * t) for x, y in (
+        (ca.red(), cb.red()), (ca.green(), cb.green()), (ca.blue(), cb.blue())))).name()
+
+
+mix = _mix   # for widgets that tint with the theme's colours
+
+
+def _add_live_tokens(t: dict[str, str]) -> None:
+    """The "it's on" highlight (voice changer on, live on air, the mic pill when it's
+    connected): the theme's own accent, not one green for every
+    theme. `live` / `live_hi` / `on_live` fill a switched-on button; `live_text` is
+    the same colour where it's drawn on the background (text, icons, a tab's wash),
+    moved towards the theme's text colour until it reads there (Flashbang's yellow
+    on white, Onion's purple on purple). A theme can set any of these itself."""
+    t.setdefault("live", t["accent"])
+    t.setdefault("live_hi", t["accent_hi"])
+    t.setdefault("on_live", t["on_accent"])
+    if "live_text" not in t:
+        t["live_text"] = next(c for c in (_mix(t["live"], t["text_hi"], i / 10) for i in range(11))
+                              if _contrast(c, t["bg"]) >= 4.5 or c == t["text_hi"])
+    t.setdefault("live_border", _mix(t["live_text"], t["bg"], 0.45))
+
+
+def _add_hover_token(t: dict[str, str]) -> None:
+    """accent_hover: a filled accent button's hover colour, its accent_hi made just dark
+    (or light) enough for its on_accent text to read (4.5:1). White on a lightened
+    accent was 3.2-4.2:1 in ten themes, the default Dark among them. accent_hi itself
+    stays as it is: it's also text and borders on the panels."""
+    if "accent_hover" in t:
+        return
+    # light text: darker; dark text: lighter
+    on = t["on_accent"]
+    away = "#000000" if _contrast(on, "#000000") > _contrast(on, "#ffffff") else "#ffffff"
+    t["accent_hover"] = next(
+        (c for c in (_mix(t["accent_hi"], away, i / 20) for i in range(13))
+         if _contrast(c, t["on_accent"]) >= 4.5), t["accent_hi"])
+
+
+for _t in THEMES.values():
+    # Secondary text must read on the brightest surface used behind it.
+    for key in ("muted", "faint"):
+        _t[key] = next(c for c in (_mix(_t[key], _t["text_hi"], i / 20)
+                                  for i in range(21))
+                       if min(_contrast(c, _t[bg]) for bg in
+                              ("bg", "panel", "card", "card_hi", "btn")) >= 4.5
+                       or c == _t["text_hi"])
+    _add_live_tokens(_t)
+    _add_hover_token(_t)
+
 DEFAULT = "Dark"   # the fallback, and what a host's missing colours come from
 APP_DEFAULT = "Hoot"   # what the Onion Watch app starts in
 # How the Settings window groups the theme cards. Every theme is in exactly one group.
@@ -401,34 +466,108 @@ QWidget { background:$bg; color:$text; font-family:'$font'; font-size:10pt; }
 QDialog { background:$bg; }
 QFrame#card { background:$panel; border-radius:12px; }
 QFrame#card QWidget { background:transparent; }
-QLabel#section { color:$section; font-size:8pt; font-weight:700; letter-spacing:1px; padding-top:8px; }
+QFrame#card[interactive="true"] { border:1px solid transparent; }
+QFrame#card[interactive="true"][hovered="true"] { background:$card_hi; border-color:$border_hi; }
+QFrame#card[interactive="true"]:focus { background:$card_hi; border-color:$accent; }
+QFrame#card[interactive="true"][playing="true"] { background:$card_hi; border:2px solid $accent; }
+QLabel#section { color:$heading; font-size:10pt; font-weight:600; padding-top:8px;
+                 qproperty-indent:0; }  /* padding alone makes Qt indent the text 3 px */
+QLabel#section[head="true"] { padding-top:0; }
 QLabel#hint, QLabel#muted { color:$muted; }
 QLabel#hint { font-size:8.5pt; }
 QLabel[tone="ok"], QLabel#hint[tone="ok"] { color:$ok_text; }
 QLabel[tone="warn"], QLabel#hint[tone="warn"] { color:$warn_text; }
 QLabel[tone="error"], QLabel#hint[tone="error"] { color:$error_text; }
 QLabel#eqlabel { color:$muted; font-size:8pt; }
-QLabel#empty { color:$faint; font-size:15px; padding:60px; }
+QLabel#empty { color:$muted; font-size:15px; padding:8px 40px 40px 40px; }
 QFrame#card QLabel#stepbox { background:$bg; border-radius:8px; padding:8px; margin-top:6px; }
+QFrame#card QFrame#micflow { background:$bg; border:1px solid $border; border-radius:10px; }
+QFrame#card QFrame#micoutput { background:$panel; border:1px solid $border; border-radius:8px; }
+QFrame#card QLabel#micguide { padding:2px 0; }
+QFrame#card QLabel#micupdatenote { background:$bg; color:$muted; border-radius:8px; padding:12px; font-size:9pt; }
 QFrame#card QLabel#resultbox { background:$bg; border-radius:8px; padding:8px; }
-QLabel#wordmark { font-size:13pt; font-weight:800; letter-spacing:2px; color:$text_hi; background:transparent; }
+QLabel#wordmark { font-size:13pt; font-weight:700; color:$text_hi; background:transparent; }
 QLabel#tagline { color:$muted; font-size:8.5pt; background:transparent; }
-QPushButton { background:$btn; border:1px solid $border; border-radius:8px; padding:7px 12px; }
+QPushButton { background:$btn; border:1px solid transparent; border-radius:8px; padding:7px 12px; }
+QPushButton[quiet="true"] { background:transparent; }
+QPushButton[quiet="true"]:hover { background:$btn_hover; }
+QPushButton[quiet="true"]:pressed { background:$btn_press; }
 QPushButton:hover { background:$btn_hover; }
+QPushButton:focus { border-color:$accent; }
+QPushButton#iconbutton { padding:7px 10px; min-width:18px; }
 QPushButton:pressed { background:$btn_press; }
 QPushButton:checked { background:$accent; border-color:$accent; color:$on_accent; }
 QPushButton:disabled { color:$muted; }
+QPushButton[busy="true"], QPushButton#primary[busy="true"] { color:$muted; }
 QPushButton#primary { background:$accent; border:none; color:$on_accent; font-weight:600; }
-QPushButton#primary:hover { background:$accent_hi; }
-QPushButton#danger { background:$danger_bg; border:1px solid $danger_border; color:$danger_text; font-weight:600; }
+QPushButton#primary:hover { background:$accent_hover; }
+QPushButton#primary:focus { border:1px solid $text_hi; }
+QFrame#soundstoolbar { background:$panel; background-image:none; border:none;
+    border-radius:12px; }
+QFrame#soundstoolbar QLabel, QFrame#soundstoolbar QSlider { background:transparent; }
+QFrame#soundstoolbar QPushButton { background:transparent; border:1px solid transparent;
+    border-radius:9px; padding:0 10px; }
+QFrame#soundstoolbar QPushButton:hover { background:$btn_hover; }
+QFrame#soundstoolbar QPushButton:pressed { background:$btn_press; }
+QFrame#soundstoolbar QPushButton:focus { border-color:$accent; }
+QFrame#soundstoolbar QPushButton#soundadd { color:$accent; font-weight:600; }
+QFrame#soundstoolbar QPushButton[toolbarMenu="true"] { padding-right:22px; }
+QLineEdit#soundssearch { background:$bg; border:1px solid $border; border-radius:10px;
+    padding:0 10px 0 4px; }
+QLineEdit#soundssearch:hover { border-color:$border_hi; }
+QLineEdit#soundssearch:focus { border-color:$accent; }
+QPushButton#danger { background:$danger_bg; border:1px solid transparent; color:$danger_text; font-weight:600; }
 QPushButton#danger:hover { background:$danger_hover; }
+QPushButton#danger[quiet="true"] { background:transparent; }
+QPushButton#danger[quiet="true"]:hover { background:$danger_bg; }
+QPushButton#danger:focus { border-color:$accent; }
 QPushButton#small { padding:2px 8px; font-size:8pt; }
+QPushButton#searchsource { padding:6px 12px; font-size:10pt; }
+QPushButton#backhome { background:$danger_bg; border:1px solid $danger_border; color:$danger_text;
+    font-weight:700; font-size:10pt; padding:6px 14px; border-radius:8px; }
+QPushButton#backhome:hover { background:$danger_hover; border-color:$danger_text; }
+QPushButton#tabinfo { padding:0; border-radius:8px; background:transparent; border:1px solid transparent; }
+QPushButton#tabinfo:hover { background:$btn_hover; border-color:$border_hi; }
+QPushButton#tabinfo:pressed { background:$btn_press; border-color:$border_hi; }
+QPushButton#tabinfo:focus { border-color:$accent; }
+QPushButton#moretabs { padding:4px 10px; border-radius:8px; background:transparent; border:1px solid transparent; color:$muted; }
+QPushButton#moretabs:hover { background:$btn_hover; border-color:$border_hi; color:$text_hi; }
+QPushButton#moretabs:pressed { background:$btn_press; }
+QPushButton#moretabs:focus { border-color:$accent; }
+QPushButton#moretabs::menu-indicator { image:none; width:0; }
+QFrame#sidebar { background:$rail_bg; border:none; border-right:1px solid $rail_border; }
+QFrame#sidebar[rtl="true"] { border-right:none; border-left:1px solid $rail_border; }   /* mirrored */
+QToolButton#railtab { background:transparent; color:$muted; border:1px solid transparent;
+    border-radius:8px; padding:7px 6px; font-weight:600; text-align:left; }
+QToolButton#railtab:hover { background:$btn_hover; color:$text; }
+QToolButton#railtab:checked { background:transparent; color:$text_hi; }   /* + the rail's fill */
+QFrame#sidebar QPushButton#moretabs, QFrame#sidebar QPushButton#tabinfo,
+QFrame#sidebar QPushButton#settings, QFrame#sidebar QPushButton#modebtn,
+QFrame#sidebar QPushButton#railtoggle { padding:7px 6px; text-align:left; color:$muted;
+    background:transparent; border:1px solid transparent; border-radius:8px; }
+QFrame#sidebar QPushButton#moretabs:hover, QFrame#sidebar QPushButton#tabinfo:hover,
+QFrame#sidebar QPushButton#settings:hover, QFrame#sidebar QPushButton#modebtn:hover,
+QFrame#sidebar QPushButton#railtoggle:hover { background:$btn_hover; color:$text_hi; }
+QFrame#sidebar QPushButton#moretabs:focus, QFrame#sidebar QPushButton#tabinfo:focus,
+QFrame#sidebar QPushButton#settings:focus, QFrame#sidebar QPushButton#modebtn:focus,
+QFrame#sidebar QPushButton#railtoggle:focus { border-color:$accent; }
+QFrame#sidebar QLabel#tagline { font-size:8pt; }
+QFrame#sidebar QPushButton#pill, QFrame#sidebar QPushButton#onair,
+QFrame#sidebar QPushButton#danger { padding:7px 6px; border-radius:8px; text-align:left; }
+QFrame#sidebar QLabel#wordmark { font-size:11pt; }
+QFrame#sidebar QWidget#railslot { background:transparent; }
+QFrame#sidebar[compact="true"] QToolButton#railtab,
+QFrame#sidebar[compact="true"] QPushButton { padding-top:2px; padding-bottom:2px; }
 QPushButton#settings { padding:6px 14px; font-weight:600; }
-QFrame#transport { background:$panel; border-radius:12px; }
+QFrame#transport, QFrame#deck { background:$panel; border-radius:12px; }
+QDialog#transport { background:$panel; }
+QFrame#mixer { background:transparent; }
 QFrame#card QPushButton#primary { background:$accent; color:$on_accent; border:none; padding:9px; }
-QFrame#card QPushButton#primary:hover { background:$accent_hi; }
+QFrame#card QPushButton#primary:hover { background:$accent_hover; }
 QFrame#vsep { background:$border; border:none; }
-QFrame#chip { background:$panel; border:1px solid $border; border-radius:14px; }
+QLabel#toast { background:$panel; border:1px solid $border_hi;
+               border-radius:12px; padding:8px 14px; }
+QFrame#chip { background:$panel; border:1px solid transparent; border-radius:14px; }
 QFrame#chip[sel="true"] { border-color:$accent; }
 QFrame#chip QPushButton { background:transparent; border:none; padding:2px 6px; }
 QFrame#chip QPushButton#chipname { font-weight:600; }
@@ -436,18 +575,23 @@ QFrame#chip QPushButton#chipstop { border-radius:12px; padding:0; }
 QFrame#chip QPushButton#chipstop:hover { background:$danger_bg; }
 QLabel#iconlabel { background:transparent; }
 QPushButton#pill { border-radius:15px; padding:5px 14px; font-weight:600; }
-QPushButton#pill[state="ok"] { color:$ok_text; border:1px solid $ok_border; }
+QPushButton#pill[state="ok"] { color:$live_text; background:transparent; }
 QPushButton#onair { border-radius:15px; padding:5px 14px; font-weight:700;
-    background:$danger_bg; border:1px solid $danger_border; color:$danger_text; }
-QPushButton#onair:checked { background:#13a35a; border:1px solid #13ce66; color:white; }
-QPushButton#onair:checked:hover { background:#16b865; }
+    background:$danger_bg; border:1px solid transparent; color:$danger_text; }
+QPushButton#onair:checked { background:$live; border:1px solid transparent; color:$on_live; }
+QPushButton#onair:checked:hover { background:$live_hi; }
 QWidget#decktop { background:transparent; }
-QLabel#decktitle { color:$section; font-size:8pt; font-weight:700; letter-spacing:1px; }
-QPushButton#pill[state="warn"] { background:$warn_bg; color:$warn_text; border:1px solid $warn_text; }
-QAbstractSpinBox { background:$bg; border:1px solid $border; border-radius:6px; padding:3px 6px; }
+QLabel#decktitle { color:$text; font-size:9pt; font-weight:600; }
+QLabel#statusnote { background:$card_hi; color:$text; border-radius:8px; padding:6px 10px; }
+QPushButton#pill[state="warn"] { background:$warn_bg; color:$warn_text; }
+QAbstractSpinBox { background:$bg; border:1px solid transparent; border-radius:6px; padding:3px 6px; }
 QAbstractSpinBox:hover { border-color:$border_hi; }
-QAbstractSpinBox:focus { border-color:$accent; }
+QAbstractSpinBox:focus { border-color:$border_hi; }
 QSpinBox::up-button, QSpinBox::down-button { width:0; }
+QSpinBox#pct, QFrame#card QSpinBox#pct { background:transparent; border-color:transparent;
+    padding:3px 2px; }
+QSpinBox#pct:hover, QFrame#card QSpinBox#pct:hover { background:$bg; border-color:$border_hi; }
+QSpinBox#pct:focus, QFrame#card QSpinBox#pct:focus { background:$bg; border-color:$border_hi; }
 QDoubleSpinBox, QSpinBox#stepper { padding-right:2px; }
 QDoubleSpinBox::up-button, QDoubleSpinBox::down-button,
 QSpinBox#stepper::up-button, QSpinBox#stepper::down-button {
@@ -465,20 +609,41 @@ QSpinBox#stepper::up-arrow:disabled, QSpinBox#stepper::up-arrow:off { image:url(
 QDoubleSpinBox::down-arrow:disabled, QDoubleSpinBox::down-arrow:off,
 QSpinBox#stepper::down-arrow:disabled, QSpinBox#stepper::down-arrow:off { image:url("$down_small_off"); }
 QSlider::groove:vertical { width:4px; background:$groove; border-radius:2px; }
-QSlider::add-page:vertical { background:$accent; border-radius:2px; }
-QSlider::handle:vertical { background:white; border:1px solid $border; width:14px; height:14px; margin:0 -5px; border-radius:7px; }
-QPushButton#micbanner { background:#e53935; color:white; font-weight:700; font-size:11pt;
+QSlider::add-page:vertical { background:$muted; border-radius:2px; }
+QSlider::handle:vertical { background:$text_hi; border:1px solid transparent; width:14px; height:14px; margin:0 -5px; border-radius:7px; }
+QPushButton#micbanner { background:#d32f2f; color:white; font-weight:700; font-size:11pt;
     border:none; border-radius:10px; padding:10px; }
-QPushButton#miccheck:checked { background:#e53935; border:1px solid #ff6b6b; color:white;
-    font-weight:700; }
-QFrame#transport QLabel, QFrame#transport QCheckBox, QFrame#transport QSlider { background:transparent; }
+QFrame#urgentbar { background:$warn_bg; border:1px solid $warn_text; border-radius:10px; }
+QFrame#tipbar { background:$panel; border:1px solid $border_hi; border-radius:10px; }
+QFrame#tipbar QLabel { background:transparent; color:$text; }
+QFrame#tipbar QPushButton#primary { padding:2px 8px; font-size:8pt; }   /* as small as Not now */
+QFrame#tipbar QPushButton#urgenthide { background:transparent; color:$muted; border:none;
+                                       border-radius:6px; font-weight:700; font-size:12pt; }
+QFrame#tipbar QPushButton#urgenthide:hover { background:$btn_hover; }
+QFrame#urgentbar QLabel { background:transparent; color:$warn_text; font-weight:600; }
+QFrame#urgentbar QPushButton#urgenthide { background:transparent; color:$warn_text; border:none;
+    border-radius:14px; padding:0; font-size:12pt; }
+QFrame#urgentbar QPushButton#urgenthide:hover { background:$danger_bg; }
+QPushButton#miccheck:checked { background:#d32f2f; border:1px solid #ff6b6b; color:white; }
+QDialog#transport QLabel, QDialog#transport QCheckBox, QDialog#transport QSlider,
+QFrame#transport QLabel, QFrame#transport QCheckBox, QFrame#transport QSlider,
+QFrame#deck QLabel, QFrame#deck QCheckBox, QFrame#deck QSlider { background:transparent; }
 QPushButton#round { padding:0; font-size:14pt; border-radius:10px; }
-QSlider#seek::groove:horizontal { height:6px; border-radius:3px; }
+QPushButton#transport_play { background:$accent; border:1px solid transparent; border-radius:17px; padding:0; }
+QPushButton#transport_play[mini="true"] { border-radius:14px; }
+QPushButton#transport_play:hover { background:$accent_hi; }
+QPushButton#transport_play:pressed { background:$accent; }
+QPushButton#transport_play:disabled { background:$btn; border:1px solid $border; }
+QPushButton#transport_stop { background:$btn; border:1px solid $border; border-radius:10px; padding:0; }
+QPushButton#transport_stop:hover { background:$btn_hover; border-color:$danger_text; }
+QPushButton#transport_stop:pressed { background:$btn_press; }
+QPushButton#transport_stop:disabled { background:$btn; border:1px solid $border; }
+QSlider#seek::groove:horizontal { margin:0 8px; height:6px; border-radius:3px; }
 QSlider#seek::sub-page:horizontal { border-radius:3px; }
-QLineEdit, QComboBox { background:$card; border:1px solid $border; border-radius:8px; padding:6px 8px; }
-QLineEdit:hover, QComboBox:hover { border-color:$border_hi; }
-QLineEdit:focus, QComboBox:focus, QComboBox:on { border-color:$accent; }
-QLineEdit { selection-background-color:$accent; selection-color:$on_accent; }
+QLineEdit, QComboBox { background:$card; border:1px solid transparent; border-radius:8px; padding:6px 8px; }
+QLineEdit:hover, QComboBox:hover { background:$card_hi; }
+QLineEdit:focus, QComboBox:focus, QComboBox:on { border-color:$border_hi; }
+QLineEdit { selection-background-color:$btn_press; selection-color:$text_hi; }
 QComboBox { padding:6px 10px; padding-right:6px; combobox-popup:0; }
 QComboBox::drop-down { subcontrol-origin:padding; subcontrol-position:center right;
     width:26px; border:none; background:transparent; }
@@ -486,35 +651,58 @@ QComboBox::down-arrow { image:url("$down"); width:10px; height:10px; }
 QComboBox::down-arrow:on { image:url("$up"); }
 QComboBox::down-arrow:disabled { image:url("$down_off"); }
 QComboBox:disabled, QLineEdit:disabled { color:$muted; background:$inset; }
-QFrame#card QComboBox, QFrame#card QPushButton, QFrame#card QLineEdit { background:$card; }
+QFrame#card QComboBox, QFrame#card QPushButton, QFrame#card QLineEdit { background:$card_ctl; }
+QFrame#card QPushButton:hover:!checked { background:$btn_hover; }
+QFrame#card QPushButton#primary:hover { background:$accent_hover; }
+QFrame#card QPushButton:focus { border-color:$accent; }
 QFrame#card QComboBox:disabled, QFrame#card QLineEdit:disabled { background:$inset; }
 QFrame#card QAbstractSpinBox { background:$bg; }
 QFrame#card QPushButton:checked { background:$accent; }
-QFrame#card QPushButton#miccheck:checked { background:#e53935; }
+QFrame#card QPushButton#miccheck:checked { background:#d32f2f; }
 QComboBox QAbstractItemView { background:$card; color:$text; border:1px solid $border_hi;
-    padding:4px; outline:0; selection-background-color:$accent; selection-color:$on_accent; }
+    padding:4px; outline:0; selection-background-color:$btn_press; selection-color:$text_hi; }
 QComboBox QAbstractItemView::item { min-height:28px; padding:0 10px; border-radius:6px; }
 QComboBox QAbstractItemView::item:hover { background:$btn_hover; color:$text_hi; }
-QComboBox QAbstractItemView::item:selected { background:$accent; color:$on_accent; }
-QListWidget::item:selected { background:$accent; color:$on_accent; border-radius:8px; }
-QListWidget#settingscategories { background:$panel; border:1px solid $border; outline:0; }
-QListWidget#settingscategories::item { padding:4px; }
-QListWidget#settingscategories::item:selected { background:$accent; color:$on_accent; }
-QListWidget#settingscategories::item:hover:!selected { background:$inset; }
+QComboBox QAbstractItemView::item:selected { background:$btn_hover; color:$text_hi; }
 QComboBox QAbstractItemView::item:disabled { color:$faint; }
 QPushButton::menu-indicator { image:url("$down"); width:9px; height:9px;
     subcontrol-origin:padding; subcontrol-position:center right; right:2px; }
 QPushButton::menu-indicator:open { image:url("$up"); }
 QSlider::groove:horizontal { height:4px; background:$groove; border-radius:2px; }
-QSlider::sub-page:horizontal { background:$accent; border-radius:2px; }
-QSlider::handle:horizontal { background:white; border:1px solid $border; width:14px; height:14px; margin:-5px 0; border-radius:7px; }
-QCheckBox::indicator, QRadioButton::indicator { width:16px; height:16px; border-radius:4px; border:1px solid $off; background:$card; }
-QRadioButton::indicator { border-radius:8px; }
-QCheckBox::indicator:checked, QRadioButton::indicator:checked { background:$accent; border-color:$accent; }
-QCheckBox::indicator:checked { image:url("$check"); }
-QCheckBox::indicator:hover, QRadioButton::indicator:hover { border-color:$border_hi; }
-QCheckBox::indicator:checked:hover, QRadioButton::indicator:checked:hover { background:$accent_hi; border-color:$accent_hi; }
-QCheckBox::indicator:disabled, QRadioButton::indicator:disabled { background:$inset; border-color:$border; }
+QSlider::sub-page:horizontal { background:$muted; border-radius:2px; }
+QSlider#seek::sub-page:horizontal { background:$accent; }
+QSlider#seek::sub-page:horizontal:disabled { background:$groove; }
+QSlider#seek::handle:horizontal { background:$text_hi; border:1px solid transparent; width:14px; height:14px; margin:-4px 0; border-radius:7px; }
+QSlider#seek::handle:horizontal:disabled { background:$off; }
+QSlider::handle:horizontal { background:$text_hi; border:1px solid transparent; width:14px; height:14px; margin:-5px 0; border-radius:7px; }
+/* room for the whole handle: Qt sizes a slider to its groove, which cut the circle's top
+   and bottom off flat */
+QSlider:horizontal { min-height:20px; }
+QSlider:vertical { min-width:20px; }
+QSlider::handle:hover, QSlider::handle:pressed { border-color:$border_hi; }
+QSlider::handle:disabled { background:$inset; }
+QSlider::sub-page:horizontal:disabled, QSlider::add-page:vertical:disabled { background:$off; }
+/* dim="true": a control that's live but does nothing right now (the EQ while it's off) */
+QSlider[dim="true"]::sub-page:horizontal, QSlider[dim="true"]::add-page:vertical { background:$off; }
+QComboBox[dim="true"] { color:$muted; }
+QCheckBox::indicator { width:16px; height:16px; border-radius:4px; border:1px solid $off; background:$card; }
+QCheckBox::indicator:checked { background:$accent; border-color:$accent; image:url("$check"); }
+QCheckBox::indicator:hover { border-color:$border_hi; }
+QCheckBox::indicator:checked:hover { background:$accent_hover; border-color:$accent_hover; }
+QCheckBox::indicator:disabled { background:$inset; border-color:$border; }
+QCheckBox::indicator:checked:disabled { image:url("$check_off"); }
+/* radio circles are whole pictures: a stylesheet border-radius:8px on a 16px box
+   clips the ring flat on its left edge */
+QRadioButton::indicator { width:16px; height:16px; border:none; background:transparent; image:url("$radio"); }
+QRadioButton::indicator:hover { image:url("$radio_hover"); }
+QRadioButton::indicator:checked { image:url("$radio_on"); }
+QRadioButton::indicator:checked:hover { image:url("$radio_on_hover"); }
+QRadioButton::indicator:disabled { image:url("$radio_off"); }
+QRadioButton::indicator:checked:disabled { image:url("$radio_on_off"); }
+QListWidget#settingscategories { background:transparent; border:none; outline:0; }
+QListWidget#settingscategories::item { padding:4px; border-radius:8px; }
+QListWidget#settingscategories::item:selected { background:$card_hi; color:$text_hi; }
+QListWidget#settingscategories::item:hover:!selected { background:$inset; }
 QScrollArea, QScrollArea > QWidget > QWidget { background:transparent; }
 QScrollBar:vertical { background:transparent; width:10px; }
 QScrollBar::handle:vertical { background:$groove; border-radius:5px; min-height:30px; }
@@ -526,44 +714,167 @@ QScrollBar::add-line, QScrollBar::sub-line { height:0; width:0; }
 QScrollBar::add-page, QScrollBar::sub-page { background:transparent; }
 QMenu { background:$card; border:1px solid $border_hi; padding:5px; }
 QMenu::item { padding:7px 22px 7px 12px; border-radius:6px; margin:1px 0; }
-QMenu::item:selected { background:$accent; color:$on_accent; }
+QMenu::item:selected { background:$btn_hover; color:$text_hi; }
 QMenu::item:disabled { color:$faint; }
 QMenu::icon { padding-left:10px; }
 QMenu::separator { height:1px; background:$border; margin:5px 8px; }
+QFrame#tabcard { background:$card_hi; border:1px solid transparent; border-radius:10px; margin:3px 4px; }
+QFrame#tabcard:hover { border-color:$border_hi; background:$btn_hover; }
+QLabel#tabcardpic { background:$inset; border-radius:12px; }
+QLabel#tabcardtitle { font-size:11pt; font-weight:700; color:$text_hi; background:transparent; }
+QLabel#tabcardblurb { color:$muted; background:transparent; }
+QLabel#tabcardhead { font-size:12pt; font-weight:700; color:$text_hi; background:transparent; }
+QWidget#tabcardtop { background:transparent; }
 QToolTip { background:$card; color:$text; border:1px solid $border_hi; border-radius:6px; padding:5px 8px; }
 QTabWidget::pane { border:none; }
 QTabBar { qproperty-drawBase: 0; }
 QTabBar::tab { background:transparent; color:$muted; padding:8px 16px; margin-right:4px;
     border:none; border-bottom:2px solid transparent; font-weight:600; }
-QTabBar::tab:selected { color:$text; border-bottom:2px solid $accent; }
+QTabBar::tab:selected { color:$text_hi; border-bottom:2px solid $text_hi; }
 QTabBar::tab:hover { color:$text; }
+QTabBar::scroller { width:48px; }
+QTabBar QToolButton { background:$btn; border:none; border-radius:8px; margin:5px 0 5px 2px; }
+QTabBar QToolButton:hover { background:$btn_hover; }
+QTabBar QToolButton:disabled { background:$bg; }
+QTabBar QToolButton::left-arrow { image:url("$left"); width:10px; height:10px; }
+QTabBar QToolButton::right-arrow { image:url("$right"); width:10px; height:10px; }
+QTabBar QToolButton::left-arrow:disabled { image:url("$left_off"); }
+QTabBar QToolButton::right-arrow:disabled { image:url("$right_off"); }
+QTabBar::tear { width:0; border:none; }
 QPushButton#live { font-weight:700; }
 QPushButton#voicetile { text-align:left; padding:9px 10px; border-radius:10px; }
 QPushButton#voicetile:checked { background:$accent; color:$on_accent; border:1px solid $accent_hi; font-weight:700; }
 QPushButton#voicetile[art="true"] { padding:5px 10px 5px 6px; }
 QPushButton#voicetile:hover:!checked { border-color:$border_hi; }
+/* Spacious controls only in Voice and Setup cards. */
+QFrame#card[roomy="true"] QPushButton { padding:9px 14px; min-height:18px; }
+QFrame#card[roomy="true"] QPushButton#primary { padding:10px 16px; }
+QFrame#card[roomy="true"] QPushButton#voicetile { padding:7px 12px; text-align:left; }
+QFrame#card[roomy="true"] QPushButton#fold { padding:8px 10px; text-align:left; }
+QFrame#card[roomy="true"] QComboBox { padding:9px 12px; }
+QSlider#hue::groove:horizontal { height:12px; border-radius:6px; border:1px solid $border;
+    background:qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #ff0000, stop:0.167 #ffff00,
+        stop:0.333 #00ff00, stop:0.5 #00ffff, stop:0.667 #0000ff, stop:0.833 #ff00ff,
+        stop:1 #ff0000); }
+QSlider#hue::sub-page:horizontal, QSlider#hue::sub-page:horizontal:disabled { background:transparent; }
+QSlider#hue::handle:horizontal { width:16px; height:16px; margin:-3px 0; border-radius:8px;
+    border:2px solid $text_hi; }
+QPlainTextEdit#speechlog { background:$bg; border:1px solid transparent; border-radius:8px; padding:8px; }
+
+QFrame#fxcard { background:$card; border:1px solid transparent; border-radius:12px; }
+QFrame#fxcard:hover { border-color:$border_hi; }
+QFrame#fxcard[on="true"] { border-color:$accent; }
+QFrame#fxcard[hero="true"] { background:$card; }
+QFrame#fxcard[fresh="true"] { background:$card_hi; border:2px solid $accent_hi; }
+QFrame#fxcard QLabel, QFrame#fxcard QCheckBox { background:transparent; }
+QLabel#fxname { font-weight:700; font-size:10pt; color:$text_hi; }
+QLabel#fxdesc { color:$muted; font-size:8.5pt; }
+QLabel#fxparam { color:$text; font-size:9pt; }
+QLabel#fxvalue { color:$accent_hi; font-size:9pt; font-weight:700; }
+QLabel#fxend { color:$muted; font-size:7.5pt; }   /* faint was 2.6:1 on some */
+QLabel#fxgroup { color:$text; font-size:9pt; font-weight:600; padding-top:6px; }
+QPushButton#fxreset, QFrame#card QPushButton#fxreset, QFrame#card[roomy="true"] QPushButton#fxreset { background:transparent; border:none; color:$muted; padding:2px 6px; min-height:0; font-size:8pt; }
+QPushButton#fxreset:hover, QFrame#card QPushButton#fxreset:hover, QFrame#card[roomy="true"] QPushButton#fxreset:hover { color:$text; background:transparent; }
+QFrame#voicebar { background:$panel; border-radius:12px; }
+QWidget#voicebarpart, QFrame#voicebar QLabel { background:transparent; }
+QLabel#voicebarlabel { color:$muted; font-size:9pt; font-weight:600; }
+QPushButton#vchip { background:$inset; border:1px solid transparent; border-radius:13px; padding:4px 11px; color:$muted; font-size:9pt; font-weight:600; min-height:0; }
+QPushButton#vchip:hover { color:$text; }
+QPushButton#vchip[state="on"] { color:$live_text; border-color:$live_border; }
+QPushButton#vchip[state="warn"] { color:$warn_text; border-color:$warn_text; background:$warn_bg; }
+QLabel#pill { background:$inset; border:1px solid transparent; border-radius:10px; padding:3px 10px; color:$muted; font-size:8.5pt; font-weight:600; }
+QLabel#pill[slow="true"] { color:$warn_text; border-color:$warn_text; }
+QLabel#pill[on="true"] { color:$live_text; border-color:$live_border; }
 QPushButton#fold { background:transparent; border:none; color:$muted; padding:3px 6px; font-size:8.5pt; font-weight:600; }
 QPushButton#fold:hover, QPushButton#fold:checked { color:$text; background:transparent; }
 QFrame#card QPushButton#fold, QFrame#card QPushButton#fold:checked { background:transparent; }
 QPushButton#power { font-weight:700; }
-QPushButton#power:checked, QFrame#card QPushButton#power:checked { background:#13a35a; border:1px solid #13ce66; color:white; }
-QPushButton#live:checked { background:#e53935; border:1px solid #ff6b6b; color:white; }
-QPushButton#rec:checked { background:#e53935; border:1px solid #ff6b6b; color:white; font-weight:700; }
-QPushButton#lite:checked { background:#13a35a; border:1px solid #13ce66; color:white; font-weight:700; }
+QPushButton#power:checked, QFrame#card QPushButton#power:checked { background:$live; border:1px solid $live_hi; color:$on_live; }
+QPushButton#power:checked:hover, QFrame#card QPushButton#power:checked:hover { background:$live_hi; }
+QPushButton#live:checked { background:#d32f2f; border:1px solid #ff6b6b; color:white; }
+QPushButton#rec:checked { background:#d32f2f; border:1px solid #ff6b6b; color:white; font-weight:700; }
+QDialog#recorddialog QLabel#recordtitle { font-size:19pt; font-weight:700; color:$text_hi; }
+QDialog#recorddialog QPushButton#recordmark { background:$panel; border:1px solid $border; border-radius:14px; padding:0; }
+QDialog#recorddialog QRadioButton#recordsource { background:$panel; border:1px solid $border; border-radius:12px; padding:12px 14px; spacing:8px; font-weight:600; }
+QDialog#recorddialog QRadioButton#recordsource:hover { background:$card_hi; border-color:$border_hi; }
+QDialog#recorddialog QRadioButton#recordsource:checked { background:$card_hi; border-color:$accent; color:$text_hi; }
+QDialog#recorddialog QRadioButton#recordsource:focus { border-color:$text_hi; }
+QDialog#recorddialog QRadioButton#recordsource:disabled { color:$muted; }
+QFrame#recordstudio, QFrame#recordreview { background:$panel; border:1px solid $border; border-radius:16px; }
+QFrame#recordstudio QLabel, QFrame#recordreview QLabel { background:transparent; }
+QDialog#recorddialog QLabel#recordtime { font-size:28pt; font-weight:600; color:$text_hi; }
+QDialog#recorddialog QLabel#recordphase { color:$muted; font-size:9pt; }
+QDialog#recorddialog QLabel#recordphase[recording="true"] { color:$danger_text; }
+QDialog#recorddialog QPushButton#rec { background:$danger_bg; border:1px solid $danger_border; color:$danger_text; border-radius:14px; font-weight:700; }
+QDialog#recorddialog QPushButton#rec:hover { background:$danger_hover; border-color:$danger_text; }
+QDialog#recorddialog QPushButton#rec:checked { background:#d32f2f; border-color:#ff6b6b; color:white; }
+QDialog#recorddialog QPushButton#rec:checked:hover { background:#b92424; }
+QDialog#recorddialog QPushButton#rec:focus { border-color:$text_hi; }
+QDialog#recorddialog QPushButton#rec:disabled { background:$inset; border-color:$border; color:$muted; }
 QFrame#setcard { background:$panel; border-radius:12px; }
 QFrame#setcard QWidget { background:transparent; }
+QFrame#setcard QPushButton { background:$btn; }
+QFrame#setcard QPushButton:hover { background:$btn_hover; }
+QFrame#setcard QPushButton[quiet="true"] { background:transparent; }
+QFrame#setcard QPushButton[quiet="true"]:hover { background:$btn_hover; }
+QFrame#setcard QPushButton:checked { background:$accent; color:$on_accent; }
+QFrame#setcard QPushButton#primary { background:$accent; color:$on_accent; border:none; }
+QFrame#setcard QPushButton#power:checked { background:$live; border:1px solid $live_hi; color:$on_live; }
+QFrame#setcard QPushButton#primary:hover { background:$accent_hover; }
+QFrame#setcard QLineEdit, QFrame#setcard QComboBox { background:$bg; }
+QFrame#setcard QLineEdit:hover, QFrame#setcard QComboBox:hover { background:$card; }
+QTableView, QFrame#setcard QTableView { background:$card; alternate-background-color:$card_hi;
+    color:$text; border:1px solid transparent; border-radius:6px;
+    selection-background-color:$btn_press; selection-color:$text_hi; }
+QTableView::item { padding:5px 8px; border:none; }
+QTableView::item:hover { background:$btn_hover; }
+QTableView::item:selected { background:$btn_press; color:$text_hi; }
+QHeaderView, QFrame#setcard QHeaderView { background:$btn; color:$text; }
+QHeaderView::section, QFrame#setcard QHeaderView::section { background:$btn; color:$text;
+    padding:8px; border:none; border-bottom:1px solid $border; font-weight:600; }
+QTableCornerButton::section { background:$btn; border:none; }
+QFrame#setcard QPlainTextEdit { background:$card; color:$text;
+    border:1px solid transparent; border-radius:6px; padding:8px;
+    selection-background-color:$btn_press; selection-color:$text_hi; }
+QProgressBar#downloadprogress, QFrame#card QProgressBar#downloadprogress {
+    background:$groove; border:none; border-radius:2px; }
+QProgressBar#downloadprogress::chunk { background:$accent; border-radius:2px; }
 QPushButton#hkbtn { min-width:150px; font-weight:600; }
 QPushButton#themecard { background:$panel; border:2px solid $border; border-radius:12px; padding:0; }
 QPushButton#themecard:hover { border-color:$border_hi; }
 QPushButton#themecard:checked { background:$panel; border:2px solid $accent; }
-QFrame#card QPushButton#themecard, QFrame#card QPushButton#themecard:checked { background:$panel; }
-QFrame#card QFrame#chip { background:$btn; border:1px solid $border; border-radius:8px; }
-QFrame#card QFrame#chip:hover { border-color:$border_hi; }
+QFrame#card QFrame#chip { background:$btn; border:1px solid transparent; border-radius:11px; }
+QFrame#card QFrame#chip:hover { background:$btn_hover; }
 QFrame#card QFrame#chip[sel="true"] { border-color:$accent; }
 QFrame#card QFrame#chip QPushButton { background:transparent; border:none; }
 QFrame#card QFrame#chip QPushButton#chipname:hover { color:$text_hi; }
 QFrame#card QFrame#chip QPushButton#chipstop { border-radius:11px; color:$muted; }
 QFrame#card QFrame#chip QPushButton#chipstop:hover { background:$danger_bg; color:$danger_text; }
+/* popups (combo lists, menus) are children of the widget that opens them, so the
+   "card QWidget { transparent }" rules above reach them and a see-through popup draws black.
+   Last so it wins the tie with those rules. */
+QFrame#card QComboBox QAbstractItemView, QFrame#setcard QComboBox QAbstractItemView,
+QFrame#card QComboBoxPrivateContainer, QFrame#setcard QComboBoxPrivateContainer,
+QFrame#card QMenu, QFrame#setcard QMenu { background:$card; }
+/* keyboard focus shows on every control in every theme: these come last because a
+   rule with more ids (QFrame#card QPushButton#primary) outranks a plain :focus one */
+QFrame#card QPushButton#primary:focus, QFrame#setcard QPushButton#primary:focus,
+QPushButton:checked:focus, QFrame#card QPushButton:checked:focus,
+QFrame#setcard QPushButton:checked:focus { border:1px solid $text_hi; }
+/* a card's fold arrow: just the arrow, centred in its square (the roomy cards' text
+   padding pushed it off to one side), and a plain accent box for keyboard focus */
+QPushButton#fold[icononly="true"], QFrame#card[roomy="true"] QPushButton#fold[icononly="true"] {
+    padding:0; min-height:0; text-align:center; border:1px solid transparent; border-radius:6px; }
+QPushButton#fold[icononly="true"]:focus, QFrame#card QPushButton#fold[icononly="true"]:focus,
+QFrame#card QPushButton#fold[icononly="true"]:checked:focus { border:1px solid $accent; }
+QCheckBox::indicator:focus { border-color:$accent; }
+QCheckBox::indicator:checked:focus { border-color:$text_hi; }
+QSlider::handle:horizontal:focus, QSlider::handle:vertical:focus { border:2px solid $accent; }
+/* a busy accent button looks busy in a card too (busy.hold: "Setting up…") */
+QPushButton#primary[busy="true"], QPushButton#primary[busy="true"]:hover,
+QFrame#card QPushButton#primary[busy="true"], QFrame#card QPushButton#primary[busy="true"]:hover,
+QFrame#setcard QPushButton#primary[busy="true"],
+QFrame#setcard QPushButton#primary[busy="true"]:hover { background:$inset; color:$muted; }
 """)
 
 
@@ -600,6 +911,41 @@ def _check_url(colour: str) -> str:
     return base.as_posix()
 
 
+def _radio_image(ring: str, fill: str, dot: str, size: int) -> QImage:
+    """A whole radio circle: a 1px ring (scaled with `size`) around `fill`, plus a centre
+    dot when `dot` is set. Kept half a pixel inside the edge so no side gets clipped."""
+    img = QImage(size, size, QImage.Format_ARGB32)
+    img.fill(Qt.transparent)
+    p = QPainter(img)
+    p.setRenderHint(QPainter.Antialiasing)
+    pen_w = size / 16
+    p.setPen(QPen(QColor(ring), pen_w))
+    p.setBrush(QColor(fill))
+    r = size / 2 - pen_w / 2 - size / 64
+    p.drawEllipse(QPointF(size / 2, size / 2), r, r)
+    if dot:
+        p.setPen(Qt.NoPen)
+        p.setBrush(QColor(dot))
+        p.drawEllipse(QPointF(size / 2, size / 2), size * 0.22, size * 0.22)
+    p.end()
+    return img
+
+
+def _radio_url(ring: str, fill: str, dot: str = "") -> str:
+    """The radio circle as a file for `image:`, plus a sharp high-DPI copy."""
+    folder = Path(tempfile.gettempdir()) / "onionwatch-ui"
+    name = "-".join(c.lstrip("#") for c in (ring, fill, dot) if c)
+    base = folder / f"radio2-{name}.png"
+    try:
+        folder.mkdir(exist_ok=True)
+        for path, size in ((base, 16), (base.with_name(base.stem + "@2x.png"), 32)):
+            if not path.exists():
+                _radio_image(ring, fill, dot, size).save(str(path))
+    except OSError:
+        return ""
+    return base.as_posix()
+
+
 def _chevron_image(colour: str, size: int, up: bool) -> QImage:
     """A rounded chevron (dropdown / stepper arrow), drawn in code like the tick."""
     img = QImage(size, size, QImage.Format_ARGB32)
@@ -619,14 +965,19 @@ def _chevron_image(colour: str, size: int, up: bool) -> QImage:
     return img
 
 
-def _chevron_url(colour: str, size: int, up: bool) -> str:
+def _chevron_url(colour: str, size: int, up: bool, side: str = "") -> str:
+    """`side` "left" / "right" turns the down chevron on its side (tab-bar scroll arrows)."""
     folder = Path(tempfile.gettempdir()) / "onionwatch-ui"
-    base = folder / f"chevron-{'up' if up else 'down'}{size}-{colour.lstrip('#')}.png"
+    name = side or ("up" if up else "down")
+    base = folder / f"chevron-{name}{size}-{colour.lstrip('#')}.png"
     try:
         folder.mkdir(exist_ok=True)
         for path, px in ((base, size), (base.with_name(base.stem + "@2x.png"), size * 2)):
             if not path.exists():
-                _chevron_image(colour, px, up).save(str(path))
+                img = _chevron_image(colour, px, up)
+                if side:
+                    img = img.transformed(QTransform().rotate(90 if side == "left" else -90))
+                img.save(str(path))
     except OSError:
         return ""
     return base.as_posix()
@@ -688,17 +1039,68 @@ def texture_image(kind: str, base: str, size: int | None = None) -> QImage:
     return _carbon_image(base, size) if kind == "carbon" else _pattern_image(kind, base, size)
 
 
-def _texture_url(kind: str, base: str) -> str:
-    folder = Path(tempfile.gettempdir()) / "onionwatch-ui"
-    size = TEXTURE_TILE.get(kind, 14)
-    path = folder / f"{kind}{size}-{base.lstrip('#')}.png"
-    try:
-        folder.mkdir(exist_ok=True)
-        if not path.exists():
-            texture_image(kind, base, size).save(str(path))
-    except OSError:
-        return ""
-    return path.as_posix()
+# Themes whose controls and cards keep an outline at rest: the others draw buttons,
+# boxes and cards as flat fills, which in High Contrast (black on black) vanish.
+OUTLINED = {"High Contrast"}
+OUTLINE_STYLE = Template("""
+QPushButton, QPushButton#danger, QLineEdit, QComboBox, QAbstractSpinBox,
+QFrame#chip, QFrame#card QFrame#chip, QFrame#fxcard, QLabel#pill, QPushButton#vchip { border:1px solid $border; }
+QFrame#card, QFrame#setcard, QFrame#voicebar { border:1px solid $border; }
+""")
+
+
+
+# A faint accent glow behind the logo gives the window a little warmth. Cards
+# stay flat, with quiet borders instead of grain, patterns or simulated lighting.
+# The colours follow each theme; High Contrast keeps its solid fills and outlines.
+POLISH_STYLE = Template("""
+QWidget#root { background:qradialgradient(cx:0.08, cy:0, radius:1.15, fx:0.08, fy:0,
+    stop:0 $bg_glow, stop:0.45 $bg, stop:1 $bg); }
+QWidget#root QTabWidget, QWidget#root QTabBar, QWidget#root QStackedWidget,
+QWidget#root QStackedWidget > QWidget, QWidget#root .QWidget { background:transparent; }
+QLabel { background:transparent; }   /* over the gradient: no flat box behind text */
+QToolTip { background:$card; }
+QFrame#card, QFrame#setcard, QFrame#fxcard {
+    background:$panel; border:1px solid $surface_border; }
+QFrame#card[interactive="true"] { border-left:1px solid transparent; border-right:1px solid transparent; }
+QFrame#card[interactive="true"][hovered="true"] { background:$card_hi; border-color:$border_hi; }
+QFrame#transport, QFrame#deck { background:$glass; border-top:1px solid $edge; }
+QPushButton#primary, QFrame#card QPushButton#primary, QFrame#setcard QPushButton#primary {
+    background:qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 $accent_top, stop:1 $accent); }
+QPushButton#primary:hover, QFrame#card QPushButton#primary:hover,
+QFrame#setcard QPushButton#primary:hover {
+    background:qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 $accent_top_hi, stop:1 $accent_hover); }
+QPushButton#onair:checked, QPushButton#power:checked, QFrame#card QPushButton#power:checked,
+QFrame#setcard QPushButton#power:checked {
+    background:qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 $live_top, stop:1 $live); }
+""")
+
+
+def _rgba(colour: str, alpha: float) -> str:
+    c = QColor(colour)
+    return f"rgba({c.red()}, {c.green()}, {c.blue()}, {round(alpha * 255)})"
+
+
+def polish_tokens(tk: dict[str, str], light: bool) -> dict[str, str]:
+    """The extra shades POLISH_STYLE paints with, from theme tokens `tk`."""
+    white = "#ffffff"
+    panel = tk["panel"]
+    return dict(
+        tk,
+        **_window_shades(tk, light),
+        surface_border=_mix(panel, tk["border"], 0.55),
+        edge=_mix(panel, tk["border"], 0.55),
+        glass=_rgba(panel, 0.86),
+        accent_top=_mix(tk["accent"], white, 0.16),
+        accent_top_hi=_mix(tk["accent_hover"], white, 0.16),
+        live_top=_mix(tk["live"], white, 0.16),
+    )
+
+
+def _window_shades(tk: dict[str, str], light: bool) -> dict[str, str]:
+    """Window glow shared by the stylesheet and opaque hand-painted widgets."""
+    return dict(bg_glow=_mix(tk["bg"], tk["accent"], 0.025 if light else 0.04))
+
 
 
 def is_light(name: str | None = None) -> bool:
@@ -708,19 +1110,40 @@ def is_light(name: str | None = None) -> bool:
 
 
 def stylesheet(name: str | None = None) -> str:
-    tokens = dict(THEMES.get(name or current_name, THEMES[DEFAULT]))
-    tokens.setdefault("font", FONT)
-    tokens["check"] = _check_url(tokens["on_accent"])
-    for key, colour in (("", tokens["muted"]), ("_off", tokens["off"])):
-        tokens["down" + key] = _chevron_url(colour, 10, up=False)
-        tokens["up" + key] = _chevron_url(colour, 10, up=True)
-        tokens["down_small" + key] = _chevron_url(colour, 8, up=False)
-        tokens["up_small" + key] = _chevron_url(colour, 8, up=True)
-    css = STYLE.substitute(tokens)
-    if tokens.get("texture") and (url := _texture_url(tokens["texture"], tokens["panel"])):
-        css += ("QFrame#card, QFrame#transport, QFrame#setcard "
-                f'{{ background-image:url("{url}"); }}\n')
+    tk = dict(THEMES.get(name or current_name, THEMES[DEFAULT]))
+    tk.setdefault("font", FONT)
+    outlined = (name or current_name) in OUTLINED
+    # Navigation belongs to the window background, with a quiet inner edge.
+    # Outlined themes keep their deliberate surface and strong divider.
+    tk["rail_bg"] = tk["panel"] if outlined else _mix(tk["bg"], tk["panel"], 0.18)
+    tk["rail_border"] = tk["border"] if outlined else _mix(tk["bg"], tk["border"], 0.35)
+    # card titles in the text colour; High Contrast keeps its yellow to scan by
+    tk["heading"] = tk["section"] if outlined else tk["text_hi"]
+    # controls on a card: the card's colour, or the button colour where cards are the
+    # panel's (Light: white on white, the boxes vanished)
+    tk["card_ctl"] = tk["btn"] if _contrast(tk["card"], tk["panel"]) < 1.05 else tk["card"]
+    tk["check"] = _check_url(tk["on_accent"])
+    tk["check_off"] = _check_url(tk["muted"])   # ticked but greyed out: on $inset
+    tk["radio"] = _radio_url(tk["off"], tk["card"])
+    tk["radio_hover"] = _radio_url(tk["border_hi"], tk["card"])
+    tk["radio_on"] = _radio_url(tk["accent"], tk["accent"], tk["on_accent"])
+    tk["radio_on_hover"] = _radio_url(tk["accent_hi"], tk["accent_hi"], tk["on_accent"])
+    tk["radio_off"] = _radio_url(tk["border"], tk["inset"])
+    tk["radio_on_off"] = _radio_url(tk["border"], tk["inset"], tk["muted"])
+    for key, colour in (("", tk["muted"]), ("_off", tk["off"])):
+        tk["down" + key] = _chevron_url(colour, 10, up=False)
+        tk["up" + key] = _chevron_url(colour, 10, up=True)
+        tk["down_small" + key] = _chevron_url(colour, 8, up=False)
+        tk["up_small" + key] = _chevron_url(colour, 8, up=True)
+        tk["left" + key] = _chevron_url(colour, 10, False, side="left")
+        tk["right" + key] = _chevron_url(colour, 10, False, side="right")
+    css = STYLE.substitute(tk)
+    if outlined:
+        css += OUTLINE_STYLE.substitute(tk)
+    else:
+        css += POLISH_STYLE.substitute(polish_tokens(tk, is_light(name)))
     return css
+
 
 
 def apply(app, name: str) -> str:
