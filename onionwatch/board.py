@@ -36,7 +36,10 @@ def check(host) -> None:
                                 host=getattr(host, "name", "host")))
 
 
-def create(host) -> BoardPanel:
+def create(host, parent=None) -> BoardPanel:
+    """The Triggers tab. A board that passes `parent` (the page it goes on) gets it made
+    there: moving a finished tab of a thousand widgets into the window restyles every
+    one of them again, a good part of the time it took to open."""
     # the board's language (its optional host.language(); Windows' on an older board),
     # set before the page's modules load: some of their text is made as they do
     i18n.follow_host(host)
@@ -44,7 +47,7 @@ def create(host) -> BoardPanel:
     if app is not None:
         i18n.translate_qt_buttons(app)
     check(host)
-    return BoardPanel(host)
+    return BoardPanel(host, parent)
 
 
 class BoardPanel(QWidget):
@@ -56,8 +59,8 @@ class BoardPanel(QWidget):
     version = __version__
     api_version = API_VERSION
 
-    def __init__(self, host):
-        super().__init__()
+    def __init__(self, host, parent=None):
+        super().__init__(parent)
         from onionwatch.ui.alarmbar import AlarmBar
         from onionwatch.ui.pages import TriggerPages
         from onionwatch.ui.triggerspanel import TriggersTab
@@ -74,10 +77,11 @@ class BoardPanel(QWidget):
         # the features used go to the board's own anonymous count (its optional
         # count(): an older board has none, and then nothing is counted at all)
         usage.forward_to(getattr(host, "count", None))
-        self.panel = TriggersTab(host)
+        # made inside this tab, and the pages too, not moved in when done (see create)
+        self.panel = TriggersTab(host, self)
         self.btn_more = self.panel.btn_more   # the board adds "Remove Onion Watch…" to it
         self.alarm = AlarmBar(self.panel)
-        self.pages = TriggerPages(self.panel, top=[self.alarm])
+        self.pages = TriggerPages(self.panel, top=[self.alarm], parent=self)
         self.panel.pages = self.pages
         v.addWidget(self.pages, 1)
         self.panel.active_changed.connect(self.active_changed)

@@ -111,7 +111,7 @@ then installs that file instead of downloading.
 | `onionwatch/__main__.py` | `python -m onionwatch` |
 | `onionwatch/host.py` | what the triggers page needs from the program it runs in (settings, sounds, playing, theme): the Onion Watch app or Onion Board |
 | `onionwatch/apphost.py` | the Onion Watch app as that host |
-| `onionwatch/board.py` | the Onion Board add-on's entry point: `create(host)` gives the board its Triggers tab (alarm bar + triggers page) |
+| `onionwatch/board.py` | the Onion Board add-on's entry point: `create(host, parent=None)` gives the board its Triggers tab, made on `parent` when given (alarm bar + triggers page) |
 | `onionwatch/ui/triggerspanel.py` | the triggers page: one card per trigger, "Look in", Watching, Cut picture. Talks only to its host |
 | `onionwatch/ui/pages.py` | the triggers page as both hosts show it: the Triggers / Log tabs and the Playing now bar under them |
 | `onionwatch/ui/alarmbar.py` | the red bar shown while a trigger rings, with Stop |

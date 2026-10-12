@@ -4,6 +4,9 @@ What changed between releases, for the release notes. Newest first.
 
 ## Unreleased
 
+- **The Triggers tab opens about twice as fast in Onion Board.** Opening it made the
+  hidden editor of every trigger card, and moved the finished tab into the board twice
+  (restyling every part of it each time); now only what shows is made, in place.
 - **New Pads view** (View → Pads): every trigger as a pad, its picture over its name, how
   it's doing and its switch, as many to a row as fit, under its category. Click one and it
   opens on the right while the pads keep 30% of the width; drag the bar between them to

@@ -2665,8 +2665,8 @@ class TriggersTab(QWidget):
     _fired = Signal(str, object)        # from the watcher thread: trigger id, Hit
     _quieted = Signal(str)              # ...a ringing trigger's stop happened (Quieter)
 
-    def __init__(self, host):
-        super().__init__()
+    def __init__(self, host, parent=None):
+        super().__init__(parent)
         self.host = host
         s = host.screen
         self.triggers: list[Trigger] = []
@@ -5588,7 +5588,7 @@ class TriggersTab(QWidget):
     def _show_tests(self, live: set[str]):
         """Each card's Test says Stop while its trigger plays."""
         for row in [*self.rows.values(), self.editor]:
-            if row is None:
+            if row is None or not row.built:   # a closed card's editor isn't made yet
                 continue
             on = row.t.id in live
             if row.btn_test.property("stops") != on:
