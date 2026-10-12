@@ -4,6 +4,7 @@ What changed between releases, for the release notes. Newest first.
 
 ## Unreleased
 
+- The app's font is Bahnschrift, the same as Onion Board's.
 - **Light themes: every button and box shows.** Buttons are a shade darker than the
   window, and boxes and drop-downs have a fill instead of white on a white card.
 - The main buttons (Cut picture, Watching) get Onion Board's soft gradient and light
