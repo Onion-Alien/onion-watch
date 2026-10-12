@@ -265,6 +265,14 @@ def _edit(p, fill):
     p.drawLine(QPointF(13, 7.5), QPointF(16.5, 11))
 
 
+def _copy(p, fill):
+    p.drawRoundedRect(QRectF(8, 8, 12, 13), 2, 2)
+    path = QPainterPath(QPointF(5, 16))
+    for pt in ((3, 16), (3, 3), (15, 3), (15, 5)):
+        path.lineTo(*pt)
+    p.drawPath(path)
+
+
 def _trash(p, fill):
     p.drawLine(QPointF(4, 6.5), QPointF(20, 6.5))
     p.drawLine(QPointF(9.5, 6.5), QPointF(10, 3.5))
@@ -477,7 +485,7 @@ SHAPES = {
     "settings": _gear, "history": _history, "leaf": _leaf, "live": _live,
     "back": _arrow("back"), "forward": _arrow("forward"), "reload": _reload,
     "speech": _speech, "cable": _cable, "check": _check, "warn": _warn, "folder": _folder,
-    "next": _next, "edit": _edit, "trash": _trash, "keyboard": _keyboard,
+    "next": _next, "edit": _edit, "trash": _trash, "copy": _copy, "keyboard": _keyboard,
     "palette": _palette, "gamepad": _gamepad, "image": _image, "radio": _radio,
     "apps": _apps, "triggers": _eye, "fold": _chevron("right"), "fold_open": _chevron("down"),
     "window": _window, "crop": _crop, "bell": _bell, "search": _search,

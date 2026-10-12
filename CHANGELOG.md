@@ -4,6 +4,13 @@ What changed between releases, for the release notes. Newest first.
 
 ## Unreleased
 
+- **The Triggers page lines up.** With the list and editor side by side, New trigger is
+  as wide as the list and the search box starts where the editor does; Start watching
+  lines up with the cards' pictures.
+- The trigger list keeps a gap from its scroll bar instead of running into it, and its
+  cards drop the arrow (clicking one already opens it on the right). Cards that open
+  where they are keep their arrow.
+- Duplicate has an icon, like Test and Delete next to it.
 - Buttons and menu items no longer end in “…”: Cut picture, Profiles, Save to a file and
   the rest read plainly, as in Onion Board. Messages that something is happening keep theirs.
 - The app's font is Bahnschrift, the same as Onion Board's.

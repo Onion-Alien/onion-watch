@@ -133,8 +133,14 @@ def test_closed_card_switch_is_centered_beside_picture(tab, qapp):
         qapp.processEvents()
     picture = row.strip.thumbs[0].pic
     middle = picture.mapTo(row, picture.rect().center()).y()
-    for control in (row.chk_on, row.btn_open):
-        assert abs(control.mapTo(row, control.rect().center()).y() - middle) <= 1
+    control = row.chk_on
+    assert abs(control.mapTo(row, control.rect().center()).y() - middle) <= 1
+    # beside the editor a click picks the card: no open / close arrow on it
+    assert tab.split and row.btn_open.isHidden()
+    tab.resize(600, 650)
+    for _ in range(6):
+        qapp.processEvents()
+    assert not tab.split and not row.btn_open.isHidden()
     assert {label.contentsMargins().left()
             for label in (row.state, row.sound_summary, row.details)} == {6}
 
