@@ -1663,6 +1663,7 @@ class TriggerRow(QFrame):
         # Duplicate and Delete in words, not behind a ⋯ nobody could read
         self.btn_dup = QPushButton(_("Duplicate"))
         self.btn_dup.setObjectName("small")
+        icons.set_icon(self.btn_dup, "copy", size=14)
         self.btn_dup.setToolTip(_("Make a copy of this trigger (pictures, sounds and all)"))
         self.btn_dup.clicked.connect(lambda: self.duplicate.emit(self))
         tune.addWidget(self.btn_dup)
@@ -2873,6 +2874,9 @@ class TriggersTab(QWidget):
         v.addWidget(self.no_results)
         self.list_layout.addStretch(1)
         self.scroll.setWidget(self.list)
+        # the cards keep a gap from the scroll bar instead of running up against it
+        self.scroll.verticalScrollBar().rangeChanged.connect(
+            lambda _lo, hi: self.list_layout.setContentsMargins(0, 0, 10 if hi else 0, 0))
         # a wide window: the list on the left, the trigger picked in it on the right
         # (_set_split). Narrower, the list is the whole width and a card opens in it
         self.body = QWidget()
@@ -2920,7 +2924,9 @@ class TriggersTab(QWidget):
         f.setStyleSheet("QPushButton { padding: 8px 16px; } "
                         "QPushButton#live, QPushButton#primary { font-weight: 700; }")
         h = BarFlow(f, gap=18)   # room between them: at 10 the bar looked packed
-        h.setContentsMargins(14, 10, 14, 10)
+        # its first button in line with the cards' pictures above it (a card's margin
+        # and the strip's own two pixels)
+        h.setContentsMargins(12, 10, 12, 10)
         self.btn_watch = QPushButton()
         self.btn_watch.setObjectName("live")
         self.btn_watch.setCheckable(True)
@@ -3060,11 +3066,13 @@ class TriggersTab(QWidget):
         self.split = on
         self.scroll.setMaximumWidth(LIST_WIDTH if on else 16777215)
         self.scroll.setMinimumWidth(LIST_WIDTH if on else 0)
+        self._fit_top()     # (the line over it in the same two columns)
         self.body.layout().setStretch(0, 0 if on else 1)
         self.editor_scroll.setVisible(on)
         picked = self.editor.t.id if self.editor is not None else None
         for row in self.rows.values():
             row.on_open = self._select if on else None
+            row.btn_open.setVisible(not on)     # a click picks it; the editor never folds
             if on and row.is_open:
                 picked = picked or row.t.id
                 row.set_open(False)
@@ -3188,6 +3196,18 @@ class TriggersTab(QWidget):
             self.view_bar.parentWidget().layout().removeWidget(self.view_bar)
             target.addWidget(self.view_bar)
         target.setAlignment(self.view_bar, Qt.Alignment() if stacked else Qt.AlignLeft)
+        # beside the editor, the line in the list's and the editor's columns: New trigger
+        # as wide as the list, the search box from where the editor starts. Only while
+        # the search box keeps its room (with categories, a search or a profile on the
+        # line too, New trigger stays its own width)
+        gap = self.body.layout().spacing()
+        rest = (_row_width(line, least=False) + counts
+                + (_row_width(view, least=False) + 8 if one_line else 0))
+        columns = (self.split and not stacked
+                   and width - LIST_WIDTH - gap - rest - 8 >= SEARCH_ROOM)
+        self.btn_new.setMinimumWidth(LIST_WIDTH if columns else 0)
+        self.btn_new.setMaximumWidth(LIST_WIDTH if columns else 16777215)
+        self.search_line.layout().setSpacing(gap if columns else 8)
 
     def _on_view(self, i: int):
         n = self.cb_per_row.itemData(i)
@@ -4572,6 +4592,7 @@ class TriggersTab(QWidget):
         self.rows[t.id] = row
         if split:
             row.on_open = self._select
+            row.btn_open.hide()
             if open_:
                 self._select(row)
             elif self.editor is not None and self.editor.t is t:
