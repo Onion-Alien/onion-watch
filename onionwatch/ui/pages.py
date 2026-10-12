@@ -137,7 +137,8 @@ class TriggerPages(QWidget):
         v.addWidget(self.tabs)
         for w in top:
             v.addWidget(w)
-        self.stack = QStackedWidget()
+        self.stack = QStackedWidget(self)
+        v.addWidget(self.stack, 1)
         self.stack.addWidget(panel)
         log_page = QWidget()
         lv = QVBoxLayout(log_page)

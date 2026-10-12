@@ -3,6 +3,7 @@ can't run in, and the tab it gives back rings through the board, says so with th
 board's notification and stops with the board's Stop all. Stand-in screens and a
 stand-in board; nothing is heard."""
 import pytest
+from PySide6.QtWidgets import QWidget
 from conftest import process_events
 from fakehost import FakeHost
 from test_ui import FakeGrabber, W, H, as_qimage, banner, scene, showing
@@ -72,6 +73,38 @@ def test_the_board_is_told_what_it_may_squeeze(tab):
     tab.panel.set_watching(False)
     assert tab.panel.btn_watch.text() == ""
     assert tab.panel.btn_watch.property("full_text") == "Start watching"
+
+
+def test_a_board_can_have_the_tab_made_on_its_page(qapp, tmp_path):
+    """create(host, parent): made where it goes, not moved in finished (that restyled
+    every widget again and made the board's tab slow to open)."""
+    page = QWidget()
+    tab = board.create(FakeHost(tmp_path / "board"), parent=page)
+    try:
+        assert tab.parent() is page
+        assert tab.pages.parent() is tab and tab.panel.parent() is tab.pages.stack
+    finally:
+        tab.shutdown()
+        theme.set_current(theme.DEFAULT)
+
+
+def test_opening_the_tab_makes_no_closed_cards_editor(tab, qapp):
+    """The Playing now bar checks every card's Test button: a card whose editor isn't
+    made yet is skipped, not made (that made all of them, every time the tab opened)."""
+    panel = tab.panel
+    for name in ("One", "Two", "Three"):
+        panel._new(as_qimage(banner()), name)
+    host = tab.host
+    tab.shutdown()
+    again = board.create(host)
+    try:
+        rows = list(again.panel.rows.values())
+        assert len(rows) == 3
+        assert not any(r.built for r in rows if not r.is_open)
+        assert again.pages.playing.panel.playing_now() == []
+        assert not any(r.built for r in rows if not r.is_open)
+    finally:
+        again.shutdown()
 
 
 def test_the_board_can_reach_the_more_menu(tab):
