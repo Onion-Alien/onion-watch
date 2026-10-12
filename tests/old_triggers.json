@@ -1,0 +1,2961 @@
+{
+ "_about": "Triggers exactly as each release saved them (Trigger.to_raw), made by running that release's own code. board-*: the Triggers tab inside Onion Board before Onion Watch existed, which saved asdict(trigger): one picture and sound, then + monitor, then lists.",
+ "board-1": [
+  {
+   "id": "board-1-on",
+   "name": "Saved by Onion Board (board-1-on)",
+   "image": "triggers/board-1-on.png",
+   "sound": "snd-alarm",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": true,
+   "pending": ""
+  },
+  {
+   "id": "board-1-off",
+   "name": "Saved by Onion Board (board-1-off)",
+   "image": "triggers/board-1-off.png",
+   "sound": "snd-alarm",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": false,
+   "pending": ""
+  }
+ ],
+ "board-2": [
+  {
+   "id": "board-2-on",
+   "name": "Saved by Onion Board (board-2-on)",
+   "image": "triggers/board-2-on.png",
+   "sound": "snd-alarm",
+   "monitor": null,
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": true,
+   "pending": ""
+  },
+  {
+   "id": "board-2-off",
+   "name": "Saved by Onion Board (board-2-off)",
+   "image": "triggers/board-2-off.png",
+   "sound": "snd-alarm",
+   "monitor": null,
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": false,
+   "pending": ""
+  }
+ ],
+ "board-3": [
+  {
+   "id": "board-3-on",
+   "name": "Saved by Onion Board (board-3-on)",
+   "images": [
+    "triggers/board-3-on.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "monitor": null,
+   "image": "triggers/board-3-on.png",
+   "sound": "snd-alarm",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": true,
+   "pending": ""
+  },
+  {
+   "id": "board-3-off",
+   "name": "Saved by Onion Board (board-3-off)",
+   "images": [
+    "triggers/board-3-off.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "monitor": null,
+   "image": "triggers/board-3-off.png",
+   "sound": "snd-alarm",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": false,
+   "pending": ""
+  }
+ ],
+ "0.2.0": [
+  {
+   "id": "v0.2.0-on",
+   "name": "Saved by v0.2.0 (on)",
+   "images": [
+    "triggers/v0.2.0-on.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": true,
+   "pending": "",
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "ring": true,
+   "image": "triggers/v0.2.0-on.png",
+   "sound": "snd-alarm"
+  },
+  {
+   "id": "v0.2.0-off",
+   "name": "Saved by v0.2.0 (off)",
+   "images": [
+    "triggers/v0.2.0-off.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": false,
+   "pending": "",
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "ring": false,
+   "image": "triggers/v0.2.0-off.png",
+   "sound": "snd-alarm"
+  }
+ ],
+ "0.2.1": [
+  {
+   "id": "v0.2.1-on",
+   "name": "Saved by v0.2.1 (on)",
+   "images": [
+    "triggers/v0.2.1-on.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": true,
+   "pending": "",
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "ring": true,
+   "image": "triggers/v0.2.1-on.png",
+   "sound": "snd-alarm"
+  },
+  {
+   "id": "v0.2.1-off",
+   "name": "Saved by v0.2.1 (off)",
+   "images": [
+    "triggers/v0.2.1-off.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": false,
+   "pending": "",
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "ring": false,
+   "image": "triggers/v0.2.1-off.png",
+   "sound": "snd-alarm"
+  }
+ ],
+ "0.3.1": [
+  {
+   "id": "v0.3.1-on",
+   "name": "Saved by v0.3.1 (on)",
+   "images": [
+    "triggers/v0.3.1-on.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": true,
+   "pending": "",
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "ring": true,
+   "image": "triggers/v0.3.1-on.png",
+   "sound": "snd-alarm"
+  },
+  {
+   "id": "v0.3.1-off",
+   "name": "Saved by v0.3.1 (off)",
+   "images": [
+    "triggers/v0.3.1-off.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": false,
+   "pending": "",
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "ring": false,
+   "image": "triggers/v0.3.1-off.png",
+   "sound": "snd-alarm"
+  }
+ ],
+ "0.4.0": [
+  {
+   "id": "v0.4.0-on",
+   "name": "Saved by v0.4.0 (on)",
+   "images": [
+    "triggers/v0.4.0-on.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": true,
+   "pending": "",
+   "ring": true,
+   "mode": "appear",
+   "level": 0.05,
+   "below": true,
+   "colour": "",
+   "region": null,
+   "hold": 0.0,
+   "unfocused": false,
+   "screens": [],
+   "windows": [
+    {
+     "exe": "game.exe",
+     "title": "Made-up Game",
+     "nth": 0
+    }
+   ],
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "image": "triggers/v0.4.0-on.png",
+   "sound": "snd-alarm"
+  },
+  {
+   "id": "v0.4.0-off",
+   "name": "Saved by v0.4.0 (off)",
+   "images": [
+    "triggers/v0.4.0-off.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": false,
+   "pending": "",
+   "ring": false,
+   "mode": "appear",
+   "level": 0.05,
+   "below": true,
+   "colour": "",
+   "region": null,
+   "hold": 0.0,
+   "unfocused": false,
+   "screens": [],
+   "windows": [
+    {
+     "exe": "game.exe",
+     "title": "Made-up Game",
+     "nth": 0
+    }
+   ],
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "image": "triggers/v0.4.0-off.png",
+   "sound": "snd-alarm"
+  }
+ ],
+ "0.5.0": [
+  {
+   "id": "v0.5.0-on",
+   "name": "Saved by v0.5.0 (on)",
+   "images": [
+    "triggers/v0.5.0-on.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": true,
+   "pending": "",
+   "ring": true,
+   "mode": "appear",
+   "level": 0.05,
+   "below": true,
+   "colour": "",
+   "region": null,
+   "hold": 0.0,
+   "unfocused": false,
+   "any_size": true,
+   "screens": [],
+   "windows": [
+    {
+     "exe": "game.exe",
+     "title": "Made-up Game",
+     "nth": 0
+    }
+   ],
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "image": "triggers/v0.5.0-on.png",
+   "sound": "snd-alarm"
+  },
+  {
+   "id": "v0.5.0-off",
+   "name": "Saved by v0.5.0 (off)",
+   "images": [
+    "triggers/v0.5.0-off.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": false,
+   "pending": "",
+   "ring": false,
+   "mode": "appear",
+   "level": 0.05,
+   "below": true,
+   "colour": "",
+   "region": null,
+   "hold": 0.0,
+   "unfocused": false,
+   "any_size": true,
+   "screens": [],
+   "windows": [
+    {
+     "exe": "game.exe",
+     "title": "Made-up Game",
+     "nth": 0
+    }
+   ],
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "image": "triggers/v0.5.0-off.png",
+   "sound": "snd-alarm"
+  }
+ ],
+ "0.5.1": [
+  {
+   "id": "v0.5.1-on",
+   "name": "Saved by v0.5.1 (on)",
+   "images": [
+    "triggers/v0.5.1-on.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": true,
+   "pending": "",
+   "ring": true,
+   "mode": "appear",
+   "level": 0.05,
+   "below": true,
+   "colour": "",
+   "region": null,
+   "hold": 0.0,
+   "unfocused": false,
+   "any_size": true,
+   "screens": [],
+   "windows": [
+    {
+     "exe": "game.exe",
+     "title": "Made-up Game",
+     "nth": 0
+    }
+   ],
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "image": "triggers/v0.5.1-on.png",
+   "sound": "snd-alarm"
+  },
+  {
+   "id": "v0.5.1-off",
+   "name": "Saved by v0.5.1 (off)",
+   "images": [
+    "triggers/v0.5.1-off.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": false,
+   "pending": "",
+   "ring": false,
+   "mode": "appear",
+   "level": 0.05,
+   "below": true,
+   "colour": "",
+   "region": null,
+   "hold": 0.0,
+   "unfocused": false,
+   "any_size": true,
+   "screens": [],
+   "windows": [
+    {
+     "exe": "game.exe",
+     "title": "Made-up Game",
+     "nth": 0
+    }
+   ],
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "image": "triggers/v0.5.1-off.png",
+   "sound": "snd-alarm"
+  }
+ ],
+ "0.5.2": [
+  {
+   "id": "v0.5.2-on",
+   "name": "Saved by v0.5.2 (on)",
+   "images": [
+    "triggers/v0.5.2-on.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": true,
+   "pending": "",
+   "ring": true,
+   "mode": "appear",
+   "level": 0.05,
+   "below": true,
+   "colour": "",
+   "region": null,
+   "hold": 0.0,
+   "unfocused": false,
+   "any_size": true,
+   "screens": [],
+   "windows": [
+    {
+     "exe": "game.exe",
+     "title": "Made-up Game",
+     "nth": 0
+    }
+   ],
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "image": "triggers/v0.5.2-on.png",
+   "sound": "snd-alarm"
+  },
+  {
+   "id": "v0.5.2-off",
+   "name": "Saved by v0.5.2 (off)",
+   "images": [
+    "triggers/v0.5.2-off.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": false,
+   "pending": "",
+   "ring": false,
+   "mode": "appear",
+   "level": 0.05,
+   "below": true,
+   "colour": "",
+   "region": null,
+   "hold": 0.0,
+   "unfocused": false,
+   "any_size": true,
+   "screens": [],
+   "windows": [
+    {
+     "exe": "game.exe",
+     "title": "Made-up Game",
+     "nth": 0
+    }
+   ],
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "image": "triggers/v0.5.2-off.png",
+   "sound": "snd-alarm"
+  }
+ ],
+ "0.5.3": [
+  {
+   "id": "v0.5.3-on",
+   "name": "Saved by v0.5.3 (on)",
+   "images": [
+    "triggers/v0.5.3-on.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": true,
+   "pending": "",
+   "ring": true,
+   "mode": "appear",
+   "level": 0.05,
+   "below": true,
+   "colour": "",
+   "region": null,
+   "hold": 0.0,
+   "unfocused": false,
+   "any_size": true,
+   "screens": [],
+   "windows": [
+    {
+     "exe": "game.exe",
+     "title": "Made-up Game",
+     "nth": 0
+    }
+   ],
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "image": "triggers/v0.5.3-on.png",
+   "sound": "snd-alarm"
+  },
+  {
+   "id": "v0.5.3-off",
+   "name": "Saved by v0.5.3 (off)",
+   "images": [
+    "triggers/v0.5.3-off.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": false,
+   "pending": "",
+   "ring": false,
+   "mode": "appear",
+   "level": 0.05,
+   "below": true,
+   "colour": "",
+   "region": null,
+   "hold": 0.0,
+   "unfocused": false,
+   "any_size": true,
+   "screens": [],
+   "windows": [
+    {
+     "exe": "game.exe",
+     "title": "Made-up Game",
+     "nth": 0
+    }
+   ],
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "image": "triggers/v0.5.3-off.png",
+   "sound": "snd-alarm"
+  }
+ ],
+ "0.5.4": [
+  {
+   "id": "v0.5.4-on",
+   "name": "Saved by v0.5.4 (on)",
+   "images": [
+    "triggers/v0.5.4-on.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": true,
+   "pending": "",
+   "ring": true,
+   "stop": "moves",
+   "mode": "appear",
+   "level": 0.05,
+   "below": true,
+   "colour": "",
+   "region": null,
+   "hold": 0.0,
+   "unfocused": false,
+   "any_size": true,
+   "screens": [],
+   "windows": [
+    {
+     "exe": "game.exe",
+     "title": "Made-up Game",
+     "nth": 0
+    }
+   ],
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "image": "triggers/v0.5.4-on.png",
+   "sound": "snd-alarm"
+  },
+  {
+   "id": "v0.5.4-off",
+   "name": "Saved by v0.5.4 (off)",
+   "images": [
+    "triggers/v0.5.4-off.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": false,
+   "pending": "",
+   "ring": false,
+   "stop": "moves",
+   "mode": "appear",
+   "level": 0.05,
+   "below": true,
+   "colour": "",
+   "region": null,
+   "hold": 0.0,
+   "unfocused": false,
+   "any_size": true,
+   "screens": [],
+   "windows": [
+    {
+     "exe": "game.exe",
+     "title": "Made-up Game",
+     "nth": 0
+    }
+   ],
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "image": "triggers/v0.5.4-off.png",
+   "sound": "snd-alarm"
+  }
+ ],
+ "0.5.5": [
+  {
+   "id": "v0.5.5-on",
+   "name": "Saved by v0.5.5 (on)",
+   "images": [
+    "triggers/v0.5.5-on.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": true,
+   "pending": "",
+   "ring": true,
+   "stop": "moves",
+   "mode": "appear",
+   "level": 0.05,
+   "below": true,
+   "colour": "",
+   "region": null,
+   "hold": 0.0,
+   "unfocused": false,
+   "any_size": true,
+   "screens": [],
+   "windows": [
+    {
+     "exe": "game.exe",
+     "title": "Made-up Game",
+     "nth": 0
+    }
+   ],
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "image": "triggers/v0.5.5-on.png",
+   "sound": "snd-alarm"
+  },
+  {
+   "id": "v0.5.5-off",
+   "name": "Saved by v0.5.5 (off)",
+   "images": [
+    "triggers/v0.5.5-off.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": false,
+   "pending": "",
+   "ring": false,
+   "stop": "moves",
+   "mode": "appear",
+   "level": 0.05,
+   "below": true,
+   "colour": "",
+   "region": null,
+   "hold": 0.0,
+   "unfocused": false,
+   "any_size": true,
+   "screens": [],
+   "windows": [
+    {
+     "exe": "game.exe",
+     "title": "Made-up Game",
+     "nth": 0
+    }
+   ],
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "image": "triggers/v0.5.5-off.png",
+   "sound": "snd-alarm"
+  }
+ ],
+ "0.5.6": [
+  {
+   "id": "v0.5.6-on",
+   "name": "Saved by v0.5.6 (on)",
+   "images": [
+    "triggers/v0.5.6-on.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": true,
+   "pending": "",
+   "ring": true,
+   "stop": "moves",
+   "mode": "appear",
+   "level": 0.05,
+   "below": true,
+   "colour": "",
+   "region": null,
+   "hold": 0.0,
+   "unfocused": false,
+   "any_size": true,
+   "screens": [],
+   "windows": [
+    {
+     "exe": "game.exe",
+     "title": "Made-up Game",
+     "nth": 0
+    }
+   ],
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "image": "triggers/v0.5.6-on.png",
+   "sound": "snd-alarm"
+  },
+  {
+   "id": "v0.5.6-off",
+   "name": "Saved by v0.5.6 (off)",
+   "images": [
+    "triggers/v0.5.6-off.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": false,
+   "pending": "",
+   "ring": false,
+   "stop": "moves",
+   "mode": "appear",
+   "level": 0.05,
+   "below": true,
+   "colour": "",
+   "region": null,
+   "hold": 0.0,
+   "unfocused": false,
+   "any_size": true,
+   "screens": [],
+   "windows": [
+    {
+     "exe": "game.exe",
+     "title": "Made-up Game",
+     "nth": 0
+    }
+   ],
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "image": "triggers/v0.5.6-off.png",
+   "sound": "snd-alarm"
+  }
+ ],
+ "0.6.0": [
+  {
+   "id": "v0.6.0-on",
+   "name": "Saved by v0.6.0 (on)",
+   "images": [
+    "triggers/v0.6.0-on.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": true,
+   "pending": "",
+   "ring": true,
+   "stop": "moves",
+   "mode": "appear",
+   "level": 0.05,
+   "below": true,
+   "colour": "",
+   "region": null,
+   "hold": 0.0,
+   "unfocused": false,
+   "any_size": true,
+   "category": "",
+   "screens": [],
+   "windows": [
+    {
+     "exe": "game.exe",
+     "title": "Made-up Game",
+     "nth": 0
+    }
+   ],
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "image": "triggers/v0.6.0-on.png",
+   "sound": "snd-alarm"
+  },
+  {
+   "id": "v0.6.0-off",
+   "name": "Saved by v0.6.0 (off)",
+   "images": [
+    "triggers/v0.6.0-off.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": false,
+   "pending": "",
+   "ring": false,
+   "stop": "moves",
+   "mode": "appear",
+   "level": 0.05,
+   "below": true,
+   "colour": "",
+   "region": null,
+   "hold": 0.0,
+   "unfocused": false,
+   "any_size": true,
+   "category": "",
+   "screens": [],
+   "windows": [
+    {
+     "exe": "game.exe",
+     "title": "Made-up Game",
+     "nth": 0
+    }
+   ],
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "image": "triggers/v0.6.0-off.png",
+   "sound": "snd-alarm"
+  }
+ ],
+ "0.6.1": [
+  {
+   "id": "v0.6.1-on",
+   "name": "Saved by v0.6.1 (on)",
+   "images": [
+    "triggers/v0.6.1-on.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": true,
+   "pending": "",
+   "ring": true,
+   "stop": "moves",
+   "mode": "appear",
+   "level": 0.05,
+   "below": true,
+   "colour": "",
+   "region": null,
+   "hold": 0.0,
+   "unfocused": false,
+   "any_size": true,
+   "category": "",
+   "screens": [],
+   "windows": [
+    {
+     "exe": "game.exe",
+     "title": "Made-up Game",
+     "nth": 0
+    }
+   ],
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "image": "triggers/v0.6.1-on.png",
+   "sound": "snd-alarm"
+  },
+  {
+   "id": "v0.6.1-off",
+   "name": "Saved by v0.6.1 (off)",
+   "images": [
+    "triggers/v0.6.1-off.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": false,
+   "pending": "",
+   "ring": false,
+   "stop": "moves",
+   "mode": "appear",
+   "level": 0.05,
+   "below": true,
+   "colour": "",
+   "region": null,
+   "hold": 0.0,
+   "unfocused": false,
+   "any_size": true,
+   "category": "",
+   "screens": [],
+   "windows": [
+    {
+     "exe": "game.exe",
+     "title": "Made-up Game",
+     "nth": 0
+    }
+   ],
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "image": "triggers/v0.6.1-off.png",
+   "sound": "snd-alarm"
+  }
+ ],
+ "0.6.2": [
+  {
+   "id": "v0.6.2-on",
+   "name": "Saved by v0.6.2 (on)",
+   "images": [
+    "triggers/v0.6.2-on.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": true,
+   "pending": "",
+   "ring": true,
+   "stop": "moves",
+   "mode": "appear",
+   "level": 0.05,
+   "below": true,
+   "colour": "",
+   "region": null,
+   "hold": 0.0,
+   "unfocused": false,
+   "any_size": true,
+   "category": "",
+   "screens": [],
+   "windows": [
+    {
+     "exe": "game.exe",
+     "title": "Made-up Game",
+     "nth": 0
+    }
+   ],
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "image": "triggers/v0.6.2-on.png",
+   "sound": "snd-alarm"
+  },
+  {
+   "id": "v0.6.2-off",
+   "name": "Saved by v0.6.2 (off)",
+   "images": [
+    "triggers/v0.6.2-off.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": false,
+   "pending": "",
+   "ring": false,
+   "stop": "moves",
+   "mode": "appear",
+   "level": 0.05,
+   "below": true,
+   "colour": "",
+   "region": null,
+   "hold": 0.0,
+   "unfocused": false,
+   "any_size": true,
+   "category": "",
+   "screens": [],
+   "windows": [
+    {
+     "exe": "game.exe",
+     "title": "Made-up Game",
+     "nth": 0
+    }
+   ],
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "image": "triggers/v0.6.2-off.png",
+   "sound": "snd-alarm"
+  }
+ ],
+ "0.6.3": [
+  {
+   "id": "v0.6.3-on",
+   "name": "Saved by v0.6.3 (on)",
+   "images": [
+    "triggers/v0.6.3-on.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": true,
+   "pending": "",
+   "ring": true,
+   "stop": "moves",
+   "mode": "appear",
+   "level": 0.05,
+   "below": true,
+   "colour": "",
+   "region": null,
+   "hold": 0.0,
+   "unfocused": false,
+   "any_size": true,
+   "category": "",
+   "screens": [],
+   "windows": [
+    {
+     "exe": "game.exe",
+     "title": "Made-up Game",
+     "nth": 0
+    }
+   ],
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "image": "triggers/v0.6.3-on.png",
+   "sound": "snd-alarm"
+  },
+  {
+   "id": "v0.6.3-off",
+   "name": "Saved by v0.6.3 (off)",
+   "images": [
+    "triggers/v0.6.3-off.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": false,
+   "pending": "",
+   "ring": false,
+   "stop": "moves",
+   "mode": "appear",
+   "level": 0.05,
+   "below": true,
+   "colour": "",
+   "region": null,
+   "hold": 0.0,
+   "unfocused": false,
+   "any_size": true,
+   "category": "",
+   "screens": [],
+   "windows": [
+    {
+     "exe": "game.exe",
+     "title": "Made-up Game",
+     "nth": 0
+    }
+   ],
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "image": "triggers/v0.6.3-off.png",
+   "sound": "snd-alarm"
+  }
+ ],
+ "0.6.4": [
+  {
+   "id": "v0.6.4-on",
+   "name": "Saved by v0.6.4 (on)",
+   "images": [
+    "triggers/v0.6.4-on.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": true,
+   "pending": "",
+   "ring": true,
+   "stop": "moves",
+   "mode": "appear",
+   "level": 0.05,
+   "below": true,
+   "colour": "",
+   "region": null,
+   "hold": 0.0,
+   "unfocused": false,
+   "any_size": true,
+   "category": "",
+   "screens": [],
+   "windows": [
+    {
+     "exe": "game.exe",
+     "title": "Made-up Game",
+     "nth": 0
+    }
+   ],
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "image": "triggers/v0.6.4-on.png",
+   "sound": "snd-alarm"
+  },
+  {
+   "id": "v0.6.4-off",
+   "name": "Saved by v0.6.4 (off)",
+   "images": [
+    "triggers/v0.6.4-off.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": false,
+   "pending": "",
+   "ring": false,
+   "stop": "moves",
+   "mode": "appear",
+   "level": 0.05,
+   "below": true,
+   "colour": "",
+   "region": null,
+   "hold": 0.0,
+   "unfocused": false,
+   "any_size": true,
+   "category": "",
+   "screens": [],
+   "windows": [
+    {
+     "exe": "game.exe",
+     "title": "Made-up Game",
+     "nth": 0
+    }
+   ],
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "image": "triggers/v0.6.4-off.png",
+   "sound": "snd-alarm"
+  }
+ ],
+ "0.6.5": [
+  {
+   "id": "v0.6.5-on",
+   "name": "Saved by v0.6.5 (on)",
+   "images": [
+    "triggers/v0.6.5-on.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": true,
+   "pending": "",
+   "ring": true,
+   "stop": "moves",
+   "mode": "appear",
+   "level": 0.05,
+   "below": true,
+   "colour": "",
+   "region": null,
+   "hold": 0.0,
+   "unfocused": false,
+   "any_size": true,
+   "category": "",
+   "screens": [],
+   "windows": [
+    {
+     "exe": "game.exe",
+     "title": "Made-up Game",
+     "nth": 0
+    }
+   ],
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "image": "triggers/v0.6.5-on.png",
+   "sound": "snd-alarm"
+  },
+  {
+   "id": "v0.6.5-off",
+   "name": "Saved by v0.6.5 (off)",
+   "images": [
+    "triggers/v0.6.5-off.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": false,
+   "pending": "",
+   "ring": false,
+   "stop": "moves",
+   "mode": "appear",
+   "level": 0.05,
+   "below": true,
+   "colour": "",
+   "region": null,
+   "hold": 0.0,
+   "unfocused": false,
+   "any_size": true,
+   "category": "",
+   "screens": [],
+   "windows": [
+    {
+     "exe": "game.exe",
+     "title": "Made-up Game",
+     "nth": 0
+    }
+   ],
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "image": "triggers/v0.6.5-off.png",
+   "sound": "snd-alarm"
+  }
+ ],
+ "0.6.6": [
+  {
+   "id": "v0.6.6-on",
+   "name": "Saved by v0.6.6 (on)",
+   "images": [
+    "triggers/v0.6.6-on.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": true,
+   "pending": "",
+   "ring": true,
+   "stop": "moves",
+   "mode": "appear",
+   "level": 0.05,
+   "below": true,
+   "colour": "",
+   "region": null,
+   "hold": 0.0,
+   "unfocused": false,
+   "any_size": true,
+   "category": "",
+   "interval_ms": 0,
+   "screens": [],
+   "windows": [
+    {
+     "exe": "game.exe",
+     "title": "Made-up Game",
+     "nth": 0
+    }
+   ],
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "image": "triggers/v0.6.6-on.png",
+   "sound": "snd-alarm"
+  },
+  {
+   "id": "v0.6.6-off",
+   "name": "Saved by v0.6.6 (off)",
+   "images": [
+    "triggers/v0.6.6-off.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": false,
+   "pending": "",
+   "ring": false,
+   "stop": "moves",
+   "mode": "appear",
+   "level": 0.05,
+   "below": true,
+   "colour": "",
+   "region": null,
+   "hold": 0.0,
+   "unfocused": false,
+   "any_size": true,
+   "category": "",
+   "interval_ms": 0,
+   "screens": [],
+   "windows": [
+    {
+     "exe": "game.exe",
+     "title": "Made-up Game",
+     "nth": 0
+    }
+   ],
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "image": "triggers/v0.6.6-off.png",
+   "sound": "snd-alarm"
+  }
+ ],
+ "0.6.7": [
+  {
+   "id": "v0.6.7-on",
+   "name": "Saved by v0.6.7 (on)",
+   "images": [
+    "triggers/v0.6.7-on.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": true,
+   "pending": "",
+   "ring": true,
+   "stop": "moves",
+   "mode": "appear",
+   "level": 0.05,
+   "below": true,
+   "colour": "",
+   "region": null,
+   "hold": 0.0,
+   "unfocused": false,
+   "any_size": true,
+   "category": "",
+   "interval_ms": 0,
+   "screens": [],
+   "windows": [
+    {
+     "exe": "game.exe",
+     "title": "Made-up Game",
+     "nth": 0
+    }
+   ],
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "image": "triggers/v0.6.7-on.png",
+   "sound": "snd-alarm"
+  },
+  {
+   "id": "v0.6.7-off",
+   "name": "Saved by v0.6.7 (off)",
+   "images": [
+    "triggers/v0.6.7-off.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": false,
+   "pending": "",
+   "ring": false,
+   "stop": "moves",
+   "mode": "appear",
+   "level": 0.05,
+   "below": true,
+   "colour": "",
+   "region": null,
+   "hold": 0.0,
+   "unfocused": false,
+   "any_size": true,
+   "category": "",
+   "interval_ms": 0,
+   "screens": [],
+   "windows": [
+    {
+     "exe": "game.exe",
+     "title": "Made-up Game",
+     "nth": 0
+    }
+   ],
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "image": "triggers/v0.6.7-off.png",
+   "sound": "snd-alarm"
+  }
+ ],
+ "0.6.8": [
+  {
+   "id": "v0.6.8-on",
+   "name": "Saved by v0.6.8 (on)",
+   "images": [
+    "triggers/v0.6.8-on.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": true,
+   "pending": "",
+   "ring": true,
+   "stop": "moves",
+   "mode": "appear",
+   "level": 0.05,
+   "below": true,
+   "colour": "",
+   "region": null,
+   "hold": 0.0,
+   "unfocused": false,
+   "any_size": true,
+   "category": "",
+   "interval_ms": 0,
+   "screens": [],
+   "windows": [
+    {
+     "exe": "game.exe",
+     "title": "Made-up Game",
+     "nth": 0
+    }
+   ],
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "image": "triggers/v0.6.8-on.png",
+   "sound": "snd-alarm"
+  },
+  {
+   "id": "v0.6.8-off",
+   "name": "Saved by v0.6.8 (off)",
+   "images": [
+    "triggers/v0.6.8-off.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": false,
+   "pending": "",
+   "ring": false,
+   "stop": "moves",
+   "mode": "appear",
+   "level": 0.05,
+   "below": true,
+   "colour": "",
+   "region": null,
+   "hold": 0.0,
+   "unfocused": false,
+   "any_size": true,
+   "category": "",
+   "interval_ms": 0,
+   "screens": [],
+   "windows": [
+    {
+     "exe": "game.exe",
+     "title": "Made-up Game",
+     "nth": 0
+    }
+   ],
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "image": "triggers/v0.6.8-off.png",
+   "sound": "snd-alarm"
+  }
+ ],
+ "0.6.9": [
+  {
+   "id": "v0.6.9-on",
+   "name": "Saved by v0.6.9 (on)",
+   "images": [
+    "triggers/v0.6.9-on.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": true,
+   "pending": "",
+   "ring": true,
+   "stop": "moves",
+   "mode": "appear",
+   "level": 0.05,
+   "below": true,
+   "colour": "",
+   "region": null,
+   "hold": 0.0,
+   "unfocused": false,
+   "any_size": true,
+   "category": "",
+   "interval_ms": 0,
+   "screens": [],
+   "windows": [
+    {
+     "exe": "game.exe",
+     "title": "Made-up Game",
+     "nth": 0
+    }
+   ],
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "image": "triggers/v0.6.9-on.png",
+   "sound": "snd-alarm"
+  },
+  {
+   "id": "v0.6.9-off",
+   "name": "Saved by v0.6.9 (off)",
+   "images": [
+    "triggers/v0.6.9-off.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": false,
+   "pending": "",
+   "ring": false,
+   "stop": "moves",
+   "mode": "appear",
+   "level": 0.05,
+   "below": true,
+   "colour": "",
+   "region": null,
+   "hold": 0.0,
+   "unfocused": false,
+   "any_size": true,
+   "category": "",
+   "interval_ms": 0,
+   "screens": [],
+   "windows": [
+    {
+     "exe": "game.exe",
+     "title": "Made-up Game",
+     "nth": 0
+    }
+   ],
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "image": "triggers/v0.6.9-off.png",
+   "sound": "snd-alarm"
+  }
+ ],
+ "0.7.0": [
+  {
+   "id": "v0.7.0-on",
+   "name": "Saved by v0.7.0 (on)",
+   "images": [
+    "triggers/v0.7.0-on.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": true,
+   "pending": "",
+   "ring": true,
+   "stop": "moves",
+   "mode": "appear",
+   "level": 0.05,
+   "below": true,
+   "colour": "",
+   "region": null,
+   "hold": 0.0,
+   "unfocused": false,
+   "any_size": true,
+   "category": "",
+   "interval_ms": 0,
+   "screens": [],
+   "windows": [
+    {
+     "exe": "game.exe",
+     "title": "Made-up Game",
+     "nth": 0
+    }
+   ],
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "image": "triggers/v0.7.0-on.png",
+   "sound": "snd-alarm"
+  },
+  {
+   "id": "v0.7.0-off",
+   "name": "Saved by v0.7.0 (off)",
+   "images": [
+    "triggers/v0.7.0-off.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": false,
+   "pending": "",
+   "ring": false,
+   "stop": "moves",
+   "mode": "appear",
+   "level": 0.05,
+   "below": true,
+   "colour": "",
+   "region": null,
+   "hold": 0.0,
+   "unfocused": false,
+   "any_size": true,
+   "category": "",
+   "interval_ms": 0,
+   "screens": [],
+   "windows": [
+    {
+     "exe": "game.exe",
+     "title": "Made-up Game",
+     "nth": 0
+    }
+   ],
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "image": "triggers/v0.7.0-off.png",
+   "sound": "snd-alarm"
+  }
+ ],
+ "0.7.1": [
+  {
+   "id": "v0.7.1-on",
+   "name": "Saved by v0.7.1 (on)",
+   "images": [
+    "triggers/v0.7.1-on.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": true,
+   "pending": "",
+   "ring": true,
+   "stop": "moves",
+   "mode": "appear",
+   "level": 0.05,
+   "below": true,
+   "colour": "",
+   "region": null,
+   "hold": 0.0,
+   "unfocused": false,
+   "any_size": true,
+   "category": "",
+   "interval_ms": 0,
+   "screens": [],
+   "windows": [
+    {
+     "exe": "game.exe",
+     "title": "Made-up Game",
+     "nth": 0
+    }
+   ],
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "image": "triggers/v0.7.1-on.png",
+   "sound": "snd-alarm"
+  },
+  {
+   "id": "v0.7.1-off",
+   "name": "Saved by v0.7.1 (off)",
+   "images": [
+    "triggers/v0.7.1-off.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": false,
+   "pending": "",
+   "ring": false,
+   "stop": "moves",
+   "mode": "appear",
+   "level": 0.05,
+   "below": true,
+   "colour": "",
+   "region": null,
+   "hold": 0.0,
+   "unfocused": false,
+   "any_size": true,
+   "category": "",
+   "interval_ms": 0,
+   "screens": [],
+   "windows": [
+    {
+     "exe": "game.exe",
+     "title": "Made-up Game",
+     "nth": 0
+    }
+   ],
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "image": "triggers/v0.7.1-off.png",
+   "sound": "snd-alarm"
+  }
+ ],
+ "0.7.2": [
+  {
+   "id": "v0.7.2-on",
+   "name": "Saved by v0.7.2 (on)",
+   "images": [
+    "triggers/v0.7.2-on.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": true,
+   "pending": "",
+   "ring": true,
+   "stop": "moves",
+   "mode": "appear",
+   "level": 0.05,
+   "below": true,
+   "colour": "",
+   "region": null,
+   "hold": 0.0,
+   "unfocused": false,
+   "any_size": true,
+   "category": "",
+   "interval_ms": 0,
+   "screens": [],
+   "windows": [
+    {
+     "exe": "game.exe",
+     "title": "Made-up Game",
+     "nth": 0
+    }
+   ],
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "image": "triggers/v0.7.2-on.png",
+   "sound": "snd-alarm"
+  },
+  {
+   "id": "v0.7.2-off",
+   "name": "Saved by v0.7.2 (off)",
+   "images": [
+    "triggers/v0.7.2-off.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": false,
+   "pending": "",
+   "ring": false,
+   "stop": "moves",
+   "mode": "appear",
+   "level": 0.05,
+   "below": true,
+   "colour": "",
+   "region": null,
+   "hold": 0.0,
+   "unfocused": false,
+   "any_size": true,
+   "category": "",
+   "interval_ms": 0,
+   "screens": [],
+   "windows": [
+    {
+     "exe": "game.exe",
+     "title": "Made-up Game",
+     "nth": 0
+    }
+   ],
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "image": "triggers/v0.7.2-off.png",
+   "sound": "snd-alarm"
+  }
+ ],
+ "0.8.0": [
+  {
+   "id": "v0.8.0-on",
+   "name": "Saved by v0.8.0 (on)",
+   "images": [
+    "triggers/v0.8.0-on.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": true,
+   "pending": "",
+   "ring": true,
+   "stop": "moves",
+   "mode": "appear",
+   "level": 0.05,
+   "below": true,
+   "colour": "",
+   "region": null,
+   "hold": 0.0,
+   "unfocused": false,
+   "any_size": true,
+   "category": "",
+   "interval_ms": 0,
+   "screens": [],
+   "windows": [
+    {
+     "exe": "game.exe",
+     "title": "Made-up Game",
+     "nth": 0
+    }
+   ],
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "image": "triggers/v0.8.0-on.png",
+   "sound": "snd-alarm"
+  },
+  {
+   "id": "v0.8.0-off",
+   "name": "Saved by v0.8.0 (off)",
+   "images": [
+    "triggers/v0.8.0-off.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": false,
+   "pending": "",
+   "ring": false,
+   "stop": "moves",
+   "mode": "appear",
+   "level": 0.05,
+   "below": true,
+   "colour": "",
+   "region": null,
+   "hold": 0.0,
+   "unfocused": false,
+   "any_size": true,
+   "category": "",
+   "interval_ms": 0,
+   "screens": [],
+   "windows": [
+    {
+     "exe": "game.exe",
+     "title": "Made-up Game",
+     "nth": 0
+    }
+   ],
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "image": "triggers/v0.8.0-off.png",
+   "sound": "snd-alarm"
+  }
+ ],
+ "0.8.1": [
+  {
+   "id": "v0.8.1-on",
+   "name": "Saved by v0.8.1 (on)",
+   "images": [
+    "triggers/v0.8.1-on.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": true,
+   "pending": "",
+   "ring": true,
+   "stop": "moves",
+   "mode": "appear",
+   "level": 0.05,
+   "below": true,
+   "colour": "",
+   "region": null,
+   "hold": 0.0,
+   "unfocused": false,
+   "any_size": true,
+   "category": "",
+   "interval_ms": 0,
+   "screens": [],
+   "windows": [
+    {
+     "exe": "game.exe",
+     "title": "Made-up Game",
+     "nth": 0
+    }
+   ],
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "image": "triggers/v0.8.1-on.png",
+   "sound": "snd-alarm"
+  },
+  {
+   "id": "v0.8.1-off",
+   "name": "Saved by v0.8.1 (off)",
+   "images": [
+    "triggers/v0.8.1-off.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": false,
+   "pending": "",
+   "ring": false,
+   "stop": "moves",
+   "mode": "appear",
+   "level": 0.05,
+   "below": true,
+   "colour": "",
+   "region": null,
+   "hold": 0.0,
+   "unfocused": false,
+   "any_size": true,
+   "category": "",
+   "interval_ms": 0,
+   "screens": [],
+   "windows": [
+    {
+     "exe": "game.exe",
+     "title": "Made-up Game",
+     "nth": 0
+    }
+   ],
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "image": "triggers/v0.8.1-off.png",
+   "sound": "snd-alarm"
+  }
+ ],
+ "0.9.0": [
+  {
+   "id": "v0.9.0-on",
+   "name": "Saved by v0.9.0 (on)",
+   "images": [
+    "triggers/v0.9.0-on.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": true,
+   "pending": "",
+   "ring": true,
+   "stop": "moves",
+   "mode": "appear",
+   "level": 0.05,
+   "below": true,
+   "colour": "",
+   "region": null,
+   "hold": 0.0,
+   "unfocused": false,
+   "any_size": true,
+   "category": "",
+   "interval_ms": 0,
+   "screens": [],
+   "windows": [
+    {
+     "exe": "game.exe",
+     "title": "Made-up Game",
+     "nth": 0
+    }
+   ],
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "image": "triggers/v0.9.0-on.png",
+   "sound": "snd-alarm"
+  },
+  {
+   "id": "v0.9.0-off",
+   "name": "Saved by v0.9.0 (off)",
+   "images": [
+    "triggers/v0.9.0-off.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": false,
+   "pending": "",
+   "ring": false,
+   "stop": "moves",
+   "mode": "appear",
+   "level": 0.05,
+   "below": true,
+   "colour": "",
+   "region": null,
+   "hold": 0.0,
+   "unfocused": false,
+   "any_size": true,
+   "category": "",
+   "interval_ms": 0,
+   "screens": [],
+   "windows": [
+    {
+     "exe": "game.exe",
+     "title": "Made-up Game",
+     "nth": 0
+    }
+   ],
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "image": "triggers/v0.9.0-off.png",
+   "sound": "snd-alarm"
+  }
+ ],
+ "0.9.1": [
+  {
+   "id": "v0.9.1-on",
+   "name": "Saved by v0.9.1 (on)",
+   "images": [
+    "triggers/v0.9.1-on.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": true,
+   "pending": "",
+   "ring": true,
+   "stop": "moves",
+   "mode": "appear",
+   "level": 0.05,
+   "below": true,
+   "colour": "",
+   "region": null,
+   "hold": 0.0,
+   "unfocused": false,
+   "any_size": true,
+   "category": "",
+   "interval_ms": 0,
+   "screens": [],
+   "windows": [
+    {
+     "exe": "game.exe",
+     "title": "Made-up Game",
+     "nth": 0
+    }
+   ],
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "image": "triggers/v0.9.1-on.png",
+   "sound": "snd-alarm"
+  },
+  {
+   "id": "v0.9.1-off",
+   "name": "Saved by v0.9.1 (off)",
+   "images": [
+    "triggers/v0.9.1-off.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": false,
+   "pending": "",
+   "ring": false,
+   "stop": "moves",
+   "mode": "appear",
+   "level": 0.05,
+   "below": true,
+   "colour": "",
+   "region": null,
+   "hold": 0.0,
+   "unfocused": false,
+   "any_size": true,
+   "category": "",
+   "interval_ms": 0,
+   "screens": [],
+   "windows": [
+    {
+     "exe": "game.exe",
+     "title": "Made-up Game",
+     "nth": 0
+    }
+   ],
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "image": "triggers/v0.9.1-off.png",
+   "sound": "snd-alarm"
+  }
+ ],
+ "0.9.2": [
+  {
+   "id": "v0.9.2-on",
+   "name": "Saved by v0.9.2 (on)",
+   "images": [
+    "triggers/v0.9.2-on.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": true,
+   "pending": "",
+   "ring": true,
+   "stop": "moves",
+   "mode": "appear",
+   "level": 0.05,
+   "below": true,
+   "colour": "",
+   "region": null,
+   "hold": 0.0,
+   "unfocused": false,
+   "any_size": true,
+   "category": "",
+   "interval_ms": 0,
+   "screens": [],
+   "windows": [
+    {
+     "exe": "game.exe",
+     "title": "Made-up Game",
+     "nth": 0
+    }
+   ],
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "image": "triggers/v0.9.2-on.png",
+   "sound": "snd-alarm"
+  },
+  {
+   "id": "v0.9.2-off",
+   "name": "Saved by v0.9.2 (off)",
+   "images": [
+    "triggers/v0.9.2-off.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": false,
+   "pending": "",
+   "ring": false,
+   "stop": "moves",
+   "mode": "appear",
+   "level": 0.05,
+   "below": true,
+   "colour": "",
+   "region": null,
+   "hold": 0.0,
+   "unfocused": false,
+   "any_size": true,
+   "category": "",
+   "interval_ms": 0,
+   "screens": [],
+   "windows": [
+    {
+     "exe": "game.exe",
+     "title": "Made-up Game",
+     "nth": 0
+    }
+   ],
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "image": "triggers/v0.9.2-off.png",
+   "sound": "snd-alarm"
+  }
+ ],
+ "0.9.3": [
+  {
+   "id": "v0.9.3-on",
+   "name": "Saved by v0.9.3 (on)",
+   "images": [
+    "triggers/v0.9.3-on.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": true,
+   "pending": "",
+   "ring": true,
+   "stop": "moves",
+   "mode": "appear",
+   "level": 0.05,
+   "below": true,
+   "colour": "",
+   "region": null,
+   "hold": 0.0,
+   "unfocused": false,
+   "any_size": true,
+   "category": "",
+   "interval_ms": 0,
+   "screens": [],
+   "windows": [
+    {
+     "exe": "game.exe",
+     "title": "Made-up Game",
+     "nth": 0
+    }
+   ],
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "image": "triggers/v0.9.3-on.png",
+   "sound": "snd-alarm"
+  },
+  {
+   "id": "v0.9.3-off",
+   "name": "Saved by v0.9.3 (off)",
+   "images": [
+    "triggers/v0.9.3-off.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": false,
+   "pending": "",
+   "ring": false,
+   "stop": "moves",
+   "mode": "appear",
+   "level": 0.05,
+   "below": true,
+   "colour": "",
+   "region": null,
+   "hold": 0.0,
+   "unfocused": false,
+   "any_size": true,
+   "category": "",
+   "interval_ms": 0,
+   "screens": [],
+   "windows": [
+    {
+     "exe": "game.exe",
+     "title": "Made-up Game",
+     "nth": 0
+    }
+   ],
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "image": "triggers/v0.9.3-off.png",
+   "sound": "snd-alarm"
+  }
+ ],
+ "0.9.4": [
+  {
+   "id": "v0.9.4-on",
+   "name": "Saved by v0.9.4 (on)",
+   "images": [
+    "triggers/v0.9.4-on.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": true,
+   "pending": "",
+   "ring": true,
+   "stop": "moves",
+   "mode": "appear",
+   "level": 0.05,
+   "below": true,
+   "colour": "",
+   "region": null,
+   "hold": 0.0,
+   "unfocused": false,
+   "any_size": true,
+   "category": "",
+   "interval_ms": 0,
+   "screens": [],
+   "windows": [
+    {
+     "exe": "game.exe",
+     "title": "Made-up Game",
+     "nth": 0
+    }
+   ],
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "image": "triggers/v0.9.4-on.png",
+   "sound": "snd-alarm"
+  },
+  {
+   "id": "v0.9.4-off",
+   "name": "Saved by v0.9.4 (off)",
+   "images": [
+    "triggers/v0.9.4-off.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": false,
+   "pending": "",
+   "ring": false,
+   "stop": "moves",
+   "mode": "appear",
+   "level": 0.05,
+   "below": true,
+   "colour": "",
+   "region": null,
+   "hold": 0.0,
+   "unfocused": false,
+   "any_size": true,
+   "category": "",
+   "interval_ms": 0,
+   "screens": [],
+   "windows": [
+    {
+     "exe": "game.exe",
+     "title": "Made-up Game",
+     "nth": 0
+    }
+   ],
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "image": "triggers/v0.9.4-off.png",
+   "sound": "snd-alarm"
+  }
+ ],
+ "0.9.5": [
+  {
+   "id": "v0.9.5-on",
+   "name": "Saved by v0.9.5 (on)",
+   "images": [
+    "triggers/v0.9.5-on.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": true,
+   "pending": "",
+   "ring": true,
+   "stop": "moves",
+   "mode": "appear",
+   "level": 0.05,
+   "below": true,
+   "colour": "",
+   "region": null,
+   "hold": 0.0,
+   "unfocused": false,
+   "any_size": true,
+   "category": "",
+   "interval_ms": 0,
+   "screens": [],
+   "windows": [
+    {
+     "exe": "game.exe",
+     "title": "Made-up Game",
+     "nth": 0
+    }
+   ],
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "image": "triggers/v0.9.5-on.png",
+   "sound": "snd-alarm"
+  },
+  {
+   "id": "v0.9.5-off",
+   "name": "Saved by v0.9.5 (off)",
+   "images": [
+    "triggers/v0.9.5-off.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": false,
+   "pending": "",
+   "ring": false,
+   "stop": "moves",
+   "mode": "appear",
+   "level": 0.05,
+   "below": true,
+   "colour": "",
+   "region": null,
+   "hold": 0.0,
+   "unfocused": false,
+   "any_size": true,
+   "category": "",
+   "interval_ms": 0,
+   "screens": [],
+   "windows": [
+    {
+     "exe": "game.exe",
+     "title": "Made-up Game",
+     "nth": 0
+    }
+   ],
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "image": "triggers/v0.9.5-off.png",
+   "sound": "snd-alarm"
+  }
+ ],
+ "0.9.6": [
+  {
+   "id": "v0.9.6-on",
+   "name": "Saved by v0.9.6 (on)",
+   "images": [
+    "triggers/v0.9.6-on.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": true,
+   "pending": "",
+   "ring": true,
+   "stop": "moves",
+   "mode": "appear",
+   "level": 0.05,
+   "below": true,
+   "colour": "",
+   "region": null,
+   "hold": 0.0,
+   "unfocused": false,
+   "any_size": true,
+   "category": "",
+   "interval_ms": 0,
+   "screens": [],
+   "windows": [
+    {
+     "exe": "game.exe",
+     "title": "Made-up Game",
+     "nth": 0
+    }
+   ],
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "image": "triggers/v0.9.6-on.png",
+   "sound": "snd-alarm"
+  },
+  {
+   "id": "v0.9.6-off",
+   "name": "Saved by v0.9.6 (off)",
+   "images": [
+    "triggers/v0.9.6-off.png"
+   ],
+   "sounds": [
+    "snd-alarm",
+    "snd-horn"
+   ],
+   "pick": "random",
+   "delay": 0.0,
+   "cooldown": 4.5,
+   "threshold": 0.87,
+   "enabled": false,
+   "pending": "",
+   "ring": false,
+   "stop": "moves",
+   "mode": "appear",
+   "level": 0.05,
+   "below": true,
+   "colour": "",
+   "region": null,
+   "hold": 0.0,
+   "unfocused": false,
+   "any_size": true,
+   "category": "",
+   "interval_ms": 0,
+   "screens": [],
+   "windows": [
+    {
+     "exe": "game.exe",
+     "title": "Made-up Game",
+     "nth": 0
+    }
+   ],
+   "monitor": null,
+   "window": {
+    "exe": "game.exe",
+    "title": "Made-up Game",
+    "nth": 0
+   },
+   "image": "triggers/v0.9.6-off.png",
+   "sound": "snd-alarm"
+  }
+ ]
+}
