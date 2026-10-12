@@ -5,7 +5,7 @@ own Stop, and Stop all; and the Chances button (ui.chances), unless it's switche
 off in Watching settings."""
 from __future__ import annotations
 
-from PySide6.QtCore import QSize, QTimer
+from PySide6.QtCore import QSize, Qt, QTimer
 from PySide6.QtWidgets import (QFrame, QHBoxLayout, QLabel, QPushButton, QStackedWidget,
                                QTabBar, QVBoxLayout, QWidget)
 
@@ -16,6 +16,7 @@ from onionwatch.i18n import _
 
 CHECK_MS = 400          # how often the bar looks whether a sound has ended
 MAX_SHOWN = 6           # triggers named on the bar; the rest as "+3 more"
+LOGO_PX = 26            # the owl left of the tabs, about the tabs' text height + icon
 
 
 class PlayingBar(QFrame):
@@ -118,14 +119,16 @@ class PlayingBar(QFrame):
 
 class TriggerPages(QWidget):
     """Triggers | Log over `panel`, the Playing now bar under them. `top`: widgets
-    to put between the tab row and the pages (the alarm bar)."""
+    to put between the tab row and the pages (the alarm bar). `logo`: the owl left of
+    the tabs (inside Onion Board, which has no Onion Watch header to show it)."""
 
-    def __init__(self, panel, top=(), parent=None):
+    def __init__(self, panel, top=(), parent=None, logo=False):
         super().__init__(parent)
         self.panel = panel
         v = QVBoxLayout(self)
         v.setContentsMargins(0, 0, 0, 0)
         v.setSpacing(8)
+        self.logo: QLabel | None = None
         self.tabs = QTabBar()
         self.tabs.setDrawBase(False)
         self.tabs.setExpanding(False)
@@ -134,7 +137,22 @@ class TriggerPages(QWidget):
         self.tabs.setIconSize(QSize(18, 18))
         icons.set_tab_icon(self.tabs, 0, "triggers")
         icons.set_tab_icon(self.tabs, 1, "history")
-        v.addWidget(self.tabs)
+        if logo:
+            row = QHBoxLayout()
+            row.setContentsMargins(0, 0, 0, 0)
+            row.setSpacing(10)
+            self.logo = QLabel()
+            self.logo.setPixmap(theme.logo_pixmap(LOGO_PX * 2))
+            self.logo.setFixedSize(LOGO_PX, LOGO_PX)
+            self.logo.setScaledContents(True)
+            self.logo.setToolTip("Onion Watch")
+            self.logo.setAccessibleName("Onion Watch")
+            row.addWidget(self.logo, 0, Qt.AlignmentFlag.AlignVCenter)
+            row.addWidget(self.tabs, 0, Qt.AlignmentFlag.AlignVCenter)
+            row.addStretch(1)
+            v.addLayout(row)
+        else:
+            v.addWidget(self.tabs)
         for w in top:
             v.addWidget(w)
         self.stack = QStackedWidget(self)
