@@ -522,7 +522,7 @@ GROUPS: list[tuple[str, list[str]]] = [
     ("Meme", ["Flashbang", "Barbie", "Swamp", "Deep Fried", "Retro 98", "Comic Sans",
               "Brainrot"]),
 ]
-FONT = "Segoe UI"   # a theme can swap it with a `font` token
+FONT = "Bahnschrift"   # as Onion Board; a theme can swap it with a `font` token
 
 
 def font_families() -> list[str]:
