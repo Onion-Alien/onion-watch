@@ -2903,9 +2903,10 @@ class TriggersTab(QWidget):
         ev.setSpacing(10)
         self.hoot = owl.OwlWidget(96)   # waiting (sadly) for something to watch
         ev.addWidget(self.hoot, 0, Qt.AlignmentFlag.AlignHCenter)
-        hint = hint_label(_("No triggers yet. Pick your game window below, then click Cut "
-                            "picture and drag a box around the thing to watch for. Or "
-                            "click + New trigger above for one without a picture."))
+        hint = hint_label(_("No triggers yet. Under Look in below, pick your game window (or "
+                            "a screen), then click Cut picture and drag a box around the "
+                            "thing to watch for. Or click + New trigger above for one "
+                            "without a picture."))
         hint.setAlignment(Qt.AlignCenter)
         ev.addWidget(hint)
         self.list_layout.addWidget(self.empty)

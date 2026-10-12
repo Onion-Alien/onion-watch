@@ -677,7 +677,7 @@
   "Updates and privacy": "Aktualizacje i prywatność",
   "A new trigger without a picture: it watches part of the window, and its card says what it waits for. To watch for a picture, use Cut picture below.": "Nowy wyzwalacz bez obrazka: obserwuje część okna, a jego karta mówi, na co czeka. Aby obejrzeć zdjęcie, użyj opcji Wytnij zdjęcie poniżej.",
   "New trigger": "Nowy spust",
-  "No triggers yet. Pick your game window below, then click Cut picture and drag a box around the thing to watch for. Or click + New trigger above for one without a picture.": "Nie ma jeszcze wyzwalaczy. Wybierz poniżej okno gry, a następnie kliknij Wytnij obraz i przeciągnij ramkę wokół rzeczy, na którą chcesz zwrócić uwagę. Możesz też kliknąć + Nowy wyzwalacz powyżej, aby wybrać wyzwalacz bez obrazu.",
+  "No triggers yet. Under Look in below, pick your game window (or a screen), then click Cut picture and drag a box around the thing to watch for. Or click + New trigger above for one without a picture.": "Nie ma jeszcze wyzwalaczy. W polu „Patrz w” poniżej wybierz okno gry (lub ekran), a następnie kliknij Wytnij obraz i przeciągnij ramkę wokół rzeczy, którą chcesz obserwować. Możesz też kliknąć + Nowy wyzwalacz powyżej, aby utworzyć wyzwalacz bez obrazu.",
   "A bar runs low": "Pasek kończy się",
   "Amount of change": "Ilość zmian",
   "An area stops changing": "Obszar przestaje się zmieniać",

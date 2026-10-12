@@ -653,7 +653,7 @@
   "Updates and privacy": "업데이트 및 개인정보 보호",
   "A new trigger without a picture: it watches part of the window, and its card says what it waits for. To watch for a picture, use Cut picture below.": "그림이 없는 새로운 트리거: 창의 일부를 관찰하고 카드에 기다리는 내용이 표시됩니다. 사진을 보려면 아래 사진 자르기를 사용하세요.",
   "New trigger": "새로운 트리거",
-  "No triggers yet. Pick your game window below, then click Cut picture and drag a box around the thing to watch for. Or click + New trigger above for one without a picture.": "아직 트리거가 없습니다. 아래에서 게임 창을 선택한 다음 사진 잘라내기...를 클릭하고 관찰할 항목 주위에 상자를 드래그합니다. 또는 그림이 없는 트리거를 보려면 위의 + 새 트리거를 클릭하세요.",
+  "No triggers yet. Under Look in below, pick your game window (or a screen), then click Cut picture and drag a box around the thing to watch for. Or click + New trigger above for one without a picture.": "아직 트리거가 없습니다. 아래의 '감시 위치'에서 게임 창(또는 화면)을 선택한 다음 사진 잘라내기를 클릭하고 관찰할 항목 주위에 상자를 드래그하세요. 또는 그림 없는 트리거를 만들려면 위의 + 새 트리거를 클릭하세요.",
   "A bar runs low": "막대가 부족해짐",
   "Amount of change": "변화량",
   "An area stops changing": "지역은 변화를 멈춘다",
