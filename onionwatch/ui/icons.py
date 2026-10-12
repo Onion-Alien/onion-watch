@@ -551,7 +551,7 @@ def icon(name: str, color: str | None = None, checked_color: str | None = None,
         for s in sorted(set(SIZES) | ({size} if pad else set())):
             extra = round(pad * s / size)
 
-            def add(colour, mode, state=QIcon.Off):
+            def add(colour, mode, state=QIcon.Off, s=s, extra=extra):   # called at once
                 pm = pixmap(name, s, colour)
                 ic.addPixmap(_padded(pm, extra) if extra else pm, mode, state)
             add(normal, QIcon.Normal)

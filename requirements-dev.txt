@@ -1,5 +1,7 @@
 -r requirements.txt
 pytest==9.1.1
-ruff==0.16.9
-pyinstaller==6.22.3
 pytest-xdist==3.8.0
+pytest-rerunfailures==16.7
+ruff==0.16.9
+pyright==1.1.414
+pyinstaller==6.22.3
