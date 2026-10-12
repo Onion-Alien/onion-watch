@@ -50,6 +50,9 @@ class MainWindow(QMainWindow):
 
         root = QWidget()
         self.setCentralWidget(root)
+        # the window starts with focus on itself, not with a ring on its first button
+        root.setFocusPolicy(Qt.ClickFocus)
+        root.setFocus()
         rv = QVBoxLayout(root)
         rv.setContentsMargins(14, 10, 14, 10)
         rv.setSpacing(8)
@@ -75,6 +78,7 @@ class MainWindow(QMainWindow):
         self.btn_settings.setToolTip(_("Settings: sound output, volume, notifications, theme"))
         icons.set_icon(self.btn_settings, "settings")
         self.btn_settings.clicked.connect(self.open_settings)
+        self.btn_settings.setFocusPolicy(Qt.TabFocus)   # a click left an accent ring on it
         head.addWidget(self.btn_settings)
         rv.addLayout(head)
 

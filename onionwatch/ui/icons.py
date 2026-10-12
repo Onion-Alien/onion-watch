@@ -385,6 +385,16 @@ def _gauge(p, fill):
     fill(hub)
 
 
+def _chip(p, fill):
+    """Watching settings (check speed, processor use): a processor chip with its pins."""
+    p.drawRoundedRect(QRectF(6.5, 6.5, 11, 11), 2, 2)
+    for c in (10, 14):
+        p.drawLine(QPointF(c, 3), QPointF(c, 6.5))
+        p.drawLine(QPointF(c, 17.5), QPointF(c, 21))
+        p.drawLine(QPointF(3, c), QPointF(6.5, c))
+        p.drawLine(QPointF(17.5, c), QPointF(21, c))
+
+
 def _window(p, fill):
     """A window: frame and title bar."""
     p.drawRoundedRect(QRectF(3, 4.5, 18, 15), 2.5, 2.5)
@@ -471,7 +481,7 @@ SHAPES = {
     "palette": _palette, "gamepad": _gamepad, "image": _image, "radio": _radio,
     "apps": _apps, "triggers": _eye, "fold": _chevron("right"), "fold_open": _chevron("down"),
     "window": _window, "crop": _crop, "bell": _bell, "search": _search,
-    "gauge": _gauge, "shield": _shield, "star": _star, "eye": _eye,
+    "gauge": _gauge, "chip": _chip, "shield": _shield, "star": _star, "eye": _eye,
 }
 
 

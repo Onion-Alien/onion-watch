@@ -8,6 +8,9 @@ What changed between releases, for the release notes. Newest first.
   outlines, headings are plain bold, the keyboard focus shows a ring, and the theme
   colours match Board's readability fixes. Trigger cards light up on hover instead of
   getting a coloured outline.
+- The watching settings button in the bottom bar has a processor-chip icon instead of
+  a second gear, so it doesn't look like the app's Settings.
+- Light themes: the buttons and drop-downs on a trigger card have a fill again.
 - Loaded inside Onion Board, Onion Watch no longer tries to start a second copy of
   itself as a stand-alone app (Board logged an error about it every time).
 - The anonymous daily usage count goes by the day on your PC's clock, not every 24

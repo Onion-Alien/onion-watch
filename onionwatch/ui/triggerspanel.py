@@ -2999,7 +2999,7 @@ class TriggersTab(QWidget):
         self.btn_settings.setToolTip(_("Watching settings: how often triggers on Default are "
                                        "checked, and how much of your processor it may use"))
         self.btn_settings.setAccessibleName(_("Watching settings"))
-        icons.set_icon(self.btn_settings, "settings")
+        icons.set_icon(self.btn_settings, "chip")   # not a gear: that's the app's Settings
         self.btn_settings.clicked.connect(self.show_watching)
         h.addWidget(self.btn_settings)
         if not callable(getattr(host, "tab_info", None)):
