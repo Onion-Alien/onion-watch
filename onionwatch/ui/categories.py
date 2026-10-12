@@ -5,6 +5,7 @@ and picture) and the Profiles window."""
 from __future__ import annotations
 
 import uuid
+from typing import cast
 from pathlib import Path
 
 from PySide6.QtCore import QPoint, QRect, QRectF, QSize, Qt, Signal
@@ -459,7 +460,7 @@ class CategorySection(QWidget):
         h.addWidget(self.btn_menu)
         v.addWidget(self.header)
         self.body = FlowBox(gap=8, flow_type=CardGrid)
-        self.body_layout = self.body.flow
+        self.body_layout = cast(CardGrid, self.body.flow)
         self.empty = hint_label(_("No triggers in this category yet. Click + to make one here, "
                                   "drag one in, or pick it with Category, under a trigger's "
                                   "More options."))

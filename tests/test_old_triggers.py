@@ -50,7 +50,7 @@ def tab(qapp, tmp_path, monkeypatch):
     monkeypatch.setattr(triggerspanel.QMessageBox, "information", lambda *a, **k: None)
     monkeypatch.setattr(triggerspanel.QMessageBox, "warning", lambda *a, **k: None)
     monkeypatch.setattr(sw, "monitors", lambda: [sw.Monitor(0, 0, 320, 180, True)])
-    img = QImage(64, 32, QImage.Format_RGB32)
+    img = QImage(64, 32, QImage.Format.Format_RGB32)
     img.fill(QColor("#203040"))
     for x in range(8, 56):
         img.setPixelColor(x, 16, QColor("#f0e020"))
@@ -68,23 +68,23 @@ def tab(qapp, tmp_path, monkeypatch):
     t = TriggersTab(host)
     t._lister = lambda: []
     t._front = lambda: 0
-    t.watched = []
-    t.watcher.set_items = lambda items: t.watched.append(items)
-    yield t, raws
+    watched: list = []
+    monkeypatch.setattr(t.watcher, "set_items", watched.append)
+    yield t, raws, watched
     t.shutdown()
     t.deleteLater()
     from PySide6.QtCore import QCoreApplication, QEvent
-    QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
+    QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
 
 
 def test_every_old_trigger_that_was_on_is_watched(tab):
-    t, raws = tab
+    t, raws, watched = tab
     assert [x.id for x in t.triggers] == [d["id"] for d in raws]
     t.btn_watch.blockSignals(True)
     t.btn_watch.setChecked(True)
     t.btn_watch.blockSignals(False)
     t._sync()
-    got = {w.id: w for w in t.watched[-1]}
+    got = {w.id: w for w in watched[-1]}
     assert set(got) == {d["id"] for d in raws if d["enabled"]}
     for w in got.values():
         assert len(w.pictures) == 1 and w.threshold == 0.87

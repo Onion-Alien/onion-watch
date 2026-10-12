@@ -1321,6 +1321,7 @@ class TriggerRow(QFrame):
     the fine-tuning, folded away behind a line summing it up. Closed, it's a tile in
     its category's grid: the same header, small (a picture, the name over how it's
     doing and what it plays, the switch); open, it's the whole width."""
+    btn_close: QPushButton     # an open editor's ✕ (_open_editor), not a tile's
     changed = Signal(object)             # row: a setting changed
     pictures_wanted = Signal(object)     # row: "+ Add pictures…" (files)
     paste_wanted = Signal(object)        # row: "Paste picture"
@@ -1911,7 +1912,8 @@ class TriggerRow(QFrame):
             self.setToolTip("")
         self.title.setVisible(tile)
         self.name.setVisible(not tile)
-        self.live.setAlignment((Qt.AlignLeft if tile else Qt.AlignRight) | middle)
+        self.live.setAlignment((Qt.AlignmentFlag.AlignLeft if tile
+                                else Qt.AlignmentFlag.AlignRight) | middle)
         self.live.setContentsMargins(6 if tile else 0, 0, 0, 0)
         self._live_room = None          # sized again for its margins
         self._fit_live()
@@ -2776,7 +2778,7 @@ class TriggersTab(QWidget):
                                      "open"))
         no_wheel(self.cb_profile)
         self.cb_profile.activated.connect(self._on_profile)
-        gb.addWidget(labelled(_("Profile"), self.cb_profile), 0, Qt.AlignLeft)
+        gb.addWidget(labelled(_("Profile"), self.cb_profile), 0, Qt.AlignmentFlag.AlignLeft)
         self.btn_categories = QPushButton()
         self.btn_categories.setAccessibleName(_("Categories"))
         self.btn_categories.setToolTip(_("Categories: give each one its own colours and a picture"))
@@ -2900,7 +2902,7 @@ class TriggersTab(QWidget):
         ev.setContentsMargins(16, 24, 16, 24)
         ev.setSpacing(10)
         self.hoot = owl.OwlWidget(96)   # waiting (sadly) for something to watch
-        ev.addWidget(self.hoot, 0, Qt.AlignHCenter)
+        ev.addWidget(self.hoot, 0, Qt.AlignmentFlag.AlignHCenter)
         hint = hint_label(_("No triggers yet. Pick your game window below, then click Cut "
                             "picture and drag a box around the thing to watch for. Or "
                             "click + New trigger above for one without a picture."))
@@ -2925,7 +2927,7 @@ class TriggersTab(QWidget):
         bh.setSpacing(0)
         # the list and the editor side by side, the gap between them a handle: in the
         # Pads view it's dragged to share the width out (kept as "pads_split")
-        self.splitter = QSplitter(Qt.Horizontal)
+        self.splitter = QSplitter(Qt.Orientation.Horizontal)
         self.splitter.setChildrenCollapsible(False)
         self.splitter.setHandleWidth(10)
         self.splitter.setStyleSheet(
@@ -2935,7 +2937,8 @@ class TriggersTab(QWidget):
             " border-radius: 2px; }")
         self.splitter.splitterMoved.connect(self._on_split_moved)
         bh.addWidget(self.splitter, 1)
-        self.splitter.addWidget(self.scroll)
+        # (pyright takes self.scroll for QWidget.scroll(), the method it shadows)
+        self.splitter.addWidget(self.scroll)  # pyright: ignore[reportArgumentType]
         self.editor_scroll = QScrollArea()
         self.editor_scroll.setWidgetResizable(True)
         self.editor_scroll.setFrameShape(QFrame.NoFrame)
@@ -2951,7 +2954,7 @@ class TriggersTab(QWidget):
         ee.addStretch(1)
         mark = QLabel()
         icons.set_label_icon(mark, "triggers", size=40)
-        ee.addWidget(mark, 0, Qt.AlignHCenter)
+        ee.addWidget(mark, 0, Qt.AlignmentFlag.AlignHCenter)
         hint = hint_label(_("Pick a trigger on the left to change it, or click Cut "
                             "picture below to make one."))
         hint.setAlignment(Qt.AlignCenter)
@@ -3075,7 +3078,7 @@ class TriggersTab(QWidget):
         if not callable(getattr(host, "tab_info", None)):
             self.btn_info = QPushButton(_("Help"))
             self.btn_info.setObjectName("small")
-            self.btn_info.setCursor(Qt.PointingHandCursor)
+            self.btn_info.setCursor(Qt.CursorShape.PointingHandCursor)
             self.btn_info.clicked.connect(
                 lambda: QMessageBox.information(self, *self.info))
             self.btn_info.setParent(self)
@@ -3158,12 +3161,14 @@ class TriggersTab(QWidget):
         self.scroll.setMinimumWidth(LIST_WIDTH if fixed else PAD + 20 if pads else 0)
         self.editor_scroll.setVisible(shown)
         self.splitter.handle(1).setEnabled(pads and shown)
-        self.splitter.handle(1).setCursor(Qt.SplitHCursor if pads and shown
-                                          else Qt.ArrowCursor)
+        self.splitter.handle(1).setCursor(Qt.CursorShape.SplitHCursor if pads and shown
+                                          else Qt.CursorShape.ArrowCursor)
         if self.editor is not None:
             self.editor.btn_close.setVisible(pads and shown)
         # (the page's width: the splitter's own is still the old one in a resize)
-        m = self.layout().contentsMargins()
+        lay = self.layout()
+        assert lay is not None
+        m = lay.contentsMargins()
         total = max(1, self.width() - m.left() - m.right() - self.splitter.handleWidth())
         if fixed:   # (the handle may have been left anywhere by the Pads view)
             self.splitter.setSizes([LIST_WIDTH, max(1, total - LIST_WIDTH)])
@@ -3207,7 +3212,7 @@ class TriggersTab(QWidget):
         icons.set_icon(ed.btn_close, "close", "muted", "muted", size=16)
         ed.btn_close.clicked.connect(self._drop_editor)
         ed.btn_close.hide()
-        ed.top.addWidget(ed.btn_close, 0, 5, 2, 1, Qt.AlignVCenter)
+        ed.top.addWidget(ed.btn_close, 0, 5, 2, 1, Qt.AlignmentFlag.AlignVCenter)
         self.editor = ed
         self.editor_pane.layout().insertWidget(0, ed)
         self._empty_shown(False)
@@ -3300,7 +3305,8 @@ class TriggersTab(QWidget):
         if self.view_bar.parentWidget() is not target.parentWidget():
             self.view_bar.parentWidget().layout().removeWidget(self.view_bar)
             target.addWidget(self.view_bar)
-        target.setAlignment(self.view_bar, Qt.Alignment() if stacked else Qt.AlignLeft)
+        target.setAlignment(self.view_bar,
+                            Qt.Alignment() if stacked else Qt.AlignmentFlag.AlignLeft)
         # beside the editor, the line in the list's and the editor's columns: New trigger
         # as wide as the list, the search box from where the editor starts. Only while
         # the search box keeps its room (with categories, a search or a profile on the

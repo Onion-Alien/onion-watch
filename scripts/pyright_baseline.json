@@ -1454,12 +1454,6 @@
 {
 "file": "onionwatch/ui/triggerspanel.py",
 "rule": "reportArgumentType",
-"message": "Argument of type \"Overload[(dx: int, dy: int, /) -> None, (dx: int, dy: int, arg__3: QRect, /) -> None]\" cannot be assigned to parameter \"arg__1\" of type \"QWidget\" in function \"addWidget\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/triggerspanel.py",
-"rule": "reportArgumentType",
 "message": "Argument of type \"list[Unknown] | list[str | None]\" cannot be assigned to parameter \"value\" of type \"list[str]\" in function \"__setitem__\"",
 "count": 1
 },
@@ -1539,7 +1533,7 @@
 "file": "onionwatch/ui/triggerspanel.py",
 "rule": "reportAttributeAccessIssue",
 "message": "Cannot access attribute \"AlignLeft\" for class \"type[Qt]\"",
-"count": 17
+"count": 16
 },
 {
 "file": "onionwatch/ui/triggerspanel.py",
@@ -1862,12 +1856,6 @@
 {
 "file": "onionwatch/ui/triggerspanel.py",
 "rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"insertWidget\" for class \"Flow\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/triggerspanel.py",
-"rule": "reportAttributeAccessIssue",
 "message": "Cannot access attribute \"insertWidget\" for class \"QLayout\"",
 "count": 4
 },
@@ -1941,7 +1929,7 @@
 "file": "onionwatch/ui/triggerspanel.py",
 "rule": "reportAttributeAccessIssue",
 "message": "Cannot access attribute \"setStretch\" for class \"QLayout\"",
-"count": 2
+"count": 1
 },
 {
 "file": "onionwatch/ui/triggerspanel.py",
@@ -1966,12 +1954,6 @@
 "rule": "reportAttributeAccessIssue",
 "message": "Cannot access attribute \"setWordWrap\" for class \"QWidget\"",
 "count": 1
-},
-{
-"file": "onionwatch/ui/triggerspanel.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"set_per_row\" for class \"Flow\"",
-"count": 2
 },
 {
 "file": "onionwatch/ui/triggerspanel.py",
@@ -2115,18 +2097,12 @@
 "file": "onionwatch/ui/triggerspanel.py",
 "rule": "reportOptionalMemberAccess",
 "message": "\"setStretch\" is not a known attribute of \"None\"",
-"count": 2
-},
-{
-"file": "onionwatch/ui/triggerspanel.py",
-"rule": "reportOptionalMemberAccess",
-"message": "\"setWordWrap\" is not a known attribute of \"None\"",
 "count": 1
 },
 {
 "file": "onionwatch/ui/triggerspanel.py",
 "rule": "reportOptionalMemberAccess",
-"message": "\"spacing\" is not a known attribute of \"None\"",
+"message": "\"setWordWrap\" is not a known attribute of \"None\"",
 "count": 1
 },
 {
