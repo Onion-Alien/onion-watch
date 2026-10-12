@@ -5,8 +5,8 @@
 # The merge is made here, in a throwaway worktree, and pushed to main; GitHub then
 # marks the PR merged by itself.
 #   sh scripts/merge_pr.sh N [--delete-branch]
-# Needs: the PR's required checks green, its commits in UTC (scripts/utc_fix.sh on
-# the branch if not), and a merge with main that needs no hand-fixing (else merge
+# Needs: the PR's checks green (the required ones, if main has any), its commits in
+# UTC (scripts/utc_fix.sh on the branch if not), and a merge with main that needs no hand-fixing (else merge
 # main into the PR branch first, push, wait for CI, then run this again).
 set -e
 n=$1
@@ -29,12 +29,14 @@ if gh pr view "$n" --json title,body -q '.title + "\n" + .body' |
     exit 1
 fi
 
-# required checks: gh exits 0 only when every one has passed
-checks_passed=$(gh pr checks "$n" --required --json bucket \
-    --jq 'length > 0 and all(.[]; .bucket == "pass")' 2>/dev/null || true)
+# its checks: the required ones, or every one when main has none set as required
+which=--required
+gh pr checks "$n" --required --json name --jq length >/dev/null 2>&1 || which=
+checks_passed=$(gh pr checks "$n" $which --json bucket \
+    --jq 'length > 0 and all(.[]; .bucket == "pass" or .bucket == "skipping")' 2>/dev/null || true)
 if [ "$checks_passed" != true ]; then
-    gh pr checks "$n" --required >&2 || true
-    echo "PR #$n: its required checks haven't all passed yet." >&2
+    gh pr checks "$n" $which >&2 || true
+    echo "PR #$n: its checks haven't all passed yet." >&2
     exit 1
 fi
 
