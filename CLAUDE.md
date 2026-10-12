@@ -69,8 +69,10 @@ both apps at once. Details: [docs/TRANSLATING.md](docs/TRANSLATING.md).
 - **Look and feel: follow Onion Board's design system**,
   [docs/DESIGN.md](https://github.com/Onion-Alien/onion-board/blob/main/docs/DESIGN.md)
   (flat controls with no resting outlines, theme tokens never hex colours, one accent
-  main button, quiet buttons, focus rings). `theme.STYLE` is a copy of Board's: when
-  Board's changes, copy it over rather than restyling here.
+  main button, quiet buttons, focus rings). `theme.STYLE`, `POLISH_STYLE` and the
+  derived tokens are copies of Board's: when Board's change, copy them over from Board's
+  `origin/main` (not a working tree, which may be on an old branch) rather than
+  restyling here.
 - Onion Watch is also Onion Board's Triggers tab, as an add-on module
   (`onionwatch/board.py`, zipped by `scripts/build_module.py`). So:
   - The triggers page (`ui/triggerspanel.py`) and what it imports never touch the
