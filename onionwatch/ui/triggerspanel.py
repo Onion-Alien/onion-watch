@@ -2915,7 +2915,10 @@ class TriggersTab(QWidget):
         self.toolbar = f
         # roomier buttons than elsewhere: the bar's few big actions read as buttons, not a
         # packed strip (only padding: their colours stay the theme's)
-        f.setStyleSheet("QPushButton { padding: 8px 16px; }")
+        # (and one weight for Watching and Cut picture: the theme's are 700 and 600, so
+        # one read bold and the other thin side by side)
+        f.setStyleSheet("QPushButton { padding: 8px 16px; } "
+                        "QPushButton#live, QPushButton#primary { font-weight: 700; }")
         h = BarFlow(f, gap=18)   # room between them: at 10 the bar looked packed
         h.setContentsMargins(14, 10, 14, 10)
         self.btn_watch = QPushButton()
@@ -2953,6 +2956,8 @@ class TriggersTab(QWidget):
         add_menu.aboutToShow.connect(add_about_to_show)
         self.btn_add.setMenu(add_menu)
         h.addWidget(self.btn_add)
+        for b in (self.btn_watch, self.btn_cut, self.btn_add):   # (fit_parts)
+            icons.gap_follows_compact(b)
         self.btn_more = QPushButton(_("More"))
         self.btn_more.setToolTip(_("What went off lately, saving or loading triggers, and "
                                    "recently deleted ones"))
@@ -3461,6 +3466,7 @@ class TriggersTab(QWidget):
         self.btn_watch.setProperty("full_text", text)   # a host that shows it icon only
         if not self.btn_watch.property("compact"):       # reads it back when there's room
             self.btn_watch.setText(text)
+            icons.text_gap(self.btn_watch)   # it had no words when its icon was set
 
     def fit_parts(self) -> dict[str, QWidget]:
         """What a host may hide, or show as an icon only, when its window gets small:

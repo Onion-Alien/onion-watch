@@ -10,7 +10,7 @@ from __future__ import annotations
 import math
 import weakref
 
-from PySide6.QtCore import QPointF, QRectF, QSize, Qt
+from PySide6.QtCore import QEvent, QObject, QPointF, QRectF, QSize, Qt, QTimer
 from PySide6.QtGui import QColor, QIcon, QPainter, QPainterPath, QPen, QPixmap, QTransform
 
 from onionwatch import theme
@@ -512,45 +512,99 @@ def pixmap(name: str, size: int, color: str) -> QPixmap:
 
 _cache: dict[tuple, QIcon] = {}
 
+# icon to words on a button, the same everywhere (Onion Board's DESIGN.md: 6-8 px); Qt
+# puts 4 px, so a button with words gets an icon with the rest as empty pixels after it
+TEXT_GAP = 8
+
+
+def _padded(pm: QPixmap, pad: int) -> QPixmap:
+    wide = QPixmap(pm.width() + pad, pm.height())
+    wide.fill(Qt.transparent)
+    p = QPainter(wide)
+    p.drawPixmap(0, 0, pm)
+    p.end()
+    return wide
+
 
 def icon(name: str, color: str | None = None, checked_color: str | None = None,
-         selected: str = "accent") -> QIcon:
+         selected: str = "accent", pad: int = 0, size: int = 18) -> QIcon:
     """`color`/`checked_color` are theme token names (e.g. "text", "on_accent") or
     literal colours ("#ff4d4f"). `selected` colours the current tab / a highlighted
-    list item (accent, not Qt's washed-out tint)."""
+    list item (accent, not Qt's washed-out tint). `pad`: empty pixels after a `size`
+    icon (TEXT_GAP, see set_icon)."""
     def resolve(c):
         return theme.T.get(c, c)
     normal = resolve(color or "text")
     on = resolve(checked_color or "on_accent")
     sel = resolve(selected)
-    key = (name, normal, on, sel)
+    key = (name, normal, on, sel, pad, size if pad else 0)
     if key not in _cache:
         ic = QIcon()
-        for s in SIZES:
-            ic.addPixmap(pixmap(name, s, normal), QIcon.Normal, QIcon.Off)
-            ic.addPixmap(pixmap(name, s, resolve("muted")), QIcon.Disabled, QIcon.Off)
-            ic.addPixmap(pixmap(name, s, on), QIcon.Normal, QIcon.On)
+        for s in sorted(set(SIZES) | ({size} if pad else set())):
+            extra = round(pad * s / size)
+
+            def add(colour, mode, state=QIcon.Off):
+                pm = pixmap(name, s, colour)
+                ic.addPixmap(_padded(pm, extra) if extra else pm, mode, state)
+            add(normal, QIcon.Normal)
+            add(resolve("muted"), QIcon.Disabled)
+            add(on, QIcon.Normal, QIcon.On)
             # the current tab / a highlighted item: accent, not Qt's washed-out tint
-            ic.addPixmap(pixmap(name, s, sel), QIcon.Selected, QIcon.Off)
-            ic.addPixmap(pixmap(name, s, normal), QIcon.Active, QIcon.Off)
+            add(sel, QIcon.Selected)
+            add(normal, QIcon.Active)
         _cache[key] = ic
     return _cache[key]
 
 
 # --------------------------------------------------------------------------- live retheme
 
-_applied: list[tuple[weakref.ref, str, str | None, str | None]] = []
+_applied: list[tuple[weakref.ref, str, str | None, str | None, int, int]] = []
 _tabs: list[tuple[weakref.ref, int, str, str | None]] = []
 
 
 def set_icon(widget, name: str, color: str | None = None, checked_color: str | None = None,
              size: int = 18):
-    """Give a button (anything with setIcon) an icon that follows theme changes."""
-    widget.setIcon(icon(name, color, checked_color))
-    widget.setIconSize(QSize(size, size))
+    """Give a button (anything with setIcon) an icon that follows theme changes. A
+    button with words gets TEXT_GAP between the icon and them (text_gap after its words
+    change)."""
+    has_text = hasattr(widget, "setIconSize") and bool(getattr(widget, "text", str)())
+    pad = TEXT_GAP - 4 if has_text else 0
+    widget.setIcon(icon(name, color, checked_color, pad=pad, size=size))
+    if hasattr(widget, "setIconSize"):
+        widget.setIconSize(QSize(size + pad, size))
     # one entry per widget: buttons re-iconed on every click must not grow the list
     _applied[:] = [e for e in _applied if e[0]() is not None and e[0]() is not widget]
-    _applied.append((weakref.ref(widget), name, color, checked_color))
+    _applied.append((weakref.ref(widget), name, color, checked_color, pad, size))
+
+
+def text_gap(button):
+    """Re-fit the icon's gap after a button's words were set, dropped or put back (a
+    host's icon-only step): no words, no empty space after the icon."""
+    for ref, name, color, checked, __, size in _applied:
+        if ref() is button:
+            set_icon(button, name, color, checked, size)
+            return
+
+
+class _CompactWatch(QObject):
+    def eventFilter(self, obj, ev):
+        if (ev.type() == QEvent.DynamicPropertyChange
+                and bytes(ev.propertyName()) == b"compact"):
+            # the host drops or puts back the words just after: refit then
+            QTimer.singleShot(0, obj, lambda: text_gap(obj))
+        return False
+
+
+_compact_watch: _CompactWatch | None = None
+
+
+def gap_follows_compact(button):
+    """A host (Onion Board) makes `button` icon only by setting its "compact" property
+    and its words: keep its icon's gap right without the host knowing about text_gap."""
+    global _compact_watch
+    if _compact_watch is None:
+        _compact_watch = _CompactWatch()
+    button.installEventFilter(_compact_watch)
 
 
 _labels: list[tuple[weakref.ref, str, str, int]] = []
@@ -585,12 +639,12 @@ def set_tab_icon(tabs, index: int, name: str, tint: str | None = None):
 def retheme():
     _cache.clear()
     alive = []
-    for ref, name, color, checked in _applied:
+    for ref, name, color, checked, pad, size in _applied:
         w = ref()
         try:
             if w is not None:
-                w.setIcon(icon(name, color, checked))
-                alive.append((ref, name, color, checked))
+                w.setIcon(icon(name, color, checked, pad=pad, size=size))
+                alive.append((ref, name, color, checked, pad, size))
         except RuntimeError:   # the C++ widget is gone
             pass
     _applied[:] = alive
