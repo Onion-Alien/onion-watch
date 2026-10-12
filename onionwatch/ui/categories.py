@@ -27,6 +27,7 @@ SMALL_TILE = 210                # ...when a number of cards to a line is asked f
 MAX_PER_ROW = 6                 # the most cards to a line that can be asked for
 PICTURE_PX = 128                # a category's picture is kept at most this big
 HEADER_PICTURE = 26             # px: ...and shown this big in its header
+PICTURE_LIFT = 2                # px: ...that much higher, level with its bold name
 BANNER_PX = 2400                # a banner is kept at most this wide (and 800 high)
 BANNER_HEIGHT_NAMES = {"slim": _("Slim"), "medium": _("Medium"), "tall": _("Tall")}
 # the colours to pick from in one click (any other through "Other"): soft ones
@@ -405,7 +406,10 @@ class CategorySection(QWidget):
         h = header_layout
         h.setSpacing(10)
         self.pic = QLabel()                 # the category's picture, if it has one
-        self.pic.setFixedSize(HEADER_PICTURE, HEADER_PICTURE)
+        # centred, a picture sat lower than the name: bold text's ink rides above
+        # its line's middle. A taller box, the picture at its top, lifts it level.
+        self.pic.setFixedSize(HEADER_PICTURE, HEADER_PICTURE + 2 * PICTURE_LIFT)
+        self.pic.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)
         self.pic.setCursor(Qt.PointingHandCursor)
         self.pic.mousePressEvent = lambda _e: self.btn_fold.click()
         self.pic.hide()
