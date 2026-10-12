@@ -4,6 +4,10 @@ What changed between releases, for the release notes. Newest first.
 
 ## Unreleased
 
+- **Same look as Onion Board.** Buttons, boxes, chips and cards are flat with no
+  outlines, headings are plain bold, the keyboard focus shows a ring, and the theme
+  colours match Board's readability fixes. Trigger cards light up on hover instead of
+  getting a coloured outline.
 - Loaded inside Onion Board, Onion Watch no longer tries to start a second copy of
   itself as a stand-alone app (Board logged an error about it every time).
 - The anonymous daily usage count goes by the day on your PC's clock, not every 24

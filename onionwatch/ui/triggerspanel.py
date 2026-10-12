@@ -1306,8 +1306,8 @@ CARD_CSS = (
     " border-color:palette(highlight); }"
     "QLabel#cardtitle { font-size:10.5pt; font-weight:700; }"
 )
-CARD_HOVER = "QFrame#card:hover { border-color:palette(highlight); }"
-# the trigger the editor on the right is showing, in the list
+# the trigger the editor on the right is showing, in the list. Hover is the app sheet's
+# [interactive][hovered] card rule (a lighter fill), like Onion Board's cards
 CARD_SELECTED = "QFrame#card { border:2px solid palette(highlight); }"
 
 
@@ -1414,7 +1414,9 @@ class TriggerRow(QFrame):
         self.name.setPlaceholderText(_("Name, e.g. Rare spawn"))
         self.name.setMaxLength(60)
         self.name.setCursorPosition(0)          # a long name shows its start, not its end
-        self.setStyleSheet(CARD_CSS + CARD_HOVER)
+        self.setProperty("interactive", True)
+        self.setProperty("hovered", False)
+        self.setStyleSheet(CARD_CSS)
         self.name.editingFinished.connect(self._on_name)
         self.name.editingFinished.connect(lambda: self.name.setCursorPosition(0))
         # as wide as the name, not the whole card: the hover / editing box hugs it
@@ -2031,7 +2033,22 @@ class TriggerRow(QFrame):
             ev.ignore()             # a card being moved: the category takes it
 
     def _unmark(self):
-        self.setStyleSheet(CARD_CSS + (CARD_SELECTED if self.selected else CARD_HOVER))
+        self.setStyleSheet(CARD_CSS + (CARD_SELECTED if self.selected else ""))
+
+    def _hover(self, on: bool):
+        if self.property("interactive") and self.property("hovered") != on:
+            self.setProperty("hovered", on)
+            self.style().unpolish(self)
+            self.style().polish(self)
+            self.update()
+
+    def enterEvent(self, ev):
+        self._hover(True)
+        super().enterEvent(ev)
+
+    def leaveEvent(self, ev):
+        self._hover(False)
+        super().leaveEvent(ev)
 
     def set_selected(self, on: bool):
         """Mark it as the one the editor beside the list is showing."""
@@ -3066,6 +3083,7 @@ class TriggersTab(QWidget):
                         parent=self.editor_pane)
         ed.pinned = True
         ed.btn_open.hide()
+        ed.setProperty("interactive", False)   # the editor isn't a tile to pick
         ed.setStyleSheet(CARD_CSS)
         self._wire(ed)
         ed.set_categories(self.groups.names())

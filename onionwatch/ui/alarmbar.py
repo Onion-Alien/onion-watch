@@ -22,7 +22,7 @@ class AlarmBar(QFrame):
         super().__init__(parent)
         self.panel = panel
         self.setObjectName("alarm")
-        self.setStyleSheet("QFrame#alarm { background:#e53935; border-radius:12px; }"
+        self.setStyleSheet("QFrame#alarm { background:#d32f2f; border-radius:12px; }"
                            "QFrame#alarm QLabel { color:white; font-weight:700; "
                            "background:transparent; }"
                            "QFrame#alarm QPushButton { background:white; color:#b71c1c; "

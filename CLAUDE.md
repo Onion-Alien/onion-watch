@@ -66,6 +66,11 @@ both apps at once. Details: [docs/TRANSLATING.md](docs/TRANSLATING.md).
 - `theme.py`, `ui/icons.py`, `ui/panel.py`, `wheelguard.py`, `shuffle.py` and
   the capture / matching half of `screenwatch.py` came from Onion Board. Keep
   them close to it.
+- **Look and feel: follow Onion Board's design system**,
+  [docs/DESIGN.md](https://github.com/Onion-Alien/onion-board/blob/main/docs/DESIGN.md)
+  (flat controls with no resting outlines, theme tokens never hex colours, one accent
+  main button, quiet buttons, focus rings). `theme.STYLE` is a copy of Board's: when
+  Board's changes, copy it over rather than restyling here.
 - Onion Watch is also Onion Board's Triggers tab, as an add-on module
   (`onionwatch/board.py`, zipped by `scripts/build_module.py`). So:
   - The triggers page (`ui/triggerspanel.py`) and what it imports never touch the
