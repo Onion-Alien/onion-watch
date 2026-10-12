@@ -512,8 +512,8 @@ def test_toolbar_is_one_row_when_there_is_room(tab, qapp, styled):
     without a picture are in the Add menu next to it. At a normal width the whole
     bar, Look in and the settings button included, is one centred row."""
     texts = [a.text() for a in tab.btn_add.menu().actions()]
-    assert texts == ["From a picture file…", "Paste the copied picture", "Without a picture…"]
-    assert "Without a picture…" not in [a.text() for a in tab.btn_more.menu().actions()]
+    assert texts == ["From a picture file", "Paste the copied picture", "Without a picture"]
+    assert "Without a picture" not in [a.text() for a in tab.btn_more.menu().actions()]
     tab.resize(1180, 700)
     tab.show()
     qapp.processEvents()

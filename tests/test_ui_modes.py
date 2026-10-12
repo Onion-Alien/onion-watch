@@ -115,7 +115,7 @@ def test_the_area_is_dragged_on_the_window(tab, monkeypatch):
     monkeypatch.setattr(snip.AreaDialog, "exec", fake_exec)
     row.t.sources = [GAME]
     tab._pick_area(row)
-    assert row.t.region == (0.5, 0.0, 0.5, 0.5) and row.btn_area.text() == "Part of the window…"
+    assert row.t.region == (0.5, 0.0, 0.5, 0.5) and row.btn_area.text() == "Part of the window"
     assert tab.host.screen["triggers"][0]["region"] == [0.5, 0.0, 0.5, 0.5]
 
 

@@ -43,7 +43,7 @@ def log_line(a) -> str:
 
 class HistoryView(QWidget):
     """Follows `panel` (a TriggersTab): its history, newest first, live. Its Clear
-    and Save to a file… buttons go where its owner puts them (button_row())."""
+    and Save to a file buttons go where its owner puts them (button_row())."""
 
     def __init__(self, panel, parent=None, intro: bool = True):
         super().__init__(parent)
@@ -54,7 +54,7 @@ class HistoryView(QWidget):
             v.addWidget(hint_label(
                 _("The last {maxlen} alerts, newest first, each with the window as it was "
                   "checked and a box round what set it off. They're only kept until Onion Watch "
-                  "closes: Save to a file… keeps a copy.", maxlen=panel.history.maxlen)))
+                  "closes: Save to a file keeps a copy.", maxlen=panel.history.maxlen)))
         self.list = QListWidget()
         self.list.setIconSize(THUMB)
         self.list.setSpacing(4)
@@ -66,7 +66,7 @@ class HistoryView(QWidget):
         v.addWidget(self.empty)
         self.btn_clear = QPushButton(_("Clear"))
         self.btn_clear.clicked.connect(self._clear)
-        self.btn_save = QPushButton(_("Save to a file…"))
+        self.btn_save = QPushButton(_("Save to a file"))
         self.btn_save.clicked.connect(self.save)
         self._shown: list = []      # the alerts in the list, oldest first
         self._behind = False        # history changed while it was hidden
@@ -74,7 +74,7 @@ class HistoryView(QWidget):
         self.refresh()
 
     def button_row(self) -> QHBoxLayout:
-        """Clear and Save to a file… in a row (for a page without a dialog's buttons)."""
+        """Clear and Save to a file in a row (for a page without a dialog's buttons)."""
         h = QHBoxLayout()
         h.addWidget(self.btn_save)
         h.addWidget(self.btn_clear)

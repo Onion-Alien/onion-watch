@@ -29,7 +29,7 @@ class Host(Protocol):
     screen: dict
     data_dir: Path            # the trigger pictures are kept in data_dir / "triggers"
     default_sound: str        # a new trigger's sound ("" = none until one is picked)
-    audio_exts: frozenset[str]   # the sound files "Choose a sound file…" offers (".mp3"…)
+    audio_exts: frozenset[str]   # the sound files "Choose a sound file" offers (".mp3"…)
 
     def save(self) -> None:
         """`screen` changed: save it (soon; the host may wait to gather changes)."""

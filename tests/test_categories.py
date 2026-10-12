@@ -263,7 +263,7 @@ def test_a_pack_holds_hundreds_now():
 
 
 def test_change_window_moves_everything_that_looked_in_it_with_undo(make, monkeypatch):
-    """The game's program was renamed: one "Change window…" moves the default Look
+    """The game's program was renamed: one "Change window" moves the default Look
     in, every trigger's copies of that window ("every copy" stays every copy) and
     the profiles' program to the new one, saved once, and Undo puts it all back."""
     old = {"exe": "game.exe", "title": "Game", "nth": 0}
@@ -401,12 +401,12 @@ def test_a_new_trigger_from_a_categorys_plus_or_menu_goes_in_it(make, monkeypatc
     tab._pop_menu = lambda m, _b: shown.append(m)
     tab._category_add_menu("Empty one")
     names = [a.text() for a in shown[-1].actions()]
-    assert names[0] == "Cut it from the window" and "Without a picture…" in names
+    assert names[0] == "Cut it from the window" and "Without a picture" in names
     tab._category_menu("Raids")
     first = shown[-1].actions()[0]
     assert first.text() == "New trigger here" and first.menu() is not None
     # picking "Without a picture" in the empty one's + menu puts it there, opened
     tab._last_category = "Raids"
-    next(a for a in shown[-2].actions() if a.text() == "Without a picture…").trigger()
+    next(a for a in shown[-2].actions() if a.text() == "Without a picture").trigger()
     assert tab.triggers[-1].category == "Empty one"
     assert sec.is_open and tab.rows[tab.triggers[-1].id].parentWidget() is sec.body
