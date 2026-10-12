@@ -97,7 +97,7 @@ def test_daily_count_says_how_it_is_used():
     """age, triggers, fired, lang and used/: buckets and fixed names only."""
     c = cfg(screen={"triggers": [trig(mode="colour", colour="#ff0000", ring=True),
                                  trig(id="t2", unfocused=True, category="Raids")],
-                    "profiles": [{"name": "Night"}]},
+                    "profiles": [{"name": "Night"}], "view": "pads"},
             language="de", stats_fired=12)
     usage.used("pack-import")
     usage.used("nonsense")          # not in FEATURES: never sent
@@ -108,7 +108,7 @@ def test_daily_count_says_how_it_is_used():
                  "onion-watch/used/pack-import", "onion-watch/used/mode-colour",
                  "onion-watch/used/mode-appear", "onion-watch/used/ring",
                  "onion-watch/used/quiet-in-front", "onion-watch/used/categories",
-                 "onion-watch/used/profiles"):
+                 "onion-watch/used/profiles", "onion-watch/used/view-pads"):
         assert want in paths, want
     assert not any("nonsense" in p for p in paths)
     # nothing from the triggers themselves: names, pictures, colours

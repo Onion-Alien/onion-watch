@@ -80,7 +80,9 @@ USED = (  # done since the last daily count
 SET_UP = (  # set up now (setup_features): counted every day they are
     "mode-appear", "mode-vanish", "mode-change", "mode-still", "mode-colour", "ring",
     "several-places", "every-copy", "area", "hold", "quiet-in-front", "own-interval",
-    "categories", "profiles")
+    "categories", "profiles",
+    # the Triggers page's view when it isn't the list: Pads or the old cards
+    "view-pads", "view-cards")
 FEATURES = USED + SET_UP
 STEPS = ("added-trigger", "started-watching", "trigger-fired")
 LANG_RE = r"[a-z]{2,3}(?:-[A-Za-z0-9]{2,4})?"
@@ -223,6 +225,8 @@ def setup_features(screen) -> list[str]:
     if isinstance(screen, dict) and isinstance(screen.get("profiles"), list) \
             and screen["profiles"]:
         have.add("profiles")
+    if isinstance(screen, dict) and screen.get("view") in ("pads", "cards"):
+        have.add(f"view-{screen['view']}")
     return [k for k in SET_UP if k in have]
 
 
