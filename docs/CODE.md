@@ -104,12 +104,16 @@ then installs that file instead of downloading.
 | `onionwatch/settings.py` | `%APPDATA%\OnionWatch` and `config.json` |
 | `onionwatch/updates.py` | the daily update check and *Update now* (standalone app only) |
 | `onionwatch/usage.py` | the anonymous daily usage count, GoatCounter (standalone app only) |
+| `onionwatch/ui/countdialog.py` | *What Count me in sends*: the table behind Settings' eye button (in step with `usage.py` and SECURITY.md) |
 | `onionwatch/feedback.py` | Send feedback / Report a problem links |
 | `onionwatch/app.py` | start-up: logging, one copy at a time, the window, `--selftest` |
+| `onionwatch/ui/splash.py` | the start-up splash: Hoot hopping on the desktop until the window is up, drawn on a thread of its own |
+| `onionwatch/__main__.py` | `python -m onionwatch` |
 | `onionwatch/host.py` | what the triggers page needs from the program it runs in (settings, sounds, playing, theme): the Onion Watch app or Onion Board |
 | `onionwatch/apphost.py` | the Onion Watch app as that host |
 | `onionwatch/board.py` | the Onion Board add-on's entry point: `create(host)` gives the board its Triggers tab (alarm bar + triggers page) |
 | `onionwatch/ui/triggerspanel.py` | the triggers page: one card per trigger, "Look in", Watching, Cut picture. Talks only to its host |
+| `onionwatch/ui/pages.py` | the triggers page as both hosts show it: the Triggers / Log tabs and the Playing now bar under them |
 | `onionwatch/ui/alarmbar.py` | the red bar shown while a trigger rings, with Stop |
 | `onionwatch/profiles.py` | trigger categories and profiles: which triggers are on now (Manual switches, a profile, or Automatic by the programs open), saved beside the triggers in `Config.screen` (a category's look in `category_looks`, apart, so older versions keep it) |
 | `onionwatch/ui/categories.py` | a category's section in the list (fold, switch, counts, menu, its colours and picture; its cards made only once opened), the Categories window (each one's look) and the Profiles window |
@@ -138,6 +142,10 @@ then installs that file instead of downloading.
 | `scripts/build_bootloader.ps1`, `scripts/vt_scan.py` | PyInstaller with a bootloader compiled on your PC (virus scanners distrust the stock one); the VirusTotal check for a release |
 | `docs/index.html` | the website, [onion-alien.github.io/onion-watch](https://onion-alien.github.io/onion-watch/) (GitHub Pages, from `docs/`) |
 | `scripts/check_sensitive.py` | scans files, commits and history for secrets and personal data; the pre-commit hook |
+| `scripts/precommit.ps1` | every check a commit needs in one go (see CLAUDE.md); `-Tests` adds the suite |
+| `scripts/check_types.py`, `scripts/pyright_baseline.json` | pyright, failing only on errors that aren't in the baseline |
+| `scripts/check_code_doc.py` | every module is in this Code layout table, and the table names none that's gone |
+| `scripts/check_utc.sh`, `utc_fix.sh`, `merge_pr.sh` | commit times in UTC: the check (hooks and CI), re-stamping a branch, merging a PR with a UTC merge commit |
 | `scripts/live_check.py` | the real thing on this PC: two copies of a stand-in game (real windows, one covered), real `PrintWindow` capture, the triggers page as Onion Board loads it, one trigger for every copy in an area, one for a picture going away; prints PASS. Opens windows for a few seconds (never takes the focus) |
 | `scripts/build_module.py` | builds `OnionWatch-module.zip` for Onion Board: `module.json` and only the modules the board's tab needs, checked against what Onion Board ships |
 | `tests/` | pytest: the matcher, the watcher on stand-in screens and windows (several copies of a game, every copy, not open yet, closed and reopened, minimized, resized), each kind of trigger and its area, the sounds and player, the UI offscreen |

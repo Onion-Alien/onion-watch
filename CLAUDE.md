@@ -25,9 +25,36 @@ Like Onion Board, everything here is published, history included:
   promise is what keeps the app clear of game rules. Suggest it in chat instead,
   don't build it.
 
-Run `python scripts/check_sensitive.py` before committing. It's also the
-pre-commit hook: `git config core.hooksPath .githooks`, which also re-stamps
-commit times in UTC.
+- **Never copy content from outside the repo** (the author's other projects,
+  parent-folder docs, memory files, shell history) into files here.
+- **Never put Claude session links** (`claude.ai/code/session_…`) or
+  `Claude-Session:` trailers in commits, PRs or comments. Strip any your tooling
+  adds; `Co-Authored-By` is fine.
+
+Run `scripts\precommit.ps1` before committing (below); its sensitive-data scan is
+also the pre-commit hook. Fix what it reports; don't add `# sensitive-scan: allow`
+to silence it without telling the user why.
+
+## Commit times and merging
+
+Every commit's author and committer time must be `+0000`: a local time zone in a public
+repo says where the author lives. The same rules as Onion Board:
+
+- `git config core.hooksPath .githooks` (required) turns on the hooks: `pre-commit`
+  scans for secrets and personal data, `post-commit` and `post-merge` re-stamp new
+  commits in UTC, and `pre-push` refuses anything that isn't.
+- CI's *Commit times in UTC* step fails a PR that has any.
+- **Merge only with `sh scripts/merge_pr.sh N [--delete-branch]`**: it checks CI is
+  green, makes the merge commit here in UTC and pushes it to main. Never GitHub's merge
+  (the `gh` merge command, the API's merge call, the Merge button) or *Update branch*:
+  GitHub writes those commits in your local time zone, and no hook can touch them.
+- Bring main into a branch with a local `git merge origin/main` (the hook stamps it).
+- A branch whose commits aren't UTC: `sh scripts/utc_fix.sh`, then
+  `git push --force-with-lease`.
+- The same goes for anything else that records where you are: never write your time
+  zone, locale, city or machine names into commits, PR text or files.
+- Never rewrite history already pushed to `main` (no filter-repo, rebase or force-push).
+  To clean up old commits, add a new commit instead.
 
 ## Text the app shows: every language, in the same change
 
@@ -53,9 +80,20 @@ both apps at once. Details: [docs/TRANSLATING.md](docs/TRANSLATING.md).
 
 ## Working in the code
 
-- Checks: `.venv\Scripts\ruff check .` and `.venv\Scripts\python -m pytest`.
+- Checks: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\precommit.ps1`
+  (about 15 s): ruff, the sensitive-data scan, every text in every catalog, every
+  module in docs/CODE.md's table, and pyright on the changed files. `-Tests` also runs
+  the whole suite (under a minute; or `.venv\Scripts\python -m pytest`). CI
+  (`.github/workflows/checks.yml`) runs all of it on every PR, the tests on Windows.
   Tests use Qt's offscreen platform, stand-in captures and a silent audio stream
   (`tests/conftest.py`): no window, no screen read, no sound.
+- Type checking: pyright, basic mode (`[tool.pyright]`). The errors from before it was
+  turned on are in `scripts/pyright_baseline.json` and only new ones fail
+  (`scripts/check_types.py`). Fixed old ones? `check_types.py --update` so the
+  baseline shrinks and they can't come back. pyright wrong? `# pyright: ignore[rule]`
+  with a reason.
+- A fix comes with the test that would have caught it; the PR's `Regression test:`
+  line names it (or says why there's none).
 - Don't launch the app, or anything that opens windows, without asking first.
   The author may be mid-game.
 - Screenshots: `.venv\Scripts\python scripts\screenshots.py`. Offscreen,

@@ -20,7 +20,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest==9.1.1", "ruff==0.16.9", "pyinstaller==6.22.3"]
+dev = ["pytest==9.1.1", "ruff==0.16.9", "pyright==1.1.414", "pyinstaller==6.22.3"]
 
 [project.gui-scripts]
 onionwatch = "onionwatch.app:main"
@@ -47,7 +47,25 @@ ignore = [
 "onionwatch/theme.py" = ["E501"]   # the stylesheet is one rule per line
 "tests/*" = ["BLE"]
 
+# ---------------------------------------------------------------- pyright
+# Type checking, basic mode, as Onion Board. Old errors are in
+# scripts/pyright_baseline.json and only new ones fail: scripts/check_types.py
+# (precommit: changed files; CI: the whole repo).
+[tool.pyright]
+include = ["onionwatch", "main.py"]
+exclude = ["**/.venv", "build", "dist"]
+typeCheckingMode = "basic"
+pythonVersion = "3.12"
+pythonPlatform = "Windows"
+venvPath = "."
+venv = ".venv"
+
 # ---------------------------------------------------------------- pytest
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-q -n auto"
+addopts = "-q -rfE -n auto"   # -rfE: failures and errors listed at the end
+# A test still running after 2 minutes is hung: every thread's stack is printed and its
+# worker stopped, so the run goes on and says where it hung, instead of sitting there
+# until CI's time limit.
+faulthandler_timeout = 120
+faulthandler_exit_on_timeout = true
