@@ -4,6 +4,10 @@ What changed between releases, for the release notes. Newest first.
 
 ## Unreleased
 
+- **New Pads view** (View → Pads): every trigger as a pad, its picture over its name, how
+  it's doing and its switch, as many to a row as fit, under its category. Click one and it
+  opens on the right while the pads keep 30% of the width; drag the bar between them to
+  share it out (it's remembered), and the editor's ✕ gives the pads the whole width back.
 - **The Triggers page lines up.** With the list and editor side by side, New trigger is
   as wide as the list and the search box starts where the editor does; Start watching
   lines up with the cards' pictures.
