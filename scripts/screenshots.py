@@ -50,6 +50,18 @@ sounddevice.OutputStream = _Mute
 HP_BAR = QRectF(78, 32, 190, 14)     # the player's health bar in game_scene
 
 
+
+def fill_view(dlg, app):
+    """Widen a cutting dialog until its picture fills the view: the dialog has a
+    minimum height, and a 900-wide one would show grey bands above and below."""
+    dlg.resize(900, 1)
+    app.processEvents()
+    v = dlg.view
+    fit = v.img.size().scaled(v.size(), Qt.KeepAspectRatio)
+    extra = round((v.height() - fit.height()) * v.img.width() / v.img.height())
+    if extra > 0:
+        dlg.resize(dlg.width() + extra, dlg.height())
+
 def game_scene(w: int, h: int, seed: int = 0, plate: str = "", banner: str = "",
                whisper: str = "", hp: float = 1.0) -> QImage:
     """A made-up fantasy MMO frame: sky, hills, a health bar (`hp` full), maybe a
@@ -252,8 +264,8 @@ def main(out: Path):
     snip = SnipDialog(rare, "Realm Online (copy 2)", win)
     snip.view.selection = QRect(int(w * 0.36), int(h * 0.36), 300, 34)
     snip._update()
-    snip.resize(900, 640)
     snip.show()
+    fill_view(snip, app)
     app.processEvents()
     snip.grab().save(str(out / "cut-picture.png"))
     snip.close()
@@ -262,8 +274,8 @@ def main(out: Path):
     from onionwatch.ui.snip import AreaDialog
     hurt = game_scene(w, h, 3, hp=0.55)
     area = AreaDialog(hurt, "Realm Online", bar, "#c62828", win)
-    area.resize(900, 640)
     area.show()
+    fill_view(area, app)
     app.processEvents()
     area.grab().save(str(out / "health-bar.png"))
     area.close()
