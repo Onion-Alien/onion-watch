@@ -665,7 +665,7 @@
   "Updates and privacy": "Oppdateringer og personvern",
   "A new trigger without a picture: it watches part of the window, and its card says what it waits for. To watch for a picture, use Cut picture below.": "En ny utløser uten bilde: den ser på en del av vinduet, og kortet sier hva den venter på. For å se etter et bilde, bruk Klipp ut bilde... nedenfor.",
   "New trigger": "Ny trigger",
-  "No triggers yet. Pick your game window below, then click Cut picture and drag a box around the thing to watch for. Or click + New trigger above for one without a picture.": "Ingen utløsere ennå. Velg spillvinduet ditt nedenfor, klikk deretter Klipp ut bilde... og dra en boks rundt tingen du vil se etter. Eller klikk på + Ny utløser ovenfor for en uten bilde.",
+  "No triggers yet. Under Look in below, pick your game window (or a screen), then click Cut picture and drag a box around the thing to watch for. Or click + New trigger above for one without a picture.": "Ingen utløsere ennå. Velg spillvinduet ditt (eller en skjerm) under «Se inn» nedenfor, klikk deretter Klipp ut bilde og dra en boks rundt tingen du vil se etter. Eller klikk på + Ny utløser ovenfor for en uten bilde.",
   "A bar runs low": "En bar er lav",
   "Amount of change": "Mengde endring",
   "An area stops changing": "Et område slutter å endre seg",

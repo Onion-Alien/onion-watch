@@ -665,7 +665,7 @@
   "Updates and privacy": "Päivitykset ja yksityisyys",
   "A new trigger without a picture: it watches part of the window, and its card says what it waits for. To watch for a picture, use Cut picture below.": "Uusi laukaisin ilman kuvaa: se tarkkailee osaa ikkunasta ja sen kortti kertoo mitä se odottaa. Katso kuvaa käyttämällä Leikkaa kuva alla.",
   "New trigger": "Uusi laukaisin",
-  "No triggers yet. Pick your game window below, then click Cut picture and drag a box around the thing to watch for. Or click + New trigger above for one without a picture.": "Ei vielä laukaisimia. Valitse peliikkunasi alta, napsauta sitten Leikkaa kuva ja vedä laatikko katsottavan kohteen ympärille. Tai klikkaa yllä + Uusi laukaisinta ilman kuvaa.",
+  "No triggers yet. Under Look in below, pick your game window (or a screen), then click Cut picture and drag a box around the thing to watch for. Or click + New trigger above for one without a picture.": "Ei vielä laukaisimia. Valitse alta kohdasta ”Katso sisään” peliikkunasi (tai näyttö), napsauta sitten Leikkaa kuva ja vedä laatikko katsottavan kohteen ympärille. Tai klikkaa yllä + Uusi laukaisin, niin saat laukaisimen ilman kuvaa.",
   "A bar runs low": "Rima on alhaalla",
   "Amount of change": "Muutoksen määrä",
   "An area stops changing": "Alue lakkaa muuttumasta",

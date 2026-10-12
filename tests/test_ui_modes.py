@@ -251,3 +251,12 @@ def test_a_damaged_pack_says_so(tmp_path):
     bad.write_bytes(bytes(data))
     with pytest.raises(packs.PackError):
         packs.read_pack(bad)
+
+
+def test_the_first_run_hint_points_at_look_in(tab):
+    """The empty list says where to pick the game: the bottom bar's Look in, which starts
+    on a screen (it used to say "pick your game window below", with no window there)."""
+    from PySide6.QtWidgets import QLabel
+    hint = " ".join(lb.text() for lb in tab.empty.findChildren(QLabel))
+    assert "Look in" in [lb.text() for lb in tab.look.findChildren(QLabel)]
+    assert "Under Look in below" in hint and "(or a screen)" in hint

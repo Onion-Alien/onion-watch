@@ -653,7 +653,7 @@
   "Updates and privacy": "更新和隱私",
   "A new trigger without a picture: it watches part of the window, and its card says what it waits for. To watch for a picture, use Cut picture below.": "一個沒有圖片的新觸發器：它監視視窗的一部分，並且它的卡片說明它在等待什麼。要觀看圖片，請使用下面的“剪切圖片...”。",
   "New trigger": "新觸發器",
-  "No triggers yet. Pick your game window below, then click Cut picture and drag a box around the thing to watch for. Or click + New trigger above for one without a picture.": "還沒有觸發器。在下面選擇您的遊戲窗口，然後點擊“剪切圖片...”並在要監視的內容周圍拖曳一個框。或對於沒有圖片的觸發器，請點擊上面的 + 新觸發器。",
+  "No triggers yet. Under Look in below, pick your game window (or a screen), then click Cut picture and drag a box around the thing to watch for. Or click + New trigger above for one without a picture.": "還沒有觸發器。在下方的「監看位置」中選擇你的遊戲視窗（或螢幕），然後點擊「剪切圖片」，在要監看的內容周圍拖曳一個框。或點擊上方的 + 新觸發器，建立不含圖片的觸發器。",
   "A bar runs low": "酒吧即將耗盡",
   "Amount of change": "變動金額",
   "An area stops changing": "區域停止變化",

@@ -653,7 +653,7 @@
   "Updates and privacy": "アップデートとプライバシー",
   "A new trigger without a picture: it watches part of the window, and its card says what it waits for. To watch for a picture, use Cut picture below.": "画像のない新しいトリガー: ウィンドウの一部を監視し、カードが何を待っているかを示します。画像を視聴するには、下の「画像を切り取る」を使用してください。",
   "New trigger": "新しいトリガー",
-  "No triggers yet. Pick your game window below, then click Cut picture and drag a box around the thing to watch for. Or click + New trigger above for one without a picture.": "まだトリガーはありません。以下からゲーム ウィンドウを選択し、[画像の切り取り] をクリックして、監視対象の周囲にボックスをドラッグします。または、画像のないトリガーの場合は、上の [+ 新しいトリガー] をクリックします。",
+  "No triggers yet. Under Look in below, pick your game window (or a screen), then click Cut picture and drag a box around the thing to watch for. Or click + New trigger above for one without a picture.": "まだトリガーはありません。下の「探す場所」でゲーム ウィンドウ (または画面) を選択し、[画像の切り取り] をクリックして、監視対象の周囲にボックスをドラッグします。または、画像のないトリガーの場合は、上の [+ 新しいトリガー] をクリックします。",
   "A bar runs low": "バーが少なくなってきた",
   "Amount of change": "変動額",
   "An area stops changing": "エリアの変化が止まる",

@@ -677,7 +677,7 @@
   "Updates and privacy": "Обновления и конфиденциальность",
   "A new trigger without a picture: it watches part of the window, and its card says what it waits for. To watch for a picture, use Cut picture below.": "Новый триггер без картинки: он смотрит часть окна, а его карточка говорит, чего он ждет. Чтобы просмотреть изображение, используйте «Вырезать изображение» ниже.",
   "New trigger": "Новый триггер",
-  "No triggers yet. Pick your game window below, then click Cut picture and drag a box around the thing to watch for. Or click + New trigger above for one without a picture.": "Триггеров пока нет. Выберите окно игры ниже, затем нажмите «Вырезать картинку» и обведите рамкой объект, за которым нужно следить. Или нажмите + Новый триггер выше, чтобы получить триггер без изображения.",
+  "No triggers yet. Under Look in below, pick your game window (or a screen), then click Cut picture and drag a box around the thing to watch for. Or click + New trigger above for one without a picture.": "Триггеров пока нет. В поле «Где искать» ниже выберите окно игры (или экран), затем нажмите «Вырезать картинку» и обведите рамкой объект, за которым нужно следить. Или нажмите + Новый триггер выше, чтобы создать триггер без картинки.",
   "A bar runs low": "Бар заканчивается",
   "Amount of change": "Сумма изменения",
   "An area stops changing": "Область перестает меняться",
