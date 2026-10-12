@@ -29,7 +29,7 @@ PICTURE_PX = 128                # a category's picture is kept at most this big
 HEADER_PICTURE = 26             # px: ...and shown this big in its header
 BANNER_PX = 2400                # a banner is kept at most this wide (and 800 high)
 BANNER_HEIGHT_NAMES = {"slim": _("Slim"), "medium": _("Medium"), "tall": _("Tall")}
-# the colours to pick from in one click (any other through "Other…"): soft ones
+# the colours to pick from in one click (any other through "Other"): soft ones
 SWATCHES = ("#d9675e", "#e0915a", "#dcc060", "#6fae6c", "#3fb3a5", "#5a90d6",
             "#7176c8", "#9a6ccb", "#cf6d98", "#a07f66", "#7d8c99", "#5b6270")
 TEXT_SWATCHES = ("#f4f6f8", "#1b1e24", "#f2d98a", "#f5b98a", "#9fdcd3", "#f2a8c4")
@@ -716,7 +716,7 @@ class ProfilesDialog(QDialog):
         self.apps.setMinimumHeight(60)
         f.addWidget(self.apps, 1)
         ah = QHBoxLayout()
-        self.btn_pick = QPushButton(_("Add from the open windows…"))
+        self.btn_pick = QPushButton(_("Add from the open windows"))
         icons.set_icon(self.btn_pick, "window", size=14)
         self.btn_pick.clicked.connect(self._pick_app)
         ah.addWidget(self.btn_pick)
@@ -931,7 +931,7 @@ class CategoriesDialog(QDialog):
                                              "whichever reads best on the tab"))
         f.addWidget(section_label(_("PICTURE")))
         pr = QHBoxLayout()
-        self.btn_pick = QPushButton(_("Pick a picture…"))
+        self.btn_pick = QPushButton(_("Pick a picture"))
         icons.set_icon(self.btn_pick, "image", size=14)
         self.btn_pick.clicked.connect(self._pick_picture)
         pr.addWidget(self.btn_pick)
@@ -945,7 +945,7 @@ class CategoriesDialog(QDialog):
         f.addLayout(pr)
         f.addWidget(section_label(_("BANNER")))
         br = QHBoxLayout()
-        self.btn_pick_banner = QPushButton(_("Pick a banner…"))
+        self.btn_pick_banner = QPushButton(_("Pick a banner"))
         icons.set_icon(self.btn_pick_banner, "image", size=14)
         self.btn_pick_banner.setToolTip(_("A wide picture across the whole header. Any size: "
                                           "drag it above to pick the part that shows"))
@@ -989,7 +989,7 @@ class CategoriesDialog(QDialog):
         return {c.name: c.full_look() for c in self.cats}
 
     def _swatches(self, layout, colours, plain: str, pick, tip: str) -> dict:
-        """A line of colour buttons, the plain one first and "Other…" last: they
+        """A line of colour buttons, the plain one first and "Other" last: they
         call `pick` with a colour ("" for plain). Returns colour -> button."""
         row = QHBoxLayout()
         row.setSpacing(4)
@@ -1016,7 +1016,7 @@ class CategoriesDialog(QDialog):
             b.clicked.connect(lambda __=False, c=c: pick(c))
             row.addWidget(b)
             out[c] = b
-        other = QPushButton(_("Other…"))
+        other = QPushButton(_("Other"))
         other.setObjectName("small")
         other.clicked.connect(lambda: self._other(pick, out))
         row.addWidget(other)

@@ -153,7 +153,7 @@ def test_the_plus_adds_a_picture_three_ways(tab, qapp):
     qapp.clipboard().clear()
     menu = row._add_menu()
     acts = menu.actions()
-    assert [a.text() for a in acts] == ["Cut from window…", "Picture files…",
+    assert [a.text() for a in acts] == ["Cut from window", "Picture files",
                                         "Paste the copied picture"]
     assert not acts[2].isEnabled()          # nothing copied
     acts[0].trigger()

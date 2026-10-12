@@ -82,12 +82,12 @@ def needs_part(fallback=None):
     return wrap
 
 PICTURE_EXTS = "*.png *.jpg *.jpeg *.bmp *.webp *.gif"
-ADD = "__add__"         # the sound list's "+ Add sound…" entry (its resting state)
-FILE = "__file__"       # ...its "Choose a sound file…" entry
-PICK_WINDOW = "__pick_window__"   # a "Look in" list's "Pick a window…" entry
+ADD = "__add__"         # the sound list's "+ Add sound" entry (its resting state)
+FILE = "__file__"       # ...its "Choose a sound file" entry
+PICK_WINDOW = "__pick_window__"   # a "Look in" list's "Pick a window" entry
 DEFAULT = "__default__"           # ...its "Same as below" entry
 PLACES = "__places__"             # ...the trigger's own windows and screens
-NEW_CATEGORY = "__new_category__"   # a card's Category list's "New category…" entry
+NEW_CATEGORY = "__new_category__"   # a card's Category list's "New category" entry
 POLL_MS = 150           # how often the live match numbers refresh
 MAX_TRIGGERS = 500      # in all; how many can be on at once is up to the computer
 # Versions before categories load only the first 50 of Config.screen["triggers"] and
@@ -154,7 +154,7 @@ BUILD_STEP_MS = 40      # ...screen); the rest this long at a time, so the windo
 SCREEN_LEARN_MS = 1300  # a screen cut's frames for the cut-out: grabbed this long after
 HEAVY_GAP = 0.5         # s: checks spaced out further than this (to keep to the share of
 HEAVY_FOR = 5.0         # ...the processor picked) for this long: say too many pictures are on
-EDIT_PROFILES = "__edit_profiles__"   # the Profile list's "Edit profiles…"
+EDIT_PROFILES = "__edit_profiles__"   # the Profile list's "Edit profiles"
 KEEP_DAYS = 30          # deleted triggers stay in Recently deleted this long
 MAX_DELETED = 50        # ...and at most this many of them
 
@@ -785,7 +785,7 @@ def fill_sources(cb: QComboBox, mons: list[Monitor], places: list,
             Qt.ToolTipRole)
         current = cb.count() - 1
     cb.insertSeparator(cb.count())
-    cb.addItem(icons.icon("window", "muted"), pick_label or _("Pick a window…"), PICK_WINDOW)
+    cb.addItem(icons.icon("window", "muted"), pick_label or _("Pick a window"), PICK_WINDOW)
     cb.setCurrentIndex(current)
     cb.blockSignals(False)
 
@@ -1320,13 +1320,13 @@ class TriggerRow(QFrame):
     changed = Signal(object)             # row: a setting changed
     pictures_wanted = Signal(object)     # row: "+ Add pictures…" (files)
     paste_wanted = Signal(object)        # row: "Paste picture"
-    cut_wanted = Signal(object)          # row: "Cut from window…"
+    cut_wanted = Signal(object)          # row: "Cut from window"
     picture_view = Signal(object, int)   # row, index: a thumbnail was clicked: show it big
     picture_swap = Signal(object, int)   # row, index: swap that picture for another file
     picture_removed = Signal(object, int)  # row, index
-    sound_file_wanted = Signal(object)   # row: "Choose a sound file…"
-    window_wanted = Signal(object)       # row: "Pick windows…"
-    retarget_wanted = Signal(object)     # WindowRef: "Change window…" on a window not open
+    sound_file_wanted = Signal(object)   # row: "Choose a sound file"
+    window_wanted = Signal(object)       # row: "Pick windows"
+    retarget_wanted = Signal(object)     # WindowRef: "Change window" on a window not open
     area_wanted = Signal(object)         # row: "Area…"
     duplicate = Signal(object)           # row: "Duplicate"
     category_wanted = Signal(object, str)  # row, category: moved there (NEW_CATEGORY: ask)
@@ -1447,7 +1447,7 @@ class TriggerRow(QFrame):
         self.state.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
         # on "Waiting for <game> to open": point everything that looked in that
         # window at another one (the game's program was renamed, a new launcher...)
-        self.btn_retarget = QPushButton(_("Change window…"))
+        self.btn_retarget = QPushButton(_("Change window"))
         self.btn_retarget.setObjectName("small")
         self.btn_retarget.setToolTip(
             _("Pick the window to look in instead. Every trigger, the default Look in and the "
@@ -1600,7 +1600,7 @@ class TriggerRow(QFrame):
         self.where = WideCombo(min_width=120)
         self.where.setToolTip(_("Where to look: game windows (watched even while other windows "
                                 "cover them, but not while they're minimized) or whole screens. "
-                                "“Pick windows…” can tick several, or every copy of a game. "
+                                "“Pick windows” can tick several, or every copy of a game. "
                                 "“Default” is the Look in on the bottom bar."))
         no_wheel(self.where)
         self.where.activated.connect(self._on_where)
@@ -1618,7 +1618,7 @@ class TriggerRow(QFrame):
         self.chips: list[QFrame] = []
         self.sound = QComboBox()        # a square +: its list opens wide enough
         self.sound.setObjectName("addsound")
-        self.sound.setAccessibleName(_("+ Add sound…"))
+        self.sound.setAccessibleName(_("+ Add sound"))
         self.sound.view().setMinimumWidth(260)
         self.sound.setToolTip(_("Add a sound to play: a built-in alert, or a sound file of yours"))
         no_wheel(self.sound)
@@ -1785,7 +1785,7 @@ class TriggerRow(QFrame):
         self._show_mode_body()
         self._fill_sounds()
         fill_sources(self.where, self._mons, t.sources, self._default_label(),
-                     _("Pick windows…"))
+                     _("Pick windows"))
         if self._categories is not None:
             self.set_categories(self._categories)
         if self._default_ms is not None:
@@ -2073,9 +2073,9 @@ class TriggerRow(QFrame):
     def _add_menu(self) -> QMenu:
         """The header's +: the ways to add a picture."""
         menu = QMenu(self)
-        menu.addAction(icons.icon("crop"), _("Cut from window…"),
+        menu.addAction(icons.icon("crop"), _("Cut from window"),
                        lambda: self.cut_wanted.emit(self))
-        menu.addAction(icons.icon("plus"), _("Picture files…"),
+        menu.addAction(icons.icon("plus"), _("Picture files"),
                        lambda: self.pictures_wanted.emit(self))
         paste = menu.addAction(icons.icon("image"), _("Paste the copied picture"),
                                lambda: self.paste_wanted.emit(self))
@@ -2195,13 +2195,13 @@ class TriggerRow(QFrame):
         t = self.t
         colour = t.mode == "colour"
         if colour:
-            self.btn_area.setText(_("Bar and colour…") if t.region is None or not t.colour
+            self.btn_area.setText(_("Bar and colour") if t.region is None or not t.colour
                                   else _("Bar: set"))
             self.btn_area.setIcon(swatch(t.colour) if t.colour else QIcon())
             self.btn_area.setToolTip(_("Drag a box around the bar to measure and check its colour"))
         else:
-            self.btn_area.setText(_("Whole window…") if t.region is None
-                                  else _("Part of the window…"))
+            self.btn_area.setText(_("Whole window") if t.region is None
+                                  else _("Part of the window"))
             self.btn_area.setIcon(QIcon())
             self.btn_area.setToolTip(_("Look in only part of each window: drag a box around it. "
                                        "Fewer false alarms, quicker checks."))
@@ -2225,7 +2225,7 @@ class TriggerRow(QFrame):
         for sid, name in sounds:
             cb.addItem(name, sid)
         cb.insertSeparator(cb.count())
-        cb.addItem(icons.icon("folder"), _("Choose a sound file…"), FILE)
+        cb.addItem(icons.icon("folder"), _("Choose a sound file"), FILE)
         cb.setCurrentIndex(0)
         cb.view().setRowHidden(0, True)                # ...but not a choice in the list
         cb.blockSignals(False)
@@ -2284,7 +2284,7 @@ class TriggerRow(QFrame):
         self._screens = len(mons)
         if self._built:
             fill_sources(self.where, mons, t.sources, self._default_label(),
-                         _("Pick windows…"))
+                         _("Pick windows"))
         self.fallback = any(not 0 <= m < len(mons) for m in t.screens)
         self._update_state()
 
@@ -2380,7 +2380,7 @@ class TriggerRow(QFrame):
         if t.uses_pictures and not t.images:
             text, tone = _("No picture yet — click + to add one"), "warn"
         elif t.mode == "colour" and (not t.colour or t.region is None):
-            text, tone = _("Pick the bar to measure — Bar and colour…"), "warn"
+            text, tone = _("Pick the bar to measure — Bar and colour"), "warn"
         elif not n:
             text, tone = _("Pick the sound to play"), "warn"
         elif len(self.missing) == n:
@@ -2480,7 +2480,7 @@ class TriggerRow(QFrame):
         for n in names if self.t.category in names else [*names, self.t.category]:
             cb.addItem(profiles.label(n), n)
         cb.insertSeparator(cb.count())
-        cb.addItem(_("New category…"), NEW_CATEGORY)
+        cb.addItem(_("New category"), NEW_CATEGORY)
         cb.setCurrentIndex(max(0, cb.findData(self.t.category)))
         cb.blockSignals(False)
 
@@ -2770,14 +2770,14 @@ class TriggersTab(QWidget):
         align_control(self.search_text)
         self.search_text.setMinimumWidth(SEARCH_MIN)
         # + New trigger: one without a picture (it watches part of the window), right
-        # where the list starts; a picture one is Cut picture… in the bar below
+        # where the list starts; a picture one is Cut picture in the bar below
         self.btn_new = QPushButton(_("New trigger"))
         self.btn_new.setObjectName("newtrigger")
         # (lit up by its own colours, _update_new_trigger_glow: a drop shadow on it left
         # the bottom bar unpainted in Onion Board until something else redrew the window)
         self.btn_new.setToolTip(_("A new trigger without a picture: it watches part of the "
                                   "window, and its card says what it waits for. To watch for "
-                                  "a picture, use Cut picture… below."))
+                                  "a picture, use Cut picture below."))
         icons.set_icon(self.btn_new, "plus")
         self.btn_new.clicked.connect(self.add_area_trigger)
         align_control(self.btn_new)
@@ -2861,7 +2861,7 @@ class TriggersTab(QWidget):
         self.hoot = owl.OwlWidget(96)   # waiting (sadly) for something to watch
         ev.addWidget(self.hoot, 0, Qt.AlignHCenter)
         hint = hint_label(_("No triggers yet. Pick your game window below, then click Cut "
-                            "picture… and drag a box around the thing to watch for. Or "
+                            "picture and drag a box around the thing to watch for. Or "
                             "click + New trigger above for one without a picture."))
         hint.setAlignment(Qt.AlignCenter)
         ev.addWidget(hint)
@@ -2897,7 +2897,7 @@ class TriggersTab(QWidget):
         icons.set_label_icon(mark, "triggers", size=40)
         ee.addWidget(mark, 0, Qt.AlignHCenter)
         hint = hint_label(_("Pick a trigger on the left to change it, or click Cut "
-                            "picture… below to make one."))
+                            "picture below to make one."))
         hint.setAlignment(Qt.AlignCenter)
         ee.addWidget(hint)
         ee.addStretch(1)
@@ -2928,7 +2928,7 @@ class TriggersTab(QWidget):
         icons.set_icon(self.btn_watch, "triggers", checked_color="#ffffff")
         self.btn_watch.toggled.connect(self.set_watching)
         h.addWidget(self.btn_watch)
-        self.btn_cut = QPushButton(_("Cut picture…"))
+        self.btn_cut = QPushButton(_("Cut picture"))
         self.btn_cut.setObjectName("primary")
         self.btn_cut.setToolTip(_("A new trigger: cut a picture out of the window (or screen) "
                                   "picked in Look in"))
@@ -2943,12 +2943,12 @@ class TriggersTab(QWidget):
                                   "copied, or one without a picture"))
         icons.set_icon(self.btn_add, "plus")
         add_menu = QMenu(self.btn_add)
-        self.act_add_file = add_menu.addAction(icons.icon("plus"), _("From a picture file…"),
+        self.act_add_file = add_menu.addAction(icons.icon("plus"), _("From a picture file"),
                                                self.add_from_file)
         self.act_paste = add_menu.addAction(icons.icon("image"), _("Paste the copied picture"),
                                             self.add_from_clipboard)
         self.act_paste.setToolTip(_("Win+Shift+S cuts a piece of the screen to paste here"))
-        add_menu.addAction(_("Without a picture…"), self.add_area_trigger)
+        add_menu.addAction(_("Without a picture"), self.add_area_trigger)
         add_menu.setToolTipsVisible(True)
 
         def add_about_to_show():
@@ -2963,24 +2963,24 @@ class TriggersTab(QWidget):
                                    "recently deleted ones"))
         icons.set_icon(self.btn_more, "history")
         menu = QMenu(self.btn_more)
-        menu.addAction(_("What went off…"), self.show_history)
+        menu.addAction(_("What went off"), self.show_history)
         menu.addSeparator()
-        menu.addAction(_("New category…"), self.new_category)
-        self.act_categories = menu.addAction(icons.icon("palette"), _("Categories…"),
+        menu.addAction(_("New category"), self.new_category)
+        self.act_categories = menu.addAction(icons.icon("palette"), _("Categories"),
                                              lambda: self.edit_categories())
-        menu.addAction(_("Profiles…"), self.edit_profiles)
+        menu.addAction(_("Profiles"), self.edit_profiles)
         menu.addSeparator()
-        self.act_export = menu.addAction(_("Save triggers to a file…"), self.export_triggers)
-        menu.addAction(_("Load triggers from a file…"), self.import_triggers)
+        self.act_export = menu.addAction(_("Save triggers to a file"), self.export_triggers)
+        menu.addAction(_("Load triggers from a file"), self.import_triggers)
         menu.addSeparator()
-        self.act_bin = menu.addAction(icons.icon("trash"), _("Recently deleted…"),
+        self.act_bin = menu.addAction(icons.icon("trash"), _("Recently deleted"),
                                       self.show_deleted)
 
         def about_to_show():
             self.act_export.setEnabled(bool(self.triggers))
             self.act_categories.setEnabled(self._named_categories())
             n = len(self._bin())
-            self.act_bin.setText(_("Recently deleted ({n})…", n=n) if n else _("Recently deleted…"))
+            self.act_bin.setText(_("Recently deleted ({n})", n=n) if n else _("Recently deleted"))
         menu.aboutToShow.connect(about_to_show)
         self.btn_more.setMenu(menu)
         h.addWidget(self.btn_more)
@@ -3016,7 +3016,7 @@ class TriggersTab(QWidget):
             self.btn_info.setParent(self)
             self.btn_info.hide()
             menu.addSeparator()
-            menu.addAction(_("Help…"), self.btn_info.click)
+            menu.addAction(_("Help"), self.btn_info.click)
         self.btn_bin = QPushButton()     # the bin's icon and count (_label_bin)
         icons.set_icon(self.btn_bin, "trash")
         self.btn_bin.clicked.connect(self.show_deleted)
@@ -3352,7 +3352,7 @@ class TriggersTab(QWidget):
             row.set_places(places)
 
     def change_window(self, old: WindowRef) -> bool:
-        """"Change window…" on a card waiting for `old`: pick another window, and
+        """"Change window" on a card waiting for `old`: pick another window, and
         everything that looked in `old` looks in it instead (retarget_window)."""
         new = self.pick_window(old)
         if new is None or new == old:
@@ -3757,7 +3757,7 @@ class TriggersTab(QWidget):
 
     def _first_note(self, places) -> tuple[tuple[str, str] | None, WindowRef | None]:
         """What to say on a card about the places it's looked in: the first problem,
-        and the window it's about when that one isn't open (for "Change window…")."""
+        and the window it's about when that one isn't open (for "Change window")."""
         for src in places:
             note = self._note(src)
             if note is not None:
@@ -4178,7 +4178,7 @@ class TriggersTab(QWidget):
                     "that profile.", name=ps[0].name)
         else:
             tip = _("On or off as the profiles {names} say (Automatic). "
-                    "Change them under More → Profiles….", names=", ".join(p.name for p in ps))
+                    "Change them under More → Profiles.", names=", ".join(p.name for p in ps))
         for name, sec in self.sections.items():
             sec.set_switch(name in self._active, tip)
 
@@ -4202,7 +4202,7 @@ class TriggersTab(QWidget):
             QMessageBox.information(self, _("Set by profiles"),
                                     _("The profiles {names} say which categories are on now "
                                       "(Profile is Automatic). Change them under More → "
-                                      "Profiles….", names=names))
+                                      "Profiles.", names=names))
             self._refresh_switches()
             return
         self._save_groups()
@@ -4375,12 +4375,12 @@ class TriggersTab(QWidget):
         """The ways to make a trigger, each putting it in this category."""
         menu.addAction(icons.icon("crop"), _("Cut it from the window"),
                        lambda: self.add_in_category(name, self.add_from_cut))
-        menu.addAction(icons.icon("plus"), _("From a picture file…"),
+        menu.addAction(icons.icon("plus"), _("From a picture file"),
                        lambda: self.add_in_category(name, self.add_from_file))
         a = menu.addAction(icons.icon("image"), _("Paste the copied picture"),
                            lambda: self.add_in_category(name, self.add_from_clipboard))
         a.setEnabled(not QApplication.clipboard().image().isNull())
-        menu.addAction(_("Without a picture…"),
+        menu.addAction(_("Without a picture"),
                        lambda: self.add_in_category(name, self.add_area_trigger))
 
     def _pop_menu(self, menu: QMenu, under: QWidget):
@@ -4407,8 +4407,8 @@ class TriggersTab(QWidget):
         self._fill_new_here(menu.addMenu(icons.icon("plus"), _("New trigger here")), name)
         menu.addSeparator()
         if named:
-            menu.addAction(_("Rename…"), lambda: self._ask_rename(name))
-        menu.addAction(icons.icon("palette"), _("Colours and picture…"),
+            menu.addAction(_("Rename"), lambda: self._ask_rename(name))
+        menu.addAction(icons.icon("palette"), _("Colours and picture"),
                        lambda: self.edit_categories(name))
         menu.addAction(icons.icon("search"), _("Search this category"),
                        lambda: self.show_search(name))
@@ -4424,9 +4424,9 @@ class TriggersTab(QWidget):
         menu.addAction(_("Move down"), lambda: self.move_category(name, 1)).setEnabled(
             i < len(self.groups.categories) - 1)
         menu.addSeparator()
-        menu.addAction(_("Save to a file…"), lambda: self.export_category(name)).setEnabled(n > 0)
+        menu.addAction(_("Save to a file"), lambda: self.export_category(name)).setEnabled(n > 0)
         if named:
-            menu.addAction(icons.icon("trash"), _("Delete category…"),
+            menu.addAction(icons.icon("trash"), _("Delete category"),
                            lambda: self.delete_category(name))
         self._pop_menu(menu, sec.btn_menu)
 
@@ -4447,7 +4447,7 @@ class TriggersTab(QWidget):
         if g.profiles:
             cb.addItem(_("Automatic (by program)"), profiles.AUTO)
         cb.insertSeparator(cb.count())
-        cb.addItem(_("Edit profiles…"), EDIT_PROFILES)
+        cb.addItem(_("Edit profiles"), EDIT_PROFILES)
         cb.setCurrentIndex(max(0, cb.findData(g.mode)))
         cb.blockSignals(False)
         self.groupbar.setVisible(self._grouped())
@@ -5319,7 +5319,7 @@ class TriggersTab(QWidget):
     # ------------------------------------------------------------------ areas, copies
     @needs_part()
     def _pick_area(self, row: TriggerRow):
-        """The card's "Area…" / "Bar and colour…": drag the part of the window to look
+        """The card's "Area…" / "Bar and colour": drag the part of the window to look
         in (and for a colour trigger, check its colour)."""
         from onionwatch.ui.snip import AreaDialog
         t = row.t

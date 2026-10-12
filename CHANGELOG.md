@@ -4,6 +4,8 @@ What changed between releases, for the release notes. Newest first.
 
 ## Unreleased
 
+- Buttons and menu items no longer end in “…”: Cut picture, Profiles, Save to a file and
+  the rest read plainly, as in Onion Board. Messages that something is happening keep theirs.
 - The app's font is Bahnschrift, the same as Onion Board's.
 - A button's icon sits a little apart from its words, as in Onion Board (it was
   squeezed up against Watching), and Watching and Cut picture are equally bold.
