@@ -1309,10 +1309,9 @@ CARD_CSS = (
     "QLineEdit#cardname:focus { background:palette(base);"
     " border-color:palette(highlight); }"
     "QLabel#cardtitle { font-size:10.5pt; font-weight:700; }"
+    # The picked trigger's frame; hover keeps the host's usual card fill.
+    'QFrame#card[selected="true"] { border:2px solid palette(highlight); }'
 )
-# the trigger the editor on the right is showing, in the list. Hover is the app sheet's
-# [interactive][hovered] card rule (a lighter fill), like Onion Board's cards
-CARD_SELECTED = "QFrame#card { border:2px solid palette(highlight); }"
 
 
 class TriggerRow(QFrame):
@@ -2074,7 +2073,7 @@ class TriggerRow(QFrame):
             ev.ignore()             # a card being moved: the category takes it
 
     def _unmark(self):
-        self.setStyleSheet(CARD_CSS + (CARD_SELECTED if self.selected else ""))
+        self.setStyleSheet(CARD_CSS)
 
     def _hover(self, on: bool):
         if self.property("interactive") and self.property("hovered") != on:
@@ -2095,7 +2094,12 @@ class TriggerRow(QFrame):
         """Mark it as the one the editor beside the list is showing."""
         if on != self.selected:
             self.selected = on
-            self._unmark()
+            self.setProperty("selected", on)
+            # Only the frame's border changes. Replacing its sheet also restyles
+            # every child, including a previously opened tile's hidden editor.
+            self.style().unpolish(self)
+            self.style().polish(self)
+            self.update()
 
     def dragLeaveEvent(self, ev):
         self._unmark()
@@ -2974,6 +2978,8 @@ class TriggersTab(QWidget):
         self._split_save.setInterval(400)
         self._split_save.timeout.connect(self.host.save)
         self.editor: TriggerRow | None = None   # the trigger shown on the right
+        self._editor_cache: dict[str, tuple[object, TriggerRow]] = {}
+        self._editor_snapshot: object = None
         self.split = False
         v.addWidget(self.body, 1)
 
@@ -3190,20 +3196,43 @@ class TriggersTab(QWidget):
         t = row.t
         if self.editor is not None and self.editor.t is t:
             return
-        self._drop_editor()
-        ed = TriggerRow(t, self.host.sounds(), self._mons, open_=True,
+        sounds = list(self.host.sounds())
+        snapshot = (t.to_raw(), sounds, list(self._mons), self.groups.names(),
+                    self.default_interval, self.watcher.default, dict(theme.T))
+        self._drop_editor(keep=True)
+        cached = self._editor_cache.pop(t.id, None)
+        if cached is not None and cached[0] == snapshot and cached[1].t is t:
+            ed = cached[1]
+        else:
+            if cached is not None:
+                cached[1].deleteLater()
+            ed = self._make_editor(t, sounds)
+        self._editor_snapshot = snapshot
+        ed.watching = row.watching
+        ed.cooldown_until = row.cooldown_until
+        ed.note, ed.waiting = row.note, row.waiting
+        ed._update_state()
+        ed.show_score(row._score)
+        self.editor = ed
+        self.editor_pane.layout().insertWidget(0, ed)
+        ed.show()
+        self._empty_shown(False)
+        for r in self.rows.values():
+            r.set_selected(r.t is t)
+        self._fit_split()
+        self.playing_now()     # a cached Test button may have said Stop when hidden
+
+    def _make_editor(self, t: Trigger, sounds: list[tuple[str, str]]) -> TriggerRow:
+        ed = TriggerRow(t, sounds, self._mons, open_=True,
                         parent=self.editor_pane)
         ed.pinned = True
         ed.btn_open.hide()
         ed.setProperty("interactive", False)   # the editor isn't a tile to pick
-        ed.setStyleSheet(CARD_CSS)
         self._wire(ed)
         ed.set_categories(self.groups.names())
         ed.set_default_interval(self.default_interval)
         ed.set_default_place(places_label([self.watcher.default]))
         ed.set_open(True)
-        ed.watching = row.watching
-        ed.show_score(row._score)       # what its tile shows, until the next check
         # its ✕, shown in the Pads view (_fit_split): the pads back across the width
         ed.btn_close = QPushButton(ed)
         ed.btn_close.setObjectName("fold")
@@ -3214,19 +3243,29 @@ class TriggersTab(QWidget):
         ed.btn_close.clicked.connect(self._drop_editor)
         ed.btn_close.hide()
         ed.top.addWidget(ed.btn_close, 0, 5, 2, 1, Qt.AlignmentFlag.AlignVCenter)
-        self.editor = ed
-        self.editor_pane.layout().insertWidget(0, ed)
-        self._empty_shown(False)
-        for r in self.rows.values():
-            r.set_selected(r.t is t)
-        self._fit_split()
+        return ed
 
-    def _drop_editor(self):
+    def _clear_editor_cache(self):
+        for _snapshot, ed in self._editor_cache.values():
+            ed.deleteLater()
+        self._editor_cache.clear()
+
+    def _drop_editor(self, keep: bool = False):
         ed, self.editor = self.editor, None
         if ed is not None:
             self.editor_pane.layout().removeWidget(ed)
-            ed.setParent(None)
-            ed.deleteLater()
+            ed.hide()
+            if keep:
+                self._editor_cache[ed.t.id] = (self._editor_snapshot, ed)
+                # Bound the hidden widget trees even when browsing hundreds of triggers.
+                while len(self._editor_cache) > 3:
+                    _snapshot, old = self._editor_cache.pop(next(iter(self._editor_cache)))
+                    old.deleteLater()
+            else:
+                ed.deleteLater()
+        if keep:
+            return
+        self._clear_editor_cache()
         for r in self.rows.values():
             r.set_selected(False)
         self._empty_shown(True)
@@ -3696,6 +3735,7 @@ class TriggersTab(QWidget):
             row.show_score(self.watcher.scores.get(row.t.id) if self.is_active() else None)
 
     def shutdown(self):
+        self._clear_editor_cache()
         self._input_poll.stop()
         self.poll.stop()
         self.watcher.stop()
@@ -4837,6 +4877,7 @@ class TriggersTab(QWidget):
             self.ringing_changed.emit()
 
     def _store(self):
+        self._clear_editor_cache()
         raws = [t.to_raw() for t in self.triggers]
         self.host.screen["triggers"] = raws[:OLD_TRIGGERS]      # (see OLD_TRIGGERS)
         self.host.screen["more_triggers"] = raws[OLD_TRIGGERS:]

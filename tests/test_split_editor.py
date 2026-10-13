@@ -35,6 +35,60 @@ def test_a_wide_window_shows_the_list_beside_an_editor(tab, qapp):
     assert not first.is_open and tab.editor.t is first.t and first.selected
 
 
+def test_switching_back_reuses_the_editor_without_restyling_the_tile(tab, qapp, monkeypatch):
+    first, second = two(tab)
+    wide(tab, qapp)
+    tab._select(first)
+    original = tab.editor
+    sheets = []
+    monkeypatch.setattr(first, "setStyleSheet", sheets.append)
+    tab._select(second)
+    assert original.isHidden()
+    tab._select(first)
+    assert tab.editor is original and not original.isHidden()
+    assert first.property("selected") and not second.property("selected")
+    assert sheets == []
+
+
+def test_cached_editor_is_rebuilt_after_a_trigger_or_sound_library_change(tab, qapp):
+    first, second = two(tab)
+    wide(tab, qapp)
+    tab._select(first)
+    original = tab.editor
+    tab._select(second)
+    first.t.cooldown = 17
+    tab._select(first)
+    assert tab.editor is not original and tab.editor.cooldown.value() == 17
+    original = tab.editor
+    tab._select(second)
+    tab.host.sounds = lambda: [("new", "New sound")]
+    tab._select(first)
+    assert tab.editor is not original and tab.editor.sound.findData("new") >= 0
+
+
+def test_editor_cache_is_bounded_and_dropped_when_the_editor_closes(tab, qapp):
+    two(tab)
+    for i in range(5):
+        tab._new(as_qimage(banner()), f"Extra {i}")
+    wide(tab, qapp)
+    for row in tab.rows.values():
+        tab._select(row)
+        assert len(tab._editor_cache) <= 3
+    tab._drop_editor()
+    assert not tab._editor_cache and tab.editor is None
+
+
+def test_saved_edits_discard_hidden_editors(tab, qapp):
+    first, second = two(tab)
+    wide(tab, qapp)
+    tab._select(first)
+    tab._select(second)
+    assert tab._editor_cache
+    tab.editor.name.setText("Changed")
+    tab.editor.name.editingFinished.emit()
+    assert not tab._editor_cache
+
+
 def test_the_editor_and_the_list_card_keep_in_step(tab, qapp):
     first, _second = two(tab)
     wide(tab, qapp)
