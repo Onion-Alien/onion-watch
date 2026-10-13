@@ -9,10 +9,10 @@ from __future__ import annotations
 import logging
 
 import numpy as np
-from PySide6.QtCore import QSize, Qt, QTimer
+from PySide6.QtCore import QEvent, QSize, Qt, QTimer
 from PySide6.QtGui import QColor, QIcon, QImage, QPixmap
 from PySide6.QtWidgets import (QCheckBox, QDialog, QDialogButtonBox, QHBoxLayout, QListWidget,
-                               QListWidgetItem, QPushButton, QVBoxLayout)
+                               QListWidgetItem, QPushButton, QStyledItemDelegate, QVBoxLayout)
 
 from onionwatch import screenwatch, theme, windows
 from onionwatch.screenwatch import MAX_SOURCES, WindowRef
@@ -60,6 +60,28 @@ def places_label(places: list) -> str:
     return ngettext("{n} place", "{n} places", len(places))
 
 
+class _CardCheckDelegate(QStyledItemDelegate):
+    """Give checkable cards the same mouse behaviour as their checkbox indicator."""
+
+    def editorEvent(self, event, model, option, index):
+        if event.type() in (QEvent.Type.MouseButtonPress, QEvent.Type.MouseButtonRelease,
+                            QEvent.Type.MouseButtonDblClick):
+            flags = index.flags()
+            if (event.button() != Qt.MouseButton.LeftButton
+                    or not option.rect.contains(event.position().toPoint())
+                    or not (flags & Qt.ItemFlag.ItemIsEnabled
+                            and flags & Qt.ItemFlag.ItemIsUserCheckable)):
+                return False
+            # Consume press/double-click just like Qt's checkbox delegate; release
+            # changes the check state exactly once, anywhere within the card.
+            if event.type() != QEvent.Type.MouseButtonRelease:
+                return True
+            checked = index.data(Qt.ItemDataRole.CheckStateRole) == Qt.Checked.value
+            state = Qt.Unchecked if checked else Qt.Checked
+            return model.setData(index, state.value, Qt.ItemDataRole.CheckStateRole)
+        return super().editorEvent(event, model, option, index)
+
+
 class WindowPicker(QDialog):
     """`chosen` is the WindowRef picked (None until OK). With `multi`, `places` is the
     list ticked instead (windows, "every copy" windows and screen indexes), and
@@ -96,6 +118,7 @@ class WindowPicker(QDialog):
         self.list.currentItemChanged.connect(lambda *__: self._enable())
         self.list.itemChanged.connect(lambda _i: self._enable())
         if multi:
+            self.list.setItemDelegate(_CardCheckDelegate(self.list))
             # tick boxes that read on a picked (accent) tile too: an outline, filled when ticked
             # (each state styled in full: Qt ignores :checked on top of a plain ::indicator)
             t = theme.T
@@ -157,7 +180,7 @@ class WindowPicker(QDialog):
                 it = QListWidgetItem(icons.icon("apps", "muted"),
                                      _("Screen {n}", n=i + 1) + f"\n{m.label}")
                 it.setData(PLACE, i)
-                it.setFlags(it.flags() | Qt.ItemIsUserCheckable)
+                it.setFlags(it.flags() | Qt.ItemFlag.ItemIsUserCheckable)
                 it.setCheckState(Qt.Checked if i in want else Qt.Unchecked)
                 it.setToolTip(_("The whole screen, windows on top included"))
                 self.list.addItem(it)
@@ -176,7 +199,7 @@ class WindowPicker(QDialog):
             it.setData(BASE, ref)
             it.setToolTip(f"{w.title}\n{w.exe} — {w.width}×{w.height}")
             if self.multi:
-                it.setFlags(it.flags() | Qt.ItemIsUserCheckable)
+                it.setFlags(it.flags() | Qt.ItemFlag.ItemIsUserCheckable)
                 every = WindowRef(ref.exe, ref.title, 0, True)
                 if every in want and every not in seen_every and ref.nth == 0:
                     seen_every.add(every)
@@ -198,7 +221,7 @@ class WindowPicker(QDialog):
                                          f"{p.label}\n" + _("not open now"))
                     it.setData(PLACE, p)
                     it.setData(BASE, p)
-                    it.setFlags(it.flags() | Qt.ItemIsUserCheckable)
+                    it.setFlags(it.flags() | Qt.ItemFlag.ItemIsUserCheckable)
                     it.setCheckState(Qt.Checked)
                     self.list.addItem(it)
         self.list.blockSignals(False)
@@ -263,9 +286,7 @@ class WindowPicker(QDialog):
         self.buttons.button(QDialogButtonBox.Ok).setEnabled(it is not None)
 
     def _double(self, it: QListWidgetItem):
-        if self.multi:
-            it.setCheckState(Qt.Unchecked if it.checkState() == Qt.Checked else Qt.Checked)
-        else:
+        if not self.multi:
             self._accept()
 
     def _accept(self):
