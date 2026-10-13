@@ -2342,12 +2342,6 @@
 {
 "file": "onionwatch/ui/windowpicker.py",
 "rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"ItemIsUserCheckable\" for class \"type[Qt]\"",
-"count": 3
-},
-{
-"file": "onionwatch/ui/windowpicker.py",
-"rule": "reportAttributeAccessIssue",
 "message": "Cannot access attribute \"KeepAspectRatio\" for class \"type[Qt]\"",
 "count": 1
 },
