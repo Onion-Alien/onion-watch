@@ -756,5 +756,7 @@
   "Opens the list of Onion Watch's versions and what each changed, on GitHub in your browser": "Onion Watch 버전 목록과 버전별 변경 사항을 브라우저에서 GitHub로 엽니다",
   "Settings": "설정",
   "Uninstall the add-on from Onion Board. Your triggers are kept, for when you get it again.": "Onion Board에서 애드온을 제거합니다. 트리거는 다시 설치할 때를 위해 남겨 둡니다.",
-  "What's new": "새로운 기능"
+  "What's new": "새로운 기능",
+  "Works best on the game's own window, not a whole screen. If you resize the game, check the box still covers the right part.": "화면 전체보다 게임 창 자체에서 가장 잘 돼요. 게임 크기를 바꿨다면 상자가 아직 맞는 곳을 덮고 있는지 확인하세요.",
+  "Works best on the game's own window, not a whole screen. Some games stop drawing while you're alt-tabbed, which looks like nothing moving and can set it off.": "화면 전체보다 게임 창 자체에서 가장 잘 돼요. 어떤 게임은 alt-tab 하는 동안 화면을 그리지 않아서, 아무것도 안 움직이는 것처럼 보여 울릴 수 있어요."
 }

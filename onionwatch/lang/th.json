@@ -756,5 +756,7 @@
   "Opens the list of Onion Watch's versions and what each changed, on GitHub in your browser": "เปิดรายการเวอร์ชันของ Onion Watch และสิ่งที่เปลี่ยนในแต่ละเวอร์ชัน บน GitHub ในเบราว์เซอร์",
   "Settings": "การตั้งค่า",
   "Uninstall the add-on from Onion Board. Your triggers are kept, for when you get it again.": "ถอนการติดตั้งส่วนเสริมออกจาก Onion Board ทริกเกอร์ของคุณยังเก็บไว้สำหรับเมื่อติดตั้งใหม่",
-  "What's new": "มีอะไรใหม่"
+  "What's new": "มีอะไรใหม่",
+  "Works best on the game's own window, not a whole screen. If you resize the game, check the box still covers the right part.": "ใช้ได้ดีที่สุดกับหน้าต่างของเกมเอง ไม่ใช่ทั้งหน้าจอ ถ้าปรับขนาดเกม ให้เช็กว่ากรอบยังครอบส่วนที่ถูกอยู่",
+  "Works best on the game's own window, not a whole screen. Some games stop drawing while you're alt-tabbed, which looks like nothing moving and can set it off.": "ใช้ได้ดีที่สุดกับหน้าต่างของเกมเอง ไม่ใช่ทั้งหน้าจอ บางเกมหยุดวาดภาพตอนที่คุณ alt-tab ออกไป ทำให้ดูเหมือนไม่มีอะไรขยับ และอาจทำให้มันทำงานได้"
 }

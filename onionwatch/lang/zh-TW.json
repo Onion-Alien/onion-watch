@@ -756,5 +756,7 @@
   "Opens the list of Onion Watch's versions and what each changed, on GitHub in your browser": "在瀏覽器中開啟 GitHub 上 Onion Watch 的版本清單及每個版本的變更",
   "Settings": "設定",
   "Uninstall the add-on from Onion Board. Your triggers are kept, for when you get it again.": "從 Onion Board 解除安裝此附加元件。你的觸發器會保留，下次安裝時還在。",
-  "What's new": "新功能"
+  "What's new": "新功能",
+  "Works best on the game's own window, not a whole screen. If you resize the game, check the box still covers the right part.": "最好用在遊戲自己的視窗上，而不是整個螢幕。如果你改了遊戲視窗大小，檢查一下框是否還框住正確的地方。",
+  "Works best on the game's own window, not a whole screen. Some games stop drawing while you're alt-tabbed, which looks like nothing moving and can set it off.": "最好用在遊戲自己的視窗上，而不是整個螢幕。有些遊戲在你 Alt+Tab 切走時會停止繪製，看起來像什麼都沒動，可能會觸發它。"
 }

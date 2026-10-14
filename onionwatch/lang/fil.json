@@ -768,5 +768,7 @@
   "Opens the list of Onion Watch's versions and what each changed, on GitHub in your browser": "Binubuksan ang listahan ng mga bersyon ng Onion Watch at ano ang nagbago sa bawat isa, sa GitHub sa iyong browser",
   "Settings": "Settings",
   "Uninstall the add-on from Onion Board. Your triggers are kept, for when you get it again.": "I-uninstall ang add-on mula sa Onion Board. Naiingatan ang mga trigger mo para sa susunod mong pagkuha nito.",
-  "What's new": "Ano'ng bago"
+  "What's new": "Ano'ng bago",
+  "Works best on the game's own window, not a whole screen. If you resize the game, check the box still covers the right part.": "Pinakamaganda sa sariling window ng laro, hindi sa buong screen. Kung babaguhin mo ang laki ng laro, tingnan kung tama pa rin ang tinatakpan ng kahon.",
+  "Works best on the game's own window, not a whole screen. Some games stop drawing while you're alt-tabbed, which looks like nothing moving and can set it off.": "Pinakamaganda sa sariling window ng laro, hindi sa buong screen. May mga larong tumitigil mag-drawing habang naka-alt-tab ka, kaya parang walang gumagalaw at puwede itong mag-trigger."
 }
