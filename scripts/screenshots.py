@@ -3,7 +3,7 @@ shown, no screen or window is captured, nothing is heard.
 
     python scripts/screenshots.py [out_dir] [--theme NAME]   (default: docs/screenshots)
 
-Onion Board's website uses copies in its Hoot theme: --theme Hoot.
+Onion Board's website uses copies of the same (Dark) pictures.
 
 The "game" is game_scene.svg (the website demo's scene) with a made-up HUD on top, the
 windows in the picker are invented, and the app folder is a throwaway one.
@@ -30,7 +30,7 @@ from PySide6.QtSvg import QSvgRenderer  # noqa: E402
 from PySide6.QtWidgets import QApplication  # noqa: E402
 
 
-THEME = "Retro 98"   # the README and website pictures all use this theme
+THEME = "Dark"   # the README and both websites use this theme, like Onion Board's pictures
 
 
 class _Mute:
