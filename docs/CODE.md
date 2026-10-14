@@ -15,7 +15,7 @@ python -m venv .venv
 Checks: `.venv\Scripts\ruff check .` and `.venv\Scripts\python -m pytest`. The
 tests run Qt offscreen with stand-in captures and a silent audio stream, so they
 never read your screen or make a sound. `scripts\docs.py` rebuilds the README's and website's pictures (`screenshots.py`, from
-made-up data in the Retro 98 theme, and `make_art.py`: Hoot, the avatar and the social
+made-up data in the Dark theme, and `make_art.py`: Hoot, the avatar and the social
 preview in `docs\art\`) and their version line.
 
 Settings, the log, your pictures and your sound files live in

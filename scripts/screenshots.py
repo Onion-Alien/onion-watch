@@ -1,14 +1,17 @@
 """Render the README screenshots offscreen from made-up demo data: no window is
 shown, no screen or window is captured, nothing is heard.
 
-    python scripts/screenshots.py [out_dir]      (default: docs/screenshots)
+    python scripts/screenshots.py [out_dir] [--theme NAME]   (default: docs/screenshots)
 
-The "game" is drawn here with QPainter (a made-up MMO called Realm Online), the
+Onion Board's website uses copies of the same (Dark) pictures.
+
+The "game" is game_scene.svg (the website demo's scene) with a made-up HUD on top, the
 windows in the picker are invented, and the app folder is a throwaway one.
 """
 from __future__ import annotations
 
 import os
+import re
 import sys
 import tempfile
 from pathlib import Path
@@ -21,13 +24,13 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 import numpy as np  # noqa: E402
-from PySide6.QtCore import QPointF, QRect, QRectF, Qt  # noqa: E402
-from PySide6.QtGui import (QColor, QFont, QImage, QLinearGradient, QPainter,  # noqa: E402
-                           QPainterPath, QPen, QRadialGradient)
+from PySide6.QtCore import QByteArray, QRect, QRectF, Qt  # noqa: E402
+from PySide6.QtGui import QColor, QFont, QImage, QPainter, QPen  # noqa: E402
+from PySide6.QtSvg import QSvgRenderer  # noqa: E402
 from PySide6.QtWidgets import QApplication  # noqa: E402
 
 
-THEME = "Retro 98"   # the README and website pictures all use this theme
+THEME = "Dark"   # the README and both websites use this theme, like Onion Board's pictures
 
 
 class _Mute:
@@ -62,78 +65,90 @@ def fill_view(dlg, app):
     if extra > 0:
         dlg.resize(dlg.width() + extra, dlg.height())
 
+SCENE = Path(__file__).with_name("game_scene.svg").read_text(encoding="utf-8")
+PLATE = QRectF(150, 44, 160, 30)     # the name plate, in game_scene.svg's own units
+SLOTS = ("#7c5cff", "#ff5c8a", "#ffcf40", "#4fc3b0", "#ffd45e", "#5a7dff")
+
+
+def scene_rect(w: int, h: int, r: QRectF = PLATE) -> QRect:
+    """Where a part of game_scene.svg lands in a w x h frame (it fills the frame,
+    centred, cropping the sides like the website does)."""
+    s = max(w / 460, h / 200)
+    x0, y0 = (w - 460 * s) / 2, (h - 200 * s) / 2
+    return QRect(round(x0 + r.x() * s), round(y0 + r.y() * s),
+                 round(r.width() * s), round(r.height() * s))
+
+
+def banner_rect(w: int, h: int) -> QRect:
+    return QRect(w // 2 - 230, int(h * 0.05), 460, 64)
+
+
 def game_scene(w: int, h: int, seed: int = 0, plate: str = "", banner: str = "",
                whisper: str = "", hp: float = 1.0) -> QImage:
-    """A made-up fantasy MMO frame: sky, hills, a health bar (`hp` full), maybe a
-    rare's name plate, a "queue ready" banner or a whisper in the chat."""
+    """A made-up fantasy game frame: the website demo's dusk scene (castle, arch,
+    a little knight), a health bar (`hp` full), and maybe a rare one out of the arch
+    with its name on the plate, a "queue ready" banner or a whisper in the chat."""
     rng = np.random.default_rng(seed)
+    svg = SCENE.replace('<g class="knight">',
+                        f'<g class="knight" transform="translate({rng.uniform(-25, 45):.0f} 0)">')
+    if plate:
+        svg = re.sub(r'<g class="runes".*?</g>', "", svg)
+    else:
+        svg = re.sub(r'\n  <g class="rare">.*?\n  </g>', "", svg, flags=re.S)
     img = QImage(w, h, QImage.Format_ARGB32)
+    img.fill(QColor("#140f33"))
     p = QPainter(img)
     p.setRenderHint(QPainter.Antialiasing)
-    sky = QLinearGradient(0, 0, 0, h)
-    sky.setColorAt(0, QColor("#2b3a67"))
-    sky.setColorAt(0.55, QColor("#c98b6b"))
-    sky.setColorAt(1, QColor("#3f5a3a"))
-    p.fillRect(0, 0, w, h, sky)
-    for layer, col in enumerate(("#4a6b4a", "#35523a", "#243d2b")):
-        path = QPainterPath(QPointF(0, h))
-        base = h * (0.55 + 0.12 * layer)
-        for x in range(0, w + 40, 40):
-            path.lineTo(x, base - rng.uniform(0, h * 0.12))
-        path.lineTo(w, h)
-        p.fillPath(path, QColor(col))
-    glow = QRadialGradient(QPointF(w * 0.78, h * 0.28), h * 0.18)
-    glow.setColorAt(0, QColor(255, 230, 180, 220))
-    glow.setColorAt(1, QColor(255, 230, 180, 0))
-    p.fillRect(0, 0, w, h, glow)
+    p.setRenderHint(QPainter.TextAntialiasing)
+    whole = QRectF(scene_rect(w, h, QRectF(0, 0, 460, 200)))
+    QSvgRenderer(QByteArray(svg.encode())).render(p, whole)
+    frame, edge = QColor(16, 11, 34, 185), QPen(QColor("#6f5fa0"), 1.5)
     # the player's frame
-    p.setPen(Qt.NoPen)
-    p.setBrush(QColor(0, 0, 0, 150))
+    p.setPen(edge)
+    p.setBrush(frame)
     p.drawRoundedRect(QRectF(20, 20, 260, 58), 8, 8)
+    p.setPen(Qt.NoPen)
     p.setBrush(QColor("#3a1414"))
     p.drawRoundedRect(HP_BAR, 4, 4)
     p.setBrush(QColor("#c62828"))
     p.drawRoundedRect(QRectF(HP_BAR.x(), HP_BAR.y(), HP_BAR.width() * hp, HP_BAR.height()),
                       4, 4)
-    p.setBrush(QColor("#1565c0"))
+    p.setBrush(QColor("#5a7dff"))
     p.drawRoundedRect(QRectF(78, 52, 150, 12), 4, 4)
-    p.setBrush(QColor("#d7b377"))
+    p.setPen(QPen(QColor("#2b2340"), 2))
+    p.setBrush(QColor("#c9cede"))
     p.drawEllipse(QRectF(28, 26, 44, 44))
     # the action bar
     for i in range(10):
         x = w / 2 - 5 * 46 + i * 46
-        p.setBrush(QColor(0, 0, 0, 160))
+        p.setPen(edge)
+        p.setBrush(frame)
         p.drawRoundedRect(QRectF(x, h - 60, 40, 40), 6, 6)
-        p.setBrush(QColor.fromHsv(int(rng.integers(0, 360)), 120, 190))
-        p.drawRoundedRect(QRectF(x + 4, h - 56, 32, 32), 4, 4)
-    if plate:
-        f = QFont("Georgia", 15, QFont.Bold)
-        p.setFont(f)
-        r = QRectF(w * 0.36, h * 0.36, 300, 50)
-        p.setBrush(QColor(0, 0, 0, 170))
-        p.drawRoundedRect(r, 6, 6)
-        p.setPen(QColor("#ffcc33"))
-        p.drawText(r.adjusted(0, 2, 0, -18), Qt.AlignCenter, plate)
         p.setPen(Qt.NoPen)
-        p.setBrush(QColor("#c62828"))
-        p.drawRoundedRect(QRectF(r.x() + 20, r.bottom() - 14, r.width() - 40, 7), 3, 3)
-        p.setPen(QPen(QColor("#ffcc33"), 2))
-        p.setBrush(Qt.NoBrush)
-        p.drawEllipse(QRectF(r.x() + 4, r.y() + 4, 16, 16))
+        p.setBrush(QColor(SLOTS[int(rng.integers(0, len(SLOTS)))]))
+        p.drawRoundedRect(QRectF(x + 5, h - 55, 30, 30), 4, 4)
+    if plate:
+        r = QRectF(scene_rect(w, h))
+        f = QFont("Georgia")
+        f.setBold(True)
+        f.setPixelSize(max(10, round(r.height() * 0.42)))
+        p.setFont(f)
+        p.setPen(QColor("#ffcc33"))
+        p.drawText(r, Qt.AlignCenter, plate)
     if banner:
         f = QFont("Georgia", 22, QFont.Bold)
         p.setFont(f)
-        r = QRectF(w / 2 - 230, h * 0.16, 460, 64)
-        p.setPen(QPen(QColor("#e0c060"), 3))
-        p.setBrush(QColor(20, 20, 40, 220))
+        r = QRectF(banner_rect(w, h))
+        p.setPen(QPen(QColor("#ffcf40"), 3))
+        p.setBrush(QColor(16, 11, 34, 225))
         p.drawRoundedRect(r, 10, 10)
-        p.setPen(QColor("#f5e6b0"))
+        p.setPen(QColor("#fff3d1"))
         p.drawText(r, Qt.AlignCenter, banner)
     if whisper:
         f = QFont("Segoe UI", 12, QFont.Bold)
         p.setFont(f)
         p.setPen(Qt.NoPen)
-        p.setBrush(QColor(0, 0, 0, 140))
+        p.setBrush(QColor(0, 0, 0, 150))
         p.drawRoundedRect(QRectF(20, h - 150, 420, 34), 6, 6)
         p.setPen(QColor("#ff8ad8"))
         p.drawText(QRectF(30, h - 150, 400, 34), Qt.AlignVCenter | Qt.AlignLeft, whisper)
@@ -169,11 +184,11 @@ def main(out: Path):
     every = WindowRef(acct1.exe, acct1.title, 0, True)
     bar = (HP_BAR.x() / w, HP_BAR.y() / h, HP_BAR.width() / w, HP_BAR.height() / h)
     demo = [
-        ("Rare spawn: Gorehowl", cut(rare, QRect(int(w * 0.36), int(h * 0.36), 300, 34)),
+        ("Rare spawn: Gorehowl", cut(rare, scene_rect(w, h)),
          [every], ["builtin:alarm"], True, 0.85, 0.93, {}),
         ("Health low", None, [acct1], ["builtin:bell"], True, 0.30, 0.64,
          {"mode": "colour", "colour": "#c62828", "region": bar, "hold": 1.0}),
-        ("Dungeon queue", cut(queue, QRect(w // 2 - 230, int(h * 0.16), 460, 64)),
+        ("Dungeon queue", cut(queue, banner_rect(w, h)),
          [], ["builtin:rising", "builtin:chime"], True, 0.80, 0.41, {"stop": "focus"}),
         ("Whisper", cut(queue, QRect(20, h - 150, 230, 34)), [acct1, acct2], ["builtin:ping"],
          False, 0.80, 0.22, {}),
@@ -262,7 +277,7 @@ def main(out: Path):
     # cutting a picture out of the game window
     from onionwatch.ui.snip import SnipDialog
     snip = SnipDialog(rare, "Realm Online (copy 2)", win)
-    snip.view.selection = QRect(int(w * 0.36), int(h * 0.36), 300, 34)
+    snip.view.selection = scene_rect(w, h)
     snip._update()
     snip.show()
     fill_view(snip, app)
@@ -366,4 +381,9 @@ def main(out: Path):
 
 
 if __name__ == "__main__":
-    main(Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "docs" / "screenshots")
+    args = sys.argv[1:]
+    if "--theme" in args:
+        i = args.index("--theme")
+        THEME = args[i + 1]
+        del args[i:i + 2]
+    main(Path(args[0]) if args else ROOT / "docs" / "screenshots")

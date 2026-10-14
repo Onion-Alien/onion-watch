@@ -4,7 +4,7 @@
     .venv\\Scripts\\python scripts\\docs.py --vt <sha256> 68/68 # after a release's VirusTotal scan
     .venv\\Scripts\\python scripts\\docs.py --no-shots         # only the text
 
-Runs screenshots.py (offscreen, made-up data, the Retro 98 theme) and make_art.py
+Runs screenshots.py (offscreen, made-up data, the Dark theme) and make_art.py
 (Hoot, the avatar and docs/art/social-preview.png, which is built from main.png:
 upload it in the repo's Settings -> Social preview when it changes; GitHub has no
 API for it). The version comes from onionwatch/__init__.py; the VirusTotal scan is
