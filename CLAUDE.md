@@ -101,14 +101,21 @@ both apps at once. Details: [docs/TRANSLATING.md](docs/TRANSLATING.md).
 - Edit files with UTF-8-safe tools. Windows PowerShell 5.1's
   `Get-Content`/`Set-Content` mangles UTF-8.
 - The audio callback (`player.Player._callback`) never blocks or takes a lock.
+- **`onionwatch/style/` is Onion Board's style kit, copied exactly: never edit it
+  here.** The themes' colours and textures, Bun's outfits and Hoot live in Onion
+  Board's `soundboard/style`; change them there, then
+  `python scripts/sync_style.py --board <Onion Board checkout>` (its `origin/main`).
+  `tests/test_style_kit.py` fails on a hand-edited copy. Onion Watch's own Hoot theme
+  is in `theme.py`. Inside Onion Board, Hoot is drawn with the board's kit
+  (`kit.py`) and follows its theme (`theme.follow_host`).
 - `theme.py`, `ui/icons.py`, `ui/panel.py`, `wheelguard.py`, `shuffle.py` and
   the capture / matching half of `screenwatch.py` came from Onion Board. Keep
   them close to it.
 - **Look and feel: follow Onion Board's design system**,
   [docs/DESIGN.md](https://github.com/Onion-Alien/onion-board/blob/main/docs/DESIGN.md)
   (flat controls with no resting outlines, theme tokens never hex colours, one accent
-  main button, quiet buttons, focus rings). `theme.STYLE`, `POLISH_STYLE` and the
-  derived tokens are copies of Board's: when Board's change, copy them over from Board's
+  main button, quiet buttons, focus rings). `theme.STYLE` and `POLISH_STYLE` are
+  copies of Board's (the derived tokens come with the style kit): when Board's change, copy them over from Board's
   `origin/main` (not a working tree, which may be on an old branch) rather than
   restyling here.
 - Onion Watch is also Onion Board's Triggers tab, as an add-on module

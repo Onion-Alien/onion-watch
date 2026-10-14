@@ -1,11 +1,12 @@
 """Hoot, Onion Watch's mascot: a cartoon owl (owls keep watch), drawn with QPainter
-in the same style as Bun, so it's crisp at any size and needs no image files.
+in the same style as Bun, so it's crisp at any size and needs no image files. He
+wears Bun's theme outfit (_fit, bunnyfit.py; docs/MASCOT.md).
+
+Part of the style kit (see __init__.py): Onion Watch draws him from its copy of
+this file, and Onion Board's Triggers tab shows him until the add-on is installed.
 
     owl_image(160)             # QImage, transparent background
-    OwlWidget(96, lines=...)   # Hoot alive: waiting for something to watch
-
-Onion Board's Triggers tab keeps a copy of this file (soundboard/ui/owl.py): it
-needs Hoot before there's any Onion Watch to take him from. Keep the two the same.
+    OwlWidget(96, lines=...)   # Hoot alive: waiting, begging, sulking
 """
 from __future__ import annotations
 
@@ -14,12 +15,12 @@ import random
 import time
 
 from PySide6.QtCore import QPointF, QRectF, QSize, Qt, QTimer, Signal
-from PySide6.QtGui import (QColor, QCursor, QFont, QGuiApplication, QImage, QPainter,
-                           QPainterPath, QPen)
+from PySide6.QtGui import QColor, QCursor, QFont, QImage, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import QSizePolicy, QWidget
 
-from onionwatch import theme
-from onionwatch.i18n import _
+from . import appstate, bunnyfit, hooks
+from .appstate import snap_to_pixels
+from .hooks import _
 
 # drawn on a 100 x 120 canvas, scaled to the requested height
 W, H = 100.0, 120.0
@@ -37,20 +38,13 @@ SPARKLE_COLORS = ("#ffcf40", "#ff8fae", "#1fb6ff", "#a48bff")
 EYES = (36, 64)
 FPS = 30
 FAST_MS = 1000 // FPS
-IDLE_MS = 100     # just swaying and bobbing (no act, blink, glance or mouse): 10 fps do
-
-
-def app_active() -> bool:
-    """Is the app in front (one of its windows has focus)?"""
-    app = QGuiApplication.instance()
-    return app is None or app.applicationState() == Qt.ApplicationActive
 
 
 def _e(p, cx, cy, w, h, fill, pen=None, angle=0.0):
     p.save()
     p.translate(cx, cy)
     p.rotate(angle)
-    p.setPen(pen or Qt.NoPen)
+    p.setPen(pen or Qt.PenStyle.NoPen)
     p.setBrush(fill)
     p.drawEllipse(QRectF(-w / 2, -h / 2, w, h))
     p.restore()
@@ -60,10 +54,44 @@ def _mix(a: float, b: float, k: float) -> float:
     return a + (b - a) * k
 
 
+# where Bun's pieces go on Hoot, as (dx, dy, scale) from Bun's canvas: his head sits 12
+# higher than Bun's; his eyes are 28 apart (Bun's 22) and 9 higher; he has no neck, so
+# a bow tie or scarf goes just under his beak
+HEAD = (0, -12, 1.0)
+EYES_AT = (50 - 50 * 1.3, 53 - 62 * 1.3, 1.3)
+NECK_AT = (0, -14, 1.0)
+# pieces that need their own place: the frog's eyes and the mint would poke out of the
+# top of his picture (moved a little lower). Tall hats stay full size on purpose: an
+# oversized hat on him is the look.
+OWN_PLACE = {"frog": (0, -10, 1.0), "mint_sprig": (2, -1, 1.0)}
+# pieces that don't fit an owl: a hoodie's drawstrings read as a second face on his
+# belly, and a turtleneck's ribbed roll as teeth under his beak
+NOT_ON_OWL = {"strings", "sweater", "turtleneck"}
+
+
+def _fit(p: QPainter, fit, layer: str, ink: QPen, shut: bool = False):
+    """Hoot wears Bun's theme outfit (bunnyfit.py, drawn for Bun's canvas):
+    each piece is moved onto Hoot's shape (HEAD, EYES_AT, NECK_AT, OWN_PLACE)."""
+    for name in fit:
+        if name in NOT_ON_OWL:
+            continue
+        if name in OWN_PLACE:
+            dx, dy, k = OWN_PLACE[name]
+        elif layer == "face":
+            dx, dy, k = NECK_AT if name in bunnyfit.NECK else EYES_AT
+        else:
+            dx, dy, k = HEAD
+        p.save()
+        p.translate(dx, dy)
+        p.scale(k, k)
+        bunnyfit.draw(p, (name,), layer, ink, shut=shut)
+        p.restore()
+
+
 def draw_owl(p: QPainter, rect: QRectF, look: float = 0.0, feather=None, dark=None,
              *, look_y: float = 0.0, blink: float = 0.0, sad: float = 0.0,
              tufts: float = 0.0, clasp: float = 0.0, flap: float = 0.0,
-             plead: float = 0.0, tear: float = 0.0):
+             plead: float = 0.0, tear: float = 0.0, outfit: tuple[str, ...] | None = None):
     """Draw Hoot fitted (aspect kept, centred) into `rect`. `look` / `look_y` -1..1
     turn the pupils left / right and up / down: watching. The keywords pose him for
     OwlWidget: `blink` 0..1 closes the eyes, `sad` 0..1 worries the brows and wets
@@ -71,20 +99,24 @@ def draw_owl(p: QPainter, rect: QRectF, look: float = 0.0, feather=None, dark=No
     up), `clasp` 0..1 brings the wings together in front (begging), `flap` 0..1 lifts
     them (joy), `plead` 0..1 makes the pupils big and shiny, and `tear` 0..1 rolls a
     tear down his cheek (0 = none). His feathers are the current theme's accent
-    unless `feather` / `dark` are given (FEATHER / FEATHER_DARK are his own teal)."""
+    unless `feather` / `dark` are given (FEATHER / FEATHER_DARK are his own teal).
+    `outfit`: Bun's outfit pieces to wear (None: the current theme's, (): none)."""
+    fit = bunnyfit.outfit() if outfit is None else outfit
     if feather is None:
-        feather = QColor(theme.T["accent"])
+        feather = QColor(hooks.palette()["accent"])
     if dark is None:
         dark = QColor(feather).darker(135)
     s = min(rect.width() / W, rect.height() / H)
     p.save()
-    p.setRenderHint(QPainter.Antialiasing)
+    p.setRenderHint(QPainter.RenderHint.Antialiasing)
     p.translate(rect.center().x() - W * s / 2, rect.center().y() - H * s / 2)
     p.scale(s, s)
     ink = QPen(INK, 2.4)
-    ink.setJoinStyle(Qt.RoundJoin)
-    ink.setCapStyle(Qt.RoundCap)
+    ink.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+    ink.setCapStyle(Qt.PenCapStyle.RoundCap)
 
+    _fit(p, fit, "behind", ink)
+    _fit(p, fit, "back", ink)
     # ear tufts, turned about their base
     for sx in (-1, 1):
         p.save()
@@ -107,8 +139,8 @@ def draw_owl(p: QPainter, rect: QRectF, look: float = 0.0, feather=None, dark=No
     p.drawPath(body)
     # belly with little feather marks
     _e(p, 50, 88, 42, 40, BELLY)
-    p.setPen(QPen(BELLY_MARK, 1.8, Qt.SolidLine, Qt.RoundCap))
-    p.setBrush(Qt.NoBrush)
+    p.setPen(QPen(BELLY_MARK, 1.8, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
+    p.setBrush(Qt.BrushStyle.NoBrush)
     for x, y in ((42, 80), (50, 84), (58, 80), (46, 92), (54, 92), (50, 100)):
         m = QPainterPath(QPointF(x - 3, y))
         m.quadTo(x, y + 3, x + 3, y)
@@ -131,9 +163,10 @@ def draw_owl(p: QPainter, rect: QRectF, look: float = 0.0, feather=None, dark=No
     face.cubicTo(QPointF(22, 70), QPointF(42, 72), QPointF(50, 64))
     face.cubicTo(QPointF(58, 72), QPointF(78, 70), QPointF(80, 54))
     face.cubicTo(QPointF(82, 34), QPointF(60, 30), QPointF(50, 40))
-    p.setPen(Qt.NoPen)
+    p.setPen(Qt.PenStyle.NoPen)
     p.setBrush(QColor(255, 255, 255, 70))
     p.drawPath(face)
+    _fit(p, fit, "under", ink)
     # the big eyes
     pw, ph = _mix(13, 16.5, plead), _mix(14, 17.5, plead)
     for x in EYES:
@@ -156,20 +189,20 @@ def draw_owl(p: QPainter, rect: QRectF, look: float = 0.0, feather=None, dark=No
             _e(p, x, 64, 22, 7 * sad, c)
         if blink > 0.01:   # the lid comes down from the top
             lid = 24 * blink
-            p.setPen(Qt.NoPen)
+            p.setPen(Qt.PenStyle.NoPen)
             p.setBrush(feather)
             p.drawRect(QRectF(x - 13, 41, 26, lid))
             p.setPen(ink)
             p.drawLine(QPointF(x - 12, 41 + lid), QPointF(x + 12, 41 + lid))
         p.restore()
         p.setPen(ink)
-        p.setBrush(Qt.NoBrush)
+        p.setBrush(Qt.BrushStyle.NoBrush)
         p.drawEllipse(QRectF(x - 12, 41, 24, 24))
     # worried brows: inner ends lifted
     if sad > 0.05:
         c = QColor(INK)
         c.setAlphaF(min(1.0, sad * 1.4))
-        p.setPen(QPen(c, 2.6, Qt.SolidLine, Qt.RoundCap))
+        p.setPen(QPen(c, 2.6, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
         for x, sx in ((36, -1), (64, 1)):
             p.drawLine(QPointF(x + sx * 9, 38.5 + 1.5 * sad), QPointF(x - sx * 5, 38 - 5 * sad))
     _e(p, 25, 68, 10, 6, CHEEK)
@@ -179,7 +212,8 @@ def draw_owl(p: QPainter, rect: QRectF, look: float = 0.0, feather=None, dark=No
     beak.lineTo(54.5, 62)
     beak.quadTo(52, 70, 50, 72)
     beak.quadTo(48, 70, 45.5, 62)
-    p.setPen(QPen(INK, 1.8, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+    p.setPen(QPen(INK, 1.8, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap,
+                  Qt.PenJoinStyle.RoundJoin))
     p.setBrush(BEAK)
     p.drawPath(beak)
     # a tear rolling down from the outer corner of his left eye
@@ -193,16 +227,19 @@ def draw_owl(p: QPainter, rect: QRectF, look: float = 0.0, feather=None, dark=No
         p.setPen(QPen(QColor(INK.red(), INK.green(), INK.blue(), round(160 * c.alphaF())), 1))
         p.setBrush(c)
         p.drawPath(drop)
+    _fit(p, fit, "over", ink)
+    _fit(p, fit, "face", ink, shut=blink > 0.6)
     p.restore()
 
 
 def owl_image(height: int, look: float = 0.5) -> QImage:
     h = max(1, height)
     w = max(1, round(h * W / H))
-    img = QImage(w, h, QImage.Format_ARGB32_Premultiplied)
-    img.fill(Qt.transparent)
+    img = QImage(w, h, QImage.Format.Format_ARGB32_Premultiplied)
+    img.fill(Qt.GlobalColor.transparent)
     p = QPainter(img)
-    draw_owl(p, QRectF(0, 0, w, h), look, FEATHER, FEATHER_DARK)   # artwork: his own teal
+    draw_owl(p, QRectF(0, 0, w, h), look, FEATHER, FEATHER_DARK,   # artwork: his own teal,
+             outfit=())                                           # no outfit
     p.end()
     return img
 
@@ -214,15 +251,24 @@ def sparkle(p: QPainter, x: float, y: float, r: float, col: QColor):
     path.quadTo(QPointF(x, y), QPointF(x, y + r))
     path.quadTo(QPointF(x, y), QPointF(x - r, y))
     path.quadTo(QPointF(x, y), QPointF(x, y - r))
-    p.setPen(Qt.NoPen)
+    p.setPen(Qt.PenStyle.NoPen)
     p.setBrush(col)
     p.drawPath(path)
 
 
 # ---------------------------------------------------------------------- alive
-WAIT_LINES = (_("pleeease?"), _("just one picture?"), _("I'll watch anything…"),
-              _("hoo? hoo…?"), _("so… bored…"), _("my turn yet?"))
-JOY_LINES = (_("yay!! ↓ down there!"), _("hoo-ray!"), _("let's watch something!"))
+def wait_lines() -> tuple[str, ...]:
+    """What he says while he begs, in the language picked (a function: the kit can be
+    imported before the language is)."""
+    return (_("pleeease?"), _("just one picture?"), _("I'll watch anything…"),
+            _("hoo? hoo…?"), _("so… bored…"), _("my turn yet?"))
+
+
+def joy_lines() -> tuple[str, ...]:
+    """What he shouts when he's clicked."""
+    return (_("yay!! ↓ down there!"), _("hoo-ray!"), _("let's watch something!"))
+
+
 # the little acts he does while he waits, and how long each lasts (seconds)
 ACTS = {"sigh": 1.8, "plead": 3.0, "tear": 2.6, "peek": 2.2, "doze": 5.0}
 
@@ -243,27 +289,28 @@ class OwlWidget(QWidget):
     peeks, dozes off and jolts awake. Bring the mouse near and he perks up and
     follows it with his eyes; click him and he hops for joy.
 
-    `lines` are what he says when he begs, `joy` what he shouts when clicked.
+    `lines` are what he says when he begs, `joy` what he shouts when clicked
+    (default: wait_lines() / joy_lines()).
     `left` / `right` are the room beside him, px (default: plenty both sides, for
     the speech bubble up to his right and the zzz). The timer only runs while he's
     on screen."""
 
     clicked = Signal()
 
-    def __init__(self, height: int = 96, lines=WAIT_LINES, joy=JOY_LINES, parent=None, *,
+    def __init__(self, height: int = 96, lines=None, joy=None, parent=None, *,
                  left: int | None = None, right: int | None = None):
         super().__init__(parent)
         self.owl_h = height
-        self.lines = tuple(lines)
-        self.joy_lines = tuple(joy)
+        self.lines = tuple(wait_lines() if lines is None else lines)
+        self.joy_lines = tuple(joy_lines() if joy is None else joy)
         side = round(height * 1.45)
         self.left = side if left is None else left
         self.right = side if right is None else right
         self.top = round(height * 0.34)    # room above for "?" and z's
         # the room beside him gives way first when space is short (the bubble then
         # overlaps him a little)
-        self.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Fixed)
-        self.setCursor(Qt.PointingHandCursor)
+        self.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setToolTip(_("Hoot is waiting for something to watch"))
         self._rng = random.Random()
         self._t0 = self._last = time.monotonic()
@@ -282,11 +329,7 @@ class OwlWidget(QWidget):
         self._timer = QTimer(self)
         self._timer.setInterval(FAST_MS)
         self._timer.timeout.connect(self._tick)
-        # a window left open behind a game is still "visible": he stops while another
-        # program is in front too, not only when he's hidden
-        app = QGuiApplication.instance()
-        if app is not None:
-            app.applicationStateChanged.connect(self._on_app_state)
+        appstate.pause_in_background(self, self._resume, self._timer.stop)
 
     def sizeHint(self) -> QSize:
         return QSize(round(self.owl_h * W / H) + self.left + self.right,
@@ -296,7 +339,7 @@ class OwlWidget(QWidget):
         return QSize(round(self.owl_h * W / H) + 8, self.owl_h + self.top + 8)
 
     def showEvent(self, ev):
-        if app_active():    # behind a game he waits until the app is back in front
+        if appstate.active():   # behind a game it waits until the app is back in front
             self._resume()
         super().showEvent(ev)
 
@@ -304,18 +347,12 @@ class OwlWidget(QWidget):
         self._last = time.monotonic()
         self._timer.start(FAST_MS)
 
-    def _on_app_state(self, state):
-        if state != Qt.ApplicationActive:
-            self._timer.stop()
-        elif self.isVisible() and not self.window().isMinimized():
-            self._resume()  # (a minimised window's widgets are still "visible")
-
     def hideEvent(self, ev):
         self._timer.stop()
         super().hideEvent(ev)
 
     def mousePressEvent(self, ev):
-        if ev.button() == Qt.LeftButton:
+        if ev.button() == Qt.MouseButton.LeftButton:
             self.cheer()
             self.clicked.emit()
         super().mousePressEvent(ev)
@@ -325,8 +362,6 @@ class OwlWidget(QWidget):
         self._joy_t = 0.0
         self.act = None
         self.say = self._rng.choice(self.joy_lines) if self.joy_lines else ""
-        if self._timer.isActive() and self._timer.interval() != FAST_MS:
-            self._timer.start(FAST_MS)   # the hop starts now, not on the next idle frame
 
     # ------------------------------------------------------------------ time
     def _owl_rect(self) -> QRectF:
@@ -339,24 +374,7 @@ class OwlWidget(QWidget):
         now = time.monotonic()
         self.step(min(0.1, now - self._last))
         self._last = now
-        self.update()
-        want = FAST_MS if self.busy() else IDLE_MS
-        if self._timer.interval() != want:
-            self._timer.setInterval(want)
-
-    def busy(self) -> bool:
-        """Anything moving faster than the slow sway and bob: an act, a hop, a line in
-        his bubble, the mouse near, a blink, his eyes on their way somewhere, or one of
-        those due before the next idle frame."""
-        if self.act or self._joy_t >= 0 or self.say or self._near > 0.02:
-            return True
-        soon = self.t + IDLE_MS / 1000
-        if 0 <= self.t - self._blink_t < 0.18 or self._next_blink <= soon:
-            return True
-        if self._next_act <= soon or self._next_glance <= soon:
-            return True
-        gx, gy = self._glance
-        return abs(self._look[0] - gx) + abs(self._look[1] - gy) > 0.02
+        self.update()   # always 30 fps: a slower idle pace made the sway judder
 
     def _mouse(self) -> tuple[float, float] | None:
         """The cursor relative to his face, in owl heights, if it's in this window."""
@@ -472,14 +490,15 @@ class OwlWidget(QWidget):
     # ------------------------------------------------------------------ paint
     def paintEvent(self, ev):
         p = QPainter(self)
-        p.setRenderHint(QPainter.Antialiasing)
+        snap_to_pixels(p)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
         pose = self.pose()
         r = self._owl_rect()
         u = self.owl_h / H     # one canvas unit, px
         # a soft shadow on the floor, shrinking as he rises
         lift = max(0.0, -pose["dy"])
         sw = r.width() * (0.6 - lift * 0.01)
-        p.setPen(Qt.NoPen)
+        p.setPen(Qt.PenStyle.NoPen)
         p.setBrush(QColor(0, 0, 0, max(18, 60 - int(lift * 4))))
         p.drawEllipse(QRectF(r.center().x() - sw / 2, r.bottom() - 3, sw, 7))
         # sway about his feet
@@ -555,11 +574,13 @@ class OwlWidget(QWidget):
         lines = [text]
         if fm.horizontalAdvance(text) > room and " " in text:
             # a longer translation goes on two lines, broken at the space nearest the
-            # middle, rather than losing its end to "…"
+            # middle
             spaces = [i for i, c in enumerate(text) if c == " "]
             cut = min(spaces, key=lambda i: abs(i - len(text) / 2))
             lines = [text[:cut], text[cut + 1:]]
-        tw = min(max(fm.horizontalAdvance(t) for t in lines), room)
+        tw = max(fm.horizontalAdvance(t) for t in lines)
+        if tw > room:
+            return   # no room for the whole line: say nothing rather than half of it
         pad = 7
         bw, bh = tw + 2 * pad, fm.height() * len(lines) + 2 * pad - 4
         x = max(2.0, min(body.right() + 2, self.width() - bw - 2))
@@ -576,5 +597,4 @@ class OwlWidget(QWidget):
         p.setBrush(BUBBLE)
         p.drawPath(shape)
         p.setPen(INK)
-        p.drawText(box.adjusted(pad, 0, -pad, 0), Qt.AlignCenter,
-                   "\n".join(fm.elidedText(t, Qt.ElideRight, round(tw)) for t in lines))
+        p.drawText(box.adjusted(pad, 0, -pad, 0), Qt.AlignmentFlag.AlignCenter, "\n".join(lines))
