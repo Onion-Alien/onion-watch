@@ -750,5 +750,11 @@
   "No sounds match": "一致するサウンドがありません",
   "No sounds yet: choose a sound file": "まだサウンドがありません: サウンドファイルを選んでください",
   "Search sounds": "サウンドを検索",
-  "Show the sounds of one category": "1つのカテゴリのサウンドを表示"
+  "Show the sounds of one category": "1つのカテゴリのサウンドを表示",
+  "An add-on for Onion Board: it plays the board's sounds, and the board keeps its triggers and settings.": "Onion Board のアドオンです。ボードのサウンドを鳴らし、トリガーと設定はボードが保存します。",
+  "Opens Onion Watch's page on GitHub in your browser": "Onion Watch の GitHub ページをブラウザーで開きます",
+  "Opens the list of Onion Watch's versions and what each changed, on GitHub in your browser": "Onion Watch のバージョン一覧と各バージョンの変更点を、ブラウザーで GitHub に開きます",
+  "Settings": "設定",
+  "Uninstall the add-on from Onion Board. Your triggers are kept, for when you get it again.": "Onion Board からアドオンをアンインストールします。トリガーは残るので、また入れたときに使えます。",
+  "What's new": "新機能"
 }

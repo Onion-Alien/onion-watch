@@ -6,13 +6,15 @@ bar over them and the Playing now bar under them (ui.pages).
 
 The board has no tray icon or settings window of Onion Watch's own: sounds are
 the board's, played through the board (into the mic / cable mix), and the
-settings stay in the board's config. A ringing trigger shows the red bar at the
+settings stay in the board's config. A Settings tab beside Triggers / Log has what
+Onion Watch is, its Watching settings and the board's *Remove Onion Watch…*
+(ui.boardsettings). A ringing trigger shows the red bar at the
 top of the tab and flashes the taskbar button; Stop all on the board stops it too.
 """
 from __future__ import annotations
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import QApplication, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QApplication, QMenu, QPushButton, QVBoxLayout, QWidget
 
 from onionwatch import __version__, i18n, kit, theme, usage
 from onionwatch.host import API_VERSION, missing
@@ -75,16 +77,22 @@ class BoardPanel(QWidget):
         if i18n.is_rtl() and (app is None or app.layoutDirection() != Qt.RightToLeft):
             self.setLayoutDirection(Qt.RightToLeft)
         v = QVBoxLayout(self)
-        v.setContentsMargins(0, 8, 0, 0)
+        # no top margin: the owl lines up with the board's onion (ui.pages.LOGO_BOX)
+        v.setContentsMargins(0, 0, 0, 0)   # the owl level with the board's onion (pages)
         v.setSpacing(8)
         # the features used go to the board's own anonymous count (its optional
         # count(): an older board has none, and then nothing is counted at all)
         usage.forward_to(getattr(host, "count", None))
         # made inside this tab, and the pages too, not moved in when done (see create)
         self.panel = TriggersTab(host, self)
-        self.btn_more = self.panel.btn_more   # the board adds "Remove Onion Watch…" to it
+        # the board adds "Remove Onion Watch…" to btn_more's menu: a menu of its own,
+        # never shown, that the Settings tab turns into its Remove button
+        self.btn_more = QPushButton(self)
+        self.btn_more.setMenu(QMenu(self.btn_more))
+        self.btn_more.hide()
         self.alarm = AlarmBar(self.panel)
-        self.pages = TriggerPages(self.panel, top=[self.alarm], parent=self, logo=True)
+        self.pages = TriggerPages(self.panel, top=[self.alarm], parent=self, logo=True,
+                                  settings_menu=self.btn_more.menu())
         self.panel.pages = self.pages
         v.addWidget(self.pages, 1)
         self.panel.active_changed.connect(self.active_changed)

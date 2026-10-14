@@ -774,5 +774,11 @@
   "No sounds match": "Немає відповідних звуків",
   "No sounds yet: choose a sound file": "Звуків ще немає: виберіть звуковий файл",
   "Search sounds": "Шукати звуки",
-  "Show the sounds of one category": "Показати звуки однієї категорії"
+  "Show the sounds of one category": "Показати звуки однієї категорії",
+  "An add-on for Onion Board: it plays the board's sounds, and the board keeps its triggers and settings.": "Доповнення для Onion Board: грає звуки борду, а борд зберігає його тригери й налаштування.",
+  "Opens Onion Watch's page on GitHub in your browser": "Відкриває сторінку Onion Watch на GitHub у браузері",
+  "Opens the list of Onion Watch's versions and what each changed, on GitHub in your browser": "Відкриває список версій Onion Watch і що змінилося в кожній, на GitHub у браузері",
+  "Settings": "Налаштування",
+  "Uninstall the add-on from Onion Board. Your triggers are kept, for when you get it again.": "Видалити доповнення з Onion Board. Ваші тригери збережуться, якщо ви встановите його знову.",
+  "What's new": "Що нового"
 }

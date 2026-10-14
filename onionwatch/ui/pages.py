@@ -16,7 +16,8 @@ from onionwatch.i18n import _
 
 CHECK_MS = 400          # how often the bar looks whether a sound has ended
 MAX_SHOWN = 6           # triggers named on the bar; the rest as "+3 more"
-LOGO_PX = 26            # the owl left of the tabs, about the tabs' text height + icon
+LOGO_PX = 24            # the owl left of the tabs: Onion Board's onion mark (sidebar.LOGO)
+LOGO_BOX = 34           # ...and the box the board's onion sits in, glow room and all
 
 
 class PlayingBar(QFrame):
@@ -120,15 +121,18 @@ class PlayingBar(QFrame):
 class TriggerPages(QWidget):
     """Triggers | Log over `panel`, the Playing now bar under them. `top`: widgets
     to put between the tab row and the pages (the alarm bar). `logo`: the owl left of
-    the tabs (inside Onion Board, which has no Onion Watch header to show it)."""
+    the tabs (inside Onion Board, which has no Onion Watch header to show it).
+    `settings_menu`: inside Onion Board, a third tab, Settings (ui.boardsettings),
+    with the board's remove item from that menu."""
 
-    def __init__(self, panel, top=(), parent=None, logo=False):
+    def __init__(self, panel, top=(), parent=None, logo=False, settings_menu=None):
         super().__init__(parent)
         self.panel = panel
         v = QVBoxLayout(self)
         v.setContentsMargins(0, 0, 0, 0)
         v.setSpacing(8)
         self.logo: QLabel | None = None
+        self.settings = None
         self.tabs = QTabBar()
         self.tabs.setDrawBase(False)
         self.tabs.setExpanding(False)
@@ -137,17 +141,24 @@ class TriggerPages(QWidget):
         self.tabs.setIconSize(QSize(18, 18))
         icons.set_tab_icon(self.tabs, 0, "triggers")
         icons.set_tab_icon(self.tabs, 1, "history")
+        if settings_menu is not None:
+            self.tabs.addTab(_("Settings"))
+            icons.set_tab_icon(self.tabs, 2, "settings")
         if logo:
             row = QHBoxLayout()
             row.setContentsMargins(0, 0, 0, 0)
             row.setSpacing(10)
+            # the same size as Onion Board's onion and on its line: the onion sits in a
+            # LOGO_BOX square at the page's top edge, so the owl's box is that tall
+            pm = theme.themed_logo(LOGO_PX * 2)
+            pm.setDevicePixelRatio(2)
             self.logo = QLabel()
-            self.logo.setPixmap(theme.themed_logo(LOGO_PX * 2))
-            self.logo.setFixedSize(LOGO_PX, LOGO_PX)
-            self.logo.setScaledContents(True)
+            self.logo.setPixmap(pm)
+            self.logo.setFixedSize(LOGO_PX, LOGO_BOX)
+            self.logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self.logo.setToolTip("Onion Watch")
             self.logo.setAccessibleName("Onion Watch")
-            row.addWidget(self.logo, 0, Qt.AlignmentFlag.AlignVCenter)
+            row.addWidget(self.logo, 0, Qt.AlignmentFlag.AlignTop)
             row.addWidget(self.tabs, 0, Qt.AlignmentFlag.AlignVCenter)
             row.addStretch(1)
             v.addLayout(row)
@@ -165,6 +176,10 @@ class TriggerPages(QWidget):
         lv.addWidget(self.log, 1)
         lv.addLayout(self.log.button_row())
         self.stack.addWidget(log_page)
+        if settings_menu is not None:
+            from onionwatch.ui.boardsettings import BoardSettings
+            self.settings = BoardSettings(panel, settings_menu)
+            self.stack.addWidget(self.settings)
         v.addWidget(self.stack, 1)
         self.playing = PlayingBar(panel)
         v.addWidget(self.playing)
@@ -173,9 +188,16 @@ class TriggerPages(QWidget):
         self._count()
 
     def retheme(self):
-        """The theme changed: the logo takes its colours."""
+        """The theme changed: the logos take its colours."""
         if self.logo is not None:
-            self.logo.setPixmap(theme.themed_logo(LOGO_PX * 2))
+            pm = theme.themed_logo(LOGO_PX * 2)
+            pm.setDevicePixelRatio(2)
+            self.logo.setPixmap(pm)
+        if self.settings is not None:
+            self.settings.retheme()
+
+    def show_settings(self):
+        self.tabs.setCurrentIndex(2)
 
     def _count(self):
         n = len(self.panel.history)

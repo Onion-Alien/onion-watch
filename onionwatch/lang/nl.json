@@ -762,5 +762,11 @@
   "No sounds match": "Geen geluiden gevonden",
   "No sounds yet: choose a sound file": "Nog geen geluiden: kies een geluidsbestand",
   "Search sounds": "Geluiden zoeken",
-  "Show the sounds of one category": "De geluiden van één categorie tonen"
+  "Show the sounds of one category": "De geluiden van één categorie tonen",
+  "An add-on for Onion Board: it plays the board's sounds, and the board keeps its triggers and settings.": "Een add-on voor Onion Board: hij speelt de geluiden van het board, en het board bewaart zijn triggers en instellingen.",
+  "Opens Onion Watch's page on GitHub in your browser": "Opent de pagina van Onion Watch op GitHub in je browser",
+  "Opens the list of Onion Watch's versions and what each changed, on GitHub in your browser": "Opent de lijst met versies van Onion Watch en wat elke versie veranderde, op GitHub in je browser",
+  "Settings": "Instellingen",
+  "Uninstall the add-on from Onion Board. Your triggers are kept, for when you get it again.": "Verwijder de add-on uit Onion Board. Je triggers blijven bewaard voor als je hem terughaalt.",
+  "What's new": "Wat is er nieuw"
 }

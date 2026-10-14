@@ -774,5 +774,11 @@
   "No sounds match": "Žádné zvuky neodpovídají",
   "No sounds yet: choose a sound file": "Zatím žádné zvuky: vyberte zvukový soubor",
   "Search sounds": "Hledat zvuky",
-  "Show the sounds of one category": "Ukázat zvuky jedné kategorie"
+  "Show the sounds of one category": "Ukázat zvuky jedné kategorie",
+  "An add-on for Onion Board: it plays the board's sounds, and the board keeps its triggers and settings.": "Doplněk pro Onion Board: přehrává zvuky boardu a board uchovává jeho spouštěče a nastavení.",
+  "Opens Onion Watch's page on GitHub in your browser": "Otevře v prohlížeči stránku Onion Watch na GitHubu",
+  "Opens the list of Onion Watch's versions and what each changed, on GitHub in your browser": "Otevře v prohlížeči seznam verzí Onion Watch a co se v každé změnilo, na GitHubu",
+  "Settings": "Nastavení",
+  "Uninstall the add-on from Onion Board. Your triggers are kept, for when you get it again.": "Odinstaluje doplněk z Onion Board. Vaše spouštěče zůstanou, až si ho zase stáhnete.",
+  "What's new": "Co je nového"
 }

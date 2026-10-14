@@ -810,5 +810,11 @@
   "No sounds match": "لا أصوات مطابقة",
   "No sounds yet: choose a sound file": "لا أصوات بعد: اختر ملف صوت",
   "Search sounds": "ابحث في الأصوات",
-  "Show the sounds of one category": "اعرض أصوات فئة واحدة"
+  "Show the sounds of one category": "اعرض أصوات فئة واحدة",
+  "An add-on for Onion Board: it plays the board's sounds, and the board keeps its triggers and settings.": "إضافة لـ Onion Board: تشغّل أصوات اللوحة، واللوحة تحفظ محفّزاتها وإعداداتها.",
+  "Opens Onion Watch's page on GitHub in your browser": "يفتح صفحة Onion Watch على GitHub في متصفحك",
+  "Opens the list of Onion Watch's versions and what each changed, on GitHub in your browser": "يفتح قائمة إصدارات Onion Watch وما تغيّر في كل منها، على GitHub في متصفحك",
+  "Settings": "الإعدادات",
+  "Uninstall the add-on from Onion Board. Your triggers are kept, for when you get it again.": "أزل الإضافة من Onion Board. تبقى محفّزاتك محفوظة لحين تثبيتها من جديد.",
+  "What's new": "ما الجديد"
 }

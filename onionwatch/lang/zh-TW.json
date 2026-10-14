@@ -750,5 +750,11 @@
   "No sounds match": "沒有符合的音效",
   "No sounds yet: choose a sound file": "還沒有音效：選擇一個音效檔",
   "Search sounds": "搜尋音效",
-  "Show the sounds of one category": "只顯示一個分類的音效"
+  "Show the sounds of one category": "只顯示一個分類的音效",
+  "An add-on for Onion Board: it plays the board's sounds, and the board keeps its triggers and settings.": "Onion Board 的附加元件：播放面板的聲音，觸發器和設定由面板保存。",
+  "Opens Onion Watch's page on GitHub in your browser": "在瀏覽器中開啟 Onion Watch 的 GitHub 頁面",
+  "Opens the list of Onion Watch's versions and what each changed, on GitHub in your browser": "在瀏覽器中開啟 GitHub 上 Onion Watch 的版本清單及每個版本的變更",
+  "Settings": "設定",
+  "Uninstall the add-on from Onion Board. Your triggers are kept, for when you get it again.": "從 Onion Board 解除安裝此附加元件。你的觸發器會保留，下次安裝時還在。",
+  "What's new": "新功能"
 }

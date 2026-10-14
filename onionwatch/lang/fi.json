@@ -762,5 +762,11 @@
   "No sounds match": "Yksikään ääni ei täsmää",
   "No sounds yet: choose a sound file": "Ei vielä ääniä: valitse äänitiedosto",
   "Search sounds": "Hae ääniä",
-  "Show the sounds of one category": "Näytä yhden luokan äänet"
+  "Show the sounds of one category": "Näytä yhden luokan äänet",
+  "An add-on for Onion Board: it plays the board's sounds, and the board keeps its triggers and settings.": "Onion Boardin lisäosa: se soittaa boardin ääniä, ja board säilyttää sen laukaisimet ja asetukset.",
+  "Opens Onion Watch's page on GitHub in your browser": "Avaa Onion Watchin sivun GitHubissa selaimessasi",
+  "Opens the list of Onion Watch's versions and what each changed, on GitHub in your browser": "Avaa Onion Watchin versiolistan ja mitä kussakin muuttui, GitHubissa selaimessasi",
+  "Settings": "Asetukset",
+  "Uninstall the add-on from Onion Board. Your triggers are kept, for when you get it again.": "Poista lisäosa Onion Boardista. Laukaisimesi säilyvät, kun hankit sen uudelleen.",
+  "What's new": "Mitä uutta"
 }

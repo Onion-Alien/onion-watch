@@ -4491,6 +4491,9 @@ class TriggersTab(QWidget):
 
     @needs_part()
     def show_watching(self):
+        if self.pages is not None and self.pages.settings is not None:
+            self.pages.show_settings()      # inside Onion Board: on its Settings tab
+            return
         from onionwatch.ui.watching import WatchingDialog
         WatchingDialog(self, self).exec()
 

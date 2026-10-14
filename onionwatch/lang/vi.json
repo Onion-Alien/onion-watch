@@ -750,5 +750,11 @@
   "No sounds match": "Không có âm thanh nào khớp",
   "No sounds yet: choose a sound file": "Chưa có âm thanh: chọn file âm thanh",
   "Search sounds": "Tìm âm thanh",
-  "Show the sounds of one category": "Chỉ hiện âm thanh của một danh mục"
+  "Show the sounds of one category": "Chỉ hiện âm thanh của một danh mục",
+  "An add-on for Onion Board: it plays the board's sounds, and the board keeps its triggers and settings.": "Tiện ích bổ sung cho Onion Board: phát âm thanh của bảng, và bảng giữ các trình kích hoạt cùng cài đặt của nó.",
+  "Opens Onion Watch's page on GitHub in your browser": "Mở trang Onion Watch trên GitHub trong trình duyệt",
+  "Opens the list of Onion Watch's versions and what each changed, on GitHub in your browser": "Mở danh sách các phiên bản Onion Watch và thay đổi của từng bản, trên GitHub trong trình duyệt",
+  "Settings": "Cài đặt",
+  "Uninstall the add-on from Onion Board. Your triggers are kept, for when you get it again.": "Gỡ tiện ích khỏi Onion Board. Các trình kích hoạt của bạn được giữ lại cho lần cài lại.",
+  "What's new": "Có gì mới"
 }

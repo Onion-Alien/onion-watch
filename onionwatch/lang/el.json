@@ -762,5 +762,11 @@
   "No sounds match": "Κανένας ήχος δεν ταιριάζει",
   "No sounds yet: choose a sound file": "Κανένας ήχος ακόμα: επιλέξτε ένα αρχείο ήχου",
   "Search sounds": "Αναζήτηση ήχων",
-  "Show the sounds of one category": "Δείξε τους ήχους μίας κατηγορίας"
+  "Show the sounds of one category": "Δείξε τους ήχους μίας κατηγορίας",
+  "An add-on for Onion Board: it plays the board's sounds, and the board keeps its triggers and settings.": "Πρόσθετο για το Onion Board: παίζει τους ήχους του board, και το board κρατά τα triggers και τις ρυθμίσεις του.",
+  "Opens Onion Watch's page on GitHub in your browser": "Ανοίγει τη σελίδα του Onion Watch στο GitHub στον browser σας",
+  "Opens the list of Onion Watch's versions and what each changed, on GitHub in your browser": "Ανοίγει τη λίστα εκδόσεων του Onion Watch και τι άλλαξε σε καθεμία, στο GitHub στον browser σας",
+  "Settings": "Ρυθμίσεις",
+  "Uninstall the add-on from Onion Board. Your triggers are kept, for when you get it again.": "Απεγκαθιστά το πρόσθετο από το Onion Board. Τα triggers σας κρατιούνται για όταν το ξαναπάρετε.",
+  "What's new": "Τι νέο υπάρχει"
 }

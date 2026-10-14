@@ -1,4 +1,5 @@
-"""Watching settings, behind the cog on the Triggers bar: how often triggers left on
+"""Watching settings, behind the chip on the Triggers bar (inside Onion Board, on the
+Settings tab instead: ui.boardsettings): how often triggers left on
 "Default" are checked (screenwatch.INTERVALS_MS; each card can pick its own), how much
 of the processor watching may use (screenwatch.CPU_SHARES), "Max detection"
 (screenwatch.MAX_DETECTS), whether the Log's pictures are in colour, and how often each
@@ -9,9 +10,9 @@ of its own: a version without it keeps reading "cpu_share" as before."""
 from __future__ import annotations
 
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtWidgets import (QApplication, QButtonGroup, QCheckBox, QComboBox, QDialog,
-                               QDialogButtonBox, QFrame, QHBoxLayout, QLabel, QRadioButton,
-                               QScrollArea, QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QApplication, QBoxLayout, QButtonGroup, QCheckBox, QComboBox,
+                               QDialog, QDialogButtonBox, QFrame, QHBoxLayout, QLabel,
+                               QRadioButton, QScrollArea, QVBoxLayout, QWidget)
 
 from onionwatch import screenwatch
 from onionwatch.ui.panel import card, hint_label
@@ -51,23 +52,18 @@ def share_label(share: float) -> str:
     return _("no limit") if share <= 0 else f"{share * 100:g} %"
 
 
-class WatchingDialog(QDialog):
-    """Follows `panel` (a TriggersTab): its watcher's share, and the gap live."""
+class WatchingBody(QWidget):
+    """The Watching cards in two columns, following `panel` (a TriggersTab): its
+    watcher's share, and the gap live. In the Watching window (WatchingDialog), and
+    inside Onion Board on the Settings tab (ui.boardsettings)."""
 
     def __init__(self, panel, parent=None):
         super().__init__(parent)
-        fit.watch(self)          # grows to fit its (translated) text
         self.panel = panel
-        self.setWindowTitle(_("Watching"))
-        outer = QVBoxLayout(self)
-        outer.setSpacing(10)
-        # the cards scroll when they're taller than the screen (a long translation on a
-        # small screen) instead of being squashed over each other
-        self.body = QWidget()
-        self.body.setObjectName("watchingbody")
-        self.body.setStyleSheet("QWidget#watchingbody { background: transparent; }")
+        self.setObjectName("watchingbody")
+        self.setStyleSheet("QWidget#watchingbody { background: transparent; }")
         # two columns of cards: one long column ran the height of the screen
-        cols = QHBoxLayout(self.body)
+        cols = self.cols = QHBoxLayout(self)
         cols.setContentsMargins(0, 0, 0, 0)
         cols.setSpacing(12)
         left, right = QVBoxLayout(), QVBoxLayout()
@@ -75,14 +71,6 @@ class WatchingDialog(QDialog):
             c.setSpacing(10)
             cols.addLayout(c, 1)
         v = left
-        self.scroll = QScrollArea()
-        self.scroll.setWidgetResizable(True)
-        self.scroll.setFrameShape(QFrame.NoFrame)
-        self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self.scroll.setStyleSheet("QScrollArea { background: transparent; }")
-        self.scroll.viewport().setAutoFillBackground(False)
-        self.scroll.setWidget(self.body)
-        outer.addWidget(self.scroll, 1)
         from onionwatch.ui.triggerspanel import interval_label
         box, bv = card(_("CHECK SPEED"), _("How often each trigger left on “Default” looks. "
                                    "A trigger can have its own speed: “Check every”, on its "
@@ -162,33 +150,24 @@ class WatchingDialog(QDialog):
         left.addWidget(box)         # under Processor use: the shorter column
         for c in (left, right):
             c.addStretch(1)             # spare height goes below the cards, not into them
-        self.buttons = QDialogButtonBox(QDialogButtonBox.Close)
-        self.buttons.rejected.connect(self.reject)
-        outer.addWidget(self.buttons)
-        # never narrower than its contents: a translation's long radio buttons
-        bar = self.scroll.verticalScrollBar().sizeHint().width()
-        self.setMinimumWidth(max(420, cols.minimumSize().width() + bar + 24))
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._show_now)
-        self._timer.start(500)
         self._show_now()
+
+    def set_one_column(self, on: bool):
+        """The cards in one column (Onion Board's Settings tab in a narrow window)."""
+        want = QBoxLayout.Direction.TopToBottom if on else QBoxLayout.Direction.LeftToRight
+        if self.cols.direction() != want:
+            self.cols.setDirection(want)
 
     def showEvent(self, e):
         super().showEvent(e)
-        # wrapped text: only now, at its width, is the height it needs known: all of
-        # the cards, as far as the screen allows (the rest scrolls)
-        screen = self.screen() or QApplication.primaryScreen()
-        # wide enough for both columns to read easily, as far as the screen allows
-        wide = max(self.width(), min(820, screen.availableGeometry().width() - 40))
-        self.resize(wide, self.height())
-        self.layout().activate()
-        m = self.layout().contentsMargins()
-        need = (self.body.layout().totalHeightForWidth(self.scroll.viewport().width())
-                + self.buttons.sizeHint().height() + self.layout().spacing()
-                + m.top() + m.bottom() + 2)
-        room = screen.availableGeometry().height() - (self.frameGeometry().height()
-                                                       - self.height())
-        self.resize(self.width(), max(min(need, room), 300))
+        self._show_now()
+        self._timer.start(500)      # only while it's seen: a tab can stay open for hours
+
+    def hideEvent(self, e):
+        super().hideEvent(e)
+        self._timer.stop()
 
     def _picked_speed(self, _i: int):
         self.panel.set_default_interval(self.speed.currentData())
@@ -206,3 +185,56 @@ class WatchingDialog(QDialog):
 
     def _show_now(self):
         self.now.setText(self.panel.watching_text())
+
+
+class WatchingDialog(QDialog):
+    """The Watching window: WatchingBody, scrolling when it's taller than the screen,
+    with Close. Its controls (speed, radios, now...) are the body's."""
+
+    def __init__(self, panel, parent=None):
+        super().__init__(parent)
+        fit.watch(self)          # grows to fit its (translated) text
+        self.panel = panel
+        self.setWindowTitle(_("Watching"))
+        outer = QVBoxLayout(self)
+        outer.setSpacing(10)
+        # the cards scroll when they're taller than the screen (a long translation on a
+        # small screen) instead of being squashed over each other
+        self.body = WatchingBody(panel)
+        self.scroll = QScrollArea()
+        self.scroll.setWidgetResizable(True)
+        self.scroll.setFrameShape(QFrame.NoFrame)
+        self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.scroll.setStyleSheet("QScrollArea { background: transparent; }")
+        self.scroll.viewport().setAutoFillBackground(False)
+        self.scroll.setWidget(self.body)
+        outer.addWidget(self.scroll, 1)
+        self.buttons = QDialogButtonBox(QDialogButtonBox.Close)
+        self.buttons.rejected.connect(self.reject)
+        outer.addWidget(self.buttons)
+        # never narrower than its contents: a translation's long radio buttons
+        bar = self.scroll.verticalScrollBar().sizeHint().width()
+        self.setMinimumWidth(max(420, self.body.cols.minimumSize().width() + bar + 24))
+
+    def __getattr__(self, name):
+        body = self.__dict__.get("body")
+        if body is None:
+            raise AttributeError(name)
+        return getattr(body, name)
+
+    def showEvent(self, e):
+        super().showEvent(e)
+        # wrapped text: only now, at its width, is the height it needs known: all of
+        # the cards, as far as the screen allows (the rest scrolls)
+        screen = self.screen() or QApplication.primaryScreen()
+        # wide enough for both columns to read easily, as far as the screen allows
+        wide = max(self.width(), min(820, screen.availableGeometry().width() - 40))
+        self.resize(wide, self.height())
+        self.layout().activate()
+        m = self.layout().contentsMargins()
+        need = (self.body.layout().totalHeightForWidth(self.scroll.viewport().width())
+                + self.buttons.sizeHint().height() + self.layout().spacing()
+                + m.top() + m.bottom() + 2)
+        room = screen.availableGeometry().height() - (self.frameGeometry().height()
+                                                       - self.height())
+        self.resize(self.width(), max(min(need, room), 300))

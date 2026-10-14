@@ -762,5 +762,11 @@
   "No sounds match": "कोई साउंड मेल नहीं खाता",
   "No sounds yet: choose a sound file": "अभी कोई साउंड नहीं: साउंड फ़ाइल चुनें",
   "Search sounds": "साउंड खोजें",
-  "Show the sounds of one category": "एक कैटेगरी के साउंड दिखाएँ"
+  "Show the sounds of one category": "एक कैटेगरी के साउंड दिखाएँ",
+  "An add-on for Onion Board: it plays the board's sounds, and the board keeps its triggers and settings.": "Onion Board का ऐड-ऑन: यह बोर्ड की आवाज़ें बजाता है, और बोर्ड इसके ट्रिगर और सेटिंग्स रखता है।",
+  "Opens Onion Watch's page on GitHub in your browser": "Onion Watch का GitHub पेज आपके ब्राउज़र में खोलता है",
+  "Opens the list of Onion Watch's versions and what each changed, on GitHub in your browser": "Onion Watch के संस्करणों की सूची और हर एक में क्या बदला, GitHub पर आपके ब्राउज़र में खोलता है",
+  "Settings": "सेटिंग्स",
+  "Uninstall the add-on from Onion Board. Your triggers are kept, for when you get it again.": "Onion Board से ऐड-ऑन हटाएँ। आपके ट्रिगर रखे रहते हैं, जब आप इसे फिर से लें।",
+  "What's new": "नया क्या है"
 }

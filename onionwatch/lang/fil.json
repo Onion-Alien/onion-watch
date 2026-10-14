@@ -762,5 +762,11 @@
   "No sounds match": "Walang tugmang sound",
   "No sounds yet: choose a sound file": "Wala pang sound: pumili ng sound file",
   "Search sounds": "Maghanap ng sound",
-  "Show the sounds of one category": "Ipakita ang mga sound ng isang kategorya"
+  "Show the sounds of one category": "Ipakita ang mga sound ng isang kategorya",
+  "An add-on for Onion Board: it plays the board's sounds, and the board keeps its triggers and settings.": "Add-on para sa Onion Board: pinapatugtog nito ang mga tunog ng board, at iniingatan ng board ang mga trigger at setting nito.",
+  "Opens Onion Watch's page on GitHub in your browser": "Binubuksan ang page ng Onion Watch sa GitHub sa iyong browser",
+  "Opens the list of Onion Watch's versions and what each changed, on GitHub in your browser": "Binubuksan ang listahan ng mga bersyon ng Onion Watch at ano ang nagbago sa bawat isa, sa GitHub sa iyong browser",
+  "Settings": "Settings",
+  "Uninstall the add-on from Onion Board. Your triggers are kept, for when you get it again.": "I-uninstall ang add-on mula sa Onion Board. Naiingatan ang mga trigger mo para sa susunod mong pagkuha nito.",
+  "What's new": "Ano'ng bago"
 }

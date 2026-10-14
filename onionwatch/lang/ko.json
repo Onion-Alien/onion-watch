@@ -750,5 +750,11 @@
   "No sounds match": "맞는 사운드가 없어요",
   "No sounds yet: choose a sound file": "아직 사운드가 없어요: 사운드 파일을 고르세요",
   "Search sounds": "사운드 검색",
-  "Show the sounds of one category": "한 카테고리의 사운드만 보기"
+  "Show the sounds of one category": "한 카테고리의 사운드만 보기",
+  "An add-on for Onion Board: it plays the board's sounds, and the board keeps its triggers and settings.": "Onion Board용 애드온입니다. 보드의 소리를 재생하고, 트리거와 설정은 보드가 보관합니다.",
+  "Opens Onion Watch's page on GitHub in your browser": "Onion Watch의 GitHub 페이지를 브라우저에서 엽니다",
+  "Opens the list of Onion Watch's versions and what each changed, on GitHub in your browser": "Onion Watch 버전 목록과 버전별 변경 사항을 브라우저에서 GitHub로 엽니다",
+  "Settings": "설정",
+  "Uninstall the add-on from Onion Board. Your triggers are kept, for when you get it again.": "Onion Board에서 애드온을 제거합니다. 트리거는 다시 설치할 때를 위해 남겨 둡니다.",
+  "What's new": "새로운 기능"
 }
