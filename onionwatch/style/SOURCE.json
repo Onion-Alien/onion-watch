@@ -1,7 +1,7 @@
 {
   "from": "Onion Board",
   "path": "soundboard/style",
-  "commit": "14936d100bfd62cf89ea946c8f1eaf09bf5d42ef",
+  "commit": "a7b0074f801724ceec1ece93d49627f401974e4d",
   "files": {
     "__init__.py": "675f35779a5e85ef1d9bc8889f70a683c463ccb0a0a8a2a88c936014582d9472",
     "appstate.py": "8e0c163bd47615a9f18a62f24bdeb5c6d95605a1cc5bc4c78a1221325df39ee2",
