@@ -24,6 +24,7 @@ import os
 import time
 import uuid
 from collections import OrderedDict, deque
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -52,6 +53,7 @@ from onionwatch.ui.categories import (MAX_PER_ROW, PAD, CategoriesDialog, Catego
 from onionwatch.ui.chances import LiveLabel, goes_below
 from onionwatch.ui.history import THUMB as LOG_THUMB, HistoryDialog
 from onionwatch.ui.panel import Flow, UndoBar, card, dialog_layout, hint_label
+from onionwatch.ui.soundmenu import Groups, SoundBox
 from onionwatch.ui.watching import share_label
 from onionwatch.ui.windowpicker import places_label
 from onionwatch.wheelguard import no_wheel
@@ -1329,8 +1331,8 @@ CARD_CSS = (
     "QLabel#formlabel, QCheckBox#formcheck { font-size: 9pt; }"
     # the card's sentence: its words a little bigger than the rules' labels
     "QLabel#sentenceword, QCheckBox#sentencecheck { font-size: 11pt; }"
-    # its choices: big rounded buttons with a heavier bottom edge, what sets it off in
-    # the accent colour, the + dashed
+    # its choices: big rounded buttons with a heavier bottom edge in the accent colour
+    # (token="accent"); the sounds' chips (token="true") plain, the + dashed
     'QComboBox[token="true"], QComboBox[token="accent"], QFrame#chip[token="true"] {'
     " background: palette(base); border: 1px solid palette(mid);"
     " border-bottom: 3px solid palette(mid); border-radius: 9px; font-size: 10pt;"
@@ -1448,6 +1450,8 @@ class TriggerRow(QFrame):
         self._screens = 0               # how many screens there are
         self._mons: list[Monitor] = []
         self._sounds: list[tuple[str, str]] = []   # the sounds as last given
+        # () -> the host's categories, for the + menu (the panel sets it)
+        self.sound_groups: Callable[[], Groups] = list
         self._narrow = False            # too narrow for the header's thumbnail
         self._big = False               # open and wide: its pictures big (THUMB_BIG)
         self._press: QPoint | None = None   # where a press on the header began (a drag?)
@@ -1688,8 +1692,7 @@ class TriggerRow(QFrame):
         no_wheel(self.where)
         self.where.activated.connect(self._on_where)
         self.where_box = self.where
-        for combo in (self.where,):
-            combo.setProperty("token", "true")
+        self.where.setProperty("token", "accent")   # every choice of the sentence alike
         row.addWidget(word(capital(_("when"))))
         row.addWidget(self.mode)
         row.addWidget(word(_("in")))
@@ -1701,10 +1704,11 @@ class TriggerRow(QFrame):
         self.sounds_row = self.sounds_box.flow
         self.lbl_play = word(capital(_("play")))
         self.chips: list[QFrame] = []
-        self.sound = QComboBox()        # a square +: its list opens wide enough
+        self.sound = SoundBox(FILE)     # a square +: opens a menu with search, categories
+        self.sound.groups = lambda: self.sound_groups()
+        self.sound.taken = lambda: set(self.t.sounds)
         self.sound.setObjectName("addsound")
         self.sound.setAccessibleName(_("+ Add sound"))
-        self.sound.view().setMinimumWidth(260)
         self.sound.setProperty("token", "true")
         self.sound.setToolTip(_("Add a sound to play: a built-in alert, or a sound file of yours"))
         no_wheel(self.sound)
@@ -1717,7 +1721,7 @@ class TriggerRow(QFrame):
                                "repeats), take them in turn, or play them all at once"))
         no_wheel(self.pick)
         self.pick.currentIndexChanged.connect(self._on_pick)
-        self.pick.setProperty("token", "true")
+        self.pick.setProperty("token", "accent")
         bv.addWidget(self.sounds_box)
         # "[ ] Keep playing [until I switch to the game]"
         self.chk_ring = QCheckBox(_("Keep playing"))
@@ -1734,7 +1738,7 @@ class TriggerRow(QFrame):
         self.until.setCurrentIndex(max(self.until.findData(t.stop), 0))
         self.until.setToolTip(_("What stops the ringing by itself"))
         self.until.setVisible(t.ring)
-        self.until.setProperty("token", "true")
+        self.until.setProperty("token", "accent")
         no_wheel(self.until)
         self.until.currentIndexChanged.connect(self._on_until)
         self.ring_box = Pair(self.chk_ring, self.until)
@@ -4951,6 +4955,19 @@ class TriggersTab(QWidget):
             self._apply_active(force=True)
 
     # ------------------------------------------------------------------ the list
+    def sound_groups(self) -> list[tuple[str, list[str]]]:
+        """The host's sound categories, (name, sound ids) in its order, for the Play +
+        menu. Optional: a host without sound_categories() (an older board, the app's
+        own) has none, and the menu shows no category list."""
+        fn = getattr(self.host, "sound_categories", None)
+        if fn is None:
+            return []
+        try:
+            return [(str(name), list(ids)) for name, ids in fn()]
+        except Exception:  # noqa: BLE001 - a host's bug mustn't stop the tab
+            log.exception("the host's sound categories")
+            return []
+
     def sounds_changed(self, force: bool = False):
         """The host's sounds may have changed: give the cards the new list. Only when
         it did (or `force`: a trigger's own sounds or the theme changed), since every
@@ -5010,6 +5027,7 @@ class TriggersTab(QWidget):
     def _wire(self, row: TriggerRow):
         """Connect a card (the list's, or the editor) to the tab."""
         row.sound_details = getattr(self.host, "sound_details", row.sound_details)
+        row.sound_groups = self.sound_groups
         row._update_state()
         row.files_dropped.connect(self._add_dropped_files)
         row.picture_dropped.connect(self._add_dropped_picture)

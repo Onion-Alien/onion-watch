@@ -237,3 +237,22 @@ def test_the_card_is_styled_in_the_themes_colours_not_qts_stock_palette(tab, flo
         card.rules_dlg.accept()
     finally:
         theme.set_current(was)
+
+
+def test_a_click_picks_a_kind_and_continue_goes_on(qapp):
+    # one click only picks it (it could be a slip): Continue, or a double-click, goes on
+    dlg = WhatPicker()
+    assert not dlg.btn_next.isEnabled()
+    dlg.tiles[2].click()                       # A bar runs low
+    assert dlg.picked == "colour" and dlg.tiles[2].isChecked()
+    assert dlg.result() != QDialog.Accepted and dlg.page == 0
+    dlg.tiles[0].click()                       # changed my mind: Something shows up
+    assert dlg.picked == "appear" and not dlg.tiles[2].isChecked()
+    assert dlg.page == 0 and dlg.btn_next.isEnabled()
+    dlg.btn_next.click()
+    assert dlg.page == 1 and not dlg.btn_next.isVisibleTo(dlg)
+    dlg._show(0)                               # Back: still picked
+    assert dlg.tiles[0].isChecked() and dlg.btn_next.isVisibleTo(dlg)
+    dlg2 = WhatPicker()
+    dlg2.tiles[3].chosen.emit("change")        # a double-click
+    assert dlg2.result() == QDialog.Accepted and dlg2.picked == "change"

@@ -4,7 +4,10 @@ board's notification and stops with the board's Stop all. Stand-in screens and a
 stand-in board; nothing is heard."""
 import inspect
 
+import shiboken6
+
 import pytest
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QWidget
 from conftest import process_events
 from fakehost import FakeHost
@@ -200,3 +203,63 @@ def test_text_made_as_modules_load_is_in_the_boards_language(monkeypatch):
         assert i18n.current() == "ru"
     finally:
         i18n.set_language(i18n.ENGLISH)
+
+
+def test_the_logo_takes_the_boards_colours(tab):
+    # like Onion Board's own mark: the theme's accent, not Onion Watch's fixed teal
+    before = tab.pages.logo.pixmap().toImage()
+    tab.host.colours = {"accent": "#e0306a", "accent2": "#ffd400"}
+    tab.retheme()
+    after = tab.pages.logo.pixmap().toImage()
+    assert after != before
+    assert after == theme.themed_logo(after.width()).toImage()
+
+
+def test_the_play_menu_searches_and_shows_the_boards_categories(tab, qapp):
+    panel = tab.panel
+    tab.host.sound_categories = lambda: [("Memes", ["s2"])]
+    panel._new(as_qimage(banner()), "Rare")
+    row = panel.editor if panel.editor is not None else next(iter(panel.rows.values()))
+    row.sound.showPopup()
+    menu = row.sound.menu
+    names = dict(tab.host.sounds())
+    assert menu.category.isVisibleTo(menu) and menu.category.itemText(1) == "Memes"
+    assert menu.shown() == [sid for sid, _n in tab.host.sounds()]
+    menu.category.setCurrentIndex(1)
+    assert menu.shown() == ["s2"]
+    menu.category.setCurrentIndex(0)
+    menu.search.setText(names["s2"][:3].upper())          # any case
+    assert "s2" in menu.shown()
+    menu.search.setText("zzz no such sound")
+    assert menu.shown() == [] and menu.empty.isVisibleTo(menu)
+    menu.search.setText(names["s2"])
+    menu.search.returnPressed.emit()                      # Enter picks the first
+    assert "s2" in row.t.sounds and row.sound.menu is None
+    row.sound.showPopup()                                  # on the trigger: not pickable
+    menu = row.sound.menu
+    menu.search.setText(names["s2"])
+    item = menu.list.item(0)
+    assert item.data(256) == "s2" and not item.flags() & Qt.ItemFlag.ItemIsEnabled
+    menu.close()
+
+
+def test_the_sentence_choices_all_wear_the_accent(tab):
+    tab.panel._new(as_qimage(banner()), "Rare")
+    row = tab.panel.editor if tab.panel.editor is not None else next(iter(tab.panel.rows.values()))
+    assert {c.property("token") for c in (row.mode, row.where, row.pick, row.until)} == {"accent"}
+
+
+def test_the_play_menu_stays_open_with_the_category_list(tab, qapp):
+    # the category list was shown before it had a parent: a window of its own for a
+    # moment, which closed the menu as soon as it opened
+    tab.host.sound_categories = lambda: [("Memes", ["s2"])]
+    tab.show()
+    tab.panel._new(as_qimage(banner()), "Rare")
+    row = tab.panel.editor if tab.panel.editor is not None else next(iter(tab.panel.rows.values()))
+    row.sound.showPopup()
+    menu = row.sound.menu
+    for _ in range(10):
+        qapp.processEvents()
+    assert shiboken6.isValid(menu) and menu.isVisible()
+    menu.close()
+    tab.hide()

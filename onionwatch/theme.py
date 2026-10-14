@@ -996,6 +996,12 @@ def logo_pixmap(size: int, c1: str | None = None, c2: str | None = None,
     return pm
 
 
+def themed_logo(size: int, awake: bool = True) -> QPixmap:
+    """The logo in the current theme's colours, as Onion Board shows its own (the
+    app and tray icons keep BRAND)."""
+    return logo_pixmap(size, T.get("accent"), T.get("accent2"), awake)
+
+
 def app_icon(c1: str | None = None, c2: str | None = None, awake: bool = True) -> QIcon:
     icon = QIcon()
     for sz in (16, 24, 32, 48, 64, 128, 256):

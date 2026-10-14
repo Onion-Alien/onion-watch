@@ -37,6 +37,10 @@ class Host(Protocol):
     def sounds(self) -> list[tuple[str, str]]:
         """The sounds a trigger can play: (id, name), in the order to list them."""
 
+    # Optional, looked up with getattr (an older host has none):
+    # sound_categories() -> [(category name, [sound ids])], in the host's tab order,
+    # for the category list in a trigger's Play + menu.
+
     def add_sound(self, path: str, done: Callable[[str | None], None]) -> None:
         """Add a sound file to the host's sounds. `done(id)` once it's in sounds(),
         straight away or later (Onion Board adds files in the background);

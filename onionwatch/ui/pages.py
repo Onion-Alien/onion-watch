@@ -142,7 +142,7 @@ class TriggerPages(QWidget):
             row.setContentsMargins(0, 0, 0, 0)
             row.setSpacing(10)
             self.logo = QLabel()
-            self.logo.setPixmap(theme.logo_pixmap(LOGO_PX * 2))
+            self.logo.setPixmap(theme.themed_logo(LOGO_PX * 2))
             self.logo.setFixedSize(LOGO_PX, LOGO_PX)
             self.logo.setScaledContents(True)
             self.logo.setToolTip("Onion Watch")
@@ -171,6 +171,11 @@ class TriggerPages(QWidget):
         self.tabs.currentChanged.connect(self.stack.setCurrentIndex)
         panel.history_changed.connect(self._count)
         self._count()
+
+    def retheme(self):
+        """The theme changed: the logo takes its colours."""
+        if self.logo is not None:
+            self.logo.setPixmap(theme.themed_logo(LOGO_PX * 2))
 
     def _count(self):
         n = len(self.panel.history)

@@ -755,5 +755,12 @@
   "There's no picture copied. Right-click a picture on the web and pick Copy image first.": "Er is geen afbeelding gekopieerd. Klik met de rechtermuisknop op een afbeelding op internet en kies eerst afbeelding kopiëren.",
   "You can already see it": "Je kunt het al zien",
   "You're stuck, idle or disconnected": "Je zit vast, bent inactief of hebt geen verbinding",
-  "You've copied this picture: click to use it (or Ctrl+V).": "Je hebt deze afbeelding gekopieerd: klik om deze te gebruiken (of Ctrl+V)."
+  "You've copied this picture: click to use it (or Ctrl+V).": "Je hebt deze afbeelding gekopieerd: klik om deze te gebruiken (of Ctrl+V).",
+  "All sounds": "Alle geluiden",
+  "Already on this trigger": "Staat al op deze trigger",
+  "Continue": "Doorgaan",
+  "No sounds match": "Geen geluiden gevonden",
+  "No sounds yet: choose a sound file": "Nog geen geluiden: kies een geluidsbestand",
+  "Search sounds": "Geluiden zoeken",
+  "Show the sounds of one category": "De geluiden van één categorie tonen"
 }

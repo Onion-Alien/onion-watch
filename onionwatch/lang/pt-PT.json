@@ -755,5 +755,12 @@
   "There's no picture copied. Right-click a picture on the web and pick Copy image first.": "Não há foto copiada. Clique com o botão direito do rato numa imagem na Web e escolha Copiar imagem primeiro.",
   "You can already see it": "Já pode ver",
   "You're stuck, idle or disconnected": "Está preso, ocioso ou desconectado",
-  "You've copied this picture: click to use it (or Ctrl+V).": "Copiou esta imagem: clique para a utilizar (ou Ctrl+V)."
+  "You've copied this picture: click to use it (or Ctrl+V).": "Copiou esta imagem: clique para a utilizar (ou Ctrl+V).",
+  "All sounds": "Todos os sons",
+  "Already on this trigger": "Já está neste gatilho",
+  "Continue": "Continuar",
+  "No sounds match": "Nenhum som corresponde",
+  "No sounds yet: choose a sound file": "Ainda não há sons: escolhe um ficheiro de som",
+  "Search sounds": "Procurar sons",
+  "Show the sounds of one category": "Mostrar os sons de uma categoria"
 }

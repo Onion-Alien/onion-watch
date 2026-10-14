@@ -115,6 +115,7 @@ class BoardPanel(QWidget):
     def retheme(self):
         theme.follow_host(self.host)
         self.panel.retheme()
+        self.pages.retheme()
 
     def cancel_pending(self):
         """Stop all on the board: sounds still waiting out a trigger's wait are

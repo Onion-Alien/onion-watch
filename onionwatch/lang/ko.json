@@ -743,5 +743,12 @@
   "There's no picture copied. Right-click a picture on the web and pick Copy image first.": "복사된 사진이 없습니다. 웹에서 사진을 마우스 오른쪽 버튼으로 클릭하고 먼저 이미지 복사를 선택합니다.",
   "You can already see it": "당신은 이미 그것을 볼 수 있습니다",
   "You're stuck, idle or disconnected": "멈췄거나 유휴 상태이거나 연결이 끊겼습니다.",
-  "You've copied this picture: click to use it (or Ctrl+V).": "이 사진을 복사했습니다. 사용하려면 클릭하세요(또는 Ctrl+V)."
+  "You've copied this picture: click to use it (or Ctrl+V).": "이 사진을 복사했습니다. 사용하려면 클릭하세요(또는 Ctrl+V).",
+  "All sounds": "모든 사운드",
+  "Already on this trigger": "이미 이 트리거에 있어요",
+  "Continue": "계속",
+  "No sounds match": "맞는 사운드가 없어요",
+  "No sounds yet: choose a sound file": "아직 사운드가 없어요: 사운드 파일을 고르세요",
+  "Search sounds": "사운드 검색",
+  "Show the sounds of one category": "한 카테고리의 사운드만 보기"
 }

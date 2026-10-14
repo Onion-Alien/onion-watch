@@ -755,5 +755,12 @@
   "There's no picture copied. Right-click a picture on the web and pick Copy image first.": "कोई चित्र कॉपी नहीं किया गया है. वेब पर किसी चित्र पर राइट-क्लिक करें और पहले कॉपी इमेज चुनें।",
   "You can already see it": "आप इसे पहले से ही देख सकते हैं",
   "You're stuck, idle or disconnected": "आप अटके हुए, निष्क्रिय या कटे हुए हैं",
-  "You've copied this picture: click to use it (or Ctrl+V).": "आपने यह चित्र कॉपी कर लिया है: इसका उपयोग करने के लिए क्लिक करें (या Ctrl+V)।"
+  "You've copied this picture: click to use it (or Ctrl+V).": "आपने यह चित्र कॉपी कर लिया है: इसका उपयोग करने के लिए क्लिक करें (या Ctrl+V)।",
+  "All sounds": "सभी साउंड",
+  "Already on this trigger": "इस ट्रिगर पर पहले से है",
+  "Continue": "आगे बढ़ें",
+  "No sounds match": "कोई साउंड मेल नहीं खाता",
+  "No sounds yet: choose a sound file": "अभी कोई साउंड नहीं: साउंड फ़ाइल चुनें",
+  "Search sounds": "साउंड खोजें",
+  "Show the sounds of one category": "एक कैटेगरी के साउंड दिखाएँ"
 }

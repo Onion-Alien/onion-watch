@@ -743,5 +743,12 @@
   "There's no picture copied. Right-click a picture on the web and pick Copy image first.": "コピーされた写真はありません。 Web 上の画像を右クリックし、最初に [画像をコピー] を選択します。",
   "You can already see it": "もう見えていますね",
   "You're stuck, idle or disconnected": "行き詰まったり、アイドル状態になったり、接続が切断されたりしています",
-  "You've copied this picture: click to use it (or Ctrl+V).": "この画像をコピーしました。クリックして使用します (または Ctrl+V)。"
+  "You've copied this picture: click to use it (or Ctrl+V).": "この画像をコピーしました。クリックして使用します (または Ctrl+V)。",
+  "All sounds": "すべてのサウンド",
+  "Already on this trigger": "このトリガーに追加済み",
+  "Continue": "次へ",
+  "No sounds match": "一致するサウンドがありません",
+  "No sounds yet: choose a sound file": "まだサウンドがありません: サウンドファイルを選んでください",
+  "Search sounds": "サウンドを検索",
+  "Show the sounds of one category": "1つのカテゴリのサウンドを表示"
 }

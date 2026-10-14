@@ -743,5 +743,12 @@
   "There's no picture copied. Right-click a picture on the web and pick Copy image first.": "没有复制图片。右键单击网络上的图片并选择首先复制图像。",
   "You can already see it": "你已经可以看到了",
   "You're stuck, idle or disconnected": "您被卡住、闲置或断开连接",
-  "You've copied this picture: click to use it (or Ctrl+V).": "您已复制此图片：单击以使用它（或 Ctrl+V）。"
+  "You've copied this picture: click to use it (or Ctrl+V).": "您已复制此图片：单击以使用它（或 Ctrl+V）。",
+  "All sounds": "所有音效",
+  "Already on this trigger": "已在这个触发器上",
+  "Continue": "继续",
+  "No sounds match": "没有匹配的音效",
+  "No sounds yet: choose a sound file": "还没有音效：选择一个音效文件",
+  "Search sounds": "搜索音效",
+  "Show the sounds of one category": "只显示一个分类的音效"
 }

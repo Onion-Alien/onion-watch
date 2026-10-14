@@ -755,5 +755,12 @@
   "There's no picture copied. Right-click a picture on the web and pick Copy image first.": "Nincs másolt kép. Kattintson a jobb gombbal egy képre az interneten, és először válassza a Kép másolása lehetőséget.",
   "You can already see it": "Már láthatod",
   "You're stuck, idle or disconnected": "Ön elakadt, tétlen vagy megszakadt a kapcsolat",
-  "You've copied this picture: click to use it (or Ctrl+V).": "Kimásolta ezt a képet: kattintson a használatához (vagy Ctrl+V)."
+  "You've copied this picture: click to use it (or Ctrl+V).": "Kimásolta ezt a képet: kattintson a használatához (vagy Ctrl+V).",
+  "All sounds": "Minden hang",
+  "Already on this trigger": "Már rajta van ezen a ravaszon",
+  "Continue": "Tovább",
+  "No sounds match": "Nincs ilyen hang",
+  "No sounds yet: choose a sound file": "Még nincs hang: válasszon egy hangfájlt",
+  "Search sounds": "Hangok keresése",
+  "Show the sounds of one category": "Egy kategória hangjainak mutatása"
 }
