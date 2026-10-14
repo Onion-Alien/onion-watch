@@ -44,7 +44,7 @@ class MainWindow(QMainWindow):
         app = QApplication.instance()
         self.cfg.theme = theme.apply(app, self.cfg.theme)
         self.setWindowTitle("Onion Watch")
-        self.setWindowIcon(theme.app_icon())
+        self._awake = False   # watching: the tray icon's eye is open
         self.library = Library(self.cfg.sounds, self.save_later)
         self.player = player or Player(self.cfg.device, self.cfg.volume)
 
@@ -60,7 +60,6 @@ class MainWindow(QMainWindow):
         head = QHBoxLayout()
         head.setSpacing(10)
         self.logo = QLabel()
-        self.logo.setPixmap(theme.themed_logo(34 * 2))
         self.logo.setFixedSize(34, 34)
         self.logo.setScaledContents(True)
         head.addWidget(self.logo)
@@ -95,6 +94,7 @@ class MainWindow(QMainWindow):
         rv.addWidget(self.pages, 1)
 
         self._make_tray()
+        self.paint_logo()
         self.alarm.changed.connect(self.act_stop.setEnabled)
         if self.cfg.geometry:
             try:
@@ -121,7 +121,7 @@ class MainWindow(QMainWindow):
 
     # ------------------------------------------------------------------ tray
     def _make_tray(self):
-        self.tray = QSystemTrayIcon(theme.app_icon(), self)
+        self.tray = QSystemTrayIcon(theme.themed_icon(awake=False), self)
         menu = QMenu(self)
         act_show = QAction(_("Show Onion Watch"), self)
         act_show.triggered.connect(self.bring_up)
@@ -168,7 +168,8 @@ class MainWindow(QMainWindow):
         self.act_watch.blockSignals(False)
         self.tray.setToolTip(_("Onion Watch — watching") if on
                              else _("Onion Watch — not watching"))
-        self.tray.setIcon(theme.app_icon(awake=on))   # the eye shuts while it isn't watching
+        self._awake = on
+        self.tray.setIcon(theme.themed_icon(awake=on))   # the eye shuts while it isn't watching
 
     # ------------------------------------------------------------------ alarms
     def _on_fired(self, t):
@@ -181,7 +182,7 @@ class MainWindow(QMainWindow):
 
     def _notify(self, title: str, body: str):
         if self.cfg.notify and self.tray.isVisible():
-            self.tray.showMessage(title, body, theme.app_icon(), 8000)
+            self.tray.showMessage(title, body, theme.themed_icon(), 8000)
 
     def stop_ringing(self):
         self.alarm.stop()
@@ -202,8 +203,17 @@ class MainWindow(QMainWindow):
     def set_theme(self, name: str):
         self.cfg.theme = theme.apply(QApplication.instance(), name)
         icons.retheme()
-        self.logo.setPixmap(theme.themed_logo(34 * 2))
+        self.paint_logo()
         self.save_later()
+
+    def paint_logo(self):
+        """The logo follows the theme, like Onion Board's: the header, the title bar
+        and taskbar button (every window's, dialogs too) and the tray."""
+        self.logo.setPixmap(theme.themed_logo(34 * 2))
+        icon = theme.themed_icon()
+        QApplication.setWindowIcon(icon)
+        self.setWindowIcon(icon)
+        self.tray.setIcon(theme.themed_icon(awake=self._awake))
 
     # ------------------------------------------------------------------ updates, count
     def check_updates(self, force: bool = False):
@@ -250,7 +260,7 @@ class MainWindow(QMainWindow):
                 self._told_tray = True
                 self.tray.showMessage(_("Onion Watch is still watching"),
                                       _("It's in the tray by the clock. Right-click it to quit."),
-                                      theme.app_icon(), 5000)
+                                      theme.themed_icon(), 5000)
             self.cfg.geometry = bytes(self.saveGeometry().toHex()).decode()
             self.save_later()
             return

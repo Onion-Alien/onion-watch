@@ -377,6 +377,31 @@ def test_settings_change_the_theme_and_volume_live(qapp, app_dir, fake_screen):
         win.quit()
 
 
+def test_the_window_and_tray_icons_follow_the_theme(qapp, app_dir, fake_screen):
+    """Like Onion Board's: the title bar, taskbar button and tray take the theme's
+    colours, not only the header logo."""
+    from PySide6.QtWidgets import QApplication
+
+    from onionwatch import theme
+    from onionwatch.ui.mainwindow import MainWindow
+
+    def pixels(icon):
+        return icon.pixmap(32, 32).toImage()
+
+    win = MainWindow(Config())
+    try:
+        for name in ("Royal", "Toxic"):
+            win.set_theme(name)
+            want = pixels(theme.app_icon(theme.T["accent"], theme.T["accent2"]))
+            assert pixels(win.windowIcon()) == want, name
+            assert pixels(QApplication.windowIcon()) == want, name
+            asleep = theme.app_icon(theme.T["accent"], theme.T["accent2"], awake=False)
+            assert pixels(win.tray.icon()) == pixels(asleep), name   # not watching: eye shut
+        assert pixels(win.windowIcon()) != pixels(theme.app_icon())   # not the brand teal
+    finally:
+        win.quit()
+
+
 def test_a_deleted_trigger_can_be_undone_or_brought_back_later(tab, monkeypatch):
     from pathlib import Path
     tab._new(as_qimage(banner()), "First")
