@@ -37,6 +37,10 @@ def _keep_aside(path: Path):
 @dataclass
 class Config:
     theme: str = "Hoot"
+    # Settings → Look, as in Onion Board: your own colour for what's switched on (""
+    # = each theme's), and each theme's own pattern on the panels (Textured) or flat
+    live_color: str = ""
+    theme_texture: bool = False
     # the triggers and how they're watched: on, interval_ms, monitor / window (the
     # default for triggers that don't pick their own), triggers (screenwatch.Trigger)
     screen: dict = field(default_factory=dict)

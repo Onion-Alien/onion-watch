@@ -1,8 +1,9 @@
 """Settings, laid out like Onion Board's: a list of categories on the left, a page of
 cards for each on the right, Done at the bottom. Audio (where the alerts play,
 how loud), Alerts (a Windows notification too, closing to the tray), Appearance (the
-language and the colour theme), Updates and privacy (the daily update check, the
-anonymous usage count) and About (the version, Send feedback / Report a problem).
+language, then the themes, the highlight colour and Textured / Plain, as Onion
+Board's), Updates and privacy (the daily update check, the anonymous usage count) and
+About (the version, Send feedback / Report a problem).
 Every change applies straight away, but a new language only shows once Onion Watch
 restarts (Restart now)."""
 from __future__ import annotations
@@ -11,12 +12,12 @@ import os
 import threading
 import webbrowser
 
-from PySide6.QtCore import QRectF, QSize, Qt
+from PySide6.QtCore import QRectF, QSize, Qt, QTimer
 from PySide6.QtGui import QBrush, QColor, QFont, QPainter, QPainterPath, QPixmap
-from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QFrame, QGridLayout,
-                               QHBoxLayout, QLabel, QLayout, QListWidget, QListWidgetItem,
-                               QPushButton, QScrollArea, QSlider, QStackedWidget,
-                               QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QButtonGroup, QCheckBox, QColorDialog, QComboBox, QDialog,
+                               QFrame, QGridLayout, QHBoxLayout, QLabel, QLayout,
+                               QListWidget, QListWidgetItem, QPushButton, QRadioButton,
+                               QScrollArea, QSlider, QStackedWidget, QVBoxLayout, QWidget)
 
 from onionwatch import __version__, feedback, i18n, theme
 from onionwatch.sounds import DEFAULT_SOUND
@@ -32,8 +33,21 @@ def group_label(group: str) -> str:
             "Meme": _("Meme")}.get(group, group)
 
 
+_tiles: dict[str, QBrush | None] = {}
+
+
+def _tile(name: str) -> QBrush | None:
+    """A theme's texture as a brush for its preview card (None: the theme has none)."""
+    if name not in _tiles:
+        kind = theme.THEMES[name].get("texture", "")
+        _tiles[name] = (QBrush(QPixmap.fromImage(theme.texture_image(kind, theme.THEMES[name])))
+                        if kind in theme.TEXTURES else None)
+    return _tiles[name]
+
+
 class ThemeCard(QPushButton):
-    """A clickable mini-preview of a theme (the same as Onion Board's)."""
+    """A clickable mini-preview of a theme (the same as Onion Board's): its colours, and
+    with Textured on, its pattern on the panels and its glow behind them."""
 
     def __init__(self, name: str):
         super().__init__()
@@ -53,21 +67,25 @@ class ThemeCard(QPushButton):
         win = QPainterPath()
         win.addRoundedRect(r, 8, 8)
         p.fillPath(win, QColor(t["bg"]))
+        tile = _tile(self.name) if theme.textures_on else None
+        if theme.textures_on:
+            p.save()
+            p.setClipPath(win)
+            theme.paint_window_bg(p, r, r.topLeft(), r.width(), r.height(), tk=t)
+            p.restore()
         # side panel, cards and a slider, in the theme's own colours
         p.setPen(Qt.NoPen)
-        side = QRectF(r.right() - 44, r.top() + 6, 38, r.height() - 12)
-        p.setBrush(QColor(t["panel"]))
-        p.drawRoundedRect(side, 5, 5)
-        tex = t.get("texture")
-        if tex:   # the theme's see-through texture over its panel colour
-            tile = theme.texture_image(tex, t, 6 if tex == "carbon" else None)
-            p.setBrush(QBrush(QPixmap.fromImage(tile)))
-            p.drawRoundedRect(side, 5, 5)
+        for brush in (QColor(t["panel"]), tile):
+            if brush is not None:
+                p.setBrush(brush)
+                p.drawRoundedRect(QRectF(r.right() - 44, r.top() + 6, 38, r.height() - 12), 5, 5)
         for i, col in enumerate(("#7c5cff", "#ff5c8a", "#1fb6ff", "#13ce66")):
             x = r.left() + 7 + (i % 2) * 44
             y = r.top() + 7 + (i // 2) * 34
-            p.setBrush(QColor(t["card"]))
-            p.drawRoundedRect(QRectF(x, y, 40, 28), 5, 5)
+            for brush in (QColor(t["card"]), tile):
+                if brush is not None:
+                    p.setBrush(brush)
+                    p.drawRoundedRect(QRectF(x, y, 40, 28), 5, 5)
             p.setBrush(QColor(col))
             p.drawRoundedRect(QRectF(x + 5, y + 5, 10, 3), 1.5, 1.5)
         p.setBrush(QColor(t["groove"]))
@@ -295,11 +313,17 @@ class SettingsDialog(QDialog):
         return w
 
     def _appearance(self):
+        """Language on its own, then one box for the look with a row of tabs (the themes,
+        the highlight colour, the style), as in Onion Board's Settings."""
         w, v = self._page()
         v.addWidget(self._language_card())
         self.theme_cards: list[ThemeCard] = []
+        themes, tv = self._card(_("Themes"))
+        tv.setSpacing(6)
         for group, names in theme.GROUPS:
-            card, cv = self._card(group_label(group))
+            head = QLabel(group_label(group))
+            head.setObjectName("section")
+            tv.addWidget(head)
             cards = []
             for name in names:
                 c = ThemeCard(name)
@@ -307,10 +331,190 @@ class SettingsDialog(QDialog):
                 c.clicked.connect(lambda __=False, n=name: self._pick_theme(n))
                 cards.append(c)
                 self.theme_cards.append(c)
-            cv.addWidget(ThemeGrid(cards))
-            v.addWidget(card)
+            tv.addWidget(ThemeGrid(cards))
+            tv.addSpacing(8)
+        pages = [(_("Themes"), themes),
+                 (_("Colour"), self._highlight_card()),
+                 (_("Theme style"), self._texture_card())]
+        v.addWidget(self._look_box(pages))
         v.addStretch(1)
         return w
+
+    def _look_box(self, pages) -> QFrame:
+        """One card holding `pages` [(tab name, card)], a tab row on top showing one at a
+        time (the others hidden, so the box is only as tall as the one showing)."""
+        box = QFrame()
+        box.setObjectName("card")
+        bv = QVBoxLayout(box)
+        bv.setContentsMargins(14, 12, 14, 14)
+        bv.setSpacing(10)
+        row = _button_row()
+        bv.addLayout(row)
+        group = QButtonGroup(box)
+        tabs = []
+        for i, (name, card) in enumerate(pages):
+            card.setObjectName("lookpage")   # not a card of its own: flat inside the box
+            lay = card.layout()
+            lay.setContentsMargins(0, 0, 0, 0)
+            lay.itemAt(0).widget().hide()   # its title: the tab says it
+            b = QPushButton(name)
+            b.setObjectName("voicetab")    # the same tabs as Onion Board's
+            b.setCheckable(True)
+            group.addButton(b, i)
+            row.addWidget(b)
+            bv.addWidget(card)
+            tabs.append(b)
+        row.addStretch(1)
+        self.look_shown = 0   # the tab showing
+
+        def show(i):
+            tabs[i].setChecked(True)
+            for j, (__, card) in enumerate(pages):
+                card.setVisible(j == i)
+            self.look_shown = i
+        group.idClicked.connect(show)
+        show(0)
+        self.look_tabs, self.look_pages, self.look_box = tabs, [c for __, c in pages], box
+        return box
+
+    def _texture_card(self) -> QFrame:
+        """Textured or Plain: each theme's own pattern on its panels, or flat panels."""
+        card, cv = self._card(_("Theme style"),
+                              _("Textured gives each theme its own pattern on the panels: "
+                                "scanlines, carbon fibre, waves and more. Plain keeps them flat."))
+        row = _button_row()
+        textured = QRadioButton(_("Textured"))
+        plain = QRadioButton(_("Plain"))
+        group = QButtonGroup(card)
+        for b in (textured, plain):
+            group.addButton(b)
+            row.addWidget(b)
+        row.addStretch(1)
+        (textured if self.win.cfg.theme_texture else plain).setChecked(True)
+        textured.toggled.connect(self._set_texture)
+        self.texture_on, self.texture_off = textured, plain
+        cv.addLayout(row)
+        return card
+
+    def _set_texture(self, on: bool):
+        self.win.set_theme_texture(on)
+        for c in self.theme_cards:   # the previews show the pattern and glow, or not
+            c.update()
+
+    def _highlight_card(self) -> QFrame:
+        """Your own colour for what's on right now (Start watching while it watches),
+        kept whatever the theme: for when you like a theme but not its colour."""
+        card, cv = self._card(_("Highlight colour"),
+                              _("What's switched on (watching for triggers) is shown in the "
+                                "theme's colour. Slide to pick your own; it stays when you "
+                                "change theme."))
+        row = QHBoxLayout()
+        row.setSpacing(10)
+        swatch = QPushButton(_("On"))   # a switched-on button, as it will look
+        swatch.setObjectName("power")
+        swatch.setCheckable(True)
+        swatch.setChecked(True)
+        swatch.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        swatch.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        swatch.setFixedWidth(64)
+        swatch.setAccessibleName(_("Highlight colour preview"))
+        hue = QSlider(Qt.Orientation.Horizontal)
+        hue.setObjectName("hue")
+        hue.setRange(0, 359)
+        hue.setAccessibleName(_("Highlight colour hue"))
+        hue.setToolTip(_("Drag along the rainbow to pick the highlight colour"))
+        no_wheel(hue)
+        row.addWidget(swatch)
+        row.addWidget(hue, 1)
+        cv.addLayout(row)
+        btns = _button_row()
+        more = QPushButton(_("More colours"))
+        more.setToolTip(_("Pick any colour, including how strong and how bright it is"))
+        reset = QPushButton(_("Theme's colour"))
+        reset.setToolTip(_("Go back to each theme's own highlight colour"))
+        btns.addWidget(reset)
+        btns.addWidget(more)
+        btns.addStretch(1)
+        cv.addLayout(btns)
+        now = QLabel()
+        now.setObjectName("hint")
+        now.setWordWrap(True)
+        cv.addWidget(now)
+        self.hue_slider, self.hue_swatch, self.hue_reset, self.hue_now = hue, swatch, reset, now
+        self.hue_more = more
+        # arrow keys / clicks on the strip come in bursts: apply once they stop
+        settle = QTimer(card, singleShot=True, interval=250)
+        self.hue_settle = settle
+
+        def own(h: int) -> str:
+            """Hue `h` at the strength / brightness of the current colour (a vivid one
+            when it's too grey for a hue to show)."""
+            c = QColor(theme.T["live"])
+            sat, val = c.hsvSaturationF(), c.valueF()
+            if sat < 0.35 or val < 0.45:
+                sat, val = 0.75, 0.95
+            return QColor.fromHsvF(h / 360, sat, val).name()
+
+        def preview(colour: str = ""):
+            """Show `colour` on the swatch only (while dragging); "" = what's applied."""
+            if colour:
+                on = max(("#ffffff", "#111111"), key=lambda c: theme._contrast(c, colour))
+                swatch.setStyleSheet(f"QPushButton#power:checked {{ background:{colour}; "
+                                     f"border:1px solid {colour}; color:{on}; }}")
+            else:
+                swatch.setStyleSheet(theme.live_sheet())
+
+        def sync():
+            hue.blockSignals(True)
+            h = QColor(theme.T["live"]).hsvHue()
+            hue.setValue(h if h >= 0 else 0)
+            hue.blockSignals(False)
+            now.setText(_("Now: your own colour, in every theme.")
+                        if theme.live_override else
+                        _("Now: {theme}'s own colour.", theme=theme.current_name))
+            preview()
+
+        def use(colour: str, btn=None, done: str = "") -> bool:
+            settle.stop()
+            changed = self.win.set_live_color(colour)
+            sync()
+            if btn is not None and done:
+                self._flash(btn, done)
+            return changed
+
+        def moved(h: int):
+            preview(own(h))
+            if not hue.isSliderDown():
+                settle.start()
+        hue.valueChanged.connect(moved)
+        hue.sliderReleased.connect(lambda: use(own(hue.value())))
+        settle.timeout.connect(lambda: use(own(hue.value())))
+
+        def pick():
+            c = QColorDialog.getColor(QColor(theme.T["live"]), self, _("Highlight colour"))
+            if c.isValid():
+                use(c.name(), more, _("✓ Changed"))
+
+        def back():
+            if not theme.live_override:
+                self._flash(reset, _("✓ Already the theme's"))
+            else:
+                use("", reset, _("✓ Back to the theme's"))
+        more.clicked.connect(pick)
+        reset.clicked.connect(back)
+        self._sync_highlight = sync
+        sync()
+        return card
+
+    @staticmethod
+    def _flash(btn: QPushButton, text: str, ms: int = 1600):
+        """Say `text` on `btn` for a moment, then its own words again (it stays enabled:
+        disabling a clicked button moves the focus)."""
+        was = btn.property("flash_was") or btn.text()
+        btn.setProperty("flash_was", was)
+        btn.setMinimumWidth(btn.sizeHint().width())
+        btn.setText(text)
+        QTimer.singleShot(ms, btn, lambda: (btn.setText(was), btn.setProperty("flash_was", None)))
 
     def _language_card(self) -> QFrame:
         """The app's language: a button showing the one picked, opening a window of
@@ -383,6 +587,7 @@ class SettingsDialog(QDialog):
             for i in range(self.categories.count()):
                 item = self.categories.item(i)
                 item.setIcon(icons.icon(item.data(Qt.UserRole), selected="on_accent"))
+            self._sync_highlight()   # the theme's own colour, unless you picked one
         for c in self.theme_cards:
             c.setChecked(c.name == name)
             c.update()

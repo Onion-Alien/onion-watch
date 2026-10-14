@@ -19,8 +19,9 @@ from onionwatch.style import hooks
 # The themes' colours and textures come from Onion Board's style kit (onionwatch/style,
 # an exact copy made by scripts/sync_style.py: never edit it here), so both apps look the
 # same in every theme.
-from onionwatch.style import palettes
-from onionwatch.style.palettes import (_DARK_STATUS, DEFAULT, FONT, TEXT_ON,  # noqa: F401
+from onionwatch.style import palettes, textures
+from onionwatch.style.palettes import (_DARK_STATUS, DEFAULT, FONT, LIVE_NAMES,  # noqa: F401
+                                       TEXT_ON,
                                        _contrast, _mix, finish, is_light_colour, mix)
 from onionwatch.style.textures import TEXTURE_TILE, TEXTURES, texture_image  # noqa: F401
 
@@ -49,6 +50,30 @@ def font_families() -> list[str]:
 
 T: dict[str, str] = dict(THEMES[DEFAULT])   # current theme (read at paint time)
 current_name = DEFAULT
+live_override = ""   # the user's own highlight colour ("" = each theme's own)
+textures_on = False  # Settings > Look: Textured (each theme's pattern) or Plain
+
+
+def valid_colour(colour: str) -> str:
+    """`colour` as "#rrggbb", or "" when it isn't one (a hand-edited or damaged setting)."""
+    return palettes.valid_colour(colour)
+
+
+def tokens(name: str | None = None) -> dict[str, str]:
+    """Theme `name`'s colours (default: the current one), with the user's own highlight
+    colour if they picked one."""
+    t = dict(THEMES.get(name or current_name, THEMES[DEFAULT]))
+    if live_override:
+        palettes._add_live_tokens(t, live_override)
+    return t
+
+
+def set_live(colour: str) -> str:
+    """Use `colour` for the live highlight in every theme ("" = back to each theme's
+    own). Takes effect on the next apply(). Returns what was kept."""
+    global live_override
+    live_override = valid_colour(colour)
+    return live_override
 
 
 def status(kind: str) -> str:
@@ -70,7 +95,7 @@ def set_current(name: str) -> str:
     global current_name
     name = name if name in THEMES else DEFAULT
     T.clear()
-    T.update(THEMES[name])
+    T.update(tokens(name))
     current_name = name
     return name
 
@@ -87,14 +112,19 @@ def use_palette(colours: dict[str, str]) -> None:
 def follow_host(host) -> None:
     """Inside Onion Board: take the board's theme, its colours (use_palette) and its
     name, so Hoot wears that theme's outfit. An older board without style() only
-    gives colours; the name stays the fallback (no outfit)."""
-    global current_name
+    gives colours; the name stays the fallback (no outfit). The board's highlight
+    colour is in its colours already; its Textured switch is kept too."""
+    global current_name, live_override, textures_on
     use_palette(host.palette())
     try:
-        name = host.style().get("theme") if hasattr(host, "style") else None
+        style = host.style() if hasattr(host, "style") else {}
     except Exception:  # noqa: BLE001 - a host's bug mustn't stop the tab
-        name = None
+        style = {}
+    style = style if isinstance(style, dict) else {}
+    name = style.get("theme")
     current_name = name if isinstance(name, str) and name else DEFAULT
+    live_override = valid_colour(style.get("live_color", ""))
+    textures_on = style.get("textures") is True
 
 
 # what the style kit (Hoot's outfit, the textures) paints in
@@ -731,8 +761,7 @@ QFrame#card, QFrame#setcard, QFrame#voicebar, QFrame#picked { border:1px solid $
 # stay flat, with quiet borders instead of grain, patterns or simulated lighting.
 # The colours follow each theme; High Contrast keeps its solid fills and outlines.
 POLISH_STYLE = Template("""
-QWidget#root { background:qradialgradient(cx:0.08, cy:0, radius:1.15, fx:0.08, fy:0,
-    stop:0 $bg_glow, stop:0.45 $bg, stop:1 $bg); }
+QWidget#root { background:$bg; }
 QWidget#root QTabWidget, QWidget#root QTabBar, QWidget#root QStackedWidget,
 QWidget#root QStackedWidget > QWidget, QWidget#root .QWidget { background:transparent; }
 QLabel { background:transparent; }   /* over the gradient: no flat box behind text */
@@ -857,7 +886,7 @@ def is_light(name: str | None = None) -> bool:
 
 
 def stylesheet(name: str | None = None) -> str:
-    tk = dict(THEMES.get(name or current_name, THEMES[DEFAULT]))
+    tk = tokens(name)
     tk.setdefault("font", FONT)
     outlined = (name or current_name) in OUTLINED
     # Navigation belongs to the window background, with a quiet inner edge.
@@ -886,17 +915,62 @@ def stylesheet(name: str | None = None) -> str:
         css += OUTLINE_STYLE.substitute(tk)
     else:
         css += POLISH_STYLE.substitute(polish_tokens(tk, is_light(name)))
+    css += texture_style("QFrame#card, QFrame#setcard, QFrame#fxcard", tk)
     return css
 
 
+def texture_style(selector: str, tk: dict[str, str] | None = None) -> str:
+    """The theme's texture tiled on `selector` ("" with Textured off): the style kit's."""
+    return textures.texture_style(selector, T if tk is None else tk) if textures_on else ""
 
-def apply(app, name: str) -> str:
-    """Switch the whole app to theme `name` (live)."""
+
+def live_sheet() -> str:
+    """The live rules in the current colours, as a widget's own stylesheet (the style
+    kit's palettes.live_sheet: it beats the cards' generic `:checked` rules)."""
+    return palettes.live_sheet(T)
+
+
+def paint_window_bg(p: QPainter, rect, origin: QPointF, width: float, height: float,
+                    tk: dict[str, str] | None = None, textured: bool | None = None) -> None:
+    """The window background, aligned to its origin: the flat page colour, or with
+    Textured on, the theme's soft accent glow over it (as Onion Board's). `tk`: a theme
+    other than the current one (a preview)."""
+    tk = T if tk is None else tk
+    textured = textures_on if textured is None else textured
+    p.fillRect(rect, QColor(tk["bg"]))
+    if textured and not (tk is T and not polished()):
+        textures.paint_glow(p, rect, origin, width, height, tk)
+
+
+
+def apply(app, name: str, live: str | None = None) -> str:
+    """Switch the whole app to theme `name` (live). `live`: the user's own highlight
+    colour ("" = the theme's), None = keep the one set already."""
+    if live is not None:
+        set_live(live)
     name = set_current(name)
     app.setStyleSheet(stylesheet(name))
-    for w in app.allWidgets():   # hand-painted widgets read T in paintEvent
-        w.update()
+    sheet = live_sheet()
+    for w in app.allWidgets():
+        if w.objectName() in LIVE_NAMES and w.styleSheet():   # (apply_live restyled it)
+            w.setStyleSheet(sheet)
+        w.update()   # hand-painted widgets read T in paintEvent
     return name
+
+
+def apply_live(app, colour: str) -> str:
+    """Switch only the highlight to `colour` ("" = the theme's): restyles the
+    LIVE_NAMES widgets and repaints, quicker than apply(). Returns the colour kept
+    ("" for the theme's, or for a bad one)."""
+    set_live(colour)
+    T.clear()
+    T.update(tokens())
+    sheet = live_sheet()
+    for w in app.allWidgets():
+        if w.objectName() in LIVE_NAMES:
+            w.setStyleSheet(sheet)
+        w.update()
+    return live_override
 
 
 # --------------------------------------------------------------------------- logo
