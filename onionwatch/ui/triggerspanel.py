@@ -1327,8 +1327,6 @@ CARD_CSS = (
     "QFrame#carddivider { background: palette(mid); border: none; }"
     # a sound on the card: the shape and height of the boxes beside it, not a pill
     "QLabel#formlabel, QCheckBox#formcheck { font-size: 9pt; }"
-    # the rules pop-up is the card's child: it takes the card's sheet, not its fill
-    "QDialog#rulesdialog { background: palette(window); }"
     # the card's sentence: its words a little bigger than the rules' labels
     "QLabel#sentenceword, QCheckBox#sentencecheck { font-size: 11pt; }"
     # its choices: big rounded buttons with a heavier bottom edge, what sets it off in
@@ -1385,6 +1383,24 @@ CARD_CSS = (
     # The picked trigger's frame; hover keeps the host's usual card fill.
     'QFrame#card[selected="true"] { border:2px solid palette(highlight); }'
 )
+
+
+# theme.py styles with its own colours and never sets Qt's palette, so palette(...) in
+# a style sheet is Qt's stock light one whatever the theme: card_css() puts the
+# theme's colours in instead (CARD_CSS keeps the palette names, to read)
+_PALETTE = (("color: palette(highlight)", "color: {accent_text}"),
+            ("color:palette(highlight)", "color:{accent_text}"),
+            ("palette(highlighted-text)", "{on_accent}"), ("palette(highlight)", "{accent}"),
+            ("palette(window-text)", "{text}"), ("palette(base)", "{inset}"),
+            ("palette(button)", "{btn_hover}"), ("palette(mid)", "{border}"))
+
+
+def card_css(extra: str = "") -> str:
+    """CARD_CSS (and `extra`) in the current theme's colours."""
+    css = CARD_CSS + extra
+    for name, token in _PALETTE:
+        css = css.replace(name, token.format_map(theme.T))
+    return css
 
 
 class TriggerRow(QFrame):
@@ -1494,7 +1510,7 @@ class TriggerRow(QFrame):
         self.name.setCursorPosition(0)          # a long name shows its start, not its end
         self.setProperty("interactive", True)
         self.setProperty("hovered", False)
-        self.setStyleSheet(CARD_CSS)
+        self.setStyleSheet(card_css())
         self.name.editingFinished.connect(self._on_name)
         self.name.editingFinished.connect(lambda: self.name.setCursorPosition(0))
         # as wide as the name, not the whole card: the hover / editing box hugs it
@@ -2198,12 +2214,12 @@ class TriggerRow(QFrame):
         mime = ev.mimeData()
         if self.t.uses_pictures and (self.picture_files(mime) or mime.hasImage()):
             ev.acceptProposedAction()
-            self.setStyleSheet(CARD_CSS + "QFrame#card { border-color:palette(highlight); }")
+            self.setStyleSheet(card_css("QFrame#card { border-color:palette(highlight); }"))
         else:
             ev.ignore()             # a card being moved: the category takes it
 
     def _unmark(self):
-        self.setStyleSheet(CARD_CSS)
+        self.setStyleSheet(card_css())
 
     def _hover(self, on: bool):
         if self.property("interactive") and self.property("hovered") != on:
@@ -2265,6 +2281,11 @@ class TriggerRow(QFrame):
         """Extra settings: in a pop-up over the card (not waited on: what's ticked shows
         on the card at once)."""
         dlg = self.rules_dlg
+        # the card's child, so it takes the card's sheet and not the app's dialog fill:
+        # the theme's panel colour, read as it opens (palette(window) is the system's,
+        # light under a dark theme; and on "bg" the number boxes, "field", vanish)
+        dlg.setStyleSheet(
+            f"QDialog#rulesdialog {{ background: {theme.T.get('panel', '#202020')}; }}")
         self.tune.relayout()
         dlg.adjustSize()
         # adjustSize sizes the hint for a narrower width (two lines): as tall as it needs
@@ -3942,7 +3963,9 @@ class TriggersTab(QWidget):
         for sec in self.sections.values():
             sec.retheme()             # category tabs fade into the new panel colour
         self.sounds_changed(force=True)   # the chips of sounds that are gone
+        self._clear_editor_cache()      # hidden editors keep the old theme's colours
         for row in self._cards():
+            row.setStyleSheet(card_css())   # its colours are the theme's, written in
             row._show_mode()           # the badge of a trigger without pictures
             row.show_score(self.watcher.scores.get(row.t.id) if self.is_active() else None)
 

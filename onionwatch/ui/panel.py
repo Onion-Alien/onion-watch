@@ -146,6 +146,8 @@ def add_title(v: QVBoxLayout, title: str, hint: str = "") -> QLabel | None:
     if not hint:
         return None
     h = hint_label(hint)
+    # at the top of its room: given spare height, a label centres its words in it
+    h.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
     v.addSpacing(TITLE_GAP - v.spacing())
     v.addWidget(h)
     return h

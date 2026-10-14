@@ -212,3 +212,28 @@ def test_a_changed_extra_setting_is_a_pill_and_its_x_puts_it_back(tab, flow):
     assert not card.chk_delay.isChecked() and t.delay == 0
     assert [c.property("rule") for c in card.rule_chips] == ["quiet"]
     assert t.unfocused                  # the other one stays as it was
+
+
+# ---------------------------------------------------------------- the card's colours
+def test_the_card_is_styled_in_the_themes_colours_not_qts_stock_palette(tab, flow):
+    """theme.py never sets Qt's palette, so palette(base) is light under a dark theme:
+    the sentence's boxes came out white with white words. The card's sheet carries the
+    theme's own colours, and takes the new ones when the theme changes."""
+    from onionwatch import theme
+    was = theme.current_name
+    try:
+        theme.set_current("Dark")
+        FakePicker.answer = {"mode": "still"}
+        tab.new_trigger()
+        process_events()
+        card = tab._card_of(tab.triggers[0])
+        sheet = card.styleSheet()
+        assert "palette(" not in sheet and theme.T["inset"] in sheet
+        theme.set_current("Light")
+        tab.retheme()
+        assert theme.T["inset"] in card.styleSheet() and "palette(" not in card.styleSheet()
+        card.show_rules()               # Extra settings: the theme's panel, not the system's
+        assert theme.T["panel"] in card.rules_dlg.styleSheet()
+        card.rules_dlg.accept()
+    finally:
+        theme.set_current(was)

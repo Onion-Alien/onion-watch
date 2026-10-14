@@ -170,18 +170,22 @@ class Picture(QLabel):
         self.setPixmap(pm)
 
 
-TILE_CSS = (
-    "QPushButton#kindtile { background: palette(base); border: 1px solid palette(mid);"
-    " border-radius: 12px; text-align: left; padding: 0; }"
-    "QPushButton#kindtile:hover, QPushButton#kindtile:focus {"
-    " border: 2px solid palette(highlight); }"
-    'QPushButton#kindtile[drop="true"] { border: 2px dashed palette(mid); }'
-    'QPushButton#kindtile[drop="true"]:hover, QPushButton#kindtile[dragging="true"] {'
-    " border: 2px dashed palette(highlight); }"
-    "QLabel#kindname { font-size: 11pt; font-weight: 700; background: transparent; }"
-    "QLabel#sourceart { background: palette(window); border-radius: 8px; }"
-    "QPushButton#kindtile QLabel#hint { background: transparent; }"
-)
+def tile_css() -> str:
+    """The tiles' look in the current theme's colours (theme.py never sets Qt's
+    palette, so palette(...) here would be Qt's stock light one under a dark theme)."""
+    t = theme.T
+    return (
+        f"QPushButton#kindtile {{ background: {t['card']}; border: 1px solid {t['border']};"
+        " border-radius: 12px; text-align: left; padding: 0; }"
+        "QPushButton#kindtile:hover, QPushButton#kindtile:focus {"
+        f" border: 2px solid {t['accent']}; }}"
+        f'QPushButton#kindtile[drop="true"] {{ border: 2px dashed {t["border"]}; }}'
+        'QPushButton#kindtile[drop="true"]:hover, QPushButton#kindtile[dragging="true"] {'
+        f" border: 2px dashed {t['accent']}; }}"
+        "QLabel#kindname { font-size: 11pt; font-weight: 700; background: transparent; }"
+        f"QLabel#sourceart {{ background: {t['inset']}; border-radius: 8px; }}"
+        "QPushButton#kindtile QLabel#hint { background: transparent; }"
+    )
 
 
 class DropTile(Tile):
@@ -243,7 +247,7 @@ class WhatPicker(QDialog):
         self.source: str | None = None
         self.paths: list[str] = []
         self.image: QImage | None = None
-        self.setStyleSheet(TILE_CSS)
+        self.setStyleSheet(tile_css())
         v = QVBoxLayout(self)
         v.setContentsMargins(DIALOG_MARGIN, DIALOG_MARGIN, DIALOG_MARGIN, DIALOG_MARGIN)
         v.setSpacing(DIALOG_SPACING)
