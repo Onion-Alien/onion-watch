@@ -19,13 +19,13 @@ Version **0.9.6** · Windows 10 / 11 · free, no account, no internet needed ·
 [VirusTotal: 67 of 67 clean](https://www.virustotal.com/gui/file/08de1d443d172d34d1102800208f2cb0123223dac3adba19784f68c7414afb87) · [what's new](https://github.com/Onion-Alien/onion-watch/releases/latest)
 <!-- /release -->
 
-![Onion Watch watching a game, one trigger open](docs/screenshots/main.png?v=0aa481d7)
+![Onion Watch watching a game, one trigger open](docs/screenshots/main.png?v=644ac332)
 
 | | |
 |---|---|
-| ![The window picker](docs/screenshots/window-picker.png?v=c1530a72) | ![Cutting a picture from a window](docs/screenshots/cut-picture.png?v=f1990b26) |
+| ![The window picker](docs/screenshots/window-picker.png?v=3174b328) | ![Cutting a picture from a window](docs/screenshots/cut-picture.png?v=79c88495) |
 | Pick the windows, or every copy of a game | Cut the thing to watch for straight out of the game |
-| ![Picking a health bar and its colour](docs/screenshots/health-bar.png?v=21bb09ba) | ![Categories and profiles](docs/screenshots/categories.png?v=5544963f) |
+| ![Picking a health bar and its colour](docs/screenshots/health-bar.png?v=9fdf7216) | ![Categories and profiles](docs/screenshots/categories.png?v=32a9775a) |
 | Or point it at a health bar | Hundreds of triggers in categories and profiles |
 
 ## It only looks
