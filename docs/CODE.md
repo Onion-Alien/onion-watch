@@ -129,14 +129,15 @@ then installs that file instead of downloading.
 | `onionwatch/ui/langpick.py`, `onionwatch/langnames_data.py` | the Language picker: a tile per language with a search; language names from Unicode CLDR (`scripts/make_langnames.py` writes them) |
 | `onionwatch/ui/updatedialog.py` | "a new version is out": Update now / Later / Skip |
 | `onionwatch/ui/watching.py` | the Triggers bar's ⚙: how much of the processor watching may use, "Max detection", and how often each trigger is checked now |
-| `onionwatch/owl.py` | Hoot, the mascot owl, drawn in code (Onion Board's Bun's style), and `OwlWidget`: Hoot animated, waiting for a trigger |
-| `onionwatch/theme.py`, `ui/icons.py`, `ui/panel.py` | themes, the logo, painted icons and layout helpers, shared with Onion Board |
+| `onionwatch/style/` | the style kit: an exact copy of Onion Board's `soundboard/style` (never edited here: `scripts/sync_style.py` copies it and stamps `SOURCE.json`, `tests/test_style_kit.py` checks it). The themes' colours (`palettes.py`) and textures, Bun's outfits (`bunnyfit.py`), and Hoot (`owl.py`: drawn in code, wearing the theme's outfit; `OwlWidget`, Hoot animated, waiting for a trigger) |
+| `onionwatch/kit.py` | which style kit draws Hoot: ours, or inside Onion Board the board's (`host.kit()`) when it's at least as new |
+| `onionwatch/theme.py`, `ui/icons.py`, `ui/panel.py` | the current theme (Onion Board's themes from the style kit, plus Onion Watch's own Hoot), the stylesheet, the logo, painted icons and layout helpers, shared with Onion Board |
 | `onionwatch/singleinstance.py` | one copy at a time: a second launch brings the running one to the front (a restart waits for the old copy to close) |
 | `onionwatch/i18n.py`, `onionwatch/lang/*.json` | other languages: `_()` / `ngettext()`, the catalogs (inside the package, so they ride in the add-on zip), which language (Settings → Appearance → Language; inside Onion Board, the board's own), Qt's OK / Cancel words, the `xx` pseudo-language. See [TRANSLATING.md](TRANSLATING.md) |
 | `onionwatch/ui/fit.py` | dialogs grow to fit their wrapped text (a translation is often longer), shared with Onion Board |
 | `scripts/i18n_extract.py` | the wrapped texts against the catalogs: what's missing or unused per language, `--update`, `--check` |
 | `onionwatch/shuffle.py`, `wheelguard.py` | picking sounds "at random" without repeats; the mouse wheel scrolls the page instead of changing a box |
-| `scripts/docs.py`, `scripts/screenshots.py`, `scripts/make_art.py` | the README and website in one go: the screenshots and `docs/art` (rendered offscreen from made-up data), the version and VirusTotal line from `docs/release.json`, picture links that skip cached copies |
+| `scripts/docs.py`, `scripts/screenshots.py`, `scripts/make_art.py` | `sync_style.py` copies Onion Board's style kit into `onionwatch/style`; the others: the README and website in one go: the screenshots and `docs/art` (rendered offscreen from made-up data), the version and VirusTotal line from `docs/release.json`, picture links that skip cached copies |
 | `build.ps1`, `installer/OnionWatch.iss` | the Windows build (PyInstaller) and its installer (Inno Setup) |
 | `scripts/prune_build.py`, `make_notices.py`, `make_installer_art.py`, `make_version_info.py` | the build's helpers: drop the Qt parts the app never loads, the third-party licence notices, the icon and the setup wizard's pictures, the exe's version details |
 | `scripts/build_bootloader.ps1`, `scripts/vt_scan.py` | PyInstaller with a bootloader compiled on your PC (virus scanners distrust the stock one); the VirusTotal check for a release |

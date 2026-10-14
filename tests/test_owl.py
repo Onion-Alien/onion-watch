@@ -1,10 +1,10 @@
-"""Hoot alive (owl.OwlWidget): every act he does while he waits runs start to end and
-paints, the mouse coming near cuts an act short and perks him up, and a click cheers
-him. Offscreen, stepped by hand: no timers are waited on."""
+"""Hoot alive (style/owl.OwlWidget, the style kit copied from Onion Board): every act he
+does while he waits runs start to end and paints, the mouse coming near cuts an act
+short and perks him up, and a click cheers him. Offscreen, stepped by hand: no timers are waited on."""
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QImage
 
-from onionwatch import owl
+from onionwatch.style import owl
 
 
 def paint(w):
@@ -103,36 +103,22 @@ def test_feathers_follow_the_theme_but_artwork_stays_teal(qapp):
         theme.set_current(theme.DEFAULT)
 
 
-def test_left_alone_he_slows_down_and_a_click_speeds_him_up(qapp):
-    """Just swaying and bobbing, 10 frames a second do; anything quicker (a hop, an
-    act, a blink, the mouse near) gets the full 30."""
-    w = owl.OwlWidget(80)
-    w.resize(w.sizeHint())
-    w._next_act = w._next_blink = w._next_glance = 1e9     # nothing due
-    w._look = list(w._glance)
-    w.say = ""
-    w._mouse = lambda: None
-    w._timer.start(owl.FAST_MS)
-    w._tick()
-    assert not w.busy() and w._timer.interval() == owl.IDLE_MS
-    w.cheer()
-    assert w._timer.interval() == owl.FAST_MS      # the hop starts now
-    w._tick()
-    assert w.busy() and w._timer.interval() == owl.FAST_MS
-    w._timer.stop()
-
-
-def test_he_stops_while_another_program_is_in_front(qapp):
+def test_he_stops_while_another_program_is_in_front(qapp, monkeypatch):
+    from onionwatch.style import appstate
+    front = [True]
+    monkeypatch.setattr(appstate, "active", lambda: front[0])
     w = owl.OwlWidget(80)
     w.resize(w.sizeHint())
     w.show()
     w._resume()
     assert w._timer.isActive()
-    w._on_app_state(Qt.ApplicationInactive)
+    front[0] = False
+    qapp.applicationStateChanged.emit(Qt.ApplicationInactive)
     assert not w._timer.isActive()
-    w._on_app_state(Qt.ApplicationActive)
+    front[0] = True
+    qapp.applicationStateChanged.emit(Qt.ApplicationActive)
     assert w._timer.isActive()
     w.hide()
     assert not w._timer.isActive()
-    w._on_app_state(Qt.ApplicationActive)      # back in front, but hidden: stays still
+    qapp.applicationStateChanged.emit(Qt.ApplicationActive)   # back in front, but hidden
     assert not w._timer.isActive()

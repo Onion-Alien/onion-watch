@@ -23,7 +23,8 @@ from PySide6.QtCore import QBuffer, QByteArray, QIODevice, QPointF, QRectF, Qt  
 from PySide6.QtGui import (QColor, QGuiApplication, QImage, QLinearGradient,  # noqa: E402
                            QPainter)
 
-from onionwatch import owl, theme  # noqa: E402
+from onionwatch import theme  # noqa: E402
+from onionwatch.style import owl  # noqa: E402
 
 ICON_SIZES = (16, 24, 32, 48, 64, 128, 256)
 

@@ -14,7 +14,7 @@ from __future__ import annotations
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QApplication, QVBoxLayout, QWidget
 
-from onionwatch import __version__, i18n, theme, usage
+from onionwatch import __version__, i18n, kit, theme, usage
 from onionwatch.host import API_VERSION, missing
 from onionwatch.i18n import _
 
@@ -47,6 +47,9 @@ def create(host, parent=None) -> BoardPanel:
     if app is not None:
         i18n.translate_qt_buttons(app)
     check(host)
+    # Hoot is drawn with the board's style kit when it has one at least as new as ours
+    # (its optional host.kit()), so he wears the same outfit as Bun
+    kit.use_host(host)
     return BoardPanel(host, parent)
 
 
@@ -65,7 +68,7 @@ class BoardPanel(QWidget):
         from onionwatch.ui.pages import TriggerPages
         from onionwatch.ui.triggerspanel import TriggersTab
         self.host = host
-        theme.use_palette(host.palette())
+        theme.follow_host(host)
         # the board owns the app's direction; on a board that hasn't mirrored the app (an
         # older one, the tab following Windows' Arabic) only this tab is mirrored
         app = QApplication.instance()
@@ -110,7 +113,7 @@ class BoardPanel(QWidget):
         self.panel.sounds_changed()
 
     def retheme(self):
-        theme.use_palette(self.host.palette())
+        theme.follow_host(self.host)
         self.panel.retheme()
 
     def cancel_pending(self):

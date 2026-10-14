@@ -77,6 +77,16 @@ class Host(Protocol):
 #         onionwatch.usage.FEATURES), for the host's own anonymous usage count:
 #         Onion Board sends it as used/triggers-<key> with its daily count, when
 #         that's switched on. Without it nothing is counted."""
+#
+#     def style(self) -> dict:
+#         """The host's look: {"theme": its theme's name, "live_color": "#rrggbb" or
+#         "", "textures": bool}. Hoot wears that theme's outfit. Without it he wears
+#         none."""
+#
+#     def kit(self):
+#         """The host's style kit package (Onion Board's soundboard.style). When its
+#         KIT_VERSION is at least ours, Hoot is drawn with it instead of
+#         onionwatch.style, so he matches the host exactly (onionwatch/kit.py)."""
 
 
 def missing(host) -> list[str]:

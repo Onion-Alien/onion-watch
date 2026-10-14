@@ -55,13 +55,14 @@ class ThemeCard(QPushButton):
         p.fillPath(win, QColor(t["bg"]))
         # side panel, cards and a slider, in the theme's own colours
         p.setPen(Qt.NoPen)
+        side = QRectF(r.right() - 44, r.top() + 6, 38, r.height() - 12)
+        p.setBrush(QColor(t["panel"]))
+        p.drawRoundedRect(side, 5, 5)
         tex = t.get("texture")
-        if tex:
-            tile = theme.texture_image(tex, t["panel"], 6 if tex == "carbon" else None)
+        if tex:   # the theme's see-through texture over its panel colour
+            tile = theme.texture_image(tex, t, 6 if tex == "carbon" else None)
             p.setBrush(QBrush(QPixmap.fromImage(tile)))
-        else:
-            p.setBrush(QColor(t["panel"]))
-        p.drawRoundedRect(QRectF(r.right() - 44, r.top() + 6, 38, r.height() - 12), 5, 5)
+            p.drawRoundedRect(side, 5, 5)
         for i, col in enumerate(("#7c5cff", "#ff5c8a", "#1fb6ff", "#13ce66")):
             x = r.left() + 7 + (i % 2) * 44
             y = r.top() + 7 + (i // 2) * 34

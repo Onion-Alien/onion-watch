@@ -41,7 +41,7 @@ from PySide6.QtWidgets import (QAbstractSpinBox, QApplication, QBoxLayout, QChec
                                QStyleOptionSpinBox,
                                QVBoxLayout, QWidget)
 
-from onionwatch import cutout, owl, packs, profiles, screenwatch, theme, usage, windows
+from onionwatch import cutout, kit, packs, profiles, screenwatch, theme, usage, windows
 from onionwatch.screenwatch import (INTERVALS_MS, MAX_PICTURES, MAX_SOUNDS, Monitor, Picture,
                                     Trigger, Watched, WindowRef)
 from onionwatch.shuffle import ShuffleBag
@@ -2905,7 +2905,7 @@ class TriggersTab(QWidget):
         self.empty, ev = card()
         ev.setContentsMargins(16, 24, 16, 24)
         ev.setSpacing(10)
-        self.hoot = owl.OwlWidget(96)   # waiting (sadly) for something to watch
+        self.hoot = kit.owl().OwlWidget(96)   # waiting (sadly) for something to watch
         ev.addWidget(self.hoot, 0, Qt.AlignmentFlag.AlignHCenter)
         hint = hint_label(_("No triggers yet. Under Look in below, pick your game window (or "
                             "a screen), then click Cut picture and drag a box around the "
