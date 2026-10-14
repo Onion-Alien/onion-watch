@@ -159,7 +159,7 @@ class WatchingDialog(QDialog):
         self.now = QLabel()
         self.now.setWordWrap(True)
         bv.addWidget(self.now)
-        v.addWidget(box)
+        left.addWidget(box)         # under Processor use: the shorter column
         for c in (left, right):
             c.addStretch(1)             # spare height goes below the cards, not into them
         self.buttons = QDialogButtonBox(QDialogButtonBox.Close)
