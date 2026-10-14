@@ -743,5 +743,12 @@
   "There's no picture copied. Right-click a picture on the web and pick Copy image first.": "ไม่มีรูปภาพที่คัดลอกมา คลิกขวาที่รูปภาพบนเว็บแล้วเลือกคัดลอกรูปภาพก่อน",
   "You can already see it": "คุณสามารถดูมันได้แล้ว",
   "You're stuck, idle or disconnected": "คุณติดขัด ไม่ได้ใช้งาน หรือตัดการเชื่อมต่อ",
-  "You've copied this picture: click to use it (or Ctrl+V).": "คุณได้คัดลอกรูปภาพนี้: คลิกเพื่อใช้ (หรือ Ctrl+V)"
+  "You've copied this picture: click to use it (or Ctrl+V).": "คุณได้คัดลอกรูปภาพนี้: คลิกเพื่อใช้ (หรือ Ctrl+V)",
+  "All sounds": "ทุกเสียง",
+  "Already on this trigger": "อยู่ในทริกเกอร์นี้แล้ว",
+  "Continue": "ต่อไป",
+  "No sounds match": "ไม่มีเสียงที่ตรงกัน",
+  "No sounds yet: choose a sound file": "ยังไม่มีเสียง: เลือกไฟล์เสียง",
+  "Search sounds": "ค้นหาเสียง",
+  "Show the sounds of one category": "แสดงเสียงของหมวดหมู่เดียว"
 }

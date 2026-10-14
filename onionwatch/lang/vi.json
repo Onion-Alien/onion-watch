@@ -743,5 +743,12 @@
   "There's no picture copied. Right-click a picture on the web and pick Copy image first.": "Không có hình ảnh nào được sao chép. Bấm chuột phải vào ảnh trên web và chọn Sao chép hình ảnh trước tiên.",
   "You can already see it": "Bạn có thể thấy nó rồi",
   "You're stuck, idle or disconnected": "Bạn đang bị kẹt, không hoạt động hoặc bị ngắt kết nối",
-  "You've copied this picture: click to use it (or Ctrl+V).": "Bạn đã sao chép ảnh này: bấm để sử dụng nó (hoặc Ctrl+V)."
+  "You've copied this picture: click to use it (or Ctrl+V).": "Bạn đã sao chép ảnh này: bấm để sử dụng nó (hoặc Ctrl+V).",
+  "All sounds": "Mọi âm thanh",
+  "Already on this trigger": "Đã có trong kích hoạt này",
+  "Continue": "Tiếp tục",
+  "No sounds match": "Không có âm thanh nào khớp",
+  "No sounds yet: choose a sound file": "Chưa có âm thanh: chọn file âm thanh",
+  "Search sounds": "Tìm âm thanh",
+  "Show the sounds of one category": "Chỉ hiện âm thanh của một danh mục"
 }

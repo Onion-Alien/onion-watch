@@ -767,5 +767,12 @@
   "There's no picture copied. Right-click a picture on the web and pick Copy image first.": "Není zkopírován žádný obrázek. Klepněte pravým tlačítkem myši na obrázek na webu a nejprve vyberte Kopírovat obrázek.",
   "You can already see it": "Už to vidíte",
   "You're stuck, idle or disconnected": "Jste zaseknutý, nečinný nebo odpojený",
-  "You've copied this picture: click to use it (or Ctrl+V).": "Tento obrázek jste zkopírovali: kliknutím jej použijte (nebo Ctrl+V)."
+  "You've copied this picture: click to use it (or Ctrl+V).": "Tento obrázek jste zkopírovali: kliknutím jej použijte (nebo Ctrl+V).",
+  "All sounds": "Všechny zvuky",
+  "Already on this trigger": "Už je na této spoušti",
+  "Continue": "Pokračovat",
+  "No sounds match": "Žádné zvuky neodpovídají",
+  "No sounds yet: choose a sound file": "Zatím žádné zvuky: vyberte zvukový soubor",
+  "Search sounds": "Hledat zvuky",
+  "Show the sounds of one category": "Ukázat zvuky jedné kategorie"
 }

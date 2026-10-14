@@ -755,5 +755,12 @@
   "There's no picture copied. Right-click a picture on the web and pick Copy image first.": "Det finns ingen bild kopierad. Högerklicka på en bild på webben och välj Kopiera bild först.",
   "You can already see it": "Du kan redan se det",
   "You're stuck, idle or disconnected": "Du har fastnat, är inaktiv eller frånkopplad",
-  "You've copied this picture: click to use it (or Ctrl+V).": "Du har kopierat den här bilden: klicka för att använda den (eller Ctrl+V)."
+  "You've copied this picture: click to use it (or Ctrl+V).": "Du har kopierat den här bilden: klicka för att använda den (eller Ctrl+V).",
+  "All sounds": "Alla ljud",
+  "Already on this trigger": "Finns redan på den här triggern",
+  "Continue": "Fortsätt",
+  "No sounds match": "Inga ljud matchar",
+  "No sounds yet: choose a sound file": "Inga ljud än: välj en ljudfil",
+  "Search sounds": "Sök ljud",
+  "Show the sounds of one category": "Visa ljuden i en kategori"
 }

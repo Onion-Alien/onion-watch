@@ -755,5 +755,12 @@
   "There's no picture copied. Right-click a picture on the web and pick Copy image first.": "Walang nakopyang larawan. I-right-click ang isang larawan sa web at piliin ang Kopyahin muna ang larawan.",
   "You can already see it": "Nakikita mo na",
   "You're stuck, idle or disconnected": "Natigil ka, walang ginagawa o hindi nakakonekta",
-  "You've copied this picture: click to use it (or Ctrl+V).": "Nakopya mo ang larawang ito: i-click upang gamitin ito (o Ctrl+V)."
+  "You've copied this picture: click to use it (or Ctrl+V).": "Nakopya mo ang larawang ito: i-click upang gamitin ito (o Ctrl+V).",
+  "All sounds": "Lahat ng sound",
+  "Already on this trigger": "Nasa trigger na ito na",
+  "Continue": "Tuloy",
+  "No sounds match": "Walang tugmang sound",
+  "No sounds yet: choose a sound file": "Wala pang sound: pumili ng sound file",
+  "Search sounds": "Maghanap ng sound",
+  "Show the sounds of one category": "Ipakita ang mga sound ng isang kategorya"
 }

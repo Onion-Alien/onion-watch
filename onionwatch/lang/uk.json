@@ -767,5 +767,12 @@
   "There's no picture copied. Right-click a picture on the web and pick Copy image first.": "Зображення не скопійовано. Клацніть правою кнопкою миші зображення в Інтернеті та спершу виберіть Копіювати зображення.",
   "You can already see it": "Це вже видно",
   "You're stuck, idle or disconnected": "Ви застрягли, не працюєте або відключено",
-  "You've copied this picture: click to use it (or Ctrl+V).": "Ви скопіювали це зображення: натисніть, щоб використати його (або Ctrl+V)."
+  "You've copied this picture: click to use it (or Ctrl+V).": "Ви скопіювали це зображення: натисніть, щоб використати його (або Ctrl+V).",
+  "All sounds": "Усі звуки",
+  "Already on this trigger": "Уже є в цьому тригері",
+  "Continue": "Далі",
+  "No sounds match": "Немає відповідних звуків",
+  "No sounds yet: choose a sound file": "Звуків ще немає: виберіть звуковий файл",
+  "Search sounds": "Шукати звуки",
+  "Show the sounds of one category": "Показати звуки однієї категорії"
 }

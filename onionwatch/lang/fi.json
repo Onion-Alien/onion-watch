@@ -755,5 +755,12 @@
   "There's no picture copied. Right-click a picture on the web and pick Copy image first.": "Kuvaa ei ole kopioitu. Napsauta verkossa olevaa kuvaa hiiren kakkospainikkeella ja valitse ensin Kopioi kuva.",
   "You can already see it": "Voit jo nähdä sen",
   "You're stuck, idle or disconnected": "Olet jumissa, käyttämättömänä tai yhteys katkennut",
-  "You've copied this picture: click to use it (or Ctrl+V).": "Olet kopioinut tämän kuvan: käytä sitä napsauttamalla (tai Ctrl+V)."
+  "You've copied this picture: click to use it (or Ctrl+V).": "Olet kopioinut tämän kuvan: käytä sitä napsauttamalla (tai Ctrl+V).",
+  "All sounds": "Kaikki äänet",
+  "Already on this trigger": "On jo tässä liipasimessa",
+  "Continue": "Jatka",
+  "No sounds match": "Yksikään ääni ei täsmää",
+  "No sounds yet: choose a sound file": "Ei vielä ääniä: valitse äänitiedosto",
+  "Search sounds": "Hae ääniä",
+  "Show the sounds of one category": "Näytä yhden luokan äänet"
 }

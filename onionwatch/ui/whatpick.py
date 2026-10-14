@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import QRectF, QSize, Qt
+from PySide6.QtCore import QRectF, QSize, Qt, Signal
 from PySide6.QtGui import (QColor, QImage, QKeySequence, QLinearGradient, QPainter,
                            QPainterPath, QPen, QPixmap, QShortcut)
 from PySide6.QtWidgets import (QApplication, QDialog, QFileDialog, QGridLayout, QHBoxLayout,
@@ -24,6 +24,7 @@ PASTE, FILE, CUT = "paste", "file", "cut"   # where a picture comes from
 PICTURE_KINDS = ("appear", "vanish")
 EXTS = (".png", ".jpg", ".jpeg", ".bmp", ".webp", ".gif")
 ART = QSize(196, 84)              # a tile's drawing
+TICK = 24                         # the picked tile's ✓
 
 
 def kinds() -> list[tuple[str, str, str]]:
@@ -144,11 +145,35 @@ class Drawing(QWidget):
 
 
 class KindTile(Tile):
-    """One kind of trigger: its drawing, what it's called and an example."""
+    """One kind of trigger: its drawing, what it's called and an example. A click
+    picks it (Continue goes on); a double-click picks it and goes on."""
+    chosen = Signal(str)        # mode: double-clicked
 
     def __init__(self, mode: str, title: str, example: str, parent=None):
         super().__init__(title, example, Drawing(mode), parent)
         self.mode = mode
+        self.setProperty("pick", True)
+        self.setCheckable(True)
+        self.setAutoExclusive(True)
+        # the picked one's ✓, in its top-right corner over the drawing
+        self.tick = QLabel("✓", self)
+        self.tick.setObjectName("kindtick")
+        self.tick.setFixedSize(TICK, TICK)
+        self.tick.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.tick.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        self.tick.hide()
+        self.toggled.connect(self.tick.setVisible)
+
+    def resizeEvent(self, ev):
+        super().resizeEvent(ev)
+        self.tick.move(self.width() - TICK - 6, 6)
+
+    def mouseDoubleClickEvent(self, ev):
+        if ev.button() == Qt.MouseButton.LeftButton:
+            self.setChecked(True)
+            self.chosen.emit(self.mode)
+        else:
+            super().mouseDoubleClickEvent(ev)
 
 
 class Picture(QLabel):
@@ -179,9 +204,22 @@ def tile_css() -> str:
         " border-radius: 12px; text-align: left; padding: 0; }"
         "QPushButton#kindtile:hover, QPushButton#kindtile:focus {"
         f" border: 2px solid {t['accent']}; }}"
+        # step 1's tiles: hover only hints, the picked one is filled and ringed
+        # (focus alone draws nothing: the first tile has it at the start, and it would
+        # look picked)
+        'QPushButton#kindtile[pick="true"]:focus {'
+        f" border: 1px solid {t['border']}; }}"
+        'QPushButton#kindtile[pick="true"]:hover {'
+        f" border: 2px solid {t['muted']}; }}"
+        'QPushButton#kindtile[pick="true"]:checked {'
+        f" border: 2px solid {t['accent']}; background: {t['inset']}; }}"
         f'QPushButton#kindtile[drop="true"] {{ border: 2px dashed {t["border"]}; }}'
         'QPushButton#kindtile[drop="true"]:hover, QPushButton#kindtile[dragging="true"] {'
         f" border: 2px dashed {t['accent']}; }}"
+        f"QLabel#kindtick {{ background: {t['accent']}; color: {t['on_accent']};"
+        f" border-radius: {TICK // 2}px; font-size: 11pt; font-weight: 700; }}"
+        # Continue stays off until a tile is picked: it mustn't look ready
+        f"QPushButton#primary:disabled {{ background: {t['btn']}; color: {t['muted']}; }}"
         "QLabel#kindname { font-size: 11pt; font-weight: 700; background: transparent; }"
         f"QLabel#sourceart {{ background: {t['inset']}; border-radius: 8px; }}"
         "QPushButton#kindtile QLabel#hint { background: transparent; }"
@@ -265,7 +303,8 @@ class WhatPicker(QDialog):
         self.tiles: list[KindTile] = []
         for i, (mode, name, example) in enumerate(kinds()):
             tile = KindTile(mode, name, example, self)
-            tile.clicked.connect(lambda __=False, m=mode: self._pick(m))
+            tile.clicked.connect(lambda __=False, m=mode: self._select(m))
+            tile.chosen.connect(self._pick)
             grid.addWidget(tile, i // 3, i % 3)
             self.tiles.append(tile)
         w.addLayout(grid)
@@ -311,6 +350,12 @@ class WhatPicker(QDialog):
         self.btn_back.clicked.connect(lambda: self._show(0))
         foot.addWidget(self.btn_back)
         foot.addStretch(1)
+        self.btn_next = QPushButton(_("Continue"))
+        self.btn_next.setObjectName("primary")
+        self.btn_next.setDefault(True)
+        self.btn_next.setEnabled(False)          # until a tile is picked
+        self.btn_next.clicked.connect(lambda: self.picked and self._pick(self.picked))
+        foot.addWidget(self.btn_next)
         cancel = QPushButton(_("Cancel"))
         cancel.clicked.connect(self.reject)
         foot.addWidget(cancel)
@@ -323,6 +368,7 @@ class WhatPicker(QDialog):
         for i, w in enumerate(self.pages):
             w.setVisible(i == page)
         self.btn_back.setVisible(page == 1)
+        self.btn_next.setVisible(page == 0)
         self.adjustSize()
 
     def _copied(self) -> QImage:
@@ -346,8 +392,17 @@ class WhatPicker(QDialog):
             self.tile_paste.line.setText(_("You've copied this picture: click to use it (or "
                                            "Ctrl+V)."))
 
-    def _pick(self, mode: str):
+    def _select(self, mode: str):
+        """A tile was clicked: it's the one picked, Continue goes on with it."""
         self.picked = mode
+        self.btn_next.setEnabled(True)
+
+    def _pick(self, mode: str):
+        """Go on with `mode`: to where the picture comes from, or done."""
+        self.picked = mode
+        for tile in self.tiles:
+            if tile.mode == mode:
+                tile.setChecked(True)
         if mode in PICTURE_KINDS:
             self._show(1)
         else:

@@ -755,5 +755,12 @@
   "There's no picture copied. Right-click a picture on the web and pick Copy image first.": "Δεν υπάρχει αντιγραφή εικόνας. Κάντε δεξί κλικ σε μια εικόνα στον ιστό και επιλέξτε Αντιγραφή εικόνας πρώτα.",
   "You can already see it": "Μπορείτε ήδη να το δείτε",
   "You're stuck, idle or disconnected": "Είστε κολλημένοι, αδρανείς ή αποσυνδεδεμένοι",
-  "You've copied this picture: click to use it (or Ctrl+V).": "Αντιγράψατε αυτήν την εικόνα: κάντε κλικ για να τη χρησιμοποιήσετε (ή Ctrl+V)."
+  "You've copied this picture: click to use it (or Ctrl+V).": "Αντιγράψατε αυτήν την εικόνα: κάντε κλικ για να τη χρησιμοποιήσετε (ή Ctrl+V).",
+  "All sounds": "Όλοι οι ήχοι",
+  "Already on this trigger": "Υπάρχει ήδη σε αυτή τη σκανδάλη",
+  "Continue": "Συνέχεια",
+  "No sounds match": "Κανένας ήχος δεν ταιριάζει",
+  "No sounds yet: choose a sound file": "Κανένας ήχος ακόμα: επιλέξτε ένα αρχείο ήχου",
+  "Search sounds": "Αναζήτηση ήχων",
+  "Show the sounds of one category": "Δείξε τους ήχους μίας κατηγορίας"
 }

@@ -60,7 +60,7 @@ class MainWindow(QMainWindow):
         head = QHBoxLayout()
         head.setSpacing(10)
         self.logo = QLabel()
-        self.logo.setPixmap(theme.logo_pixmap(34 * 2))
+        self.logo.setPixmap(theme.themed_logo(34 * 2))
         self.logo.setFixedSize(34, 34)
         self.logo.setScaledContents(True)
         head.addWidget(self.logo)
@@ -202,6 +202,7 @@ class MainWindow(QMainWindow):
     def set_theme(self, name: str):
         self.cfg.theme = theme.apply(QApplication.instance(), name)
         icons.retheme()
+        self.logo.setPixmap(theme.themed_logo(34 * 2))
         self.save_later()
 
     # ------------------------------------------------------------------ updates, count

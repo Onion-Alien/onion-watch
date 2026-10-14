@@ -803,5 +803,12 @@
   "There's no picture copied. Right-click a picture on the web and pick Copy image first.": "لا توجد صورة منسوخة. انقر بزر الماوس الأيمن فوق صورة على الويب واختر نسخ الصورة أولاً.",
   "You can already see it": "يمكنك رؤيته بالفعل",
   "You're stuck, idle or disconnected": "أنت عالق أو خامل أو غير متصل",
-  "You've copied this picture: click to use it (or Ctrl+V).": "لقد قمت بنسخ هذه الصورة: انقر لاستخدامها (أو Ctrl+V)."
+  "You've copied this picture: click to use it (or Ctrl+V).": "لقد قمت بنسخ هذه الصورة: انقر لاستخدامها (أو Ctrl+V).",
+  "All sounds": "كل الأصوات",
+  "Already on this trigger": "موجود في هذا المحفّز",
+  "Continue": "متابعة",
+  "No sounds match": "لا أصوات مطابقة",
+  "No sounds yet: choose a sound file": "لا أصوات بعد: اختر ملف صوت",
+  "Search sounds": "ابحث في الأصوات",
+  "Show the sounds of one category": "اعرض أصوات فئة واحدة"
 }
