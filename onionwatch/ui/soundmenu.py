@@ -7,8 +7,6 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-import shiboken6
-
 from PySide6.QtCore import QPoint, Qt
 from PySide6.QtWidgets import (QComboBox, QFrame, QHBoxLayout, QLabel, QLineEdit, QListWidget,
                                QListWidgetItem, QPushButton, QVBoxLayout, QWidget)
@@ -210,8 +208,11 @@ class SoundBox(QComboBox):
 
     def hidePopup(self):
         menu, self.menu = self.menu, None
-        if menu is not None and shiboken6.isValid(menu):
-            menu.close()
+        if menu is not None:
+            try:
+                menu.close()
+            except RuntimeError:     # it closed itself already, and is deleted
+                pass
         super().hidePopup()
 
     def _picked(self, sid: str):
