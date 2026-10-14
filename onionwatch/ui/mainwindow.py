@@ -6,8 +6,8 @@ from __future__ import annotations
 import logging
 import threading
 
-from PySide6.QtCore import QByteArray, Qt, QTimer, Signal
-from PySide6.QtGui import QAction, QCloseEvent
+from PySide6.QtCore import QByteArray, QPointF, Qt, QTimer, Signal
+from PySide6.QtGui import QAction, QCloseEvent, QPainter
 from PySide6.QtWidgets import (QApplication, QHBoxLayout, QLabel, QMainWindow, QMenu,
                                QPushButton, QSystemTrayIcon, QVBoxLayout, QWidget)
 
@@ -27,6 +27,16 @@ log = logging.getLogger(__name__)
 SAVE_DELAY_MS = 400
 
 
+class WindowRoot(QWidget):
+    """The window's page: it paints the theme's window background itself (flat, or the
+    Textured accent glow), as Onion Board's does."""
+
+    def paintEvent(self, e):
+        p = QPainter(self)
+        theme.paint_window_bg(p, e.rect(), QPointF(0, 0), self.width(), self.height())
+        p.end()
+
+
 class MainWindow(QMainWindow):
     # from the update check's thread: (a newer release or None, an error or "", forced)
     update_found = Signal(object, str, bool)
@@ -42,13 +52,16 @@ class MainWindow(QMainWindow):
         self._saver.setSingleShot(True)
         self._saver.timeout.connect(self.save_now)
         app = QApplication.instance()
-        self.cfg.theme = theme.apply(app, self.cfg.theme)
+        theme.textures_on = self.cfg.theme_texture
+        self.cfg.theme = theme.apply(app, self.cfg.theme, self.cfg.live_color)
+        self.cfg.live_color = theme.live_override   # (a damaged one is dropped)
         self.setWindowTitle("Onion Watch")
         self._awake = False   # watching: the tray icon's eye is open
         self.library = Library(self.cfg.sounds, self.save_later)
         self.player = player or Player(self.cfg.device, self.cfg.volume)
 
-        root = QWidget()
+        root = WindowRoot()
+        root.setObjectName("root")   # the stylesheet keeps what's on it see-through
         self.setCentralWidget(root)
         # the window starts with focus on itself, not with a ring on its first button
         root.setFocusPolicy(Qt.ClickFocus)
@@ -204,6 +217,24 @@ class MainWindow(QMainWindow):
         self.cfg.theme = theme.apply(QApplication.instance(), name)
         icons.retheme()
         self.paint_logo()
+        self.save_later()
+
+    def set_live_color(self, colour: str) -> bool:
+        """Your own highlight colour ("" = each theme's): only what's drawn in it is
+        restyled. True when it changed."""
+        kept = theme.apply_live(QApplication.instance(), colour)
+        changed = kept != self.cfg.live_color
+        self.cfg.live_color = kept
+        self.save_later()
+        return changed
+
+    def set_theme_texture(self, on: bool):
+        """Textured (each theme's pattern on the panels and its glow behind them) or
+        Plain: the whole app is restyled."""
+        if on == theme.textures_on:
+            return
+        theme.textures_on = self.cfg.theme_texture = on
+        theme.apply(QApplication.instance(), theme.current_name)
         self.save_later()
 
     def paint_logo(self):

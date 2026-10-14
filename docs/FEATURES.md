@@ -68,8 +68,10 @@ The full list. The [README](../README.md) has the short version.
   brought back.
 - **Keeps watching from the tray** when you close the window.
 - The same themes as [Onion Board](https://github.com/Onion-Alien/onion-board),
-  plus its own teal **Hoot** theme. Onion Watch started as Onion Board's Triggers
-  tab.
+  plus its own teal **Hoot** theme, and the same **Settings → Appearance**: your own
+  highlight colour for what's switched on, and **Textured** (each theme's pattern on the
+  panels, with a soft glow behind them) or **Plain**. Onion Watch started as Onion
+  Board's Triggers tab.
 
 ## How it works
 
