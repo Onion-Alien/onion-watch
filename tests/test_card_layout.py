@@ -1,10 +1,12 @@
-"""The trigger card: a header that opens to Watch for / Then / Fine-tune. New cards
-open; at start the cards are closed (one alone stays open); a click on the header
-opens and closes it; Fine-tune sums itself up in a line; a bar's level is shown
-under Watch for, a picture's match under Fine-tune; a narrow card drops its
+"""The trigger card: a header that opens to a sentence ("When … in … / Play …"),
+the rules it has on as chips and the rules themselves. New cards open; at start the
+cards are closed (one alone stays open); a click on the header opens and closes it;
+a bar's level is shown in the sentence, a picture's match in the rules; a narrow card drops its
 thumbnail; and a row that wraps takes the height it needs."""
 import test_ui
 from test_ui import as_qimage, banner
+
+from PySide6.QtWidgets import QPushButton
 
 from onionwatch.ui.triggerspanel import FlowBox
 
@@ -25,24 +27,32 @@ def test_a_new_card_opens_and_its_header_closes_it(tab, qapp):
     assert row.is_open and row.btn_open.isChecked()
 
 
-def test_fine_tune_is_folded_behind_a_summary(tab):
+def test_the_rules_it_has_on_are_chips_with_a_cross_each(tab):
     row = new_card(tab)
-    assert row.tune.isHidden()
-    assert row.tune_text.text() == "" and row.tune_text.isHidden()   # all left as they come
-    row.delay.setValue(2.0)             # (the header says the wait)
-    row.chk_ring.setChecked(True)       # ...and the ringing
-    assert row.tune_text.text() == ""
+    assert not row.rules_dlg.isVisible()    # the extra settings: in a pop-up, shut
+    assert row._rules() == [] and not row.rule_chips      # all left as they come
+    assert row.rules_box.flow.itemAt(0).widget() is row.btn_tune
+    row.chk_ring.setChecked(True)       # (the sentence says the ringing)
+    assert row._rules() == []
     row.chk_quiet.setChecked(True)
     row.chk_size.setChecked(False)
     row.cooldown.setValue(10)
-    assert row.tune_text.text() == ("exact size only · cooldown 10 s · "
-                                    "quiet while you're in the window")
-    assert not row.tune_text.isHidden()
+    assert not row.delay.isEnabled()    # a number only while its box is ticked
+    row.chk_delay.setChecked(True)
+    assert row.delay.value() == 1.0 and row.delay.isEnabled() and row.t.delay == 1.0
+    assert row._tune_summary() == ("Exact size only · Wait 1 s before playing · "
+                                   "Rest 10 s after playing · Quiet while you're in the window")
+    assert len(row.rule_chips) == 4
     row.btn_tune.click()
-    assert not row.tune.isHidden()
-    assert row.tune_text.isHidden()     # open, the settings say it themselves
-    row.btn_tune.click()
-    assert not row.tune_text.isHidden()
+    assert not row.tune.isHidden() and len(row.rule_chips) == 4   # the same, open or not
+    row.rule_chips[1].findChild(QPushButton, "chipstop").click()  # its ✕ takes it off
+    assert row.t.delay == 0 and not row.chk_delay.isChecked() and not row.delay.isEnabled()
+    row.chk_cooldown.setChecked(False)          # no rest at all is a rule of its own
+    assert row.t.cooldown == 0 and "No rest after playing" in row._tune_summary()
+    for chip in list(row.rule_chips):
+        chip.findChild(QPushButton, "chipstop").click()
+    assert row._rules() == [] and row.t.any_size and not row.t.unfocused
+    assert row.t.cooldown == 3.0 and row.chk_cooldown.isChecked()
 
 
 def test_a_bars_level_is_under_watch_for_a_pictures_match_in_fine_tune(tab, monkeypatch):
@@ -52,7 +62,7 @@ def test_a_bars_level_is_under_watch_for_a_pictures_match_in_fine_tune(tab, monk
     row.mode.setCurrentIndex(row.mode.findData("colour"))
     row._on_mode(row.mode.currentIndex())
     assert row._in[row.match_box] is row._watch_row
-    assert not row.tune_text.text().startswith("Colour")     # not said twice
+    assert not row._tune_summary().startswith("Match")       # not said twice
     row.mode.setCurrentIndex(row.mode.findData("still"))
     row._on_mode(row.mode.currentIndex())
     assert row._in[row.hold_box] is row._watch_row           # how long nothing moves

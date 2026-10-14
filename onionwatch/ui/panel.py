@@ -126,6 +126,46 @@ def card(title: str = "", hint: str = "") -> tuple[QFrame, QVBoxLayout]:
     return f, v
 
 
+DIALOG_MARGIN = 18   # room round a dialog's content (Onion Board's DESIGN.md: dialog_padding)
+DIALOG_SPACING = 12
+TITLE_GAP = 4        # a hint sits close under its title, a step nearer than the rest
+
+
+def title_label(text: str) -> QLabel:
+    """A dialog's bold title."""
+    lbl = QLabel(text)
+    lbl.setObjectName("helptitle")
+    lbl.setTextFormat(Qt.PlainText)
+    lbl.setWordWrap(True)
+    return lbl
+
+
+def add_title(v: QVBoxLayout, title: str, hint: str = "") -> QLabel | None:
+    """A bold title on `v` with its hint close under it; returns the hint."""
+    v.addWidget(title_label(title))
+    if not hint:
+        return None
+    h = hint_label(hint)
+    # at the top of its room: given spare height, a label centres its words in it
+    h.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+    v.addSpacing(TITLE_GAP - v.spacing())
+    v.addWidget(h)
+    return h
+
+
+def dialog_layout(dlg, title: str = "", hint: str = "") -> QVBoxLayout:
+    """A dialog's layout the way Onion Board's are made: 18 px round it, 12 between its
+    parts, its one bold title and the hint close under it."""
+    v = QVBoxLayout(dlg)
+    v.setContentsMargins(DIALOG_MARGIN, DIALOG_MARGIN, DIALOG_MARGIN, DIALOG_MARGIN)
+    v.setSpacing(DIALOG_SPACING)
+    if title:
+        add_title(v, title, hint)
+    elif hint:
+        v.addWidget(hint_label(hint))
+    return v
+
+
 def icon_label(name: str, tip: str = "", color: str = "muted") -> QLabel:
     """A small painted icon used as a label in the bars."""
     lbl = QLabel()
@@ -176,7 +216,7 @@ class UndoBar(QFrame):
         h.setContentsMargins(12, 5, 5, 5)
         h.setSpacing(8)
         self.label = QLabel()
-        self.label.setTextFormat(Qt.PlainText)   # names are user / web text
+        self.label.setTextFormat(Qt.TextFormat.PlainText)   # names are user / web text
         h.addWidget(self.label, 1)
         self.btn_undo = QPushButton(_("Undo"))
         self.btn_undo.setObjectName("undobtn")

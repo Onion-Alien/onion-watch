@@ -115,7 +115,13 @@ def test_the_area_is_dragged_on_the_window(tab, monkeypatch):
     monkeypatch.setattr(snip.AreaDialog, "exec", fake_exec)
     row.t.sources = [GAME]
     tab._pick_area(row)
-    assert row.t.region == (0.5, 0.0, 0.5, 0.5) and row.btn_area.text() == "Part of the window"
+    assert row.t.region == (0.5, 0.0, 0.5, 0.5) and row.btn_area.text() == "Change the box"
+    assert row.chk_region.isChecked()        # "Only look in part of the window", ticked
+    row.chk_region.setChecked(False)          # ...and unticked: the whole window again
+    assert row.t.region is None and row.btn_area.text() == "Drag a box"
+    assert tab.host.screen["triggers"][0]["region"] is None
+    row.chk_region.setChecked(True)           # ticked with no box yet: drag one
+    assert row.t.region == (0.5, 0.0, 0.5, 0.5)
     assert tab.host.screen["triggers"][0]["region"] == [0.5, 0.0, 0.5, 0.5]
 
 
@@ -253,10 +259,10 @@ def test_a_damaged_pack_says_so(tmp_path):
         packs.read_pack(bad)
 
 
-def test_the_first_run_hint_points_at_look_in(tab):
-    """The empty list says where to pick the game: the bottom bar's Look in, which starts
-    on a screen (it used to say "pick your game window below", with no window there)."""
+def test_the_first_run_hint_points_at_new_trigger(tab):
+    """The empty list and the empty editor point at + New trigger, the one way to make
+    a trigger (they used to say Cut picture, a button the bottom bar no longer has)."""
     from PySide6.QtWidgets import QLabel
-    hint = " ".join(lb.text() for lb in tab.empty.findChildren(QLabel))
-    assert "Look in" in [lb.text() for lb in tab.look.findChildren(QLabel)]
-    assert "Under Look in below" in hint and "(or a screen)" in hint
+    for empty in (tab.empty, tab.editor_empty):
+        hint = " ".join(lb.text() for lb in empty.findChildren(QLabel))
+        assert "+ New trigger" in hint and "Cut picture" not in hint
