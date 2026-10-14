@@ -29,7 +29,7 @@ def test_a_new_card_opens_and_its_header_closes_it(tab, qapp):
 
 def test_the_rules_it_has_on_are_chips_with_a_cross_each(tab):
     row = new_card(tab)
-    assert row.tune.isHidden()
+    assert not row.rules_dlg.isVisible()    # the extra settings: in a pop-up, shut
     assert row._rules() == [] and not row.rule_chips      # all left as they come
     assert row.rules_box.flow.itemAt(0).widget() is row.btn_tune
     row.chk_ring.setChecked(True)       # (the sentence says the ringing)

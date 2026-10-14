@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (QApplication, QDialog, QFileDialog, QGridLayout, 
 from onionwatch import theme
 from onionwatch.i18n import _
 from onionwatch.ui import icons
+from onionwatch.ui.panel import DIALOG_MARGIN, DIALOG_SPACING, add_title
 
 PASTE, FILE, CUT = "paste", "file", "cut"   # where a picture comes from
 PICTURE_KINDS = ("appear", "vanish")
@@ -38,7 +39,7 @@ def draw_art(p: QPainter, r: QRectF, mode: str):
     """A tile's drawing: a bit of a made-up game showing what that kind watches for.
     A game picture, so its colours are the game's in every theme."""
     p.save()
-    p.setRenderHint(QPainter.Antialiasing)
+    p.setRenderHint(QPainter.RenderHint.Antialiasing)
     sky = QLinearGradient(r.topLeft(), r.bottomRight())
     sky.setColorAt(0, QColor(43, 58, 82))
     sky.setColorAt(1, QColor(28, 36, 51))
@@ -53,7 +54,7 @@ def draw_art(p: QPainter, r: QRectF, mode: str):
         b.moveCenter(r.center())
         if mode == "vanish":
             p.setOpacity(0.3)
-            p.setPen(QPen(gold, 1, Qt.DashLine))
+            p.setPen(QPen(gold, 1, Qt.PenStyle.DashLine))
         else:
             p.setPen(QPen(gold, 1))
         p.setBrush(plate)
@@ -61,11 +62,11 @@ def draw_art(p: QPainter, r: QRectF, mode: str):
         p.setOpacity(1)
         if mode == "appear":    # a ring round it: that's the one it's looking for
             p.setPen(QPen(QColor(theme.T.get("accent", "#1fb6a6")), 2))
-            p.setBrush(Qt.NoBrush)
+            p.setBrush(Qt.BrushStyle.NoBrush)
             p.drawRoundedRect(r.adjusted(2, 2, -2, -2), 7, 7)
     elif mode == "colour":
         bar = QRectF(r.left() + 14, r.top() + 16, r.width() * 0.7, 11)
-        p.setPen(Qt.NoPen)
+        p.setPen(Qt.PenStyle.NoPen)
         p.setBrush(QColor(59, 26, 29))
         p.drawRoundedRect(bar, 3, 3)
         p.setBrush(QColor(224, 72, 72))
@@ -74,13 +75,13 @@ def draw_art(p: QPainter, r: QRectF, mode: str):
         p.setBrush(QColor(30, 70, 140))
         p.drawRoundedRect(mana, 3, 3)
     elif mode == "change":
-        p.setPen(Qt.NoPen)
+        p.setPen(Qt.PenStyle.NoPen)
         for i, (w, c) in enumerate(((0.8, line), (0.65, line), (0.5, QColor(127, 212, 255)))):
             p.setBrush(c)
             p.drawRoundedRect(QRectF(r.left() + 14, r.top() + 16 + i * 16,
                                      (r.width() - 28) * w, 7), 3, 3)
     else:   # still: lines that stopped, and z z
-        p.setPen(Qt.NoPen)
+        p.setPen(Qt.PenStyle.NoPen)
         p.setBrush(line)
         p.drawRoundedRect(QRectF(r.left() + 14, r.top() + 22, (r.width() - 28) * 0.8, 7), 3, 3)
         p.drawRoundedRect(QRectF(r.left() + 14, r.top() + 38, (r.width() - 28) * 0.45, 7), 3, 3)
@@ -89,7 +90,8 @@ def draw_art(p: QPainter, r: QRectF, mode: str):
         f.setPointSizeF(12)
         p.setFont(f)
         p.setPen(QColor(159, 179, 200))
-        p.drawText(r.adjusted(0, 0, -12, -6), Qt.AlignRight | Qt.AlignBottom, "z z")
+        p.drawText(r.adjusted(0, 0, -12, -6),
+                   Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignBottom, "z z")
     p.restore()
 
 
@@ -99,7 +101,7 @@ class Tile(QPushButton):
     def __init__(self, title: str, line: str, art: QWidget, parent=None):
         super().__init__(parent)
         self.setObjectName("kindtile")
-        self.setCursor(Qt.PointingHandCursor)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setAccessibleName(title)
         self.setToolTip(line)
         v = QVBoxLayout(self)
@@ -108,23 +110,24 @@ class Tile(QPushButton):
         self.art = art
         art.setParent(self)
         art.setFixedSize(ART)
-        art.setAttribute(Qt.WA_TransparentForMouseEvents)
+        art.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         v.addWidget(art)
         self.name = QLabel(title)
         self.name.setObjectName("kindname")
         self.name.setWordWrap(True)
-        self.name.setAttribute(Qt.WA_TransparentForMouseEvents)
+        self.name.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         v.addWidget(self.name)
         self.line = QLabel(line)
         self.line.setObjectName("hint")
         self.line.setWordWrap(True)
-        self.line.setAttribute(Qt.WA_TransparentForMouseEvents)
+        self.line.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         v.addWidget(self.line)
         v.addStretch(1)
         self.setMinimumWidth(ART.width() + 24)
 
     def sizeHint(self):
-        return self.layout().sizeHint()
+        lay = self.layout()
+        return lay.sizeHint() if lay is not None else super().sizeHint()
 
 
 class Drawing(QWidget):
@@ -154,7 +157,7 @@ class Picture(QLabel):
     def __init__(self, icon: str):
         super().__init__()
         self.icon = icon
-        self.setAlignment(Qt.AlignCenter)
+        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setObjectName("sourceart")
         self.show_icon()
 
@@ -162,8 +165,8 @@ class Picture(QLabel):
         self.setPixmap(icons.pixmap(self.icon, 40, theme.T.get("muted", "#888888")))
 
     def show_image(self, img: QImage):
-        pm = QPixmap.fromImage(img).scaled(ART - QSize(16, 16), Qt.KeepAspectRatio,
-                                           Qt.SmoothTransformation)
+        pm = QPixmap.fromImage(img).scaled(ART - QSize(16, 16), Qt.AspectRatioMode.KeepAspectRatio,
+                                           Qt.TransformationMode.SmoothTransformation)
         self.setPixmap(pm)
 
 
@@ -242,8 +245,8 @@ class WhatPicker(QDialog):
         self.image: QImage | None = None
         self.setStyleSheet(TILE_CSS)
         v = QVBoxLayout(self)
-        v.setContentsMargins(18, 18, 18, 18)
-        v.setSpacing(12)
+        v.setContentsMargins(DIALOG_MARGIN, DIALOG_MARGIN, DIALOG_MARGIN, DIALOG_MARGIN)
+        v.setSpacing(DIALOG_SPACING)
         self.pages: list[QWidget] = []     # the steps, one shown at a time
 
         # step 1: what
@@ -251,9 +254,8 @@ class WhatPicker(QDialog):
         w = QVBoxLayout(what)
         w.setContentsMargins(0, 0, 0, 0)
         w.setSpacing(12)
-        w.addWidget(self._title(_("Step 1: what should it watch for?")))
-        w.addWidget(self._hint(_("Pick one. You can change everything on the trigger "
-                                 "afterwards.")))
+        add_title(w, _("Step 1: what should it watch for?"),
+                  _("Pick one. You can change everything on the trigger afterwards."))
         grid = QGridLayout()
         grid.setSpacing(12)
         self.tiles: list[KindTile] = []
@@ -271,9 +273,9 @@ class WhatPicker(QDialog):
         s = QVBoxLayout(src)
         s.setContentsMargins(0, 0, 0, 0)
         s.setSpacing(12)
-        s.addWidget(self._title(_("Step 2: the picture to look for")))
-        s.addWidget(self._hint(_("Any picture of it works: one off Google, a screenshot, a "
-                                 "file, or cut from the game as it is now.")))
+        add_title(s, _("Step 2: the picture to look for"),
+                  _("Any picture of it works: one off Google, a screenshot, a file, or cut "
+                    "from the game as it is now."))
         row = QHBoxLayout()
         row.setSpacing(12)
         self.paste_art = Picture("copy")
@@ -293,7 +295,7 @@ class WhatPicker(QDialog):
         s.addLayout(row)
         self.pages.append(src)
         v.addWidget(src)
-        QShortcut(QKeySequence.Paste, self, self._paste)
+        QShortcut(QKeySequence.StandardKey.Paste, self, self._paste)
         QApplication.clipboard().dataChanged.connect(self._show_clipboard)
         self._show_clipboard()
 
@@ -310,20 +312,6 @@ class WhatPicker(QDialog):
         foot.addWidget(cancel)
         v.addLayout(foot)
         self._show(0)
-
-    @staticmethod
-    def _title(text: str) -> QLabel:
-        lab = QLabel(text)
-        lab.setObjectName("helptitle")
-        lab.setWordWrap(True)
-        return lab
-
-    @staticmethod
-    def _hint(text: str) -> QLabel:
-        lab = QLabel(text)
-        lab.setObjectName("hint")
-        lab.setWordWrap(True)
-        return lab
 
     def _show(self, page: int):
         """A step, the pop-up as tall as that step needs."""

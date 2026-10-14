@@ -12,10 +12,10 @@ import numpy as np
 from PySide6.QtCore import QPoint, QRect, QRectF, QSize, Qt, Signal
 from PySide6.QtGui import QColor, QImage, QPainter, QPen
 from PySide6.QtWidgets import (QDialog, QDialogButtonBox, QHBoxLayout, QLabel, QPushButton,
-                               QSizePolicy, QVBoxLayout, QWidget)
+                               QSizePolicy, QWidget)
 
 from onionwatch import theme
-from onionwatch.ui.panel import hint_label
+from onionwatch.ui.panel import DIALOG_MARGIN, dialog_layout
 from onionwatch.ui import fit
 from onionwatch.i18n import _
 
@@ -146,15 +146,11 @@ class SnipDialog(QDialog):
     def __init__(self, img: QImage, where: str, parent=None, heading: str = ""):
         super().__init__(parent)
         fit.watch(self)          # grows to fit its (translated) text
-        self.setWindowTitle(_("Cut a picture from {where}", where=where))
+        name = _("Cut a picture from {where}", where=where)
+        self.setWindowTitle(name)
         self.piece: QImage | None = None
-        v = QVBoxLayout(self)
-        if heading:     # a step of New trigger: says which, big, over the rest
-            title = QLabel(heading)
-            title.setObjectName("helptitle")
-            title.setWordWrap(True)
-            v.addWidget(title)
-        v.addWidget(hint_label(
+        # its title: the step of New trigger it is, or what it's for
+        v = dialog_layout(self, heading or name, (
             _("Drag a box around the thing to watch for — a name plate, a banner, an icon. Keep "
               "it tight but with some detail in it (words work well). It's kept at full size, so "
               "it matches the game at this resolution.")))
@@ -172,7 +168,7 @@ class SnipDialog(QDialog):
         self.buttons.rejected.connect(self.reject)
         v.addWidget(self.buttons)
         self._update()
-        self.resize(self.view.sizeHint() + QSize(40, 140))
+        self.resize(self.view.sizeHint().width() + 2 * DIALOG_MARGIN, self.sizeHint().height())
 
     def _update(self):
         s = self.view.selection
@@ -199,17 +195,12 @@ class AreaDialog(QDialog):
                  parent=None, heading: str = ""):
         super().__init__(parent)
         fit.watch(self)          # grows to fit its (translated) text
-        self.setWindowTitle(_("Where to look in {where}", where=where))
+        name = _("Where to look in {where}", where=where)
+        self.setWindowTitle(name)
         self.want_colour = colour is not None
         self.region = region
         self.colour = colour or ""
-        v = QVBoxLayout(self)
-        if heading:     # a step of New trigger: says which, big, over the rest
-            title = QLabel(heading)
-            title.setObjectName("helptitle")
-            title.setWordWrap(True)
-            v.addWidget(title)
-        v.addWidget(hint_label(
+        v = dialog_layout(self, heading or name, (
             _("Drag a box tightly around the bar to measure (its full length), then check the "
               "colour below: it's the bar's main colour — click “Pick the colour” and then the "
               "bar if it's wrong.")
@@ -252,7 +243,7 @@ class AreaDialog(QDialog):
         self.buttons.rejected.connect(self.reject)
         v.addWidget(self.buttons)
         self._update()
-        self.resize(self.view.sizeHint() + QSize(40, 150))
+        self.resize(self.view.sizeHint().width() + 2 * DIALOG_MARGIN, self.sizeHint().height())
 
     def _update(self):
         s = self.view.selection

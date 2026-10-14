@@ -51,7 +51,7 @@ from onionwatch.ui.categories import (MAX_PER_ROW, PAD, CategoriesDialog, Catego
                                       counts_text)
 from onionwatch.ui.chances import LiveLabel, goes_below
 from onionwatch.ui.history import THUMB as LOG_THUMB, HistoryDialog
-from onionwatch.ui.panel import Flow, UndoBar, card, hint_label
+from onionwatch.ui.panel import Flow, UndoBar, card, dialog_layout, hint_label
 from onionwatch.ui.watching import share_label
 from onionwatch.ui.windowpicker import places_label
 from onionwatch.wheelguard import no_wheel
@@ -1039,6 +1039,8 @@ class TuneGrid(QWidget):
     (`removeWidget`) takes its row with it until it comes back (`addWidget`)."""
 
     GAP = 28    # px between columns
+    ROW_GAP, HEAD_GAP = 6, 16   # px between rules, and above a group's heading (a rule's
+    # hint has none: it sits right under its rule)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -1047,7 +1049,7 @@ class TuneGrid(QWidget):
         self.grid = QGridLayout(self)
         self.grid.setContentsMargins(0, 0, 0, 0)
         self.grid.setHorizontalSpacing(6)
-        self.grid.setVerticalSpacing(4)
+        self.grid.setVerticalSpacing(0)     # the gaps are rows of their own (_lay)
         self.groups: list[list[tuple]] = []   # [(label, widget, inner label), …] each
         self.out: set = set()
         self._cols = 0
@@ -1154,17 +1156,24 @@ class TuneGrid(QWidget):
             widest = max([sp.sizeHint().width() for sp in spins] or [0])
             for sp in spins:
                 sp.setMinimumWidth(widest)
-            for r, (lab, w, inner) in enumerate(col):
+            row = 0
+            for i, (lab, w, inner) in enumerate(col):
+                gap = (0 if not i or w.property("rulehint") else
+                       self.HEAD_GAP if w.property("rulehead") else self.ROW_GAP)
+                if gap:
+                    g.addItem(QSpacerItem(0, gap, QSizePolicy.Policy.Minimum, QSizePolicy.Fixed),
+                              row, lc)
+                    row += 1
                 if lab is not None:
                     if isinstance(w, QComboBox):    # never squeezed to cut its text
                         w.setMinimumWidth(w.sizeHint().width())
                     lab.setFixedHeight(control_height(w))
-                    g.addWidget(lab, r, lc, Qt.AlignLeft | Qt.AlignVCenter)
-                    g.addWidget(w, r, lc + 1, Qt.AlignLeft | Qt.AlignVCenter)
+                    g.addWidget(lab, row, lc, Qt.AlignLeft | Qt.AlignVCenter)
+                    g.addWidget(w, row, lc + 1, Qt.AlignLeft | Qt.AlignVCenter)
                 elif w.property("rulehead"):
-                    g.addWidget(w, r, lc, 1, 2, Qt.AlignLeft | Qt.AlignBottom)
+                    g.addWidget(w, row, lc, 1, 2, Qt.AlignLeft | Qt.AlignBottom)
                 elif w.property("rulehint"):
-                    g.addWidget(w, r, lc, 1, 2, Qt.AlignLeft | Qt.AlignTop)
+                    g.addWidget(w, row, lc, 1, 2, Qt.AlignLeft | Qt.AlignTop)
                 else:
                     # (a Pair's height-for-width comes out 0 in a grid cell, and it
                     # stays on one line: its sizeHint alone lets it be squeezed)
@@ -1174,7 +1183,8 @@ class TuneGrid(QWidget):
                                           + w.second.sizeHint().width())
                     if inner is not None:       # its label inside it, as wide as the rest
                         inner.setFixedWidth(lw)
-                    g.addWidget(w, r, lc, 1, 2, Qt.AlignLeft | Qt.AlignVCenter)
+                    g.addWidget(w, row, lc, 1, 2, Qt.AlignLeft | Qt.AlignVCenter)
+                row += 1
 
     def resizeEvent(self, ev):
         super().resizeEvent(ev)
@@ -1488,7 +1498,7 @@ class TriggerRow(QFrame):
         self.name.editingFinished.connect(self._on_name)
         self.name.editingFinished.connect(lambda: self.name.setCursorPosition(0))
         # as wide as the name, not the whole card: the hover / editing box hugs it
-        self.name.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)   # up to that
+        self.name.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Policy.Fixed)   # up to that
         self.name.textChanged.connect(self._fit_name)
         self._fit_name()
         self.name_line = QWidget(self)    # the name takes what it needs, the rest is empty
@@ -1626,6 +1636,7 @@ class TriggerRow(QFrame):
         self._built = True
         t = self.t
         bv = self.body.layout()
+        assert bv is not None       # (made above)
         bv.addWidget(divider())
         bv.addSpacing(2)
 
@@ -1732,17 +1743,9 @@ class TriggerRow(QFrame):
         dlg.setObjectName("rulesdialog")    # (CARD_CSS: a background of its own)
         dlg.setWindowTitle(_("Extra settings"))
         dlg.setMinimumWidth(560)            # (the list's width isn't asked for: Ignored)
-        dv = QVBoxLayout(dlg)
-        dv.setContentsMargins(18, 18, 18, 18)
-        dv.setSpacing(10)
-        head = QLabel(_("Extra settings"))
-        head.setObjectName("helptitle")
-        dv.addWidget(head)
-        say = QLabel(_("Each one is off until you tick it. The ones you change show on the "
-                       "card; their ✕ puts them back."))
-        say.setObjectName("hint")
-        say.setWordWrap(True)
-        dv.addWidget(say)
+        dv = dialog_layout(dlg, _("Extra settings"), _(
+            "Each one is off until you tick it. The ones you change show on the card; their ✕ "
+            "puts them back."))
         self.tune = TuneGrid()
         self.tune.max_cols = 1      # one column: a list to read down
         self._tune_row = self.tune
@@ -1841,7 +1844,11 @@ class TriggerRow(QFrame):
         self.tune.add_group([(QLabel(_("Check every")), self.interval, None)],
                             _("How often it looks"))
         dv.addWidget(self.tune)
-        dv.addSpacing(4)
+        # never stretched: room to spare goes above Done, not between the rows (a
+        # heading would drift down from its rules)
+        self.tune.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Policy.Maximum)
+        dv.addStretch(1)
+        dv.addSpacing(6)
         done = QPushButton(_("Done"))
         done.setObjectName("primary")
         done.clicked.connect(dlg.accept)
@@ -1978,7 +1985,7 @@ class TriggerRow(QFrame):
         self.strip.set_look(size, 1 if tile else STRIP_THUMBS)
         self.badge.setFixedSize(size + QSize(8, 8))
         self.btn_open.setFixedSize(20 if tile else 28, 28)
-        middle = Qt.AlignVCenter
+        middle = Qt.AlignmentFlag.AlignVCenter
         pad = tile and self.pad
         if pad:
             top.addWidget(self.pics, 0, 0, 1, 2, Qt.AlignHCenter)
@@ -2008,7 +2015,7 @@ class TriggerRow(QFrame):
             self.setCursor(Qt.PointingHandCursor)
             self.setToolTip(_("Click to open it, drag to move it"))
         else:
-            top.addWidget(self.name_line, 0, 1, Qt.AlignBottom)
+            top.addWidget(self.name_line, 0, 1, Qt.AlignmentFlag.AlignBottom)
             top.addWidget(self.names, 1, 1, Qt.AlignTop)
             top.addWidget(self.live, 0, 2, 2, 1, middle)
             top.addWidget(self.chk_on, 0, 3, 2, 1, middle)
@@ -2054,8 +2061,8 @@ class TriggerRow(QFrame):
         self.live.setVisible(not self._tile or not say)
         if not self._tile:      # the name in the middle of the header, or over what's wrong
             self.top.removeWidget(self.name_line)
-            self.top.addWidget(self.name_line, 0, 1, 1 if say else 2, 1,
-                               Qt.AlignBottom if say else Qt.AlignVCenter)
+            align = Qt.AlignmentFlag.AlignBottom if say else Qt.AlignmentFlag.AlignVCenter
+            self.top.addWidget(self.name_line, 0, 1, 1 if say else 2, 1, align)
         if pad:
             self._said = say
         elif self._tile and say != self._said:    # under the name, where the state was
@@ -2257,9 +2264,15 @@ class TriggerRow(QFrame):
     def show_rules(self):
         """Extra settings: in a pop-up over the card (not waited on: what's ticked shows
         on the card at once)."""
+        dlg = self.rules_dlg
         self.tune.relayout()
-        self.rules_dlg.adjustSize()
-        self.rules_dlg.open()
+        dlg.adjustSize()
+        # adjustSize sizes the hint for a narrower width (two lines): as tall as it needs
+        # at the width it got, or the slack spreads out between the rows
+        lay = dlg.layout()
+        if lay is not None and lay.hasHeightForWidth():
+            dlg.resize(dlg.width(), lay.totalHeightForWidth(dlg.width()))
+        dlg.open()
 
     def _rules(self) -> list[tuple[str, str]]:
         """The rules it has that aren't how a new trigger comes, as (rule, words):
@@ -3137,10 +3150,8 @@ class TriggersTab(QWidget):
         ev.setSpacing(10)
         self.hoot = owl.OwlWidget(96)   # waiting (sadly) for something to watch
         ev.addWidget(self.hoot, 0, Qt.AlignmentFlag.AlignHCenter)
-        hint = hint_label(_("No triggers yet. Under Look in below, pick your game window (or "
-                            "a screen), then click Cut picture and drag a box around the "
-                            "thing to watch for. Or click + New trigger above for one "
-                            "without a picture."))
+        hint = hint_label(_("No triggers yet. Click + New trigger above, pick what it should "
+                            "watch for, and Hoot walks you through the rest."))
         hint.setAlignment(Qt.AlignCenter)
         ev.addWidget(hint)
         self.list_layout.addWidget(self.empty)
@@ -3190,8 +3201,8 @@ class TriggersTab(QWidget):
         mark = QLabel()
         icons.set_label_icon(mark, "triggers", size=40)
         ee.addWidget(mark, 0, Qt.AlignmentFlag.AlignHCenter)
-        hint = hint_label(_("Pick a trigger on the left to change it, or click Cut "
-                            "picture below to make one."))
+        hint = hint_label(_("Pick a trigger on the left to change it, or click + New "
+                            "trigger to make one."))
         hint.setAlignment(Qt.AlignCenter)
         ee.addWidget(hint)
         ee.addStretch(1)
@@ -3218,10 +3229,8 @@ class TriggersTab(QWidget):
         self.toolbar = f
         # roomier buttons than elsewhere: the bar's few big actions read as buttons, not a
         # packed strip (only padding: their colours stay the theme's)
-        # (and one weight for Watching and Cut picture: the theme's are 700 and 600, so
-        # one read bold and the other thin side by side)
         f.setStyleSheet("QPushButton { padding: 8px 16px; } "
-                        "QPushButton#live, QPushButton#primary { font-weight: 700; }")
+                        "QPushButton#live { font-weight: 700; }")
         h = BarFlow(f, gap=18)   # room between them: at 10 the bar looked packed
         # its first button in line with the cards' pictures above it (a card's margin
         # and the strip's own two pixels)
@@ -3233,36 +3242,8 @@ class TriggersTab(QWidget):
         icons.set_icon(self.btn_watch, "triggers", checked_color="#ffffff")
         self.btn_watch.toggled.connect(self.set_watching)
         h.addWidget(self.btn_watch)
-        self.btn_cut = QPushButton(_("Cut picture"))
-        self.btn_cut.setObjectName("primary")
-        self.btn_cut.setToolTip(_("A new trigger: cut a picture out of the window (or screen) "
-                                  "picked in Look in"))
-        icons.set_icon(self.btn_cut, "crop", "on_accent")
-        self.btn_cut.clicked.connect(self.add_from_cut)
-        self.hoot.clicked.connect(lambda: self.btn_cut.setFocus(Qt.OtherFocusReason))
-        h.addWidget(self.btn_cut)
-        # the other ways to make a trigger, in one menu next to it: a picture file,
-        # the copied picture, or none at all (a part of the window to watch)
-        self.btn_add = QPushButton(_("Add"))
-        self.btn_add.setToolTip(_("A new trigger from a picture file, from the picture you "
-                                  "copied, or one without a picture"))
-        icons.set_icon(self.btn_add, "plus")
-        add_menu = QMenu(self.btn_add)
-        self.act_add_file = add_menu.addAction(icons.icon("plus"), _("From a picture file"),
-                                               self.add_from_file)
-        self.act_paste = add_menu.addAction(icons.icon("image"), _("Paste the copied picture"),
-                                            self.add_from_clipboard)
-        self.act_paste.setToolTip(_("Win+Shift+S cuts a piece of the screen to paste here"))
-        add_menu.addAction(_("Without a picture"), self.add_area_trigger)
-        add_menu.setToolTipsVisible(True)
-
-        def add_about_to_show():
-            self.act_paste.setEnabled(not QApplication.clipboard().image().isNull())
-        add_menu.aboutToShow.connect(add_about_to_show)
-        self.btn_add.setMenu(add_menu)
-        h.addWidget(self.btn_add)
-        for b in (self.btn_watch, self.btn_cut, self.btn_add):   # (fit_parts)
-            icons.gap_follows_compact(b)
+        self.hoot.clicked.connect(lambda: self.btn_new.setFocus(Qt.OtherFocusReason))
+        icons.gap_follows_compact(self.btn_watch)   # (fit_parts)
         self.btn_more = QPushButton(_("More"))
         self.btn_more.setToolTip(_("What went off lately, saving or loading triggers, and "
                                    "recently deleted ones"))
@@ -3326,7 +3307,7 @@ class TriggersTab(QWidget):
         icons.set_icon(self.btn_bin, "trash")
         self.btn_bin.clicked.connect(self.show_deleted)
         h.addWidget(self.btn_bin)
-        for control in (self.btn_watch, self.btn_cut, self.btn_add, self.btn_more,
+        for control in (self.btn_watch, self.btn_more,
                         self.cb_where, self.btn_settings, self.btn_bin):
             align_control(control)
         if hasattr(self, "btn_info"):
@@ -3572,6 +3553,7 @@ class TriggersTab(QWidget):
             else QBoxLayout.LeftToRight)
         self.search_text.setMinimumWidth(SEARCH_ROOM if one_line else SEARCH_MIN)
         target = self.search_line.layout() if one_line else self.search_bar.layout()
+        assert target is not None
         if self.view_bar.parentWidget() is not target.parentWidget():
             self.view_bar.parentWidget().layout().removeWidget(self.view_bar)
             target.addWidget(self.view_bar)
@@ -3891,11 +3873,10 @@ class TriggersTab(QWidget):
 
     def fit_parts(self) -> dict[str, QWidget]:
         """What a host may hide, or show as an icon only, when its window gets small:
-        "hint" (the explanation at the top), the buttons "watch", "cut" and "add"
-        (icon only). Pasting is in the Add menu now, and the check speed under ⚙: a
-        host asking for "paste" or "interval_label" gets nothing, and leaves it be."""
-        return {"hint": self.hint, "watch": self.btn_watch, "cut": self.btn_cut,
-                "add": self.btn_add}
+        "hint" (the explanation at the top) and the "watch" button (icon only). New
+        triggers are made with + New trigger now, and the check speed is under ⚙: a host
+        asking for "cut", "add", "paste" or "interval_label" gets nothing, and leaves it be."""
+        return {"hint": self.hint, "watch": self.btn_watch}
 
     def cancel_pending(self):
         """Drop sounds that are still waiting out their delay (switched off, Stop all)."""

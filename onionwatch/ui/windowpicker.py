@@ -11,14 +11,13 @@ import logging
 import numpy as np
 from PySide6.QtCore import QEvent, QSize, Qt, QTimer
 from PySide6.QtGui import QColor, QIcon, QImage, QPixmap
-from PySide6.QtWidgets import (QCheckBox, QDialog, QDialogButtonBox, QHBoxLayout, QLabel,
-                               QListWidget, QListWidgetItem, QPushButton, QStyledItemDelegate,
-                               QVBoxLayout)
+from PySide6.QtWidgets import (QCheckBox, QDialog, QDialogButtonBox, QHBoxLayout, QListWidget,
+                               QListWidgetItem, QPushButton, QStyledItemDelegate)
 
 from onionwatch import screenwatch, theme, windows
 from onionwatch.screenwatch import MAX_SOURCES, WindowRef
 from onionwatch.ui import fit, icons
-from onionwatch.ui.panel import hint_label
+from onionwatch.ui.panel import dialog_layout
 from onionwatch.i18n import _, ngettext
 
 log = logging.getLogger(__name__)
@@ -92,19 +91,15 @@ class WindowPicker(QDialog):
         super().__init__(parent)
         fit.watch(self)          # grows to fit its (translated) text
         self.multi = multi
-        self.setWindowTitle(_("Where to look") if multi else _("Pick a window to watch"))
+        name = _("Where to look") if multi else _("Pick a window to watch")
+        self.setWindowTitle(name)
         self.resize(760, 600)
         self.chosen: WindowRef | None = None
         self.places: list = []
         self._current = list(current or []) if multi else current
         self._wins: list[windows.WindowInfo] = []
-        v = QVBoxLayout(self)
-        if heading:     # a step of New trigger: says which, big, over the rest
-            title = QLabel(heading)
-            title.setObjectName("helptitle")
-            title.setWordWrap(True)
-            v.addWidget(title)
-        v.addWidget(hint_label(
+        # its title: the step of New trigger it is, or what it's for
+        v = dialog_layout(self, heading or name, (
             _("Tick every window (and screen) to look in: any of them counts, and each is "
               "watched on its own, so the alert says which one it was. Windows are watched even "
               "while other windows cover them, but not while they're minimized.")
