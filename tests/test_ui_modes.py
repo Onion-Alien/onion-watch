@@ -115,7 +115,13 @@ def test_the_area_is_dragged_on_the_window(tab, monkeypatch):
     monkeypatch.setattr(snip.AreaDialog, "exec", fake_exec)
     row.t.sources = [GAME]
     tab._pick_area(row)
-    assert row.t.region == (0.5, 0.0, 0.5, 0.5) and row.btn_area.text() == "Part of the window"
+    assert row.t.region == (0.5, 0.0, 0.5, 0.5) and row.btn_area.text() == "Change the box"
+    assert row.chk_region.isChecked()        # "Only look in part of the window", ticked
+    row.chk_region.setChecked(False)          # ...and unticked: the whole window again
+    assert row.t.region is None and row.btn_area.text() == "Drag a box"
+    assert tab.host.screen["triggers"][0]["region"] is None
+    row.chk_region.setChecked(True)           # ticked with no box yet: drag one
+    assert row.t.region == (0.5, 0.0, 0.5, 0.5)
     assert tab.host.screen["triggers"][0]["region"] == [0.5, 0.0, 0.5, 0.5]
 
 

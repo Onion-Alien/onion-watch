@@ -1,0 +1,390 @@
+"""New trigger, the first steps: "What should it watch for?", a tile per kind of
+trigger (a picture showing up or going away, a bar running low, a chat line changing,
+everything going still), each with a little drawing of it in a made-up game; then,
+for a picture, where the picture comes from. Most come from somewhere else (a picture
+copied off the web, a screenshot, a file), so pasting it and dropping it come first;
+cutting it from the game as it is now is the third way. The triggers page does the
+rest: which window to watch, and cutting the picture or picking the area."""
+from __future__ import annotations
+
+from pathlib import Path
+
+from PySide6.QtCore import QRectF, QSize, Qt
+from PySide6.QtGui import (QColor, QImage, QKeySequence, QLinearGradient, QPainter,
+                           QPainterPath, QPen, QPixmap, QShortcut)
+from PySide6.QtWidgets import (QApplication, QDialog, QFileDialog, QGridLayout, QHBoxLayout,
+                               QLabel, QPushButton, QVBoxLayout, QWidget)
+
+from onionwatch import theme
+from onionwatch.i18n import _
+from onionwatch.ui import icons
+
+PASTE, FILE, CUT = "paste", "file", "cut"   # where a picture comes from
+PICTURE_KINDS = ("appear", "vanish")
+EXTS = (".png", ".jpg", ".jpeg", ".bmp", ".webp", ".gif")
+ART = QSize(196, 84)              # a tile's drawing
+
+
+def kinds() -> list[tuple[str, str, str]]:
+    """(mode, title, an example) for each tile, in the order they're shown."""
+    return [("appear", _("Something shows up"), _("A rare spawn, a queue pop, YOU DIED")),
+            ("vanish", _("Something goes away"), _("A buff runs out, a loading screen ends")),
+            ("colour", _("A bar runs low"), _("Health, mana, a timer bar")),
+            ("change", _("A chat line changes"), _("A whisper, a new message, anything moving")),
+            ("still", _("Everything stops moving"), _("You're stuck, idle or disconnected"))]
+
+
+def draw_art(p: QPainter, r: QRectF, mode: str):
+    """A tile's drawing: a bit of a made-up game showing what that kind watches for.
+    A game picture, so its colours are the game's in every theme."""
+    p.save()
+    p.setRenderHint(QPainter.Antialiasing)
+    sky = QLinearGradient(r.topLeft(), r.bottomRight())
+    sky.setColorAt(0, QColor(43, 58, 82))
+    sky.setColorAt(1, QColor(28, 36, 51))
+    clip = QPainterPath()
+    clip.addRoundedRect(r, 8, 8)
+    p.setClipPath(clip)
+    p.fillRect(r, sky)
+    gold, plate = QColor(201, 162, 39), QColor(16, 21, 31)
+    line = QColor(255, 255, 255, 46)
+    if mode in ("appear", "vanish"):
+        b = QRectF(0, 0, r.width() * 0.6, 20)
+        b.moveCenter(r.center())
+        if mode == "vanish":
+            p.setOpacity(0.3)
+            p.setPen(QPen(gold, 1, Qt.DashLine))
+        else:
+            p.setPen(QPen(gold, 1))
+        p.setBrush(plate)
+        p.drawRoundedRect(b, 2, 2)
+        p.setOpacity(1)
+        if mode == "appear":    # a ring round it: that's the one it's looking for
+            p.setPen(QPen(QColor(theme.T.get("accent", "#1fb6a6")), 2))
+            p.setBrush(Qt.NoBrush)
+            p.drawRoundedRect(r.adjusted(2, 2, -2, -2), 7, 7)
+    elif mode == "colour":
+        bar = QRectF(r.left() + 14, r.top() + 16, r.width() * 0.7, 11)
+        p.setPen(Qt.NoPen)
+        p.setBrush(QColor(59, 26, 29))
+        p.drawRoundedRect(bar, 3, 3)
+        p.setBrush(QColor(224, 72, 72))
+        p.drawRoundedRect(QRectF(bar.left(), bar.top(), bar.width() * 0.28, bar.height()), 3, 3)
+        mana = QRectF(bar.left(), bar.bottom() + 6, bar.width() * 0.8, 7)
+        p.setBrush(QColor(30, 70, 140))
+        p.drawRoundedRect(mana, 3, 3)
+    elif mode == "change":
+        p.setPen(Qt.NoPen)
+        for i, (w, c) in enumerate(((0.8, line), (0.65, line), (0.5, QColor(127, 212, 255)))):
+            p.setBrush(c)
+            p.drawRoundedRect(QRectF(r.left() + 14, r.top() + 16 + i * 16,
+                                     (r.width() - 28) * w, 7), 3, 3)
+    else:   # still: lines that stopped, and z z
+        p.setPen(Qt.NoPen)
+        p.setBrush(line)
+        p.drawRoundedRect(QRectF(r.left() + 14, r.top() + 22, (r.width() - 28) * 0.8, 7), 3, 3)
+        p.drawRoundedRect(QRectF(r.left() + 14, r.top() + 38, (r.width() - 28) * 0.45, 7), 3, 3)
+        f = p.font()
+        f.setBold(True)
+        f.setPointSizeF(12)
+        p.setFont(f)
+        p.setPen(QColor(159, 179, 200))
+        p.drawText(r.adjusted(0, 0, -12, -6), Qt.AlignRight | Qt.AlignBottom, "z z")
+    p.restore()
+
+
+class Tile(QPushButton):
+    """A big choice: a picture on top (`art`, a widget), a name, a line under it."""
+
+    def __init__(self, title: str, line: str, art: QWidget, parent=None):
+        super().__init__(parent)
+        self.setObjectName("kindtile")
+        self.setCursor(Qt.PointingHandCursor)
+        self.setAccessibleName(title)
+        self.setToolTip(line)
+        v = QVBoxLayout(self)
+        v.setContentsMargins(12, 12, 12, 12)
+        v.setSpacing(6)
+        self.art = art
+        art.setParent(self)
+        art.setFixedSize(ART)
+        art.setAttribute(Qt.WA_TransparentForMouseEvents)
+        v.addWidget(art)
+        self.name = QLabel(title)
+        self.name.setObjectName("kindname")
+        self.name.setWordWrap(True)
+        self.name.setAttribute(Qt.WA_TransparentForMouseEvents)
+        v.addWidget(self.name)
+        self.line = QLabel(line)
+        self.line.setObjectName("hint")
+        self.line.setWordWrap(True)
+        self.line.setAttribute(Qt.WA_TransparentForMouseEvents)
+        v.addWidget(self.line)
+        v.addStretch(1)
+        self.setMinimumWidth(ART.width() + 24)
+
+    def sizeHint(self):
+        return self.layout().sizeHint()
+
+
+class Drawing(QWidget):
+    """A kind's drawing (draw_art)."""
+
+    def __init__(self, mode: str):
+        super().__init__()
+        self.mode = mode
+
+    def paintEvent(self, _e):
+        p = QPainter(self)
+        draw_art(p, QRectF(self.rect()), self.mode)
+        p.end()
+
+
+class KindTile(Tile):
+    """One kind of trigger: its drawing, what it's called and an example."""
+
+    def __init__(self, mode: str, title: str, example: str, parent=None):
+        super().__init__(title, example, Drawing(mode), parent)
+        self.mode = mode
+
+
+class Picture(QLabel):
+    """A source tile's picture: an icon in a soft box, or the copied picture itself."""
+
+    def __init__(self, icon: str):
+        super().__init__()
+        self.icon = icon
+        self.setAlignment(Qt.AlignCenter)
+        self.setObjectName("sourceart")
+        self.show_icon()
+
+    def show_icon(self):
+        self.setPixmap(icons.pixmap(self.icon, 40, theme.T.get("muted", "#888888")))
+
+    def show_image(self, img: QImage):
+        pm = QPixmap.fromImage(img).scaled(ART - QSize(16, 16), Qt.KeepAspectRatio,
+                                           Qt.SmoothTransformation)
+        self.setPixmap(pm)
+
+
+TILE_CSS = (
+    "QPushButton#kindtile { background: palette(base); border: 1px solid palette(mid);"
+    " border-radius: 12px; text-align: left; padding: 0; }"
+    "QPushButton#kindtile:hover, QPushButton#kindtile:focus {"
+    " border: 2px solid palette(highlight); }"
+    'QPushButton#kindtile[drop="true"] { border: 2px dashed palette(mid); }'
+    'QPushButton#kindtile[drop="true"]:hover, QPushButton#kindtile[dragging="true"] {'
+    " border: 2px dashed palette(highlight); }"
+    "QLabel#kindname { font-size: 11pt; font-weight: 700; background: transparent; }"
+    "QLabel#sourceart { background: palette(window); border-radius: 8px; }"
+    "QPushButton#kindtile QLabel#hint { background: transparent; }"
+)
+
+
+class DropTile(Tile):
+    """"Drop it here": takes picture files, or a picture dragged out of a browser."""
+
+    def __init__(self, title: str, line: str, picker: WhatPicker):
+        super().__init__(title, line, Picture("image"), picker)
+        self.picker = picker
+        self.setProperty("drop", True)
+        self.setAcceptDrops(True)
+
+    @staticmethod
+    def _files(mime) -> list[str]:
+        if mime is None:        # (an empty clipboard has no data at all)
+            return []
+        return [u.toLocalFile() for u in mime.urls()
+                if u.isLocalFile() and Path(u.toLocalFile()).suffix.lower() in EXTS]
+
+    def _mark(self, on: bool):
+        self.setProperty("dragging", on)
+        self.style().unpolish(self)
+        self.style().polish(self)
+
+    def dragEnterEvent(self, ev):
+        mime = ev.mimeData()
+        if self._files(mime) or mime.hasImage():
+            ev.acceptProposedAction()
+            self._mark(True)
+        else:
+            ev.ignore()
+
+    def dragLeaveEvent(self, ev):
+        self._mark(False)
+        super().dragLeaveEvent(ev)
+
+    def dropEvent(self, ev):
+        self._mark(False)
+        mime = ev.mimeData()
+        files = self._files(mime)
+        if files:
+            ev.acceptProposedAction()
+            self.picker.use_files(files)
+        elif mime.hasImage():
+            img = QImage(mime.imageData())
+            if not img.isNull():
+                ev.acceptProposedAction()
+                self.picker.use_image(img)
+
+
+class WhatPicker(QDialog):
+    """Steps 1 and 2 of New trigger. Once accepted: `picked`, the kind (a mode); for a
+    picture, `source` (PASTE, FILE or CUT) and with FILE `paths` (picture files) or
+    `image` (a picture dragged in from a browser)."""
+
+    def __init__(self, parent=None, can_paste: bool = False):
+        super().__init__(parent)
+        self.setWindowTitle(_("New trigger"))
+        self.picked: str | None = None
+        self.source: str | None = None
+        self.paths: list[str] = []
+        self.image: QImage | None = None
+        self.setStyleSheet(TILE_CSS)
+        v = QVBoxLayout(self)
+        v.setContentsMargins(18, 18, 18, 18)
+        v.setSpacing(12)
+        self.pages: list[QWidget] = []     # the steps, one shown at a time
+
+        # step 1: what
+        what = QWidget()
+        w = QVBoxLayout(what)
+        w.setContentsMargins(0, 0, 0, 0)
+        w.setSpacing(12)
+        w.addWidget(self._title(_("Step 1: what should it watch for?")))
+        w.addWidget(self._hint(_("Pick one. You can change everything on the trigger "
+                                 "afterwards.")))
+        grid = QGridLayout()
+        grid.setSpacing(12)
+        self.tiles: list[KindTile] = []
+        for i, (mode, name, example) in enumerate(kinds()):
+            tile = KindTile(mode, name, example, self)
+            tile.clicked.connect(lambda __=False, m=mode: self._pick(m))
+            grid.addWidget(tile, i // 3, i % 3)
+            self.tiles.append(tile)
+        w.addLayout(grid)
+        self.pages.append(what)
+        v.addWidget(what)
+
+        # step 2, for a picture: where it comes from
+        src = QWidget()
+        s = QVBoxLayout(src)
+        s.setContentsMargins(0, 0, 0, 0)
+        s.setSpacing(12)
+        s.addWidget(self._title(_("Step 2: the picture to look for")))
+        s.addWidget(self._hint(_("Any picture of it works: one off Google, a screenshot, a "
+                                 "file, or cut from the game as it is now.")))
+        row = QHBoxLayout()
+        row.setSpacing(12)
+        self.paste_art = Picture("copy")
+        self.tile_paste = Tile(_("Paste it"), "", self.paste_art, self)
+        self.tile_paste.clicked.connect(self._paste)
+        row.addWidget(self.tile_paste)
+        self.tile_drop = DropTile(_("Drop it here"),
+                                  _("Drag a picture in from your browser or a folder, or "
+                                    "click to choose a file."), self)
+        self.tile_drop.clicked.connect(self._choose)
+        row.addWidget(self.tile_drop)
+        self.tile_cut = Tile(_("Cut it from the game"),
+                             _("Drag a box round it in the game window, as it is right now."),
+                             Picture("crop"), self)
+        self.tile_cut.clicked.connect(lambda: self._done(CUT))
+        row.addWidget(self.tile_cut)
+        s.addLayout(row)
+        self.pages.append(src)
+        v.addWidget(src)
+        QShortcut(QKeySequence.Paste, self, self._paste)
+        QApplication.clipboard().dataChanged.connect(self._show_clipboard)
+        self._show_clipboard()
+
+        foot = QHBoxLayout()
+        foot.setSpacing(8)
+        self.btn_back = QPushButton(_("Back"))
+        self.btn_back.setProperty("quiet", True)
+        icons.set_icon(self.btn_back, "back", size=14)
+        self.btn_back.clicked.connect(lambda: self._show(0))
+        foot.addWidget(self.btn_back)
+        foot.addStretch(1)
+        cancel = QPushButton(_("Cancel"))
+        cancel.clicked.connect(self.reject)
+        foot.addWidget(cancel)
+        v.addLayout(foot)
+        self._show(0)
+
+    @staticmethod
+    def _title(text: str) -> QLabel:
+        lab = QLabel(text)
+        lab.setObjectName("helptitle")
+        lab.setWordWrap(True)
+        return lab
+
+    @staticmethod
+    def _hint(text: str) -> QLabel:
+        lab = QLabel(text)
+        lab.setObjectName("hint")
+        lab.setWordWrap(True)
+        return lab
+
+    def _show(self, page: int):
+        """A step, the pop-up as tall as that step needs."""
+        self.page = page
+        for i, w in enumerate(self.pages):
+            w.setVisible(i == page)
+        self.btn_back.setVisible(page == 1)
+        self.adjustSize()
+
+    def _copied(self) -> QImage:
+        """The picture copied now (null if none): itself, or a copied picture file."""
+        cb = QApplication.clipboard()
+        img = cb.image()
+        if img.isNull():
+            files = DropTile._files(cb.mimeData())
+            if files:
+                img = QImage(files[0])
+        return img
+
+    def _show_clipboard(self):
+        img = self._copied()
+        if img.isNull():
+            self.paste_art.show_icon()
+            self.tile_paste.line.setText(_("Nothing copied yet. Right-click a picture on the "
+                                           "web, Copy image, then click here (or Ctrl+V)."))
+        else:
+            self.paste_art.show_image(img)
+            self.tile_paste.line.setText(_("You've copied this picture: click to use it (or "
+                                           "Ctrl+V)."))
+
+    def _pick(self, mode: str):
+        self.picked = mode
+        if mode in PICTURE_KINDS:
+            self._show(1)
+        else:
+            self.accept()
+
+    def _paste(self):
+        if self.page != 1:
+            return
+        if self._copied().isNull():
+            self.tile_paste.line.setText(_("There's no picture copied. Right-click a picture on "
+                                           "the web and pick Copy image first."))
+            return
+        self._done(PASTE)
+
+    def _choose(self):
+        paths, __ = QFileDialog.getOpenFileNames(
+            self, _("Pictures to look for"), str(Path.home()),
+            _("Pictures") + " (" + " ".join("*" + e for e in EXTS) + ")")
+        if paths:
+            self.use_files(paths)
+
+    def use_files(self, paths: list[str]):
+        self.paths = list(paths)
+        self._done(FILE)
+
+    def use_image(self, img: QImage):
+        self.image = img
+        self._done(FILE)
+
+    def _done(self, source: str):
+        self.source = source
+        self.accept()

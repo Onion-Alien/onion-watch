@@ -11,8 +11,9 @@ import logging
 import numpy as np
 from PySide6.QtCore import QEvent, QSize, Qt, QTimer
 from PySide6.QtGui import QColor, QIcon, QImage, QPixmap
-from PySide6.QtWidgets import (QCheckBox, QDialog, QDialogButtonBox, QHBoxLayout, QListWidget,
-                               QListWidgetItem, QPushButton, QStyledItemDelegate, QVBoxLayout)
+from PySide6.QtWidgets import (QCheckBox, QDialog, QDialogButtonBox, QHBoxLayout, QLabel,
+                               QListWidget, QListWidgetItem, QPushButton, QStyledItemDelegate,
+                               QVBoxLayout)
 
 from onionwatch import screenwatch, theme, windows
 from onionwatch.screenwatch import MAX_SOURCES, WindowRef
@@ -87,7 +88,7 @@ class WindowPicker(QDialog):
     list ticked instead (windows, "every copy" windows and screen indexes), and
     `current` the list ticked to begin with."""
 
-    def __init__(self, parent=None, current=None, multi: bool = False):
+    def __init__(self, parent=None, current=None, multi: bool = False, heading: str = ""):
         super().__init__(parent)
         fit.watch(self)          # grows to fit its (translated) text
         self.multi = multi
@@ -98,6 +99,11 @@ class WindowPicker(QDialog):
         self._current = list(current or []) if multi else current
         self._wins: list[windows.WindowInfo] = []
         v = QVBoxLayout(self)
+        if heading:     # a step of New trigger: says which, big, over the rest
+            title = QLabel(heading)
+            title.setObjectName("helptitle")
+            title.setWordWrap(True)
+            v.addWidget(title)
         v.addWidget(hint_label(
             _("Tick every window (and screen) to look in: any of them counts, and each is "
               "watched on its own, so the alert says which one it was. Windows are watched even "

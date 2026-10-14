@@ -143,12 +143,17 @@ class CropView(QWidget):
 class SnipDialog(QDialog):
     """`piece` is the cut-out QImage once accepted."""
 
-    def __init__(self, img: QImage, where: str, parent=None):
+    def __init__(self, img: QImage, where: str, parent=None, heading: str = ""):
         super().__init__(parent)
         fit.watch(self)          # grows to fit its (translated) text
         self.setWindowTitle(_("Cut a picture from {where}", where=where))
         self.piece: QImage | None = None
         v = QVBoxLayout(self)
+        if heading:     # a step of New trigger: says which, big, over the rest
+            title = QLabel(heading)
+            title.setObjectName("helptitle")
+            title.setWordWrap(True)
+            v.addWidget(title)
         v.addWidget(hint_label(
             _("Drag a box around the thing to watch for — a name plate, a banner, an icon. Keep "
               "it tight but with some detail in it (words work well). It's kept at full size, so "
@@ -191,7 +196,7 @@ class AreaDialog(QDialog):
     (fractions, None: all of it) and `colour` the colour ("#rrggbb", "" without)."""
 
     def __init__(self, img: QImage, where: str, region=None, colour: str | None = None,
-                 parent=None):
+                 parent=None, heading: str = ""):
         super().__init__(parent)
         fit.watch(self)          # grows to fit its (translated) text
         self.setWindowTitle(_("Where to look in {where}", where=where))
@@ -199,6 +204,11 @@ class AreaDialog(QDialog):
         self.region = region
         self.colour = colour or ""
         v = QVBoxLayout(self)
+        if heading:     # a step of New trigger: says which, big, over the rest
+            title = QLabel(heading)
+            title.setObjectName("helptitle")
+            title.setWordWrap(True)
+            v.addWidget(title)
         v.addWidget(hint_label(
             _("Drag a box tightly around the bar to measure (its full length), then check the "
               "colour below: it's the bar's main colour — click “Pick the colour” and then the "
