@@ -1332,13 +1332,13 @@ CARD_CSS = (
     # the card's sentence: its words a little bigger than the rules' labels
     "QLabel#sentenceword, QCheckBox#sentencecheck { font-size: 11pt; }"
     # its choices: big rounded buttons with a heavier bottom edge in the accent colour
-    # (token="accent"); the sounds' chips (token="true") plain, the + dashed
+    # (token="accent"); the sounds' chips (token="true") plain, the + a thin outline
     'QComboBox[token="true"], QComboBox[token="accent"], QFrame#chip[token="true"] {'
     " background: palette(base); border: 1px solid palette(mid);"
     " border-bottom: 3px solid palette(mid); border-radius: 9px; font-size: 10pt;"
     " font-weight: 600; }"
     'QComboBox[token="accent"] { border-color: palette(highlight); color: palette(highlight); }'
-    'QComboBox#addsound[token="true"] { border-style: dashed; border-bottom-width: 1px; }'
+    'QComboBox#addsound[token="true"] { border-bottom-width: 1px; }'
     'QFrame#chip[token="true"] QPushButton#chipname { font-size: 10pt; font-weight: 600;'
     " background: transparent; }"
     # the extra settings it has changed: pills
@@ -1368,8 +1368,8 @@ CARD_CSS = (
     " font-size:10pt; font-weight:700; }"
     "QLabel#thumbmore { background: rgba(0,0,0,170); color: white;"
     " border-radius: 4px; padding: 0 3px; font-size: 7pt; font-weight: 700; }"
-    # the dashed + after the pictures
-    "QPushButton#addpic { background:transparent; border:1px dashed palette(mid);"
+    # the outlined + after the pictures
+    "QPushButton#addpic { background:transparent; border:1px solid palette(mid);"
     " border-radius:8px; padding:0; font-size:12pt; color:palette(window-text); }"
     "QPushButton#addpic:hover { border-color:palette(highlight);"
     " color:palette(highlight); }"
@@ -1478,7 +1478,7 @@ class TriggerRow(QFrame):
         self.strip.picture_removed.connect(lambda i: self.picture_removed.emit(self, i))
         self.strip.add_wanted.connect(self._show_add_menu)
         self.btn_add_pic = QPushButton("+")
-        # a dashed slot after the pictures (open), or where the first one goes
+        # an outlined slot after the pictures (open), or where the first one goes
         self.btn_add_pic.setObjectName("addpic")
         self.btn_add_pic.setAccessibleName(_("Add a picture"))
         self.btn_add_pic.setToolTip(_("Add a picture: cut it from the window, pick files or "

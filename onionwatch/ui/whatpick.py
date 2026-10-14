@@ -55,9 +55,7 @@ def draw_art(p: QPainter, r: QRectF, mode: str):
         b.moveCenter(r.center())
         if mode == "vanish":
             p.setOpacity(0.3)
-            p.setPen(QPen(gold, 1, Qt.PenStyle.DashLine))
-        else:
-            p.setPen(QPen(gold, 1))
+        p.setPen(QPen(gold, 1))
         p.setBrush(plate)
         p.drawRoundedRect(b, 2, 2)
         p.setOpacity(1)
@@ -213,9 +211,9 @@ def tile_css() -> str:
         f" border: 2px solid {t['muted']}; }}"
         'QPushButton#kindtile[pick="true"]:checked {'
         f" border: 2px solid {t['accent']}; background: {t['inset']}; }}"
-        f'QPushButton#kindtile[drop="true"] {{ border: 2px dashed {t["border"]}; }}'
+        f'QPushButton#kindtile[drop="true"] {{ border: 2px solid {t["border"]}; }}'
         'QPushButton#kindtile[drop="true"]:hover, QPushButton#kindtile[dragging="true"] {'
-        f" border: 2px dashed {t['accent']}; }}"
+        f" border: 2px solid {t['accent']}; }}"
         f"QLabel#kindtick {{ background: {t['accent']}; color: {t['on_accent']};"
         f" border-radius: {TICK // 2}px; font-size: 11pt; font-weight: 700; }}"
         # Continue stays off until a tile is picked: it mustn't look ready
