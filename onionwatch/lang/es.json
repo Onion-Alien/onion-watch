@@ -762,5 +762,11 @@
   "No sounds match": "Ningún sonido coincide",
   "No sounds yet: choose a sound file": "Aún no hay sonidos: elige un archivo de sonido",
   "Search sounds": "Buscar sonidos",
-  "Show the sounds of one category": "Mostrar los sonidos de una categoría"
+  "Show the sounds of one category": "Mostrar los sonidos de una categoría",
+  "An add-on for Onion Board: it plays the board's sounds, and the board keeps its triggers and settings.": "Un complemento de Onion Board: reproduce los sonidos del tablero, y el tablero guarda sus disparadores y sus ajustes.",
+  "Opens Onion Watch's page on GitHub in your browser": "Abre la página de Onion Watch en GitHub en tu navegador",
+  "Opens the list of Onion Watch's versions and what each changed, on GitHub in your browser": "Abre la lista de versiones de Onion Watch y qué cambió en cada una, en GitHub en tu navegador",
+  "Settings": "Ajustes",
+  "Uninstall the add-on from Onion Board. Your triggers are kept, for when you get it again.": "Desinstala el complemento de Onion Board. Tus disparadores se guardan para cuando lo vuelvas a instalar.",
+  "What's new": "Novedades"
 }

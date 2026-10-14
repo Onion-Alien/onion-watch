@@ -762,5 +762,11 @@
   "No sounds match": "Ingen lyder passer",
   "No sounds yet: choose a sound file": "Ingen lyder ennå: velg en lydfil",
   "Search sounds": "Søk i lyder",
-  "Show the sounds of one category": "Vis lydene i én kategori"
+  "Show the sounds of one category": "Vis lydene i én kategori",
+  "An add-on for Onion Board: it plays the board's sounds, and the board keeps its triggers and settings.": "Et tillegg til Onion Board: det spiller brettets lyder, og brettet tar vare på triggerne og innstillingene.",
+  "Opens Onion Watch's page on GitHub in your browser": "Åpner Onion Watch-siden på GitHub i nettleseren",
+  "Opens the list of Onion Watch's versions and what each changed, on GitHub in your browser": "Åpner listen over Onion Watch-versjoner og hva hver endret, på GitHub i nettleseren",
+  "Settings": "Innstillinger",
+  "Uninstall the add-on from Onion Board. Your triggers are kept, for when you get it again.": "Avinstaller tillegget fra Onion Board. Triggerne dine beholdes til du henter det igjen.",
+  "What's new": "Hva er nytt"
 }

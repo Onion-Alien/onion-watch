@@ -774,5 +774,11 @@
   "No sounds match": "Niciun sunet nu se potrivește",
   "No sounds yet: choose a sound file": "Încă niciun sunet: alegeți un fișier de sunet",
   "Search sounds": "Căutați sunete",
-  "Show the sounds of one category": "Arată sunetele unei categorii"
+  "Show the sounds of one category": "Arată sunetele unei categorii",
+  "An add-on for Onion Board: it plays the board's sounds, and the board keeps its triggers and settings.": "Un supliment pentru Onion Board: redă sunetele board-ului, iar board-ul îi păstrează declanșatoarele și setările.",
+  "Opens Onion Watch's page on GitHub in your browser": "Deschide pagina Onion Watch pe GitHub în browser",
+  "Opens the list of Onion Watch's versions and what each changed, on GitHub in your browser": "Deschide lista versiunilor Onion Watch și ce a schimbat fiecare, pe GitHub în browser",
+  "Settings": "Setări",
+  "Uninstall the add-on from Onion Board. Your triggers are kept, for when you get it again.": "Dezinstalează suplimentul din Onion Board. Declanșatoarele rămân păstrate pentru când îl iei din nou.",
+  "What's new": "Ce e nou"
 }

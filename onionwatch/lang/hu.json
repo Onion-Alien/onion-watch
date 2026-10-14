@@ -762,5 +762,11 @@
   "No sounds match": "Nincs ilyen hang",
   "No sounds yet: choose a sound file": "Még nincs hang: válasszon egy hangfájlt",
   "Search sounds": "Hangok keresése",
-  "Show the sounds of one category": "Egy kategória hangjainak mutatása"
+  "Show the sounds of one category": "Egy kategória hangjainak mutatása",
+  "An add-on for Onion Board: it plays the board's sounds, and the board keeps its triggers and settings.": "Kiegészítő az Onion Boardhoz: a board hangjait játssza le, a board pedig őrzi a triggereit és beállításait.",
+  "Opens Onion Watch's page on GitHub in your browser": "Megnyitja az Onion Watch GitHub-oldalát a böngésződben",
+  "Opens the list of Onion Watch's versions and what each changed, on GitHub in your browser": "Megnyitja az Onion Watch verzióinak listáját és hogy mi változott bennük, a GitHubon a böngésződben",
+  "Settings": "Beállítások",
+  "Uninstall the add-on from Onion Board. Your triggers are kept, for when you get it again.": "Eltávolítja a kiegészítőt az Onion Boardból. A triggereid megmaradnak, ha újra letöltöd.",
+  "What's new": "Újdonságok"
 }

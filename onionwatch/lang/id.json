@@ -750,5 +750,11 @@
   "No sounds match": "Tidak ada suara yang cocok",
   "No sounds yet: choose a sound file": "Belum ada suara: pilih file suara",
   "Search sounds": "Cari suara",
-  "Show the sounds of one category": "Tampilkan suara satu kategori"
+  "Show the sounds of one category": "Tampilkan suara satu kategori",
+  "An add-on for Onion Board: it plays the board's sounds, and the board keeps its triggers and settings.": "Add-on untuk Onion Board: memutar suara board, dan board menyimpan pemicu serta pengaturannya.",
+  "Opens Onion Watch's page on GitHub in your browser": "Membuka halaman Onion Watch di GitHub pada browser Anda",
+  "Opens the list of Onion Watch's versions and what each changed, on GitHub in your browser": "Membuka daftar versi Onion Watch dan apa yang berubah di tiap versi, di GitHub pada browser Anda",
+  "Settings": "Pengaturan",
+  "Uninstall the add-on from Onion Board. Your triggers are kept, for when you get it again.": "Copot add-on dari Onion Board. Pemicu Anda tetap disimpan untuk saat Anda memasangnya lagi.",
+  "What's new": "Yang baru"
 }

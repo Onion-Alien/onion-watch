@@ -24,12 +24,12 @@ import urllib.request
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from onionwatch import __version__, settings
+from onionwatch import REPO as _REPO, __version__, settings
 from onionwatch.i18n import _
 
 log = logging.getLogger(__name__)
 
-REPO = "Onion-Alien/onion-watch"
+REPO = _REPO
 API = f"https://api.github.com/repos/{REPO}/releases/latest"
 RELEASES = f"https://github.com/{REPO}/releases/latest"
 ASSET = "OnionWatch-Installer.exe"

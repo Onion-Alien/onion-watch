@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from urllib.parse import quote, urlencode
 
-from onionwatch.updates import REPO
+from onionwatch import REPO   # not updates: that pulls the app into the board add-on
 
 # the no-account feedback form (shared with Onion Board); empty = GitHub issues
 FORM_URL = "https://tally.so/r/rjxjyM"

@@ -114,6 +114,7 @@ then installs that file instead of downloading.
 | `onionwatch/board.py` | the Onion Board add-on's entry point: `create(host, parent=None)` gives the board its Triggers tab, made on `parent` when given (alarm bar + triggers page) |
 | `onionwatch/ui/triggerspanel.py` | the triggers page: one card per trigger, "Look in", Watching, Cut picture. Talks only to its host |
 | `onionwatch/ui/pages.py` | the triggers page as both hosts show it: the Triggers / Log tabs and the Playing now bar under them |
+| `onionwatch/ui/boardsettings.py` | inside Onion Board only, the Settings tab: what Onion Watch is with its links, the Watching cards, and the board's Remove Onion Watch |
 | `onionwatch/ui/alarmbar.py` | the red bar shown while a trigger rings, with Stop |
 | `onionwatch/profiles.py` | trigger categories and profiles: which triggers are on now (Manual switches, a profile, or Automatic by the programs open), saved beside the triggers in `Config.screen` (a category's look in `category_looks`, apart, so older versions keep it) |
 | `onionwatch/ui/categories.py` | a category's section in the list (fold, switch, counts, menu, its colours and picture; its cards made only once opened), the Categories window (each one's look) and the Profiles window |

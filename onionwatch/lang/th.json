@@ -750,5 +750,11 @@
   "No sounds match": "ไม่มีเสียงที่ตรงกัน",
   "No sounds yet: choose a sound file": "ยังไม่มีเสียง: เลือกไฟล์เสียง",
   "Search sounds": "ค้นหาเสียง",
-  "Show the sounds of one category": "แสดงเสียงของหมวดหมู่เดียว"
+  "Show the sounds of one category": "แสดงเสียงของหมวดหมู่เดียว",
+  "An add-on for Onion Board: it plays the board's sounds, and the board keeps its triggers and settings.": "ส่วนเสริมของ Onion Board: เล่นเสียงของบอร์ด และบอร์ดเก็บทริกเกอร์กับการตั้งค่าไว้ให้",
+  "Opens Onion Watch's page on GitHub in your browser": "เปิดหน้า Onion Watch บน GitHub ในเบราว์เซอร์",
+  "Opens the list of Onion Watch's versions and what each changed, on GitHub in your browser": "เปิดรายการเวอร์ชันของ Onion Watch และสิ่งที่เปลี่ยนในแต่ละเวอร์ชัน บน GitHub ในเบราว์เซอร์",
+  "Settings": "การตั้งค่า",
+  "Uninstall the add-on from Onion Board. Your triggers are kept, for when you get it again.": "ถอนการติดตั้งส่วนเสริมออกจาก Onion Board ทริกเกอร์ของคุณยังเก็บไว้สำหรับเมื่อติดตั้งใหม่",
+  "What's new": "มีอะไรใหม่"
 }

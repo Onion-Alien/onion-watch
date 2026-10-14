@@ -762,5 +762,11 @@
   "No sounds match": "Eşleşen ses yok",
   "No sounds yet: choose a sound file": "Henüz ses yok: bir ses dosyası seç",
   "Search sounds": "Seslerde ara",
-  "Show the sounds of one category": "Tek bir kategorinin seslerini göster"
+  "Show the sounds of one category": "Tek bir kategorinin seslerini göster",
+  "An add-on for Onion Board: it plays the board's sounds, and the board keeps its triggers and settings.": "Onion Board için bir eklenti: panonun seslerini çalar, tetikleyicilerini ve ayarlarını pano saklar.",
+  "Opens Onion Watch's page on GitHub in your browser": "Onion Watch'ın GitHub sayfasını tarayıcınızda açar",
+  "Opens the list of Onion Watch's versions and what each changed, on GitHub in your browser": "Onion Watch sürümlerinin listesini ve her birinde nelerin değiştiğini tarayıcınızda GitHub'da açar",
+  "Settings": "Ayarlar",
+  "Uninstall the add-on from Onion Board. Your triggers are kept, for when you get it again.": "Eklentiyi Onion Board'dan kaldırır. Tetikleyicileriniz yeniden yüklediğinizde kullanmak üzere saklanır.",
+  "What's new": "Yenilikler"
 }

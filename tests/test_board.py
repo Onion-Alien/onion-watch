@@ -57,6 +57,8 @@ def test_the_tab_shows_the_logo_left_of_its_tabs(tab):
     row = pages.layout().itemAt(0).layout()
     assert row.itemAt(0).widget() is pages.logo and row.itemAt(1).widget() is pages.tabs
     assert inspect.signature(TriggerPages).parameters["logo"].default is False
+    # ...and only the board gets the Settings tab: the app has its own Settings window
+    assert inspect.signature(TriggerPages).parameters["settings_menu"].default is None
 
 
 def test_a_ringing_trigger_notifies_and_stop_all_stops_it(tab, qapp):
@@ -123,9 +125,41 @@ def test_opening_the_tab_makes_no_closed_cards_editor(tab, qapp):
         again.shutdown()
 
 
-def test_the_board_can_reach_the_more_menu(tab):
-    """Onion Board puts "Remove Onion Watch…" last in the add-on's More menu."""
-    assert tab.btn_more is tab.panel.btn_more and tab.btn_more.menu() is not None
+def test_the_boards_remove_item_is_a_button_on_the_settings_tab(tab, qapp):
+    """Onion Board puts "Remove Onion Watch…" last in the menu of the add-on's
+    btn_more: that menu is the Settings tab's, never the triggers' More menu."""
+    menu = tab.btn_more.menu()
+    assert menu is not None and tab.btn_more is not tab.panel.btn_more
+    settings = tab.pages.settings
+    assert tab.pages.tabs.count() == 3 and tab.pages.tabs.tabText(2) == "Settings"
+    tab.pages.show_settings()
+    tab.show()
+    process_events(qapp, lambda: settings.isVisible())
+    assert settings.remove_card.isHidden()          # nothing added: a bundled add-on
+    removed = []
+    menu.addSeparator()
+    menu.addAction("Remove Onion Watch…", lambda: removed.append(True))
+    tab.pages.tabs.setCurrentIndex(0)
+    tab.pages.show_settings()
+    process_events(qapp, lambda: settings.isVisible())
+    assert not settings.remove_card.isHidden()
+    assert settings.btn_remove.text() == "Remove Onion Watch…"
+    settings.btn_remove.click()
+    assert removed == [True]
+    assert "Remove" not in " ".join(a.text() for a in tab.panel.btn_more.menu().actions())
+
+
+def test_the_chip_on_the_bottom_bar_opens_the_settings_tab(tab):
+    tab.panel.show_watching()
+    assert tab.pages.tabs.currentIndex() == 2
+
+
+def test_the_owl_is_the_boards_onion_size_on_its_line(tab):
+    from onionwatch.ui.pages import LOGO_BOX, LOGO_PX
+    assert (LOGO_PX, LOGO_BOX) == (24, 34)      # Onion Board's sidebar.LOGO and its box
+    assert tab.pages.logo.size().width() == LOGO_PX
+    assert tab.pages.logo.size().height() == LOGO_BOX
+    assert tab.layout().contentsMargins().top() == 0
 
 
 @pytest.mark.parametrize("board_rtl", [False, True])
@@ -212,7 +246,9 @@ def test_the_logo_takes_the_boards_colours(tab):
     tab.retheme()
     after = tab.pages.logo.pixmap().toImage()
     assert after != before
-    assert after == theme.themed_logo(after.width()).toImage()
+    tab.host.colours = {"accent": "#123456"}
+    tab.retheme()
+    assert tab.pages.logo.pixmap().toImage() == before    # and back with the board's
 
 
 def test_the_play_menu_searches_and_shows_the_boards_categories(tab, qapp):
