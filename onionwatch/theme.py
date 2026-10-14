@@ -983,7 +983,7 @@ def paint_logo(p: QPainter, rect: QRectF, c1: str, c2: str, awake: bool = True):
     p.restore()
 
 
-BRAND = ("#1fb6a6", "#2a6fdb")   # Hoot's teal to blue: the app icon keeps it in every theme
+BRAND = ("#1fb6a6", "#2a6fdb")   # Hoot's teal to blue: the installer and the .exe's icon
 
 
 def logo_pixmap(size: int, c1: str | None = None, c2: str | None = None,
@@ -997,9 +997,14 @@ def logo_pixmap(size: int, c1: str | None = None, c2: str | None = None,
 
 
 def themed_logo(size: int, awake: bool = True) -> QPixmap:
-    """The logo in the current theme's colours, as Onion Board shows its own (the
-    app and tray icons keep BRAND)."""
+    """The logo in the current theme's colours, as Onion Board shows its own."""
     return logo_pixmap(size, T.get("accent"), T.get("accent2"), awake)
+
+
+def themed_icon(awake: bool = True) -> QIcon:
+    """The window, taskbar and tray icon in the current theme's colours, like Onion
+    Board's (the installer and the .exe keep BRAND)."""
+    return app_icon(T.get("accent"), T.get("accent2"), awake)
 
 
 def app_icon(c1: str | None = None, c2: str | None = None, awake: bool = True) -> QIcon:
