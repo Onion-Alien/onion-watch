@@ -20,8 +20,10 @@ def use_host(host) -> None:
         theirs = host.kit() if hasattr(host, "kit") else None
     except Exception:  # noqa: BLE001 - a host's bug mustn't stop the tab
         theirs = None
-    ok = theirs is not None and getattr(theirs, "KIT_VERSION", 0) >= _own.KIT_VERSION
-    _kit = theirs if ok else _own
+    if theirs is not None and getattr(theirs, "KIT_VERSION", 0) >= _own.KIT_VERSION:
+        _kit = theirs
+    else:
+        _kit = _own
 
 
 def use_own() -> None:

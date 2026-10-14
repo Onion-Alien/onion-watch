@@ -1,6 +1,7 @@
 """Hoot alive (style/owl.OwlWidget, the style kit copied from Onion Board): every act he
 does while he waits runs start to end and paints, the mouse coming near cuts an act
-short and perks him up, and a click cheers him. Offscreen, stepped by hand: no timers are waited on."""
+short and perks him up, and a click cheers him. Offscreen, stepped by hand: no timers
+are waited on."""
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QImage
 
