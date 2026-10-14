@@ -205,8 +205,12 @@ def tile_css() -> str:
         "QPushButton#kindtile:hover, QPushButton#kindtile:focus {"
         f" border: 2px solid {t['accent']}; }}"
         # step 1's tiles: hover only hints, the picked one is filled and ringed
-        'QPushButton#kindtile[pick="true"]:hover, QPushButton#kindtile[pick="true"]:focus {'
-        f" border: 2px dashed {t['muted']}; }}"
+        # (focus alone draws nothing: the first tile has it at the start, and it would
+        # look picked)
+        'QPushButton#kindtile[pick="true"]:focus {'
+        f" border: 1px solid {t['border']}; }}"
+        'QPushButton#kindtile[pick="true"]:hover {'
+        f" border: 2px solid {t['muted']}; }}"
         'QPushButton#kindtile[pick="true"]:checked {'
         f" border: 2px solid {t['accent']}; background: {t['inset']}; }}"
         f'QPushButton#kindtile[drop="true"] {{ border: 2px dashed {t["border"]}; }}'
