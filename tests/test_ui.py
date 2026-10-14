@@ -508,21 +508,19 @@ def test_the_delete_button_asks_first(tab, monkeypatch):
 
 
 def test_toolbar_is_one_row_when_there_is_room(tab, qapp, styled):
-    """Cut picture stays a button; a picture file, the copied picture and a trigger
-    without a picture are in the Add menu next to it. At a normal width the whole
-    bar, Look in and the settings button included, is one centred row."""
-    texts = [a.text() for a in tab.btn_add.menu().actions()]
-    assert texts == ["From a picture file", "Paste the copied picture", "Without a picture"]
+    """+ New trigger is the only way to make a trigger: the bar has no Cut picture or
+    Add. At a normal width the whole bar, Look in and the settings button included, is
+    one centred row."""
+    assert not hasattr(tab, "btn_cut") and not hasattr(tab, "btn_add")
     assert "Without a picture" not in [a.text() for a in tab.btn_more.menu().actions()]
     tab.resize(1180, 700)
     tab.show()
     qapp.processEvents()
     bar = tab.toolbar
     mids = {w.mapTo(bar, w.rect().center()).y() for w in
-            (tab.btn_watch, tab.btn_cut, tab.btn_add, tab.btn_more, tab.cb_where,
-             tab.btn_settings)}
+            (tab.btn_watch, tab.btn_more, tab.cb_where, tab.btn_settings)}
     assert max(mids) - min(mids) <= 1
-    assert tab.cb_where.height() == tab.btn_watch.height() == tab.btn_cut.height()
+    assert tab.cb_where.height() == tab.btn_watch.height() == tab.btn_more.height()
     # with room to spare, Look in shows the whole "Screen 1: 320×180", not "Screen 1: 1…"
     tab.resize(1800, 700)
     qapp.processEvents()
@@ -545,8 +543,7 @@ def test_a_narrow_window_keeps_the_bar_inside_it(tab, qapp, styled):
         return w.mapTo(bar, w.rect().topLeft()).y()
     assert top(tab.cb_where) > top(tab.btn_watch)
     assert not hasattr(tab, "cb_interval")
-    for w in (tab.btn_watch, tab.btn_cut, tab.btn_add, tab.btn_more, tab.cb_where,
-              tab.btn_settings):
+    for w in (tab.btn_watch, tab.btn_more, tab.cb_where, tab.btn_settings):
         assert w.mapTo(bar, w.rect().topRight()).x() < bar.width()
     tab.hide()
 

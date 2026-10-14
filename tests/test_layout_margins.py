@@ -27,7 +27,7 @@ def test_the_bottom_bar_keeps_its_margins_when_it_wraps(tab, qapp):
     assert len({w.y() for w in kids}) > 1     # it did wrap at this width
 
 
-def test_more_options_is_top_right_and_test_duplicate_delete_share_a_line(tab, qapp):
+def test_the_sentence_then_the_rules_then_test_duplicate_delete_on_one_line(tab, qapp):
     tab._new(as_qimage(banner()), "Rare")
     row = list(tab.rows.values())[-1]
     tab.resize(1100, 700)
@@ -37,43 +37,47 @@ def test_more_options_is_top_right_and_test_duplicate_delete_share_a_line(tab, q
 
     def centre(w):
         return w.mapTo(row, w.rect().center())
-    assert abs(centre(row.btn_tune).y() - centre(row.mode).y()) <= 2      # the When line
-    assert centre(row.btn_tune).x() > centre(row.mode).x()
+    when, play = centre(row.mode).y(), centre(row.sound).y()
+    assert abs(centre(row.where).y() - when) <= 2                       # "When … in …"
+    assert when < play < centre(row.chk_ring).y() < centre(row.btn_tune).y()
     test_y = centre(row.btn_test).y()
-    for b in (row.btn_dup, row.btn_del):
+    assert test_y > centre(row.btn_tune).y()                            # under the rest
+    for b in (row.cb_category, row.btn_dup, row.btn_del):
         assert abs(centre(b).y() - test_y) <= 2
-    assert test_y > centre(row.cb_category).y()                         # under the rest
+        assert centre(b).x() > centre(row.btn_test).x()
 
 
 @pytest.mark.parametrize("width", [360, 600, 900, 1200])
 def test_controls_fit_and_share_heights_across_window_sizes(tab, qapp, styled, width):
     tab._new(as_qimage(banner()), "Rare")
     row = list(tab.rows.values())[-1]
-    row.btn_tune.setChecked(True)
     row.chk_ring.setChecked(True)
     tab.resize(width, 900)
     tab.show()
     for _ in range(12):
         qapp.processEvents()
     assert tab.width() == width
-    if tab.editor is not None:      # a wide window: the trigger is in the editor
-        row = tab.editor
-        row.btn_tune.setChecked(True)
-        for _ in range(12):
-            qapp.processEvents()
-    controls = [row.mode, row.where, row.btn_area, row.interval, row.sound, row.until,
-                row.btn_test, row.delay, row.cooldown, row.threshold, row.btn_tune,
-                row.btn_dup, row.btn_del]
-    assert len({w.height() for w in controls}) == 1
-    for w in controls:
-        assert w.mapTo(row, w.rect().topLeft()).x() >= 0
-        assert w.mapTo(row, w.rect().topRight()).x() < row.width()
-    # each label under More options sits on its control's centre line
+    row = tab.editor or row         # a wide window: the trigger is in the editor
+    # the card's sentence and buttons fit the card; the extra settings fit their pop-up
+    card = [row.mode, row.where, row.sound, row.until, row.btn_test, row.btn_tune,
+            row.btn_dup, row.btn_del]
+    row.show_rules()
+    dlg = row.rules_dlg
+    for _ in range(12):
+        qapp.processEvents()
+    extra = [row.btn_area, row.interval, row.delay, row.cooldown, row.threshold]
+    assert len({w.height() for w in card + extra}) == 1
+    for box, controls in ((row, card), (dlg, extra)):
+        for w in controls:
+            assert w.mapTo(box, w.rect().topLeft()).x() >= 0
+            assert w.mapTo(box, w.rect().topRight()).x() < box.width()
+    # each rule's tick box (or label) sits on its control's centre line
     for group in row.tune.groups:
         for lab, w, _inner in group:
             if lab is not None and w.isVisibleTo(row.tune):
-                assert abs(lab.mapTo(row, lab.rect().center()).y()
-                           - w.mapTo(row, w.rect().center()).y()) <= 1
+                assert abs(lab.mapTo(dlg, lab.rect().center()).y()
+                           - w.mapTo(dlg, w.rect().center()).y()) <= 1
+    dlg.accept()
 
 
 @pytest.mark.parametrize("width", [500, 1100])
@@ -85,6 +89,7 @@ def test_the_ring_list_isnt_cut_off_at_the_bottom(tab, qapp, styled, width):
     tab.show()
     for _ in range(12):
         qapp.processEvents()
+    row = tab.editor or row         # a wide window: the trigger is in the editor
     pair = row.ring_box     # was 26 px tall round a 34 px list: its bottom edge gone
     assert row.until.geometry().bottom() <= pair.height() - 1
     assert pair.geometry().bottom() <= pair.parentWidget().height() - 1

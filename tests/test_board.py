@@ -78,9 +78,9 @@ def test_a_ringing_trigger_notifies_and_stop_all_stops_it(tab, qapp):
 
 def test_the_board_is_told_what_it_may_squeeze(tab):
     parts = tab.fit_parts()
-    # paste: in Add; the check speed: under ⚙ (an older board asking for "interval_label"
-    # gets nothing, and leaves it be)
-    assert set(parts) == {"hint", "watch", "cut", "add"}
+    # new triggers: + New trigger; the check speed: under ⚙ (an older board asking for
+    # "cut", "add" or "interval_label" gets nothing, and leaves it be)
+    assert set(parts) == {"hint", "watch"}
     tab.panel.btn_watch.setProperty("compact", True)   # the board shows it icon only
     tab.panel.btn_watch.setText("")
     tab.panel.set_watching(False)
