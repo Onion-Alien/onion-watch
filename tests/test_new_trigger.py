@@ -248,6 +248,7 @@ def test_a_click_picks_a_kind_and_continue_goes_on(qapp):
     assert dlg.result() != QDialog.Accepted and dlg.page == 0
     dlg.tiles[0].click()                       # changed my mind: Something shows up
     assert dlg.picked == "appear" and not dlg.tiles[2].isChecked()
+    assert dlg.tiles[0].tick.isVisibleTo(dlg) and not dlg.tiles[2].tick.isVisibleTo(dlg)
     assert dlg.page == 0 and dlg.btn_next.isEnabled()
     dlg.btn_next.click()
     assert dlg.page == 1 and not dlg.btn_next.isVisibleTo(dlg)

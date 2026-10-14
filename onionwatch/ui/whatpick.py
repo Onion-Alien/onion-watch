@@ -24,6 +24,7 @@ PASTE, FILE, CUT = "paste", "file", "cut"   # where a picture comes from
 PICTURE_KINDS = ("appear", "vanish")
 EXTS = (".png", ".jpg", ".jpeg", ".bmp", ".webp", ".gif")
 ART = QSize(196, 84)              # a tile's drawing
+TICK = 24                         # the picked tile's ✓
 
 
 def kinds() -> list[tuple[str, str, str]]:
@@ -154,6 +155,18 @@ class KindTile(Tile):
         self.setProperty("pick", True)
         self.setCheckable(True)
         self.setAutoExclusive(True)
+        # the picked one's ✓, in its top-right corner over the drawing
+        self.tick = QLabel("✓", self)
+        self.tick.setObjectName("kindtick")
+        self.tick.setFixedSize(TICK, TICK)
+        self.tick.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.tick.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        self.tick.hide()
+        self.toggled.connect(self.tick.setVisible)
+
+    def resizeEvent(self, ev):
+        super().resizeEvent(ev)
+        self.tick.move(self.width() - TICK - 6, 6)
 
     def mouseDoubleClickEvent(self, ev):
         if ev.button() == Qt.MouseButton.LeftButton:
@@ -193,12 +206,16 @@ def tile_css() -> str:
         f" border: 2px solid {t['accent']}; }}"
         # step 1's tiles: hover only hints, the picked one is filled and ringed
         'QPushButton#kindtile[pick="true"]:hover, QPushButton#kindtile[pick="true"]:focus {'
-        f" border: 2px solid {t['muted']}; }}"
+        f" border: 2px dashed {t['muted']}; }}"
         'QPushButton#kindtile[pick="true"]:checked {'
         f" border: 2px solid {t['accent']}; background: {t['inset']}; }}"
         f'QPushButton#kindtile[drop="true"] {{ border: 2px dashed {t["border"]}; }}'
         'QPushButton#kindtile[drop="true"]:hover, QPushButton#kindtile[dragging="true"] {'
         f" border: 2px dashed {t['accent']}; }}"
+        f"QLabel#kindtick {{ background: {t['accent']}; color: {t['on_accent']};"
+        f" border-radius: {TICK // 2}px; font-size: 11pt; font-weight: 700; }}"
+        # Continue stays off until a tile is picked: it mustn't look ready
+        f"QPushButton#primary:disabled {{ background: {t['btn']}; color: {t['muted']}; }}"
         "QLabel#kindname { font-size: 11pt; font-weight: 700; background: transparent; }"
         f"QLabel#sourceart {{ background: {t['inset']}; border-radius: 8px; }}"
         "QPushButton#kindtile QLabel#hint { background: transparent; }"
