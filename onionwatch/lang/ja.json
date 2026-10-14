@@ -756,5 +756,7 @@
   "Opens the list of Onion Watch's versions and what each changed, on GitHub in your browser": "Onion Watch のバージョン一覧と各バージョンの変更点を、ブラウザーで GitHub に開きます",
   "Settings": "設定",
   "Uninstall the add-on from Onion Board. Your triggers are kept, for when you get it again.": "Onion Board からアドオンをアンインストールします。トリガーは残るので、また入れたときに使えます。",
-  "What's new": "新機能"
+  "What's new": "新機能",
+  "Works best on the game's own window, not a whole screen. If you resize the game, check the box still covers the right part.": "画面全体ではなく、ゲーム自身のウィンドウで使うのが一番です。ゲームのサイズを変えたら、枠がまだ正しい場所を囲んでいるか確認してね。",
+  "Works best on the game's own window, not a whole screen. Some games stop drawing while you're alt-tabbed, which looks like nothing moving and can set it off.": "画面全体ではなく、ゲーム自身のウィンドウで使うのが一番です。Alt+Tab で離れている間は描画を止めるゲームもあり、何も動いていないように見えて反応することがあります。"
 }

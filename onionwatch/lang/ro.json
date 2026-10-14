@@ -780,5 +780,7 @@
   "Opens the list of Onion Watch's versions and what each changed, on GitHub in your browser": "Deschide lista versiunilor Onion Watch și ce a schimbat fiecare, pe GitHub în browser",
   "Settings": "Setări",
   "Uninstall the add-on from Onion Board. Your triggers are kept, for when you get it again.": "Dezinstalează suplimentul din Onion Board. Declanșatoarele rămân păstrate pentru când îl iei din nou.",
-  "What's new": "Ce e nou"
+  "What's new": "Ce e nou",
+  "Works best on the game's own window, not a whole screen. If you resize the game, check the box still covers the right part.": "Merge cel mai bine pe fereastra jocului, nu pe un ecran întreg. Dacă schimbi mărimea jocului, verifică dacă chenarul încă acoperă locul potrivit.",
+  "Works best on the game's own window, not a whole screen. Some games stop drawing while you're alt-tabbed, which looks like nothing moving and can set it off.": "Merge cel mai bine pe fereastra jocului, nu pe un ecran întreg. Unele jocuri nu mai desenează cât timp ești pe alt-tab, ceea ce pare că nimic nu se mișcă și îl poate declanșa."
 }

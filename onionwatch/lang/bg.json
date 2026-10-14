@@ -768,5 +768,7 @@
   "Opens the list of Onion Watch's versions and what each changed, on GitHub in your browser": "Отваря списъка с версиите на Onion Watch и какво е променено във всяка, в GitHub в браузъра",
   "Settings": "Настройки",
   "Uninstall the add-on from Onion Board. Your triggers are kept, for when you get it again.": "Деинсталира добавката от Onion Board. Тригерите ви се пазят за когато я вземете отново.",
-  "What's new": "Какво ново"
+  "What's new": "Какво ново",
+  "Works best on the game's own window, not a whole screen. If you resize the game, check the box still covers the right part.": "Работи най-добре върху прозореца на играта, не върху целия екран. Ако промениш размера на играта, провери дали кутията още покрива точното място.",
+  "Works best on the game's own window, not a whole screen. Some games stop drawing while you're alt-tabbed, which looks like nothing moving and can set it off.": "Работи най-добре върху прозореца на играта, не върху целия екран. Някои игри спират да рисуват, докато си на alt-tab, а това изглежда като че нищо не се движи и може да го задейства."
 }

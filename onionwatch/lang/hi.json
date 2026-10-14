@@ -768,5 +768,7 @@
   "Opens the list of Onion Watch's versions and what each changed, on GitHub in your browser": "Onion Watch के संस्करणों की सूची और हर एक में क्या बदला, GitHub पर आपके ब्राउज़र में खोलता है",
   "Settings": "सेटिंग्स",
   "Uninstall the add-on from Onion Board. Your triggers are kept, for when you get it again.": "Onion Board से ऐड-ऑन हटाएँ। आपके ट्रिगर रखे रहते हैं, जब आप इसे फिर से लें।",
-  "What's new": "नया क्या है"
+  "What's new": "नया क्या है",
+  "Works best on the game's own window, not a whole screen. If you resize the game, check the box still covers the right part.": "यह गेम की अपनी विंडो पर सबसे अच्छा चलता है, पूरी स्क्रीन पर नहीं। अगर तुम गेम का साइज़ बदलो, तो देख लो कि बॉक्स अब भी सही हिस्से को ढक रहा है।",
+  "Works best on the game's own window, not a whole screen. Some games stop drawing while you're alt-tabbed, which looks like nothing moving and can set it off.": "यह गेम की अपनी विंडो पर सबसे अच्छा चलता है, पूरी स्क्रीन पर नहीं। कुछ गेम alt-tab करने पर ड्रॉ करना बंद कर देते हैं, जिससे लगता है कि कुछ भी नहीं हिल रहा और यह चल सकता है।"
 }

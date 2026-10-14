@@ -1632,7 +1632,8 @@ class TriggerRow(QFrame):
         "rule_chips", "btn_dup", "btn_del", "tune", "rules_dlg", "_tune_row", "btn_area",
         "interval", "chk_size", "chk_ring", "until", "ring_box", "delay", "cooldown", "hold",
         "lbl_hold", "hold_box", "threshold", "below", "lbl_number", "match_box", "_in",
-        "chk_quiet", "chk_hold", "chk_delay", "chk_cooldown", "chk_region", "cb_category"})
+        "chk_quiet", "chk_hold", "chk_delay", "chk_cooldown", "chk_region", "cb_category",
+        "area_note"})
 
     def __getattr__(self, name: str):
         # (only for what isn't there: a closed card's editor, made now)
@@ -1699,6 +1700,10 @@ class TriggerRow(QFrame):
         row.addWidget(self.where)
         self._watch_row = row
         bv.addWidget(sentence)
+        # an area trigger's weak spots, said plainly under the sentence (_show_mode_body)
+        self.area_note = hint_label("")
+        self.area_note.hide()
+        bv.addWidget(self.area_note)
         # "play [Ready ✕] [Chime ✕] [+] [one at random]"
         self.sounds_box = FlowBox(gap=8)
         self.sounds_row = self.sounds_box.flow
@@ -2455,6 +2460,16 @@ class TriggerRow(QFrame):
         self._place(self.btn_area, not pics)           # the bar, the area that changes
         self.chk_size.setVisible(pics)
         self.below.setVisible(t.mode == "colour")
+        # the box is kept as a share of the window, so it follows the window when it's
+        # moved or resized; a whole screen, a HUD pinned to a corner, or a game that stops
+        # drawing while you're away can still fool it
+        note = {"change": _("Works best on the game's own window, not a whole screen. If you "
+                            "resize the game, check the box still covers the right part."),
+                "still": _("Works best on the game's own window, not a whole screen. Some "
+                           "games stop drawing while you're alt-tabbed, which looks like "
+                           "nothing moving and can set it off.")}.get(t.mode, "")
+        self.area_note.setText(note)
+        self.area_note.setVisible(bool(note))
         self.threshold.blockSignals(True)
         if pics:
             self.threshold.setRange(30, 99)

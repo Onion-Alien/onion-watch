@@ -780,5 +780,7 @@
   "Opens the list of Onion Watch's versions and what each changed, on GitHub in your browser": "Otwiera listę wersji Onion Watch i zmian w każdej z nich, na GitHubie w przeglądarce",
   "Settings": "Ustawienia",
   "Uninstall the add-on from Onion Board. Your triggers are kept, for when you get it again.": "Odinstaluj dodatek z Onion Board. Twoje wyzwalacze zostają na wypadek ponownej instalacji.",
-  "What's new": "Co nowego"
+  "What's new": "Co nowego",
+  "Works best on the game's own window, not a whole screen. If you resize the game, check the box still covers the right part.": "Działa najlepiej na oknie samej gry, nie na całym ekranie. Jeśli zmienisz rozmiar gry, sprawdź, czy ramka dalej obejmuje właściwe miejsce.",
+  "Works best on the game's own window, not a whole screen. Some games stop drawing while you're alt-tabbed, which looks like nothing moving and can set it off.": "Działa najlepiej na oknie samej gry, nie na całym ekranie. Niektóre gry przestają rysować, gdy jesteś na alt-tabie, co wygląda, jakby nic się nie ruszało, i może go odpalić."
 }

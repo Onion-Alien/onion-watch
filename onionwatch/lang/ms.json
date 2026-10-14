@@ -756,5 +756,7 @@
   "Opens the list of Onion Watch's versions and what each changed, on GitHub in your browser": "Membuka senarai versi Onion Watch dan perubahan dalam setiap satu, di GitHub dalam pelayar anda",
   "Settings": "Tetapan",
   "Uninstall the add-on from Onion Board. Your triggers are kept, for when you get it again.": "Nyahpasang tambahan daripada Onion Board. Pencetus anda disimpan untuk bila anda dapatkannya semula.",
-  "What's new": "Apa yang baharu"
+  "What's new": "Apa yang baharu",
+  "Works best on the game's own window, not a whole screen. If you resize the game, check the box still covers the right part.": "Paling baik pada tetingkap permainan itu sendiri, bukan seluruh skrin. Jika anda ubah saiz permainan, semak kotak itu masih menutup bahagian yang betul.",
+  "Works best on the game's own window, not a whole screen. Some games stop drawing while you're alt-tabbed, which looks like nothing moving and can set it off.": "Paling baik pada tetingkap permainan itu sendiri, bukan seluruh skrin. Sesetengah permainan berhenti melukis semasa anda alt-tab, jadi nampak seperti tiada apa yang bergerak dan boleh mencetuskannya."
 }
