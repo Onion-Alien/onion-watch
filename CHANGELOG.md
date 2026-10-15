@@ -2,7 +2,32 @@
 
 What changed between releases, for the release notes. Newest first.
 
-## 0.10.0 (2026-10-13)
+## 0.10.0 (2026-10-15)
+
+- **Each trigger card reads as a sentence:** *When* [it shows up] *in* [your game] /
+  *Play* [sounds] / *Keep playing* [until]. Extra settings you changed show as pills
+  with a cross; the rest are in an *Extra settings* pop-up.
+- **+ New trigger is the one way in.** It walks you through what to watch for, where
+  the picture comes from (paste, drop, a file or cut from the game), the window, then
+  the cut or area. A click picks a kind and *Continue* goes on; a double-click still
+  goes straight on.
+- The + after *Play* opens a menu with a search box and, in Onion Board, your sound
+  categories. Sounds already on the trigger are greyed out.
+- *Test* on a trigger with no sound to play now opens its sound list instead of doing
+  nothing.
+- With no triggers yet, the page says what Onion Watch does and needs, and the first
+  hint points at *Look in* to pick your game window.
+- Area triggers say under the card what can fool them: they work best on the game's own
+  window, and some games stop drawing while you're alt-tabbed.
+- **Settings → Appearance is laid out like Onion Board's:** your own highlight colour
+  and *Textured*, with the same themes, colours and outfits for Hoot as the board's.
+- The window, taskbar and tray icons follow your theme's colours.
+- Inside Onion Board, the Triggers tab has its owl logo beside Triggers / Log and a
+  third tab, **Settings**, with the Watching cards, What's new, feedback and *Remove
+  Onion Watch*.
+- Outlines are solid everywhere (no more dashed borders), and the Watching settings'
+  columns end level.
+- Picking a trigger opens faster, and a picked window or cover is remembered properly.
 
 - **The Triggers tab opens about twice as fast in Onion Board.** Opening it made the
   hidden editor of every trigger card, and moved the finished tab into the board twice
