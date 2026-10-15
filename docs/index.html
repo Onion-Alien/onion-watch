@@ -3,117 +3,23 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Onion Watch's page now lives on Onion Board's site, as its Onion Watch tab. This
+     address stays (old links, the app's own links) and sends visitors there. -->
 <title>Onion Watch: a sound when your game needs you (free, Windows)</title>
-<meta name="description" content="Free Windows app that plays a sound when something shows up in your game: a rare spawn, a queue pop, a whisper, YOU DIED. It watches the game's own window, even while you're alt-tabbed away, and never touches the game.">
-<meta property="og:title" content="Onion Watch: a sound when your game needs you">
-<meta property="og:description" content="Plays a sound when a rare spawn, a queue pop or a whisper shows up in your game, even while you're alt-tabbed. Free, Windows, it only looks.">
-<meta property="og:image" content="https://onion-alien.github.io/onion-watch/art/social-preview.png?v=2a2f9994">
-<meta property="og:type" content="website">
-<meta name="twitter:card" content="summary_large_image">
-<link rel="canonical" href="https://onion-alien.github.io/onion-watch/">
-<link rel="icon" type="image/png" href="screenshots/icon.png?v=d84623f4">
+<meta name="description" content="Onion Watch's page has moved to the Onion Watch tab of the Onion Board site.">
+<link rel="canonical" href="https://onion-alien.github.io/onion-board/#watch">
+<meta name="robots" content="noindex, follow">
+<meta http-equiv="refresh" content="0; url=https://onion-alien.github.io/onion-board/#watch">
+<link rel="icon" type="image/png" href="screenshots/icon.png">
+<script>location.replace("https://onion-alien.github.io/onion-board/#watch");</script>
 <style>
-  :root {
-    --bg: #0e1418; --card: #16202a; --edge: #243240; --text: #eaf2f3; --muted: #9fb3b8;
-    --accent: #1fb6a6; --accent2: #2a6fdb; --gold: #ffc53d;
-  }
-  * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--text);
-         font: 17px/1.55 "Segoe UI", system-ui, -apple-system, sans-serif; }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #0b0b12;
+         color: #f1f0f7; font: 17px/1.6 "Segoe UI", system-ui, sans-serif; text-align: center; }
   a { color: #5fd8cb; }
-  .wrap { max-width: 960px; margin: 0 auto; padding: 0 16px; }
-  header { text-align: center; padding: 48px 0 24px; }
-  .logo { width: 96px; height: 96px; }
-  h1 { font-size: clamp(34px, 6vw, 56px); margin: 8px 0 8px; letter-spacing: 0.02em; }
-  h1 span { background: linear-gradient(90deg, var(--accent), var(--accent2));
-            -webkit-background-clip: text; background-clip: text; color: transparent; }
-  .tag { color: var(--muted); font-size: clamp(18px, 2.6vw, 22px); max-width: 720px; margin: 0 auto 28px; }
-  .tag b { color: var(--gold); }
-  .dl { display: inline-block; background: var(--accent); color: #fff; text-decoration: none;
-        font-weight: 700; font-size: 20px; padding: 16px 30px; border-radius: 14px;
-        box-shadow: 0 8px 30px rgba(31, 182, 166, 0.35); }
-  .dl:hover { background: #29c9b8; }
-  .small { color: var(--muted); font-size: 14px; margin-top: 12px; }
-  .hero { margin: 32px auto 8px; border-radius: 14px; border: 1px solid var(--edge);
-          max-width: 100%; height: auto; display: block; }
-  h2 { font-size: 28px; margin: 56px 0 16px; text-align: center; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
-  .card { background: var(--card); border: 1px solid var(--edge); border-radius: 14px; padding: 14px 16px; }
-  .card b { display: block; margin-bottom: 2px; }
-  .card span { color: var(--muted); font-size: 15px; }
-  .shots { grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 18px; }
-  @media (max-width: 440px) { .shots { grid-template-columns: 1fr; } }
-  .shots img { width: 100%; border-radius: 12px; border: 1px solid var(--edge); display: block; }
-  .shots figure { margin: 0; }
-  .shots figcaption { color: var(--muted); font-size: 15px; margin-top: 6px; }
-  ol.steps { max-width: 720px; margin: 0 auto; padding-left: 22px; }
-  ol.steps li { margin: 8px 0; }
-  .note { max-width: 720px; margin: 20px auto 0; background: var(--card); border: 1px solid var(--edge);
-          border-radius: 12px; padding: 14px 18px; color: var(--muted); font-size: 15px; }
-  .hoot { display: block; margin: 48px auto 0; width: 120px; height: auto; }
-  footer { text-align: center; color: var(--muted); font-size: 14px; padding: 16px 0 40px; }
 </style>
-<script data-goatcounter="https://onionalien.goatcounter.com/count"
-        async src="https://gc.zgo.at/count.js"></script>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <img class="logo" src="screenshots/icon.png?v=d84623f4" alt="" width="96" height="96">
-    <h1><span>Onion Watch</span></h1>
-    <p class="tag">Plays a sound when <b>your game needs you</b>: a rare spawn, a queue pop, a
-      whisper, YOU DIED. It keeps watching the game's window while you're alt-tabbed into
-      something else.</p>
-    <a class="dl" href="https://github.com/Onion-Alien/onion-watch/releases/latest/download/OnionWatch-Installer.exe" data-goatcounter-click="download-watch-top">⬇ Download for Windows</a>
-    <!-- release -->
-    <p class="small">Version 0.10.0 · Windows 10 / 11 · free, no account, no internet needed<br>
-      <a href="https://www.virustotal.com/gui/file/f4b80468aaf13990daa35be32bfadf35ffbd363f456dd950d9bb5c2249289b29">VirusTotal: 68 of 68 clean</a> ·
-      <a href="https://github.com/Onion-Alien/onion-watch/releases/latest">what's new</a></p>
-    <!-- /release -->
-    <img class="hero" src="screenshots/main.png?v=45db04c9" width="900" height="820"
-         alt="Onion Watch watching a game, one trigger open">
-  </header>
-
-  <h2>What it does</h2>
-  <div class="grid">
-    <div class="card"><b>👀 Watches behind other windows</b><span>Your browser or another game can cover it. Not while minimized.</span></div>
-    <div class="card"><b>👥 Every account at once</b><span>One trigger watches several windows, or every copy of a game.</span></div>
-    <div class="card"><b>🔔 Shows up, goes away, stops moving</b><span>Or a chat line changes, or a health bar runs low.</span></div>
-    <div class="card"><b>✂️ Cut it from the game</b><span>Drag a box round a name plate, a banner, a chat line.</span></div>
-    <div class="card"><b>⏰ Rings until you're back</b><span>Or plays once each time. See what went off, with a picture.</span></div>
-    <div class="card"><b>🛡️ It only looks</b><span>No keys, no clicks, no game memory: what you'd see, like OBS.</span></div>
-  </div>
-
-  <h2>A closer look</h2>
-  <div class="grid shots">
-    <figure><img src="screenshots/window-picker.png?v=e2c6c3fb" alt="Picking the windows to watch" loading="lazy"><figcaption>Pick the windows, or every copy of a game</figcaption></figure>
-    <figure><img src="screenshots/cut-picture.png?v=564416b4" alt="Cutting a picture out of the game" loading="lazy"><figcaption>Cut out the thing to watch for</figcaption></figure>
-    <figure><img src="screenshots/health-bar.png?v=1d8ffe6a" alt="Picking a health bar and its colour" loading="lazy"><figcaption>Or point it at a health bar</figcaption></figure>
-    <figure><img src="screenshots/categories.png?v=3c697ad8" alt="Categories and profiles" loading="lazy"><figcaption>Hundreds of triggers in categories and profiles</figcaption></figure>
-  </div>
-
-  <h2>Get started</h2>
-  <ol class="steps">
-    <li><a href="https://github.com/Onion-Alien/onion-watch/releases/latest/download/OnionWatch-Installer.exe" data-goatcounter-click="download-watch-steps">Download <code>OnionWatch-Installer.exe</code></a> and run it.</li>
-    <li>Pick your game's window at the bottom, then <b>Cut picture…</b> and drag a box around the thing to watch for.</li>
-    <li>Choose a sound, click <b>Start watching</b>, and go do something else.</li>
-  </ol>
-  <p class="note">Windows or your browser may warn you about the download. That's normal for a free
-    app from a small developer: the installer isn't "code-signed", which costs hundreds a year.
-    Click <b>More info → Run anyway</b> (or <b>⋯ → Keep</b> in Edge / Chrome). The full source code is
-    <a href="https://github.com/Onion-Alien/onion-watch">on GitHub</a> if you'd like to check it.</p>
-  <p class="note">Use <a href="https://onion-alien.github.io/onion-board/">Onion Board</a>, the
-    free soundboard? Onion Watch is also its Triggers tab: click <b>Get Onion Watch</b> there and your
-    triggers play the board's sounds.</p>
-
-  <img class="hoot" src="art/hoot.png?v=b2c97ddb" alt="Hoot, the Onion Watch owl" width="300" height="360">
-  <footer>
-    <a href="https://github.com/Onion-Alien/onion-watch">Source code</a> ·
-    <a href="https://github.com/Onion-Alien/onion-watch/releases">All versions</a> ·
-    <a href="https://tally.so/r/rjxjyM?version=Onion%20Watch%20website">Send feedback</a> ·
-    <a href="https://github.com/Onion-Alien/onion-watch/issues">Report a problem</a><br>
-    Onion Watch is free to use. What it sees on your screen never leaves your PC. The app sends only anonymous daily usage stats (its version, which features are used, crash counts and a random ID; never your name, IP address or device info), and you can switch them off. This site counts visits with GoatCounter: no cookies, nothing personal.
-  </footer>
-</div>
+<p>Onion Watch's page has moved.<br>
+  <a href="https://onion-alien.github.io/onion-board/#watch">Go to Onion Watch</a></p>
 </body>
 </html>
