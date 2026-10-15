@@ -8,6 +8,7 @@ watched both as a screen and as a fullscreen game's window shares it (DupView).
 And "you're in the game" still holds after a game changes the screen's resolution.
 No real screen or window is read: the frames and windows are made up."""
 import ctypes
+import threading
 import time
 from ctypes import wintypes
 
@@ -109,6 +110,19 @@ def test_the_screen_is_let_go_once_nobody_reads_it(monkeypatch):
     assert len(released) == 3 and sw._shared == []
 
 
+
+def test_a_screen_duplicated_on_another_thread_is_not_shared(monkeypatch):
+    """A duplication's Direct3D objects belong to the thread that opened it: shared
+    with another thread, one let go of it in the middle of the other's grab (a crash
+    in AcquireNextFrame's release). Another thread opens its own."""
+    g, _released = shared(frame(1))
+    g.thread = threading.get_ident() + 1                 # opened on another thread
+    made = []
+    monkeypatch.setattr(sw, "DupGrabber", lambda mon, w, h: made.append(mon) or "its own")
+    assert sw.share_dup(g.src, 40, 24) == "its own" and made == [g.src]
+    g.thread = threading.get_ident()
+    assert isinstance(sw.share_dup(g.src, 40, 24), sw.DupView) and len(made) == 1
+
 def test_a_view_of_a_lost_screen_is_lost_too():
     g, _released = shared(frame(1))
     view = sw.share_dup(g.src, 40, 24)
@@ -193,7 +207,7 @@ def game(monkeypatch):
     is in front; `fills` is the monitor it fills (None: windowed)."""
     state = {"front": 5, "minimized": False, "printed": 0, "opened": 0, "closed": 0,
              "window": 0, "switching": False, "screen_size": SIZE, "size": SIZE,
-             "fills": Monitor(0, 0, *SIZE, True, 9), "share_fails": False}
+             "fills": Monitor(0, 0, *SIZE, True, 9), "share_fails": False, "alone": False}
     u = FakeUser32(state)
     monkeypatch.setattr(windows, "_win", lambda: (u, None, None, None))
     monkeypatch.setattr(windows, "_Bitmap", FakeBitmap)
@@ -209,6 +223,7 @@ def game(monkeypatch):
             5, "Game", "game.exe", 1, 0, *SIZE))
         g._front = lambda: state["front"]
         g._fills_screen = lambda _h: state["fills"]
+        g._alone = lambda _h, _m: state["alone"]
         g._share = share
         return g
     return state, grabber
@@ -318,6 +333,85 @@ def test_a_screen_showing_something_else_is_not_taken_for_the_window(game):
     g = make()
     g.grab()
     assert not g.on_screen and state["printed"] == 1 and state["closed"] == 1
+
+
+
+def test_an_exclusive_game_out_of_front_still_on_its_screen_is_read_off_it(game, monkeypatch):
+    """Clicked onto another monitor, an exclusive-fullscreen game can keep its screen
+    without being minimized; PrintWindow sees it as black then. While nothing else
+    shows on its screen it's read off that screen, without a black frame between,
+    and copied again every DARK_RECHECK_S to see whether it still needs to be."""
+    state, make = game
+    g = make()
+    assert g.grab() is not None and g.on_screen
+    state["front"], state["alone"] = 77, True
+    got = g.grab()                               # copied black, so read off the screen
+    assert float(got.mean()) == pytest.approx(0.5) and g.on_screen and g.dark
+    assert state["printed"] == 1
+    assert float(g.grab().mean()) == pytest.approx(0.5) and state["printed"] == 1
+    monkeypatch.setattr(windows, "DARK_RECHECK_S", 0.0)
+    g._recheck_at = 0.0                          # time to copy it again: still black
+    assert float(g.grab().mean()) == pytest.approx(0.5) and state["printed"] == 2
+    state["window"] = 200                        # it's drawn into its window again
+    g._recheck_at = 0.0
+    assert float(g.grab().mean()) > 0.5 and not g.on_screen and not g.dark
+    assert state["opened"] == 1                  # one duplication all along
+
+
+def test_an_exclusive_game_out_of_front_with_a_window_over_it_is_copied(game):
+    state, make = game
+    g = make()
+    g.grab()
+    state["front"], state["alone"] = 77, False   # something else shows on its screen
+    assert float(g.grab().max()) == 0.0 and not g.on_screen
+    assert g.dark and state["printed"] == 1
+    assert float(g.grab().max()) == 0.0 and state["printed"] == 2
+
+
+class ZUser32:
+    """Windows above the game, top first: (class, visible, minimized, rect)."""
+
+    def __init__(self, above):
+        self.above = above
+
+    def GetWindow(self, h, _cmd):
+        i = (len(self.above) if h == 5 else h - 100) - 1
+        return 100 + i if i >= 0 else None
+
+    def _w(self, h):
+        return self.above[h - 100]
+
+    def IsWindowVisible(self, h):
+        return self._w(h)[1]
+
+    def IsIconic(self, h):
+        return self._w(h)[2]
+
+    def GetWindowRect(self, h, ref):
+        r = ref._obj
+        r.left, r.top, r.right, r.bottom = self._w(h)[3]
+        return True
+
+    def GetClassNameW(self, h, buf, _n):
+        buf.value = self._w(h)[0]
+        return len(buf.value)
+
+
+@pytest.mark.parametrize("above, alone", [
+    ([], True),
+    ([("Shell_SecondaryTrayWnd", True, False, (-1920, 1040, 0, 1080))], True),
+    ([("Discord", True, False, (0, 0, 800, 600))], True),             # on the other screen
+    ([("Discord", False, False, (-1900, 0, -900, 600))], True),       # hidden
+    ([("Discord", True, True, (-1900, 0, -900, 600))], True),         # minimized
+    ([("Toast", True, False, (-400, 900, -10, 1000))], False),
+    ([("Discord", True, False, (0, 0, 800, 600)),
+      ("Overlay", True, False, (-1920, 0, 0, 1080))], False),
+])
+def test_alone_on_screen_looks_at_every_window_above(monkeypatch, above, alone):
+    monkeypatch.setattr(windows, "_win", lambda: (ZUser32(above), None, None, None))
+    monkeypatch.setattr(windows, "supported", lambda: True)
+    mon = Monitor(-1920, 0, 1920, 1080, False, 9)
+    assert windows.alone_on_screen(5, mon) is alone
 
 
 # --------------------------------------------------------------------------- in the game

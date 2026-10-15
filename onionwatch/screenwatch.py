@@ -2066,7 +2066,28 @@ def pick(px: np.ndarray, ys: np.ndarray, xs: np.ndarray) -> np.ndarray:
 FMT_BGRA8, FMT_BGRX8 = 87, 88   # B8G8R8A8_UNORM / B8G8R8X8_UNORM: the usual SDR desktop
 FMT_RGBA16F = 10                # R16G16B16A16_FLOAT: HDR ("advanced colour") on, scRGB linear
 FMT_RGB10A2 = 24                # R10G10B10A2_UNORM: a 10-bit desktop
-FRAME_FORMATS = {FMT_BGRA8: 4, FMT_BGRX8: 4, FMT_RGBA16F: 8, FMT_RGB10A2: 4}
+# Not a DXGI format: 8-bit BGRA holding *linear* light. A desktop composed in 16-bit
+# float (HDR, or Windows 11's automatic colour management on an SDR screen) duplicated
+# the old way (DuplicateOutput) is handed over like that: the sRGB curve is left off,
+# so every colour came out far too dark (0.8 as 0.6, 0.2 as 0.03).
+FMT_BGRA8_LINEAR = 0x10057
+FRAME_FORMATS = {FMT_BGRA8: 4, FMT_BGRX8: 4, FMT_RGBA16F: 8, FMT_RGB10A2: 4,
+                 FMT_BGRA8_LINEAR: 4}
+
+
+def srgb_encode(v: np.ndarray) -> np.ndarray:
+    """Linear light in 0..1 -> sRGB levels in 0..1, the exact curve (Windows puts SDR
+    colours on a 16-bit float desktop with its inverse)."""
+    v = np.clip(np.asarray(v, np.float64), 0.0, 1.0)
+    return np.where(v <= 0.0031308, v * 12.92, 1.055 * v ** (1 / 2.4) - 0.055)
+
+
+_LINEAR8_LUT = np.round(srgb_encode(np.arange(256) / 255) * 255).astype(np.uint8)
+
+
+def _linear8_levels(sample: np.ndarray) -> np.ndarray:
+    """FMT_BGRA8_LINEAR pixels -> (h, w, 3) BGR uint8 sRGB, as the 8-bit desktop."""
+    return _LINEAR8_LUT[sample[..., :3]]
 
 
 def frame_view(rows: np.ndarray, fmt: int, width: int) -> np.ndarray:
@@ -2089,14 +2110,14 @@ _hdr_lut: np.ndarray | None = None     # see _hdr_levels
 
 def _hdr_levels(px: np.ndarray) -> np.ndarray:
     """float16 scRGB values -> float32 sRGB levels in 0..1: clipped to SDR, with the
-    sRGB curve put back on (x ** (1 / 2.2)). Looked up by the float16's bits in a
+    sRGB curve put back on (srgb_encode). Looked up by the float16's bits in a
     table of all 65536 made once, the same numbers as working each one out, at a
     fraction of the cost (NaN, which can't be shown, comes out 0)."""
     global _hdr_lut
     if _hdr_lut is None:
         v = np.arange(65536, dtype=np.uint32).astype(np.uint16).view(np.float16)
         v = np.nan_to_num(v.astype(np.float32), nan=0.0, posinf=1.0, neginf=0.0)
-        _hdr_lut = (np.clip(v, 0.0, 1.0) ** (1 / 2.2)).astype(np.float32)
+        _hdr_lut = srgb_encode(v).astype(np.float32)
     return _hdr_lut[px.view(np.uint16)]
 
 
@@ -2105,6 +2126,8 @@ def frame_gray(sample: np.ndarray, fmt: int, factor: int = 1) -> np.ndarray:
     (h, w) float32 luma in 0..1 on the same scale as the pictures, which are 8-bit
     sRGB screenshots turned grey by to_gray. With `factor` 2 each output pixel is
     the average of a 2x2 block, as gray_2x does."""
+    if fmt == FMT_BGRA8_LINEAR:
+        sample, fmt = _linear8_levels(sample), FMT_BGRA8
     if fmt in (FMT_BGRA8, FMT_BGRX8):
         return gray_2x(sample) if factor == 2 else to_gray(sample)
     if fmt == FMT_RGBA16F:
@@ -2127,6 +2150,8 @@ def frame_gray(sample: np.ndarray, fmt: int, factor: int = 1) -> np.ndarray:
 def frame_rgb(sample: np.ndarray, fmt: int = FMT_BGRA8, factor: int = 1) -> np.ndarray:
     """frame_gray() in colour: (h, w, 3) float32 RGB in 0..1, sRGB like a screenshot.
     Only made for a capture with a "colour" trigger on it (Grabber.want_color)."""
+    if fmt == FMT_BGRA8_LINEAR:
+        sample, fmt = _linear8_levels(sample), FMT_BGRA8
     if fmt in (FMT_BGRA8, FMT_BGRX8):
         if factor == 2:
             # each 2x2 block added up in whole numbers first, as gray_2x does: a
@@ -2312,6 +2337,7 @@ def _guid(text: str) -> ctypes.Array:
 
 IID_IDXGIFactory1 = "770aae78-f26f-4dba-a829-253c83d1b387"
 IID_IDXGIOutput1 = "00cddea8-939b-4b83-a340-a685226666cc"
+IID_IDXGIOutput5 = "80a07424-ab52-42eb-833c-0c42fd282d98"
 IID_ID3D11Texture2D = "6f15aaf2-d208-4e89-9ab4-489535d34f9c"
 DXGI_ERROR_NOT_FOUND = 0x887A0002
 DXGI_ERROR_ACCESS_LOST = 0x887A0026
@@ -2411,6 +2437,54 @@ def frame_box(box: tuple[int, int, int, int], turns: int,
     return box
 
 
+class _LUID(ctypes.Structure):
+    _fields_ = [("LowPart", wintypes.DWORD), ("HighPart", ctypes.c_long)]
+
+
+class _PATH_INFO(ctypes.Structure):
+    """DISPLAYCONFIG_PATH_INFO (72 bytes): only the source's and target's ids are read."""
+    _fields_ = [("src_adapter", _LUID), ("src_id", ctypes.c_uint32), ("_s", ctypes.c_uint32 * 2),
+                ("tgt_adapter", _LUID), ("tgt_id", ctypes.c_uint32), ("_t", ctypes.c_uint32 * 9),
+                ("flags", ctypes.c_uint32)]
+
+
+class _DEVICE_INFO(ctypes.Structure):
+    """DISPLAYCONFIG_DEVICE_INFO_HEADER followed by room for the answer."""
+    _fields_ = [("type", ctypes.c_uint32), ("size", ctypes.c_uint32), ("adapter", _LUID),
+                ("id", ctypes.c_uint32), ("data", ctypes.c_uint32 * 64)]
+
+
+def sdr_white(device: str) -> float:
+    """How bright SDR white is on the output named `device` (like "\\\\.\\DISPLAY1"),
+    in scRGB units: 1.0 unless HDR is on, where it follows the SDR brightness slider
+    (2.5 is 200 nits). A 16-bit float desktop puts an 8-bit screenshot's white there,
+    so its frames are divided by it before they're read like a screenshot. 1.0 when
+    it can't be told."""
+    try:
+        u = ctypes.windll.user32
+        n_paths, n_modes = ctypes.c_uint32(), ctypes.c_uint32()
+        if u.GetDisplayConfigBufferSizes(2, ctypes.byref(n_paths), ctypes.byref(n_modes)):
+            return 1.0                                  # 2: QDC_ONLY_ACTIVE_PATHS
+        paths = (_PATH_INFO * max(1, n_paths.value))()
+        modes = (ctypes.c_ubyte * (64 * max(1, n_modes.value)))()
+        if u.QueryDisplayConfig(2, ctypes.byref(n_paths), paths, ctypes.byref(n_modes), modes,
+                                None):
+            return 1.0
+        for path in paths[:n_paths.value]:
+            name = _DEVICE_INFO(1, 84, path.src_adapter, path.src_id)  # GET_SOURCE_NAME
+            if u.DisplayConfigGetDeviceInfo(ctypes.byref(name)):
+                continue
+            if ctypes.wstring_at(ctypes.addressof(name.data), 32).split("\0")[0] != device:
+                continue
+            white = _DEVICE_INFO(11, 24, path.tgt_adapter, path.tgt_id)  # GET_SDR_WHITE_LEVEL
+            if u.DisplayConfigGetDeviceInfo(ctypes.byref(white)) or not white.data[0]:
+                return 1.0
+            return min(max(white.data[0] / 1000, 1.0), 20.0)   # 1000 = 80 nits = 1.0
+    except (OSError, AttributeError, ValueError):
+        log.debug("couldn't read the SDR white level", exc_info=True)
+    return 1.0
+
+
 class DupGrabber:
     """Desktop Duplication (IDXGIOutputDuplication): the frames the graphics card
     shows, so fullscreen games are seen too, where GDI may only see black. Same
@@ -2423,6 +2497,12 @@ class DupGrabber:
     DPI-aware is told a scaled-down rectangle. The staging texture and the sampling
     are laid out from the mode, since a copy between textures of different sizes is
     dropped without a word and the picture would just freeze or stay black.
+
+    Frames are asked for in 16-bit float where the desktop is composed that way (HDR,
+    or Windows 11's automatic colour management), else 8-bit BGRA: the old way of
+    duplicating hands such a desktop over as 8-bit *linear* light, far too dark, and
+    every colour of a game was off (FMT_BGRA8_LINEAR, still read right should only
+    the old way work).
 
     A rotated (portrait) output hands over frames in the panel's orientation: they
     are sampled as they come and the picture turned upright (FRAME_TURNS), so
@@ -2437,6 +2517,7 @@ class DupGrabber:
     ADAPTER_ENUM_OUTPUTS = 7
     OUTPUT_GET_DESC = 7
     OUTPUT1_DUPLICATE = 22
+    OUTPUT5_DUPLICATE1 = 26         # IDXGIOutput5::DuplicateOutput1 (Windows 10 1703 on)
     DUP_GET_DESC = 7
     DUP_ACQUIRE = 8
     DUP_RELEASE_FRAME = 14
@@ -2457,6 +2538,11 @@ class DupGrabber:
     _seen = -1                      # the serial grab() last sampled
     dead = False                    # it raised CaptureLost: nothing more comes
     hmon = 0                        # the output's monitor handle (HMONITOR)
+    device_name = ""                # ...and its GDI name ("\\\\.\\DISPLAY1"), for sdr_white
+    announced = 0                   # the DXGI format the duplication said its frames are in
+    white = 1.0                     # sdr_white() of the output, for 16-bit float frames
+    output5: _COM | None = None     # IDXGIOutput5, while DuplicateOutput1 works
+    thread: int | None = None       # the thread that opened it, the only one it's shared with
     users = 1                       # who reads it: whoever opened it, and its DupViews
     _closed = False                 # whoever opened it is done with it
 
@@ -2468,6 +2554,7 @@ class DupGrabber:
         self.device, self.ctx, self.output1 = _COM(), _COM(), _COM()
         self.dup, self.staging = _COM(), _COM()
         self._mode: tuple[int, int, int] | None = None   # the staging texture's (w, h, format)
+        self.thread = threading.get_ident()
         self.last: np.ndarray | None = None
         self.lost = False
         self._lost_at = 0.0
@@ -2505,6 +2592,10 @@ class DupGrabber:
             if hr < 0:
                 raise OSError(f"D3D11CreateDevice failed (0x{_hr(hr):08X})")
             self.output1 = output.query(IID_IDXGIOutput1)
+            try:
+                self.output5 = output.query(IID_IDXGIOutput5)
+            except OSError:
+                self.output5 = None                  # older Windows: the old way only
         finally:
             adapter.release()
             output.release()
@@ -2532,6 +2623,7 @@ class DupGrabber:
                         == (s.left, s.top, s.width, s.height)):
                     self.turns = FRAME_TURNS.get(int(d.Rotation), 0)
                     self.hmon = int(d.Monitor or 0)
+                    self.device_name = d.DeviceName
                     return adapter, output
                 output.release()
             adapter.release()
@@ -2541,8 +2633,24 @@ class DupGrabber:
         """(Re)start the duplication and lay out the staging texture and the sampling
         for the mode its frames come in."""
         self.dup.release()
-        hr = self.output1.call(self.OUTPUT1_DUPLICATE, self.device.p, ctypes.byref(self.dup.p),
-                               argtypes=(ctypes.c_void_p, ctypes.c_void_p))
+        hr = new = -1
+        if self.output5:
+            # 16-bit float frames where the desktop is composed in it, else 8-bit BGRA
+            formats = (ctypes.c_int * 2)(FMT_RGBA16F, FMT_BGRA8)
+            new = hr = self.output5.call(
+                self.OUTPUT5_DUPLICATE1, self.device.p, 0, 2, formats, ctypes.byref(self.dup.p),
+                argtypes=(ctypes.c_void_p, ctypes.c_uint, ctypes.c_uint, ctypes.c_void_p,
+                          ctypes.c_void_p))
+        if hr < 0:
+            hr = self.output1.call(self.OUTPUT1_DUPLICATE, self.device.p,
+                                   ctypes.byref(self.dup.p),
+                                   argtypes=(ctypes.c_void_p, ctypes.c_void_p))
+            if hr >= 0 and self.output5:
+                # the new way refused where the old one works (a process that isn't
+                # DPI aware per monitor, say): stick to the old way
+                log.info("DuplicateOutput1 failed (0x%08X): duplicating the old way", _hr(new))
+                self.output5.release()
+                self.output5 = None
         if hr < 0:
             raise OSError(f"DuplicateOutput failed (0x{_hr(hr):08X})")
         d = _OUTDUPL_DESC()
@@ -2554,6 +2662,8 @@ class DupGrabber:
         if d.Rotation > 1:
             self.turns = FRAME_TURNS[int(d.Rotation)]
         mode = (int(d.Width), int(d.Height), int(d.Format))
+        self.announced = mode[2]
+        self.white = sdr_white(self.device_name) if mode[2] == FMT_RGBA16F else 1.0
         if mode[2] not in FRAME_FORMATS:
             if mode[2] not in _unknown_formats:
                 _unknown_formats.add(mode[2])
@@ -2703,10 +2813,23 @@ class DupGrabber:
             buf = (ctypes.c_uint8 * (rows * pitch)).from_address(m.pData)
             img = np.frombuffer(buf, np.uint8).reshape(rows, pitch)
             px = frame_view(img, fmt, sw)
-            return pick(px, ys, xs), fmt             # a copy, taken while mapped
+            sample = pick(px, ys, xs)                # a copy, taken while mapped
         finally:
             self.ctx.call(self.CTX_UNMAP, self.staging.p, 0, restype=None,
                           argtypes=(ctypes.c_void_p, ctypes.c_uint))
+        return self._as_read(sample)
+
+    def _as_read(self, px: np.ndarray) -> tuple[np.ndarray, int]:
+        """Pixels in the staging texture's format -> the pixels and the format to
+        read them in: 8-bit frames of a desktop announced as 16-bit float are linear
+        light (FMT_BGRA8_LINEAR), and 16-bit float ones are brought to SDR white 1.0
+        on an HDR screen whose white is brighter (sdr_white)."""
+        fmt = self._mode[2] if self._mode else FMT_BGRA8
+        if fmt in (FMT_BGRA8, FMT_BGRX8) and self.announced == FMT_RGBA16F:
+            return px, FMT_BGRA8_LINEAR
+        if fmt == FMT_RGBA16F and self.white != 1.0:
+            px = (px.astype(np.float32) * np.float32(1 / self.white)).astype(np.float16)
+        return px, fmt
 
     def _die(self):
         """It can't read the screen any more: let go of the screen at once (so a fresh
@@ -2745,14 +2868,13 @@ class DupGrabber:
         if hr < 0:
             return None
         try:
-            fmt = self._mode[2]
             buf = (ctypes.c_uint8 * (sh * m.RowPitch)).from_address(m.pData)
             img = np.frombuffer(buf, np.uint8).reshape(sh, m.RowPitch)
-            piece = frame_view(img, fmt, sw)[fy0:fy1, fx0:fx1].copy()
+            piece = frame_view(img, self._mode[2], sw)[fy0:fy1, fx0:fx1].copy()
         finally:
             self.ctx.call(self.CTX_UNMAP, self.staging.p, 0, restype=None,
                           argtypes=(ctypes.c_void_p, ctypes.c_uint))
-        return piece, fmt
+        return self._as_read(piece)
 
     def close(self):
         """Done with it. The screen is let go once no DupView reads it either."""
@@ -2765,7 +2887,9 @@ class DupGrabber:
         if self.users > 0:
             return
         _unshare(self)
-        for c in (self.staging, self.dup, self.output1, self.ctx, self.device):
+        for c in (self.staging, self.dup, self.output5, self.output1, self.ctx, self.device):
+            if c is None:
+                continue
             try:
                 c.release()
             except OSError:
@@ -2872,10 +2996,15 @@ def share_dup(mon: Monitor, w: int, h: int):
     """Desktop Duplication of `mon`, given out at (w, h): a DupView of the duplication
     already open for that screen (found by its handle, which a display mode switch
     doesn't change, or its rectangle), else a new DupGrabber, shared from then on.
-    OSError (or AttributeError) when the screen can't be duplicated."""
+    Only one opened on this thread is shared: its Direct3D objects belong to the
+    thread that made them, and another thread's grab can let go of the duplication
+    in the middle of this one's. OSError (or AttributeError) when the screen can't
+    be duplicated."""
+    me = threading.get_ident()
     with _shared_lock:
         for g in _shared:
-            if not g.dead and ((mon.handle and g.hmon == mon.handle) or g.src == mon):
+            if (not g.dead and g.thread in (None, me)
+                    and ((mon.handle and g.hmon == mon.handle) or g.src == mon)):
                 g.users += 1
                 return DupView(g, w, h)
     g = DupGrabber(mon, w, h)

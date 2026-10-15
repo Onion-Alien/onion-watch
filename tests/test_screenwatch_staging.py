@@ -91,11 +91,13 @@ def _grabber(monkeypatch, frame_fmt, frame_w, frame_h, pixel_bgra):
 
 def test_frames_in_another_format_than_announced_are_still_read(monkeypatch, caplog):
     g, created = _grabber(monkeypatch, sw.FMT_BGRA8, 1920, 1080, (200, 100, 50, 255))
+    g.announced = sw.FMT_RGBA16F
     with caplog.at_level(logging.INFO, logger="onionwatch.screenwatch"):
         gray = g.grab(100)
     assert created == [(1920, 1080, sw.FMT_BGRA8)]          # staging rebuilt for the frame
     assert g._mode == (1920, 1080, sw.FMT_BGRA8)
-    expect = sw.to_gray(np.array([[[200, 100, 50, 255]]], np.uint8))[0, 0]
+    # 8-bit frames of a desktop announced as 16-bit float hold linear light
+    expect = sw.frame_gray(np.array([[[200, 100, 50, 255]]], np.uint8), sw.FMT_BGRA8_LINEAR)[0, 0]
     assert gray.shape == (180, 320)
     assert abs(float(gray.mean()) - float(expect)) < 1e-3
     assert any("reading them as they come" in r.message for r in caplog.records)

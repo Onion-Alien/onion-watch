@@ -133,6 +133,11 @@ seconds, and one that closes is picked up again when it reopens.
 
 A fullscreen game you're playing (it's in front and fills its screen, exclusive or
 borderless) is read straight off that screen, so watching its window works even in
-exclusive fullscreen; alt-tab away and the window is copied as usual. If a game's
-window still comes out black while it isn't in front (some anti-cheat does this), set
-the trigger to watch the **screen** the game is on instead.
+exclusive fullscreen; alt-tab away and the window is copied as usual. An exclusive
+game that loses focus but keeps its screen (you clicked onto another monitor) is still
+read off that screen while nothing else shows over it there. If a game's window still
+comes out black while it isn't in front (some anti-cheat does this), set the trigger
+to watch the **screen** the game is on instead.
+
+Screens Windows shows in HDR, or with Windows 11's automatic colour management, are
+read in their true colours, so pictures cut from ordinary screenshots match there too.
