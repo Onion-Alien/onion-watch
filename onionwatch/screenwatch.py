@@ -315,6 +315,7 @@ BLACK_LEVEL = 3 / 255   # a whole frame darker than this is a capture that can't
 INTERVALS_MS = (16, 33, 50, 100, 250, 500)
 DEFAULT_INTERVAL_MS = 100
 RETRY_S = 1.0           # how often a lost capture is tried again
+RETRY_FIRST_S = 0.1     # ...a lost screen capture starts this soon, doubling up to RETRY_S
 GIVE_UP_S = 20.0        # ...and how long before the whole capture is set up afresh
 WINDOW_RETRY_S = 2.0    # how often a window that isn't open (or was closed) is looked for
 DUP_RETRY_S = 30.0     # how often a screen on the GDI fallback tries duplication again
@@ -2509,8 +2510,10 @@ class DupGrabber:
     `source` and the pictures given out are always the way the desktop shows them.
 
     While the duplication is lost (a mode switch, the UAC or lock screen) grab()
-    gives None and `lost` is set; it's tried again every RETRY_S. If that keeps
-    failing for GIVE_UP_S, grab() raises CaptureLost so the owner starts over."""
+    gives None and `lost` is set; it's tried again RETRY_FIRST_S later, then twice as
+    long each time up to every RETRY_S (a game's mode switch is over in a moment, a
+    lock screen isn't). If that keeps failing for GIVE_UP_S, grab() raises
+    CaptureLost so the owner starts over."""
 
     # vtable slots (IUnknown 0-2, IDXGIObject 3-6, ID3D11DeviceChild 3-6)
     FACTORY_ENUM_ADAPTERS1 = 12
@@ -2545,6 +2548,7 @@ class DupGrabber:
     thread: int | None = None       # the thread that opened it, the only one it's shared with
     users = 1                       # who reads it: whoever opened it, and its DupViews
     _closed = False                 # whoever opened it is done with it
+    _retry_wait = RETRY_FIRST_S     # how long until a lost duplication is tried again
 
     def __init__(self, src: Monitor, w: int, h: int):
         self.src, self.w, self.h = src, w, h
@@ -2733,7 +2737,8 @@ class DupGrabber:
     def _next_frame(self, timeout_ms: int) -> bool | None:
         if not self.dup:
             now = time.monotonic()
-            if now - self._lost_at < RETRY_S:
+            wait = min(self._retry_wait, RETRY_S)
+            if now - self._lost_at < wait:
                 return None
             self._lost_at = now
             try:
@@ -2741,6 +2746,7 @@ class DupGrabber:
             except OSError as e:
                 if now - self._lost_since > GIVE_UP_S:
                     raise CaptureLost(f"screen capture lost ({e})") from e
+                self._retry_wait = min(RETRY_S, wait * 2)
                 return None
             self.lost = False
         info = (ctypes.c_ubyte * 64)()              # DXGI_OUTDUPL_FRAME_INFO (48 bytes)
@@ -2755,6 +2761,7 @@ class DupGrabber:
             self.dup.release()
             self.lost = True
             self._lost_at = self._lost_since = time.monotonic()
+            self._retry_wait = RETRY_FIRST_S
             return None
         if hr < 0:
             # the graphics card was reset or removed (a driver update or crash, a laptop

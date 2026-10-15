@@ -204,3 +204,31 @@ def test_frame_turns_undo_each_rotation():
     for k in sw.FRAME_TURNS.values():
         assert np.array_equal(sw.upright(np.rot90(d, -k), k), d)
     assert sw.upright(d, 0) is d
+
+
+def test_a_lost_duplication_is_tried_again_soon_then_less_often(monkeypatch):
+    """A game going into (or back into) exclusive fullscreen loses the duplication for
+    a moment. It used to be tried again only a whole RETRY_S later, so triggers missed
+    the game's first second or more. Now the first retry comes after RETRY_FIRST_S and
+    the wait doubles up to RETRY_S, so a long lock screen isn't asked about non-stop."""
+    step = 1 / 16                       # binary-exact times, so no float drift
+    monkeypatch.setattr(sw, "RETRY_FIRST_S", 2 * step)
+    monkeypatch.setattr(sw.DupGrabber, "_retry_wait", 2 * step)
+    ticks = [0]
+    monkeypatch.setattr(sw.time, "monotonic", lambda: ticks[0] * step)
+    tries = []
+
+    def duplicate():
+        tries.append(ticks[0])
+        raise OSError("still switching")
+
+    g = object.__new__(sw.DupGrabber)
+    g.dup = None
+    g.lost = True
+    g._lost_at = g._lost_since = 0.0
+    g._duplicate = duplicate
+    for _ in range(40):                 # a grab every 1/16 s for 2.5 s
+        ticks[0] += 1
+        assert g._next_frame(0) is None
+    assert tries == [2, 6, 14, 30]      # waits of 2, 4, 8 then 16 steps (RETRY_S)
+    assert g._retry_wait == sw.RETRY_S
