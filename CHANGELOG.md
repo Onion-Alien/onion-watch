@@ -4,6 +4,12 @@ What changed between releases, for the release notes. Newest first.
 
 ## Unreleased
 
+- **New trigger:** "A bar runs low", "A chat line changes" and "Everything stops
+  moving" now get their own step 2 in the same pop-up, like "Something shows up" and
+  "Something goes away", instead of jumping straight to the window list. Paste a
+  screenshot of the game, drop one in, or take it from the game as it is now; then
+  pick the game's window and drag the box round the bar, the chat or the part to
+  watch. A screenshot works even while the game is minimized.
 - A game switching into (or back into) exclusive fullscreen is seen again within
   about a tenth of a second, instead of after a second and a half.
 

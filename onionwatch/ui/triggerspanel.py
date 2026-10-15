@@ -5848,23 +5848,36 @@ class TriggersTab(QWidget):
 
     # ------------------------------------------------------------------ areas, copies
     @needs_part()
+    def _ask_area(self, img: QImage, where: str, t: Trigger, heading: str = ""
+                  ) -> tuple | None:
+        """Drag the part of `img` (the window, or a picture of it) to look in, and for a
+        colour trigger check its colour: (region, colour), or None if cancelled."""
+        from onionwatch.ui.snip import AreaDialog
+        dlg = AreaDialog(img, where, t.region, t.colour if t.mode == "colour" else None, self,
+                         heading=heading)
+        if not dlg.exec():
+            return None
+        return dlg.region, dlg.colour
+
     def _pick_area(self, row: TriggerRow, heading: str = ""):
         """The card's "Area…" / "Bar and colour": drag the part of the window to look
         in (and for a colour trigger, check its colour)."""
-        from onionwatch.ui.snip import AreaDialog
         t = row.t
         src = t.source if t.source is not None else self.watcher.default
         img, where = self.capture(src)
         if img is None:
             QMessageBox.information(self, _("Can't show the window"), where)
             return
-        dlg = AreaDialog(img, where, t.region, t.colour if t.mode == "colour" else None, self,
-                         heading=heading)
-        if not dlg.exec():
-            return
-        t.region = dlg.region
+        area = self._ask_area(img, where, t, heading)
+        if area is not None:
+            self._set_area(t, *area)
+
+    def _set_area(self, t: Trigger, region, colour: str):
+        """`t` looks in `region` (and for a colour trigger, measures `colour`)."""
+        t.region = region
         if t.mode == "colour":
-            t.colour = dlg.colour
+            t.colour = colour
+        row = self._card_of(t)
         for one in {row, self.rows.get(t.id)} - {None}:    # the editor and its tile
             one._label_area()
             one._update_state()
@@ -5904,9 +5917,10 @@ class TriggersTab(QWidget):
 
     @needs_part()
     def new_trigger(self):
-        """+ New trigger: what it watches for and, for a picture, where the picture
-        comes from (WhatPicker); then which window to watch; then the picture cut, or
-        the bar or the area picked, when that's how it's made. The new card opens."""
+        """+ New trigger: what it watches for and where its picture comes from
+        (WhatPicker); then which window to watch; then the picture cut, or the box
+        dragged round the bar or the area on the picture of the game. The new card
+        opens."""
         from onionwatch.ui.whatpick import CUT, FILE, PASTE, PICTURE_KINDS, WhatPicker
         dlg = WhatPicker(self, can_paste=not copied_picture().isNull())
         if not dlg.exec() or dlg.picked is None:
@@ -5943,16 +5957,39 @@ class TriggersTab(QWidget):
             if t is not None and flash and t.id in self.rows:
                 self.rows[t.id].flash(flash, 5000)
             return
-        # a bar, a chat line, everything still: step 2, the game's window
-        src = self.pick_window(here, heading=_("Step 2: which window is the game in?"))
+        # a bar, a chat line, everything still: step 2 gave a picture of the game (a
+        # screenshot, or the game as it is now); step 3 the game's window, step 4 the
+        # box round the bar or the part to watch on that picture
+        shot = None
+        if dlg.source == PASTE:
+            shot = copied_picture()
+        elif dlg.source == FILE:
+            shot = picture_file(dlg.paths[0]) if dlg.paths else dlg.image
+        if shot is not None and shot.isNull():
+            return
+        src = self.pick_window(here, heading=_("Step 3: which window is the game in?"))
         if src is None:
             return
+        if shot is None:
+            shot, where = self.capture(src)
+            if shot is None:
+                info = windows.find(src)
+                if info is not None and info.minimized:
+                    where += "\n\n" + fullscreen_hint()
+                QMessageBox.information(self, _("Can't show the window"), where)
+                return
+        else:
+            where = src.label
+        draft = Trigger(id="", mode=what)   # (a colour one: the box picks its colour)
+        area = self._ask_area(shot, where, draft, heading=(
+            _("Step 4: drag a box round the bar") if what == "colour" else
+            _("Step 4: drag a box round the chat") if what == "change" else
+            _("Step 4: drag a box round the part to watch, or pick All of it")))
+        if area is None:
+            return
         t = self.add_area_trigger(what, [src])
-        if t is not None and what in ("colour", "change"):
-            # step 3: the bar to measure, or the part of the window to watch
-            self._pick_area(self._card_of(t), heading=(
-                _("Step 3: drag a box round the bar") if what == "colour" else
-                _("Step 3: drag a box round the part to watch")))
+        if t is not None:
+            self._set_area(t, *area)
 
     def _card_of(self, t: Trigger) -> TriggerRow:
         """The card showing `t` for editing: the editor beside the list, or its own."""
