@@ -88,7 +88,9 @@ def test_duplication_reads_an_hdr_frame_as_the_same_grey():
     """A float16 scRGB frame (HDR on) comes out as the grey of the 8-bit picture."""
     rng = np.random.default_rng(4)
     srgb = rng.integers(0, 256, (20, 30, 3)).astype(np.float32) / 255
-    lin = np.dstack([srgb ** 2.2, np.ones((20, 30, 1), np.float32)]).astype(np.float16)
+    # the sRGB curve, as Windows puts an SDR picture on a 16-bit float desktop
+    lin = np.where(srgb <= 0.04045, srgb / 12.92, ((srgb + 0.055) / 1.055) ** 2.4)
+    lin = np.dstack([lin, np.ones((20, 30, 1), np.float32)]).astype(np.float16)
     g, _buf, _maps = staged(lin, 0, sw.FMT_RGBA16F)
     got = g.full_gray(2, 18, 3, 27)
     rgb8 = np.round(srgb * 255).astype(np.uint8)

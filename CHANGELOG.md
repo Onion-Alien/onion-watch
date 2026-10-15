@@ -2,6 +2,16 @@
 
 What changed between releases, for the release notes. Newest first.
 
+## Unreleased
+
+- **Screens with HDR or automatic colour management:** a screen Windows shows in
+  HDR, or with Windows 11's automatic colour management (on by default on many new
+  laptops), was read far too dark, so screen triggers and fullscreen games there
+  matched badly. Its true colours are read now.
+- A game in exclusive fullscreen that loses focus but keeps its screen (you clicked
+  onto another monitor) is still seen while nothing else is shown over it, instead of
+  coming out black.
+
 ## 0.11.0 (2026-10-15)
 
 - **Fullscreen games:** a game window you're playing in fullscreen (exclusive or

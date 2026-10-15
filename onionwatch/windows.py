@@ -40,7 +40,8 @@ import numpy as np
 
 from onionwatch import screenwatch
 from onionwatch.screenwatch import (_BITMAPINFOHEADER, FMT_BGRA8, RETRY_S, CaptureLost,
-                                    Monitor, WindowRef, frame_rgb, gray_2x, pick, to_gray)
+                                    Monitor, WindowRef, frame_rgb, gray_2x, is_black, pick,
+                                    to_gray)
 from onionwatch.i18n import _
 
 log = logging.getLogger(__name__)
@@ -50,12 +51,19 @@ PW_RENDERFULLCONTENT = 0x2
 GWL_EXSTYLE = -20
 WS_EX_TOOLWINDOW = 0x80
 GW_OWNER = 4
+GW_HWNDPREV = 3
+# the taskbars: an exclusive-fullscreen game owns its screen, nothing else is drawn
+# there, but a taskbar stays above it in the window order
+TASKBARS = ("Shell_TrayWnd", "Shell_SecondaryTrayWnd")
 DWMWA_CLOAKED = 14
 PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
 MIN_SIDE = 32           # windows smaller than this (either way) aren't worth listing
 # a fullscreen game's screen duplication is kept this long after it was last read
 # (alt-tabbed away), so tabbing back doesn't set up a new one (~60 ms) every time
 DUP_IDLE_S = 30.0
+# a game not in front that's read off its screen because copying it gave black is
+# copied again this often, to see whether it still does
+DARK_RECHECK_S = 2.0
 MONITOR_DEFAULTTONULL = 0
 
 
@@ -116,6 +124,7 @@ def _win():
     u.GetWindowLongW.argtypes = [H, ctypes.c_int]
     u.GetWindow.argtypes = [H, wintypes.UINT]
     u.GetWindow.restype = H
+    u.GetClassNameW.argtypes = [H, wintypes.LPWSTR, ctypes.c_int]
     u.GetForegroundWindow.restype = H
     u.PrintWindow.argtypes = [H, wintypes.HDC, wintypes.UINT]
     u.GetDC.argtypes = [H]
@@ -261,6 +270,28 @@ def screen_filled(hwnd: int) -> Monitor | None:
                                                             mon.height):
         return None
     return mon
+
+
+def alone_on_screen(hwnd: int, mon: Monitor) -> bool:
+    """Nothing shows over window `hwnd` on `mon`: every window above it is hidden,
+    minimized, cloaked, a taskbar (TASKBARS) or on another screen."""
+    if not supported() or not hwnd:
+        return False
+    u, _k, _g, d = _win()
+    r = wintypes.RECT()
+    name = ctypes.create_unicode_buffer(32)
+    h = u.GetWindow(hwnd, GW_HWNDPREV)
+    for _step in range(2000):                   # (the order can change while it's walked)
+        if not h:
+            return True
+        if (u.IsWindowVisible(h) and not u.IsIconic(h) and u.GetWindowRect(h, ctypes.byref(r))
+                and r.left < mon.left + mon.width and r.right > mon.left
+                and r.top < mon.top + mon.height and r.bottom > mon.top
+                and not _cloaked(d, h)
+                and not (u.GetClassNameW(h, name, 32) and name.value in TASKBARS)):
+            return False
+        h = u.GetWindow(h, GW_HWNDPREV)
+    return False
 
 
 def _cloaked(d, hwnd) -> bool:
@@ -441,7 +472,13 @@ class WindowGrabber:
     when this is made (WindowGone if it isn't open) and kept by its handle after
     that; once it closes, grab() raises CaptureLost and the watcher looks for it
     again. `source` is the client area's size and follows the window when it's
-    resized. While it's minimized grab() gives None and `minimized` is set."""
+    resized. While it's minimized grab() gives None and `minimized` is set.
+
+    A window that fills its screen is read off that screen (Desktop Duplication)
+    while it's in front, as PrintWindow often sees an exclusive-fullscreen game as
+    black. Out of front it's copied again, unless that comes out black while
+    nothing else shows on its screen: an exclusive game that lost focus but kept its
+    screen (you clicked onto another monitor), still read off it then."""
 
     lost = False
     want_color = False      # also keep `color` (screenwatch.Grabber's)
@@ -456,6 +493,7 @@ class WindowGrabber:
     # its screen is duplicated (screenwatch.share_dup)
     _front = staticmethod(foreground)
     _fills_screen = staticmethod(screen_filled)
+    _alone = staticmethod(alone_on_screen)
     _share = staticmethod(screenwatch.share_dup)
     color: np.ndarray | None = None
     raw: tuple | None = None    # the last grab's pixels as sampled: (pixels, format, factor)
@@ -479,6 +517,8 @@ class WindowGrabber:
         self._dup_used = 0.0        # ...and when it was last read
         self._dup_next = 0.0        # ...not tried again before this (it failed)
         self._dup_said = False      # ...which the log said once
+        self.dark = False           # out of front, copying it gave black (see the class)
+        self._recheck_at = 0.0      # ...read off its screen until then, then copied again
         self.source = (0, 0)
         size = client_size(self.hwnd)
         if min(size) >= 2:
@@ -534,23 +574,51 @@ class WindowGrabber:
             self._make(size)
             self._layout()
             return None
-        mon = self._fills_screen(self.hwnd) if self._front() == self.hwnd else None
+        front = self._front() == self.hwnd
+        mon = None
+        if front:
+            mon = self._fills_screen(self.hwnd)
+        elif self.dark and time.monotonic() < self._recheck_at:
+            mon = self._fills_screen(self.hwnd)
+            if mon is not None and not self._alone(self.hwnd, mon):
+                mon = None
         if mon is not None:
             done, gray = self._from_screen(mon)
             if done:
                 return gray
         else:
             self._off_screen()
-        if not u.PrintWindow(self.hwnd, self._bm.dc, PW_CLIENTONLY | PW_RENDERFULLCONTENT):
-            self.failures += 1      # the watcher says so if it keeps happening
+        if not self._print():
             return self.last
+        self.dark = not front and self.last is not None and is_black(self.last)
+        if self.dark:
+            # an exclusive-fullscreen game out of front: its screen still shows it
+            # while nothing else is over it there. Read it off that screen at once,
+            # so it doesn't blink black in between
+            mon = self._fills_screen(self.hwnd)
+            if mon is not None and self._alone(self.hwnd, mon):
+                self._recheck_at = time.monotonic() + DARK_RECHECK_S
+                done, gray = self._from_screen(mon)
+                if done and gray is not None:
+                    return gray
+        return self.last
+
+    def _print(self) -> bool:
+        """Copy the window with PrintWindow into `last` (and full, raw, color)."""
+        u, bm = _win()[0], self._bm
+        if bm is None:
+            return False
+        if not u.PrintWindow(self.hwnd, bm.dc, PW_CLIENTONLY | PW_RENDERFULLCONTENT):
+            self.failures += 1      # the watcher says so if it keeps happening
+            return False
         self.failures = 0
-        self.full = self._bm.pixels
-        sample = pick(self._bm.pixels, self.ys, self.xs)
+        self.full = bm.pixels
+        sample = pick(bm.pixels, self.ys, self.xs)
         self.last = gray_2x(sample) if self.factor == 2 else to_gray(sample)
         self.color = frame_rgb(sample, factor=self.factor) if self.want_color else None
         self.raw = (sample, FMT_BGRA8, self.factor)
-        return self.last
+        self.on_screen = False
+        return True
 
     def _from_screen(self, mon: Monitor) -> tuple[bool, np.ndarray | None]:
         """The window fills `mon` and is in front: read it off that screen. (True,

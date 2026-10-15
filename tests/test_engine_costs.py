@@ -59,7 +59,7 @@ def test_the_hdr_table_gives_what_the_curve_worked_out_gave():
     bits = np.arange(65536, dtype=np.uint32).astype(np.uint16)
     v = bits.view(np.float16)
     v = v[np.isfinite(v)]
-    old = np.clip(v.astype(np.float32), 0.0, 1.0) ** (1 / 2.2)
+    old = sw.srgb_encode(v.astype(np.float32)).astype(np.float32)
     np.testing.assert_array_equal(sw._hdr_levels(v), old)
     px = np.array([[[np.nan, np.inf, -np.inf, 1]]], np.float16)
     assert sw._hdr_levels(px[..., :3]).tolist() == [[[0.0, 1.0, 0.0]]]
@@ -68,7 +68,7 @@ def test_the_hdr_table_gives_what_the_curve_worked_out_gave():
 def test_hdr_grey_and_colour_are_as_before():
     rng = np.random.default_rng(1)
     px = (rng.random((20, 30, 4)) * 1.6 - 0.1).astype(np.float16)
-    rgb = np.clip(px[..., :3].astype(np.float32), 0.0, 1.0) ** (1 / 2.2)
+    rgb = sw.srgb_encode(px[..., :3].astype(np.float32)).astype(np.float32)
     np.testing.assert_array_equal(sw.frame_rgb(px, sw.FMT_RGBA16F), rgb)
     y = 0.299 * rgb[..., 0] + 0.587 * rgb[..., 1] + 0.114 * rgb[..., 2]
     np.testing.assert_array_equal(sw.frame_gray(px, sw.FMT_RGBA16F), y.astype(np.float32))
