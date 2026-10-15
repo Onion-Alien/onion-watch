@@ -8,6 +8,7 @@ watched both as a screen and as a fullscreen game's window shares it (DupView).
 And "you're in the game" still holds after a game changes the screen's resolution.
 No real screen or window is read: the frames and windows are made up."""
 import ctypes
+import time
 from ctypes import wintypes
 
 import numpy as np
@@ -17,6 +18,8 @@ from onionwatch import screenwatch as sw
 from onionwatch import windows
 from onionwatch.screenwatch import Monitor, WindowRef
 from test_screen_twin import FakeCom, staged
+from test_screenwatch import fake_screen  # noqa: F401 (a fixture)
+from test_screenwatch import banner, pics, run_until, scene, with_banner
 
 GAME = WindowRef("game.exe", "Game", 0)
 
@@ -230,12 +233,38 @@ def test_alt_tabbed_away_it_is_copied_again_and_back_in_front_read_off_the_scree
     state["front"] = 77                         # alt-tabbed to another window
     state["window"] = 200                       # (a borderless game: PrintWindow sees it)
     got = g.grab()
-    assert not g.on_screen and state["printed"] == 1 and state["closed"] == 1
+    assert not g.on_screen and state["printed"] == 1
     assert float(got.mean()) > 0.5 and g.cpu_elsewhere == g.PRINT_CPU
     assert g.full is not None and g.full_gray(0, 4, 0, 4) is None
     state["front"] = 5                          # back in the game
     assert float(g.grab().mean()) == pytest.approx(0.5)
-    assert g.on_screen and state["opened"] == 2 and state["printed"] == 1
+    assert g.on_screen and state["printed"] == 1
+    # the screen was kept for tabbing back: not set up again
+    assert state["opened"] == 1 and state["closed"] == 0
+    g.close()
+    assert state["closed"] == 1
+
+
+def test_a_screen_not_read_for_a_while_is_let_go(game, monkeypatch):
+    state, make = game
+    g = make()
+    g.grab()
+    monkeypatch.setattr(windows, "DUP_IDLE_S", 0.0)
+    state["front"] = 77
+    time.sleep(0.01)
+    g.grab()
+    assert state["closed"] == 1 and g._dup is None
+    state["front"] = 5
+    assert g.grab() is not None and g.on_screen and state["opened"] == 2
+
+
+def test_a_game_moved_to_another_screen_is_read_off_that_one(game):
+    state, make = game
+    g = make()
+    g.grab()
+    state["fills"] = Monitor(-320, 0, *SIZE, False, 10)
+    assert g.grab() is not None and g.on_screen
+    assert state["opened"] == 2 and state["closed"] == 1 and g._dup_mon == 10
 
 
 def test_a_windowed_game_in_front_is_copied_as_before(game):
@@ -246,7 +275,7 @@ def test_a_windowed_game_in_front_is_copied_as_before(game):
     assert not g.on_screen and state["printed"] == 1 and state["opened"] == 0
 
 
-def test_a_minimized_game_is_flagged_and_its_screen_let_go(game):
+def test_a_minimized_game_is_flagged(game):
     state, make = game
     g = make()
     g.grab()
@@ -326,3 +355,26 @@ def test_the_window_rect_is_read_through_a_real_rect():
     r = wintypes.RECT()
     RectUser32((1, 2, 3, 4)).GetWindowRect(0, ctypes.byref(r))
     assert (r.left, r.top, r.right, r.bottom) == (1, 2, 3, 4)
+
+
+@pytest.mark.parametrize("front, fills, quiet", [
+    (7, True, True),            # a fullscreen game you're playing covers the screen
+    (7, False, False),          # something else is in front
+    (0, True, False),           # can't be told: it plays
+])
+def test_stay_quiet_on_a_screen_while_a_fullscreen_game_fills_it(fake_screen, front, fills,  # noqa: F811
+                                                                  quiet):
+    fake_screen.frames = [scene()]
+    fired = []
+    w = sw.Watcher(fired.append, front=lambda: front, fills=lambda *_a: fills)
+    w.interval = 0.01
+    w.set_items([sw.Watched("t", pics(banner()), 0.8, 0.0, unfocused=True)])
+    w.start()
+    try:
+        assert run_until(lambda: "t" in w.scores)
+        fake_screen.frames = [with_banner(scene())]
+        assert run_until(lambda: w.scores.get("t", 0) > 0.95)
+        time.sleep(0.1)
+        assert bool(fired) != quiet
+    finally:
+        w.stop()

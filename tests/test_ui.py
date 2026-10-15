@@ -263,6 +263,24 @@ def test_a_picture_is_cut_straight_out_of_a_window(tab, monkeypatch):
     assert (got.width(), got.height()) == (90, 30)
 
 
+
+@pytest.mark.parametrize("how, hint", [
+    ("minimized", True),        # an exclusive-fullscreen game you switched away from
+    ("black", True),
+    ("closed", False),          # not open at all: nothing about fullscreen
+])
+def test_a_game_that_cant_be_cut_from_says_to_paste_a_screenshot(tab, monkeypatch, how, hint):
+    info = windows.WindowInfo(7, "Game", "game.exe", 7, 0, W, H, how == "minimized")
+    monkeypatch.setattr(windows, "find", lambda r, wins=None: None if how == "closed" else info)
+    monkeypatch.setattr(windows, "snapshot", lambda hwnd: np.zeros((H, W, 4), np.uint8))
+    said = []
+    monkeypatch.setattr(triggerspanel.QMessageBox, "information",
+                        lambda _p, title, text: said.append(text))
+    tab.set_default(WindowRef("game.exe", "Game", 0))
+    tab.add_from_cut()
+    assert len(said) == 1 and not tab.triggers
+    assert (triggerspanel.fullscreen_hint() in said[0]) == hint
+
 def cut_while(tab, monkeypatch, grabs, rect, secs=0.4):
     """Cut `rect` out of a game window whose snapshots are `grabs` (BGRA, over and
     over), the cut dialog kept open `secs`; the warnings said, as text."""

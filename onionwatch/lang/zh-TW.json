@@ -778,5 +778,6 @@
   "What's switched on (watching for triggers) is shown in the theme's colour. Slide to pick your own; it stays when you change theme.": "已開啟的內容（監視觸發器）以主題顏色顯示。滑動選擇您自己的；當您更改主題時它會保留。",
   "✓ Already the theme's": "✓ 已經是主題的顏色",
   "✓ Back to the theme's": "✓ 已改回主題的顏色",
-  "✓ Changed": "✓ 已變更"
+  "✓ Changed": "✓ 已變更",
+  "A game in exclusive fullscreen hides itself when you switch away. Take a screenshot in the game (Print Screen) and paste it instead.": "獨佔全螢幕的遊戲在你切換出去時會隱藏起來。請在遊戲中截圖（Print Screen），然後貼上進來。"
 }

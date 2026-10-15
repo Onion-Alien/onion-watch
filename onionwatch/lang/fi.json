@@ -790,5 +790,6 @@
   "What's switched on (watching for triggers) is shown in the theme's colour. Slide to pick your own; it stays when you change theme.": "Se, mikä on päällä (laukaisimien tarkkaileminen), näkyy teeman värillä. Liu'uta valitaksesi omasi; se pysyy, kun vaihdat teemaa.",
   "✓ Already the theme's": "✓ Jo teema",
   "✓ Back to the theme's": "✓ Takaisin teemaan",
-  "✓ Changed": "✓ Muutettu"
+  "✓ Changed": "✓ Muutettu",
+  "A game in exclusive fullscreen hides itself when you switch away. Take a screenshot in the game (Print Screen) and paste it instead.": "Yksinomaisessa koko näytön tilassa oleva peli piiloutuu, kun vaihdat pois. Ota pelissä kuvakaappaus (Print Screen) ja liitä se sen sijaan."
 }

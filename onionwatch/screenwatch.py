@@ -3267,14 +3267,31 @@ class Watcher:
                     return False
                 continue
             try:
-                fills = self._fills
-                if fills is None:
-                    from onionwatch.windows import fills
-                if cap.mon is None or fills(front, cap.mon):
+                if cap.mon is None or self._filled(front, cap.mon):
                     return False
             except OSError:
                 return False
         return True
+
+    def _filled(self, front: int, mon: Monitor) -> bool:
+        """Window `front` covers all of screen `mon`: a fullscreen game. OSError when
+        that can't be told."""
+        fills = self._fills
+        if fills is None:
+            from onionwatch.windows import fills
+        return fills(front, mon)
+
+    def _in(self, cap: _Capture) -> bool:
+        """You're in what `cap` shows: its window is the one in front, or, for a
+        screen, the window in front fills it (a fullscreen game). False when that
+        can't be told."""
+        if cap.is_window:
+            return cap.in_front()
+        front = self._front_window()
+        try:
+            return bool(front) and cap.mon is not None and self._filled(front, cap.mon)
+        except OSError:
+            return False
 
     def set_default(self, source: int | WindowRef):
         with self._lock:
@@ -3759,7 +3776,7 @@ class Watcher:
                 self._step_quiet(it, q, cap, gray, state, now)
             if not gate.step(state, now, it.cooldown, it.hold):
                 continue
-            if it.unfocused and cap.is_window and cap.in_front():
+            if it.unfocused and self._in(cap):
                 log.debug("trigger %s went off in the window in front: kept quiet", it.id)
                 continue
             y0, y1, x0, x1 = box

@@ -778,5 +778,6 @@
   "What's switched on (watching for triggers) is shown in the theme's colour. Slide to pick your own; it stays when you change theme.": "켜져 있는 항목(트리거 감시)은 테마 색상으로 표시됩니다. 슬라이드하여 원하는 것을 선택하세요. 테마를 변경해도 그대로 유지됩니다.",
   "✓ Already the theme's": "✓ 이미 테마가",
   "✓ Back to the theme's": "✓ 테마로 돌아가기",
-  "✓ Changed": "✓ 변경됨"
+  "✓ Changed": "✓ 변경됨",
+  "A game in exclusive fullscreen hides itself when you switch away. Take a screenshot in the game (Print Screen) and paste it instead.": "전용 전체 화면 게임은 다른 창으로 전환하면 숨겨져요. 게임에서 스크린샷(Print Screen)을 찍어 대신 붙여 넣으세요."
 }
