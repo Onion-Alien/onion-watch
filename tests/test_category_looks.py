@@ -198,3 +198,22 @@ def test_a_pack_carries_its_categories_looks_and_banners(make, tmp_path):  # noq
     c = b.groups.find("Raid")
     assert c.color == "#8e24aa" and c.image and c.banner and c.banner_x == 0.2
     assert categories.banner_image(c, b.host.data_dir) is not None
+
+
+def test_a_header_picture_sits_level_with_the_name(tmp_path, qapp):
+    """Centred, a picture sat a couple of pixels below its bold name."""
+    pics = categories.pictures_dir(tmp_path)
+    pics.mkdir(parents=True)
+    picture().save(str(pics / "p.png"))
+    sec = categories.CategorySection("Raid")
+    sec.set_look(profiles.Category(name="Raid", image="p.png"), tmp_path)
+    sec.resize(400, sec.sizeHint().height())
+    sec.show()
+    qapp.processEvents()
+    pic, name = sec.pic.geometry(), sec.btn_fold.geometry()
+    assert sec.pic.alignment() & categories.Qt.AlignmentFlag.AlignTop  # at its box's top
+    picture_middle = pic.y() + categories.HEADER_PICTURE / 2
+    name_middle = name.y() + name.height() / 2
+    assert name_middle - picture_middle == pytest.approx(categories.PICTURE_LIFT, abs=0.5)
+    assert sec.header.height() == sec.header.sizeHint().height()
+    sec.close()
