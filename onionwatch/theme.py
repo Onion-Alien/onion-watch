@@ -975,10 +975,12 @@ def apply_live(app, colour: str) -> str:
 
 # --------------------------------------------------------------------------- logo
 
-def paint_logo(p: QPainter, rect: QRectF, c1: str, c2: str, awake: bool = True):
+def paint_logo(p: QPainter, rect: QRectF, c1: str, c2: str, awake: bool = True,
+               eye: bool = True):
     """The Onion Watch mark: Onion Alien's onion (the family look it shares with Onion
     Board) in Hoot's teal, with one big gold eye in the bulb. `awake=False` closes the
-    eye: the tray shows that while nothing is being watched."""
+    eye: the tray shows that while nothing is being watched. `eye=False` leaves the
+    bulb blank (ui.watchlogo paints its own, moving, eye there)."""
     s = rect.width()
     x0, y0 = rect.left(), rect.top()
     p.save()
@@ -1027,7 +1029,9 @@ def paint_logo(p: QPainter, rect: QRectF, c1: str, c2: str, awake: bool = True):
     p.setPen(Qt.NoPen)
     p.fillPath(bulb(0.31), fg)
     ey = 0.60
-    if awake:   # a gold iris, a pupil and a glint
+    if not eye:
+        pass
+    elif awake:   # a gold iris, a pupil and a glint
         r = s * 0.155
         p.setBrush(QColor("#ffc93c"))
         p.drawEllipse(pt(0, ey), r, r)
@@ -1061,18 +1065,18 @@ BRAND = ("#1fb6a6", "#2a6fdb")   # Hoot's teal to blue: the installer and the .e
 
 
 def logo_pixmap(size: int, c1: str | None = None, c2: str | None = None,
-                awake: bool = True) -> QPixmap:
+                awake: bool = True, eye: bool = True) -> QPixmap:
     pm = QPixmap(size, size)
     pm.fill(Qt.transparent)
     p = QPainter(pm)
-    paint_logo(p, QRectF(0, 0, size, size), c1 or BRAND[0], c2 or BRAND[1], awake)
+    paint_logo(p, QRectF(0, 0, size, size), c1 or BRAND[0], c2 or BRAND[1], awake, eye)
     p.end()
     return pm
 
 
-def themed_logo(size: int, awake: bool = True) -> QPixmap:
+def themed_logo(size: int, awake: bool = True, eye: bool = True) -> QPixmap:
     """The logo in the current theme's colours, as Onion Board shows its own."""
-    return logo_pixmap(size, T.get("accent"), T.get("accent2"), awake)
+    return logo_pixmap(size, T.get("accent"), T.get("accent2"), awake, eye)
 
 
 def themed_icon(awake: bool = True) -> QIcon:

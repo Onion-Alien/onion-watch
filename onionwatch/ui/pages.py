@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (QFrame, QHBoxLayout, QLabel, QPushButton, QStacke
 from onionwatch import theme
 from onionwatch.ui import chances, icons
 from onionwatch.ui.history import HistoryView
+from onionwatch.ui.watchlogo import WatchLogo
 from onionwatch.i18n import _
 
 CHECK_MS = 400          # how often the bar looks whether a sound has ended
@@ -131,7 +132,7 @@ class TriggerPages(QWidget):
         v = QVBoxLayout(self)
         v.setContentsMargins(0, 0, 0, 0)
         v.setSpacing(8)
-        self.logo: QLabel | None = None
+        self.logo: WatchLogo | None = None
         self.settings = None
         self.tabs = QTabBar()
         self.tabs.setDrawBase(False)
@@ -150,12 +151,10 @@ class TriggerPages(QWidget):
             row.setSpacing(10)
             # the same size as Onion Board's onion and on its line: the onion sits in a
             # LOGO_BOX square at the page's top edge, so the owl's box is that tall
-            pm = theme.themed_logo(LOGO_PX * 2)
-            pm.setDevicePixelRatio(2)
-            self.logo = QLabel()
-            self.logo.setPixmap(pm)
-            self.logo.setFixedSize(LOGO_PX, LOGO_BOX)
-            self.logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            # its eye shut while nothing is watched, laser-red while it watches
+            self.logo = WatchLogo(LOGO_PX, LOGO_PX, LOGO_BOX, beam_host=self)
+            self.logo.set_watching(panel.is_active())
+            panel.active_changed.connect(self.logo.set_watching)
             self.logo.setToolTip("Onion Watch")
             self.logo.setAccessibleName("Onion Watch")
             row.addWidget(self.logo, 0, Qt.AlignmentFlag.AlignTop)
@@ -190,9 +189,7 @@ class TriggerPages(QWidget):
     def retheme(self):
         """The theme changed: the logos take its colours."""
         if self.logo is not None:
-            pm = theme.themed_logo(LOGO_PX * 2)
-            pm.setDevicePixelRatio(2)
-            self.logo.setPixmap(pm)
+            self.logo.retheme()
         if self.settings is not None:
             self.settings.retheme()
 

@@ -2,6 +2,12 @@
 
 What changed between releases, for the release notes. Newest first.
 
+## Unreleased
+
+- **The logo shows when it's watching.** Its eye is shut while nothing is watched.
+  *Start watching* opens it with a red laser sweep across the page, and while it
+  watches the eye glows red and looks around. Behind a game it holds still.
+
 ## 0.10.0 (2026-10-15)
 
 - **Each trigger card reads as a sentence:** *When* [it shows up] *in* [your game] /
