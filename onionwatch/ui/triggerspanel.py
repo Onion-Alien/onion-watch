@@ -3389,6 +3389,7 @@ class TriggersTab(QWidget):
         self._fit_top()
         was = self.split
         self._set_split(self.list_view and self.width() >= SPLIT_MIN)
+        self._label_view()
         if was and self.split:
             self._fit_split(resized=True)
 
@@ -3694,6 +3695,19 @@ class TriggersTab(QWidget):
             self.cb_per_row.setCurrentIndex(want)
         self._show_pads()
         self._set_split(on and self.width() >= SPLIT_MIN)
+        self._label_view()
+
+    def _label_view(self):
+        """The View box says what's on screen: "List and editor" picked in a window too
+        narrow for the two columns shows cards that open where they are, so it says so
+        (back to "List and editor" once the window's wide enough again)."""
+        i = self.cb_per_row.findData(LIST_VIEW)
+        if i < 0:
+            return
+        narrow = self.list_view and not self.pads and self.width() < SPLIT_MIN
+        text = _("Cards (too narrow)") if narrow else _("List and editor")
+        if self.cb_per_row.itemText(i) != text:
+            self.cb_per_row.setItemText(i, text)
 
     def _show_pads(self):
         """Every card and category grid as pads (the Pads view) or as tiles."""

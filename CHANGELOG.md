@@ -2,6 +2,11 @@
 
 What changed between releases, for the release notes. Newest first.
 
+## Unreleased
+
+- The View box says "Cards (too narrow)" when List and editor is picked but the
+  window is too narrow for it, instead of "List and editor" over a page of cards.
+
 ## 0.11.2 (2026-10-15)
 
 - **New trigger:** "A bar runs low", "A chat line changes" and "Everything stops

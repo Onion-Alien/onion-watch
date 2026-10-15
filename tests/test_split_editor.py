@@ -126,6 +126,23 @@ def test_a_narrow_window_opens_the_card_in_the_list_again(tab, qapp):
     assert picked.is_open and not picked.selected        # it opens where it is
 
 
+def test_the_view_box_says_cards_when_too_narrow_for_the_list(tab, qapp):
+    """List and editor picked in a window too narrow for it shows cards: the View box
+    said "List and editor" all the same. It says what's on screen, and goes back."""
+    from onionwatch.ui.triggerspanel import LIST_VIEW
+    two(tab)
+    tab.set_list_view(True)
+    cb = tab.cb_per_row
+    wide(tab, qapp, SPLIT_MIN - 60)
+    assert not tab.split and cb.currentData() == LIST_VIEW
+    assert cb.currentText() == "Cards (too narrow)"
+    wide(tab, qapp)
+    assert tab.split and cb.currentText() == "List and editor"
+    tab.set_list_view(False)          # cards picked: the entry's own name
+    wide(tab, qapp, SPLIT_MIN - 60)
+    assert cb.itemText(cb.findData(LIST_VIEW)) == "List and editor"
+
+
 def test_a_trigger_moved_to_another_category_stays_picked(tab, qapp):
     first, _second = two(tab)
     tab.new_category("Raids")
