@@ -3189,7 +3189,7 @@ class TriggersTab(QWidget):
         self.empty, ev = card()
         ev.setContentsMargins(16, 24, 16, 24)
         ev.setSpacing(10)
-        self.hoot = kit.owl().OwlWidget(96)   # waiting (sadly) for something to watch
+        self.hoot = kit.owl().OwlWidget(108)   # waiting (sadly) for something to watch
         ev.addWidget(self.hoot, 0, Qt.AlignmentFlag.AlignHCenter)
         hint = hint_label(_("No triggers yet. Click + New trigger above, pick what it should "
                             "watch for, and Hoot walks you through the rest."))
