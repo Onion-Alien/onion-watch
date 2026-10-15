@@ -173,3 +173,18 @@ def test_the_log_adds_each_alert_instead_of_making_every_line_again(make):  # no
     assert view.list.count() == 0 and view.empty.isVisibleTo(view)
     view.detach()
     view.deleteLater()
+
+
+def test_test_with_no_sound_opens_its_sound_list(make):  # noqa: F811
+    """Test on a trigger with no sound (or only removed ones) used to do nothing and say
+    nothing: it opens the card's sound list, where the sound is picked."""
+    tab = make({"triggers": [raw(1, sounds=[]), raw(2, sounds=["gone:sound"])]})
+    played = []
+    tab.host.play = lambda sid, loop=False, tag="": played.append(sid) or True
+    for tid in ("t1", "t2"):
+        row = tab.rows[tid]
+        row.set_open(True)
+        opened = []
+        row.sound.showPopup = lambda opened=opened: opened.append(1)
+        row.btn_test.click()
+        assert opened == [1] and played == [] and tab.playing_now() == []
