@@ -4,9 +4,10 @@ What changed between releases, for the release notes. Newest first.
 
 ## Unreleased
 
-- **The logo shows when it's watching.** Its eye is shut while nothing is watched.
-  *Start watching* opens it with a red laser sweep across the page, and while it
-  watches the eye glows red and looks around. Behind a game it holds still.
+- **Start watching plays a start-up animation that suits your theme:** a laser sweep
+  in the dark red themes, code rain in the terminal ones, neon rings, petals, a sonar
+  ping, embers, fireflies, an 8-bit burst, a comic "!", a flashbang, confetti or a
+  shine. While it watches, the logo's eye slowly looks around.
 
 ## 0.10.0 (2026-10-15)
 
