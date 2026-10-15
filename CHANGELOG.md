@@ -2,7 +2,7 @@
 
 What changed between releases, for the release notes. Newest first.
 
-## Unreleased
+## 0.11.2 (2026-10-15)
 
 - **New trigger:** "A bar runs low", "A chat line changes" and "Everything stops
   moving" now get their own step 2 in the same pop-up, like "Something shows up" and
