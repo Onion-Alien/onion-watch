@@ -975,10 +975,12 @@ def apply_live(app, colour: str) -> str:
 
 # --------------------------------------------------------------------------- logo
 
-def paint_logo(p: QPainter, rect: QRectF, c1: str, c2: str, awake: bool = True):
+def paint_logo(p: QPainter, rect: QRectF, c1: str, c2: str, awake: bool = True,
+               look: float = 0.0):
     """The Onion Watch mark: Onion Alien's onion (the family look it shares with Onion
     Board) in Hoot's teal, with one big gold eye in the bulb. `awake=False` closes the
-    eye: the tray shows that while nothing is being watched."""
+    eye: the tray shows that while nothing is being watched. `look`: the eye moved that
+    far sideways, in icon widths (ui.watchlogo: looking around while it watches)."""
     s = rect.width()
     x0, y0 = rect.left(), rect.top()
     p.save()
@@ -1030,12 +1032,12 @@ def paint_logo(p: QPainter, rect: QRectF, c1: str, c2: str, awake: bool = True):
     if awake:   # a gold iris, a pupil and a glint
         r = s * 0.155
         p.setBrush(QColor("#ffc93c"))
-        p.drawEllipse(pt(0, ey), r, r)
+        p.drawEllipse(pt(look, ey), r, r)
         p.setBrush(ink)
-        p.drawEllipse(pt(0, ey), r * 0.55, r * 0.55)
+        p.drawEllipse(pt(look * 1.25, ey), r * 0.55, r * 0.55)
         if s >= 24:
             p.setBrush(fg)
-            p.drawEllipse(pt(0.045, ey - 0.045), r * 0.22, r * 0.22)
+            p.drawEllipse(pt(0.045 + look * 1.25, ey - 0.045), r * 0.22, r * 0.22)
     else:       # asleep: a lid and three lashes
         lp = QPen(ink, max(1.2, s * 0.045))
         lp.setCapStyle(Qt.RoundCap)

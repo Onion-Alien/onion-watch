@@ -20,6 +20,7 @@ from onionwatch.ui import icons
 from onionwatch.ui.alarmbar import AlarmBar
 from onionwatch.ui.pages import TriggerPages
 from onionwatch.ui.triggerspanel import TriggersTab
+from onionwatch.ui.watchlogo import WatchLogo
 from onionwatch.i18n import _
 
 log = logging.getLogger(__name__)
@@ -72,9 +73,8 @@ class MainWindow(QMainWindow):
 
         head = QHBoxLayout()
         head.setSpacing(10)
-        self.logo = QLabel()
-        self.logo.setFixedSize(34, 34)
-        self.logo.setScaledContents(True)
+        # its eye shut while nothing is watched, laser-red while it watches
+        self.logo = WatchLogo(34, 34, 34, beam_host=root)
         head.addWidget(self.logo)
         names = QVBoxLayout()
         names.setSpacing(0)
@@ -182,6 +182,7 @@ class MainWindow(QMainWindow):
         self.tray.setToolTip(_("Onion Watch — watching") if on
                              else _("Onion Watch — not watching"))
         self._awake = on
+        self.logo.set_watching(on)
         self.tray.setIcon(theme.themed_icon(awake=on))   # the eye shuts while it isn't watching
 
     # ------------------------------------------------------------------ alarms
@@ -240,7 +241,7 @@ class MainWindow(QMainWindow):
     def paint_logo(self):
         """The logo follows the theme, like Onion Board's: the header, the title bar
         and taskbar button (every window's, dialogs too) and the tray."""
-        self.logo.setPixmap(theme.themed_logo(34 * 2))
+        self.logo.retheme()
         icon = theme.themed_icon()
         QApplication.setWindowIcon(icon)
         self.setWindowIcon(icon)
