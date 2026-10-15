@@ -63,6 +63,7 @@ def staged(px: np.ndarray, turns: int, fmt: int = sw.FMT_BGRA8):
     g._frame = (fw, fh)
     g.source = (fh, fw) if turns % 2 else (fw, fh)
     g.last = np.zeros((2, 2), np.float32)
+    g.fresh = True                  # the staging texture holds that frame
     return g, buf, maps
 
 
@@ -79,7 +80,7 @@ def test_duplication_reads_the_box_from_the_frame_it_gave_out(turns):
     assert g.full_gray(0, 1, 0, 30) is None         # too thin to be any use
     sw_, sh_ = g.source
     assert g.full_gray(0, sh_ + 5, 0, 10) is None   # off the frame
-    g.last = None                                   # no frame given out yet
+    g.fresh = False                                 # no frame copied in yet
     assert g.full_gray(*box) is None
 
 

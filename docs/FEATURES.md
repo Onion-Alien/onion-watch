@@ -130,6 +130,8 @@ A trigger fires once each time its picture appears, then waits for it to go away
 before it can fire again. A window that isn't open yet is looked for every two
 seconds, and one that closes is picked up again when it reopens.
 
-If a game's window comes out black (some exclusive-fullscreen games and some
-anti-cheat do this), set the trigger to watch the **screen** the game is on
-instead.
+A fullscreen game you're playing (it's in front and fills its screen, exclusive or
+borderless) is read straight off that screen, so watching its window works even in
+exclusive fullscreen; alt-tab away and the window is copied as usual. If a game's
+window still comes out black while it isn't in front (some anti-cheat does this), set
+the trigger to watch the **screen** the game is on instead.

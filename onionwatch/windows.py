@@ -11,6 +11,12 @@ away from it. Two things it can't do:
 - a few games (exclusive fullscreen, some anti-cheat) come out black
   (`Watcher.black` says so); watching the screen they're on works for those.
 
+So a fullscreen game you're playing (it's in front and fills its screen, exclusive or
+borderless) is read off that screen instead, with Desktop Duplication: the same
+pixels, it works in exclusive fullscreen too, and it costs less than PrintWindow.
+Alt-tab away and it's back to PrintWindow (an exclusive-fullscreen game minimizes
+then, which `minimized` says).
+
 A window is remembered as a WindowRef (program file name, title, which copy), not
 by its handle, which changes every time the game starts. `find` looks it up again:
 the same title from the same program first, then any window of that program. With
@@ -26,13 +32,15 @@ import ctypes
 import logging
 import os
 import sys
+import time
 from ctypes import wintypes
 from dataclasses import dataclass
 
 import numpy as np
 
-from onionwatch.screenwatch import (_BITMAPINFOHEADER, FMT_BGRA8, CaptureLost, WindowRef,
-                                    frame_rgb, gray_2x, pick, to_gray)
+from onionwatch import screenwatch
+from onionwatch.screenwatch import (_BITMAPINFOHEADER, FMT_BGRA8, RETRY_S, CaptureLost,
+                                    Monitor, WindowRef, frame_rgb, gray_2x, pick, to_gray)
 from onionwatch.i18n import _
 
 log = logging.getLogger(__name__)
@@ -45,6 +53,7 @@ GW_OWNER = 4
 DWMWA_CLOAKED = 14
 PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
 MIN_SIDE = 32           # windows smaller than this (either way) aren't worth listing
+MONITOR_DEFAULTTONULL = 0
 
 
 class WindowGone(OSError):
@@ -71,6 +80,11 @@ class WindowInfo:
 # --------------------------------------------------------------------------- Win32
 
 _api = None
+
+
+class _MONITORINFO(ctypes.Structure):
+    _fields_ = [("cbSize", wintypes.DWORD), ("rcMonitor", wintypes.RECT),
+                ("rcWork", wintypes.RECT), ("dwFlags", wintypes.DWORD)]
 
 
 def _win():
@@ -102,6 +116,10 @@ def _win():
     u.GetForegroundWindow.restype = H
     u.PrintWindow.argtypes = [H, wintypes.HDC, wintypes.UINT]
     u.GetDC.argtypes = [H]
+    u.ClientToScreen.argtypes = [H, ctypes.POINTER(wintypes.POINT)]
+    u.MonitorFromWindow.argtypes = [H, wintypes.DWORD]
+    u.MonitorFromWindow.restype = wintypes.HMONITOR
+    u.GetMonitorInfoW.argtypes = [wintypes.HMONITOR, ctypes.POINTER(_MONITORINFO)]
     u.GetDC.restype = wintypes.HDC
     u.ReleaseDC.argtypes = [H, wintypes.HDC]
     k.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
@@ -193,16 +211,53 @@ def client_size(hwnd: int) -> tuple[int, int]:
     return max(0, r.right - r.left), max(0, r.bottom - r.top)
 
 
+def _monitor(hmon) -> Monitor | None:
+    """Monitor `hmon` as it is now (a game may have switched its display mode since
+    it was listed), or None."""
+    if not hmon:
+        return None
+    mi = _MONITORINFO()
+    mi.cbSize = ctypes.sizeof(_MONITORINFO)
+    if not _win()[0].GetMonitorInfoW(hmon, ctypes.byref(mi)):
+        return None
+    r = mi.rcMonitor
+    return Monitor(r.left, r.top, r.right - r.left, r.bottom - r.top, bool(mi.dwFlags & 1),
+                   int(hmon))
+
+
 def fills(hwnd: int, mon) -> bool:
     """Window `hwnd` covers the whole of monitor `mon` (left, top, width, height in
-    physical pixels): a fullscreen or borderless game. False when it can't be told."""
+    physical pixels): a fullscreen or borderless game. The monitor is taken as it is
+    now when its handle is known: a game in exclusive fullscreen at another
+    resolution changes its size. False when it can't be told."""
     if not supported() or not hwnd:
         return False
+    now = _monitor(getattr(mon, "handle", 0))
+    if now is not None:
+        mon = now
     r = wintypes.RECT()
     if not _win()[0].GetWindowRect(hwnd, ctypes.byref(r)):
         return False
     return (r.left <= mon.left and r.top <= mon.top and r.right >= mon.left + mon.width
             and r.bottom >= mon.top + mon.height)
+
+
+def screen_filled(hwnd: int) -> Monitor | None:
+    """The monitor window `hwnd`'s client area covers exactly, as it is now (a
+    fullscreen game, exclusive or borderless), or None."""
+    if not supported() or not hwnd:
+        return None
+    u = _win()[0]
+    mon = _monitor(u.MonitorFromWindow(hwnd, MONITOR_DEFAULTTONULL))
+    r = wintypes.RECT()
+    at = wintypes.POINT(0, 0)
+    if (mon is None or not u.GetClientRect(hwnd, ctypes.byref(r))
+            or not u.ClientToScreen(hwnd, ctypes.byref(at))):
+        return None
+    if (at.x, at.y, r.right - r.left, r.bottom - r.top) != (mon.left, mon.top, mon.width,
+                                                            mon.height):
+        return None
+    return mon
 
 
 def _cloaked(d, hwnd) -> bool:
@@ -390,7 +445,15 @@ class WindowGrabber:
     # A grab's processor time outside the watching thread, for the watcher's budget:
     # PrintWindow with full content measured about 3 ms of the whole processor per
     # call (a 1000x560 window), well under 1 ms of it in the calling thread.
-    cpu_elsewhere = 0.0025
+    # Read off the screen it's next to nothing (the graphics card copies it).
+    PRINT_CPU = 0.0025
+    cpu_elsewhere = PRINT_CPU
+    on_screen = False       # the last grab read it off its screen (a fullscreen game)
+    # stand-ins for tests: the window in front, the monitor a window fills, and how
+    # its screen is duplicated (screenwatch.share_dup)
+    _front = staticmethod(foreground)
+    _fills_screen = staticmethod(screen_filled)
+    _share = staticmethod(screenwatch.share_dup)
     color: np.ndarray | None = None
     raw: tuple | None = None    # the last grab's pixels as sampled: (pixels, format, factor)
     # ...and all of the window's own (BGRA, a view of the bitmap: only good until the
@@ -408,6 +471,9 @@ class WindowGrabber:
         self.failures = 0           # PrintWindow calls in a row that failed
         self.last: np.ndarray | None = None
         self._bm: _Bitmap | None = None
+        self._dup = None            # its screen's duplication, while it's read off it
+        self._dup_next = 0.0        # ...not tried again before this (it failed)
+        self._dup_said = False      # ...which the log said once
         self.source = (0, 0)
         size = client_size(self.hwnd)
         if min(size) >= 2:
@@ -441,6 +507,8 @@ class WindowGrabber:
         self.w, self.h = w, h
         self.last = None
         self._layout()
+        if self._dup is not None:
+            self._dup.resize(w, h)
 
     def grab(self) -> np.ndarray | None:
         u = _win()[0]
@@ -460,6 +528,13 @@ class WindowGrabber:
             self._make(size)
             self._layout()
             return None
+        mon = self._fills_screen(self.hwnd) if self._front() == self.hwnd else None
+        if mon is not None:
+            done, gray = self._from_screen(mon)
+            if done:
+                return gray
+        else:
+            self._leave_screen()
         if not u.PrintWindow(self.hwnd, self._bm.dc, PW_CLIENTONLY | PW_RENDERFULLCONTENT):
             self.failures += 1      # the watcher says so if it keeps happening
             return self.last
@@ -471,12 +546,72 @@ class WindowGrabber:
         self.raw = (sample, FMT_BGRA8, self.factor)
         return self.last
 
+    def _from_screen(self, mon: Monitor) -> tuple[bool, np.ndarray | None]:
+        """The window fills `mon` and is in front: read it off that screen. (True,
+        the picture or None while the screen is switching modes), or (False, None)
+        when it can't be read that way and PrintWindow is to copy it."""
+        now = time.monotonic()
+        if self._dup is None:
+            if now < self._dup_next:
+                return False, None
+            try:
+                self._dup = self._share(mon, self.w, self.h)
+            except (OSError, AttributeError) as e:
+                self._dup_next = now + RETRY_S
+                if not self._dup_said:
+                    self._dup_said = True
+                    log.info("%s fills its screen, but that screen can't be duplicated "
+                             "(%s): copying the window instead", self.ref.label, e)
+                return False, None
+        d = self._dup
+        d.want_color = self.want_color
+        try:
+            gray = d.grab()
+        except OSError:
+            self._leave_screen()
+            self._dup_next = now + RETRY_S
+            return False, None
+        if tuple(d.source) != self.source:
+            if gray is None or d.lost:
+                return True, None               # the display mode is still switching
+            self._leave_screen()                # not this window's pixels after all
+            self._dup_next = now + RETRY_S
+            return False, None
+        self.on_screen = True
+        self.cpu_elsewhere = 0.0
+        self.failures = 0
+        self.full = None
+        if gray is not None:
+            self.last = gray
+            self.factor = d.factor
+            self.raw = d.raw
+            self.color = d.color
+        return True, gray
+
+    def _leave_screen(self):
+        if self._dup is not None:
+            self._dup.close()
+            self._dup = None
+        self.on_screen = False
+        self.cpu_elsewhere = self.PRINT_CPU
+
+    def full_gray(self, y0: int, y1: int, x0: int, x1: int) -> np.ndarray | None:
+        """While it's read off its screen, the screen's own pixels (the twin check);
+        otherwise `full` has them, and this gives None."""
+        d = self._dup if self.on_screen else None
+        return None if d is None else d.full_gray(y0, y1, x0, x1)
+
+    def full_rgb(self, y0: int, y1: int, x0: int, x1: int) -> np.ndarray | None:
+        d = self._dup if self.on_screen else None
+        return None if d is None else d.full_rgb(y0, y1, x0, x1)
+
     def in_front(self) -> bool:
         """It's the window you're using now (the foreground one)."""
         u = _win()[0]
         return int(u.GetForegroundWindow() or 0) == self.hwnd
 
     def close(self):
+        self._leave_screen()
         self.full = None
         if self._bm is not None:
             self._bm.close()
