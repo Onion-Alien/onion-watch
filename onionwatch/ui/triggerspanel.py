@@ -5451,13 +5451,17 @@ class TriggersTab(QWidget):
         from onionwatch.ui.windowpicker import bgra_image
         px, where, again = self._grab(src)
         if px is None:
+            info = windows.find(src) if isinstance(src, WindowRef) else None
+            if info is not None and info.minimized:
+                where += "\n\n" + fullscreen_hint()
             QMessageBox.information(self, _("Can't cut a picture"), where)
             return None, [], ""
         if float(px[..., :3].max()) < 8:
             QMessageBox.information(self, _("It comes out black"),
                                     _("{where} comes out black, so there's nothing to cut. Some "
                                       "games can only be seen on the screen: pick its screen "
-                                      "under Look in instead.", where=where))
+                                      "under Look in instead.", where=where)
+                                    + "\n\n" + fullscreen_hint())
             return None, [], ""
         img = bgra_image(px)
         from onionwatch.ui.snip import SnipDialog
@@ -6175,3 +6179,10 @@ class TriggersTab(QWidget):
             self._insert(t)
             added += 1
         return added
+
+
+def fullscreen_hint() -> str:
+    """Said when a game's window can't be cut from (minimized, or black): a game in
+    exclusive fullscreen minimizes as soon as you switch to this app."""
+    return _("A game in exclusive fullscreen hides itself when you switch away. Take a "
+             "screenshot in the game (Print Screen) and paste it instead.")

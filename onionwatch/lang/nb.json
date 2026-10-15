@@ -790,5 +790,6 @@
   "What's switched on (watching for triggers) is shown in the theme's colour. Slide to pick your own; it stays when you change theme.": "Det som er slått på (se etter utløsere) vises i temaets farge. Skyv for å velge din egen; den forblir når du endrer tema.",
   "✓ Already the theme's": "✓ Allerede temaets",
   "✓ Back to the theme's": "✓ Tilbake til temaets",
-  "✓ Changed": "✓ Endret"
+  "✓ Changed": "✓ Endret",
+  "A game in exclusive fullscreen hides itself when you switch away. Take a screenshot in the game (Print Screen) and paste it instead.": "Et spill i eksklusiv fullskjerm skjuler seg når du bytter bort. Ta et skjermbilde i spillet (Print Screen), og lim det inn i stedet."
 }

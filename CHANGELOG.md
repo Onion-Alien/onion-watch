@@ -9,6 +9,8 @@ What changed between releases, for the release notes. Newest first.
   longer come out black when you watch their window, and it costs less. Alt-tab away
   and the window is copied as before. A screen watched both as a screen and as a
   fullscreen game's window works too.
+- *Stay quiet while I'm in that window* now also works for a trigger watching a
+  screen: it stays quiet while a fullscreen game you're playing fills that screen.
 - With *Max detection: only while away*, a game that switches the screen to another
   resolution no longer counts as you being away, so the extra checks stay off while
   you play.

@@ -790,5 +790,6 @@
   "What's switched on (watching for triggers) is shown in the theme's colour. Slide to pick your own; it stays when you change theme.": "Vad som är påslaget (bevakar triggers) visas i temats färg. Skjut för att välja din egen; den stannar när du byter tema.",
   "✓ Already the theme's": "✓ Redan temats",
   "✓ Back to the theme's": "✓ Tillbaka till temats",
-  "✓ Changed": "✓ Ändrat"
+  "✓ Changed": "✓ Ändrat",
+  "A game in exclusive fullscreen hides itself when you switch away. Take a screenshot in the game (Print Screen) and paste it instead.": "Ett spel i exklusiv helskärm gömmer sig när du byter bort. Ta en skärmbild i spelet (Print Screen) och klistra in den i stället."
 }

@@ -802,5 +802,6 @@
   "What's switched on (watching for triggers) is shown in the theme's colour. Slide to pick your own; it stays when you change theme.": "То, что включено (отслеживание триггеров), отображается цветом темы. Слайд, чтобы выбрать свой собственный; он остается, когда вы меняете тему.",
   "✓ Already the theme's": "✓ Уже цвет темы",
   "✓ Back to the theme's": "✓ Снова цвет темы",
-  "✓ Changed": "✓ Изменено"
+  "✓ Changed": "✓ Изменено",
+  "A game in exclusive fullscreen hides itself when you switch away. Take a screenshot in the game (Print Screen) and paste it instead.": "Игра в эксклюзивном полноэкранном режиме прячется, когда ты переключаешься. Сделай снимок экрана в игре (Print Screen) и вставь его вместо этого."
 }

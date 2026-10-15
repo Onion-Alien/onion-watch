@@ -838,5 +838,6 @@
   "What's switched on (watching for triggers) is shown in the theme's colour. Slide to pick your own; it stays when you change theme.": "ما يتم تشغيله (مراقبة المشغلات) يظهر بلون السمة. قم بالتمرير لاختيار ما يناسبك؛ يبقى عند تغيير الموضوع.",
   "✓ Already the theme's": "✓ بالفعل الموضوع",
   "✓ Back to the theme's": "✓ العودة إلى الموضوع",
-  "✓ Changed": "✓ تم التغيير"
+  "✓ Changed": "✓ تم التغيير",
+  "A game in exclusive fullscreen hides itself when you switch away. Take a screenshot in the game (Print Screen) and paste it instead.": "اللعبة في وضع ملء الشاشة الحصري تختفي عندما تنتقل عنها. التقط لقطة شاشة داخل اللعبة (Print Screen) والصقها بدلًا من ذلك."
 }

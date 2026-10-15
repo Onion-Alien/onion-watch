@@ -790,5 +790,6 @@
   "What's switched on (watching for triggers) is shown in the theme's colour. Slide to pick your own; it stays when you change theme.": "Ami be van kapcsolva (figyel a triggerekre), az a téma színével jelenik meg. Csúsztassa a saját kiválasztásához; marad, ha témát váltasz.",
   "✓ Already the theme's": "✓ Már a téma",
   "✓ Back to the theme's": "✓ Vissza a témához",
-  "✓ Changed": "✓ Megváltozott"
+  "✓ Changed": "✓ Megváltozott",
+  "A game in exclusive fullscreen hides itself when you switch away. Take a screenshot in the game (Print Screen) and paste it instead.": "A kizárólagos teljes képernyős játék elrejtőzik, ha máshová vált. Készítsen képernyőképet a játékban (Print Screen), és illessze be inkább azt."
 }

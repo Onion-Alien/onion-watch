@@ -53,6 +53,9 @@ GW_OWNER = 4
 DWMWA_CLOAKED = 14
 PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
 MIN_SIDE = 32           # windows smaller than this (either way) aren't worth listing
+# a fullscreen game's screen duplication is kept this long after it was last read
+# (alt-tabbed away), so tabbing back doesn't set up a new one (~60 ms) every time
+DUP_IDLE_S = 30.0
 MONITOR_DEFAULTTONULL = 0
 
 
@@ -472,6 +475,8 @@ class WindowGrabber:
         self.last: np.ndarray | None = None
         self._bm: _Bitmap | None = None
         self._dup = None            # its screen's duplication, while it's read off it
+        self._dup_mon = 0           # ...that screen's handle
+        self._dup_used = 0.0        # ...and when it was last read
         self._dup_next = 0.0        # ...not tried again before this (it failed)
         self._dup_said = False      # ...which the log said once
         self.source = (0, 0)
@@ -516,6 +521,7 @@ class WindowGrabber:
             raise CaptureLost(_("{name} was closed", name=self.ref.label))
         if u.IsIconic(self.hwnd):
             self.minimized = True
+            self._off_screen()
             return None
         self.minimized = False
         self.full = None
@@ -534,7 +540,7 @@ class WindowGrabber:
             if done:
                 return gray
         else:
-            self._leave_screen()
+            self._off_screen()
         if not u.PrintWindow(self.hwnd, self._bm.dc, PW_CLIENTONLY | PW_RENDERFULLCONTENT):
             self.failures += 1      # the watcher says so if it keeps happening
             return self.last
@@ -551,11 +557,14 @@ class WindowGrabber:
         the picture or None while the screen is switching modes), or (False, None)
         when it can't be read that way and PrintWindow is to copy it."""
         now = time.monotonic()
+        if self._dup is not None and mon.handle != self._dup_mon:
+            self._leave_screen()                # moved to another screen
         if self._dup is None:
             if now < self._dup_next:
                 return False, None
             try:
                 self._dup = self._share(mon, self.w, self.h)
+                self._dup_mon = mon.handle
             except (OSError, AttributeError) as e:
                 self._dup_next = now + RETRY_S
                 if not self._dup_said:
@@ -578,6 +587,7 @@ class WindowGrabber:
             self._dup_next = now + RETRY_S
             return False, None
         self.on_screen = True
+        self._dup_used = now
         self.cpu_elsewhere = 0.0
         self.failures = 0
         self.full = None
@@ -587,6 +597,15 @@ class WindowGrabber:
             self.raw = d.raw
             self.color = d.color
         return True, gray
+
+    def _off_screen(self):
+        """Not read off its screen now (alt-tabbed away, minimized, windowed): copied
+        with PrintWindow. The duplication is kept for DUP_IDLE_S in case you're
+        back soon."""
+        self.on_screen = False
+        self.cpu_elsewhere = self.PRINT_CPU
+        if self._dup is not None and time.monotonic() - self._dup_used > DUP_IDLE_S:
+            self._leave_screen()
 
     def _leave_screen(self):
         if self._dup is not None:

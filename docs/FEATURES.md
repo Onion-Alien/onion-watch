@@ -43,7 +43,8 @@ The full list. The [README](../README.md) has the short version.
   - a wait before playing, and a cooldown before it can play again;
   - how long it must last before it counts, so a flicker doesn't set it off;
   - how close a match must be, with the live match shown next to it;
-  - staying quiet while the window it went off in is the one you're playing.
+  - staying quiet while the window it went off in is the one you're playing (on a
+    screen: while a fullscreen game fills it).
 - **Categories and profiles for a big library.** Keep hundreds of triggers (up to
   500) in categories of your own and switch a whole category on or off in one
   click; a trigger that's off costs nothing. A **profile** is a set of categories:
