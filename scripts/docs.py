@@ -8,10 +8,13 @@ Runs screenshots.py (offscreen, made-up data, the Dark theme) and make_art.py
 (Hoot, the avatar and docs/art/social-preview.png, which is built from main.png:
 upload it in the repo's Settings -> Social preview when it changes; GitHub has no
 API for it). The version comes from onionwatch/__init__.py; the VirusTotal scan is
-remembered in docs/release.json, so it only needs passing once per release. The
-line is rewritten between the <!-- release --> markers in README.md and
-docs/index.html, and every picture link gets ?v=<hash of the picture>, so nobody is
-shown an old cached copy after the pictures change.
+remembered in docs/release.json, so it only needs passing once per release (Onion
+Board's site reads it for its Onion Watch tab). The line is rewritten between the
+<!-- release --> markers in README.md, and every picture link gets ?v=<hash of the
+picture>, so nobody is shown an old cached copy after the pictures change.
+
+The website is Onion Board's (its Onion Watch tab): docs/index.html only sends visitors
+there. Copy new pictures into its site/screenshots/watch/ (see its scripts/docs.py).
 """
 import argparse
 import hashlib
@@ -24,7 +27,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 RELEASE = ROOT / "docs" / "release.json"
 REPO = "https://github.com/Onion-Alien/onion-watch"
-PAGES = [ROOT / "README.md", ROOT / "docs" / "index.html"]
+PAGES = [ROOT / "README.md"]
 
 
 def version() -> str:
@@ -40,14 +43,6 @@ def readme_block(r: dict) -> str:
     vt = f"VirusTotal: {r['vt_clean']} of {r['vt_total']} clean"
     return (f"Version **{r['version']}** · Windows 10 / 11 · free, no account, no internet "
             f"needed ·\n[{vt}]({vt_link(r)}) · [what's new]({REPO}/releases/latest)")
-
-
-def site_block(r: dict) -> str:
-    vt = f"VirusTotal: {r['vt_clean']} of {r['vt_total']} clean"
-    return (f'    <p class="small">Version {r["version"]} · Windows 10 / 11 · free, no account, '
-            f'no internet needed<br>\n'
-            f'      <a href="{vt_link(r)}">{vt}</a> ·\n'
-            f'      <a href="{REPO}/releases/latest">what\'s new</a></p>')
 
 
 def stamp(path: Path, block: str):
@@ -94,7 +89,6 @@ def main():
     RELEASE.write_text(json.dumps(r, indent=2) + "\n", encoding="utf-8")
 
     stamp(ROOT / "README.md", readme_block(r))
-    stamp(ROOT / "docs" / "index.html", site_block(r))
     if not args.no_shots:
         for script in ("screenshots.py", "make_art.py"):
             subprocess.run([sys.executable, str(ROOT / "scripts" / script)], cwd=ROOT, check=True)
