@@ -105,6 +105,10 @@ PADS_VIEW = -2          # ...and its "Pads"
 PADS_SHARE = 0.3        # how much of the width the pads keep beside an editor at first
 SPLIT_MIN = 760         # px: from this wide, the list on the left and one trigger's editor
 LIST_WIDTH = 300        # ...on the right; the list is this wide
+# the empty list's card: padding above and below, gap between Hoot and the text (px);
+# tight when roomy would need a scroll bar (_fit_empty_card)
+EMPTY_ROOMY = (24, 24, 10)
+EMPTY_TIGHT = (8, 12, 6)
 MAX_SIDE = 8192         # bigger pictures are refused (kept pixel for pixel, never resized)
 CUT_KEY = "OnionWatch cut from"   # a picture's PNG text: the size of what it was cut from
 # ...and this one, set: it wasn't cut from the game (a file or a copy from the web), so
@@ -3187,8 +3191,8 @@ class TriggersTab(QWidget):
         self.list_layout.setContentsMargins(0, 0, 0, 0)
         self.list_layout.setSpacing(10)
         self.empty, ev = card()
-        ev.setContentsMargins(16, 24, 16, 24)
-        ev.setSpacing(10)
+        ev.setContentsMargins(16, EMPTY_ROOMY[0], 16, EMPTY_ROOMY[1])
+        ev.setSpacing(EMPTY_ROOMY[2])
         self.hoot = kit.owl().OwlWidget(108)   # waiting (sadly) for something to watch
         ev.addWidget(self.hoot, 0, Qt.AlignmentFlag.AlignHCenter)
         hint = hint_label(_("No triggers yet. Click + New trigger above, pick what it should "
@@ -3208,6 +3212,8 @@ class TriggersTab(QWidget):
         v.addWidget(self.no_results)
         self.list_layout.addStretch(1)
         self.scroll.setWidget(self.list)
+        # (resized: _fit_empty_card; pyright takes self.scroll for QWidget.scroll())
+        self.scroll.installEventFilter(self)  # pyright: ignore[reportAttributeAccessIssue]
         # the cards keep a gap from the scroll bar instead of running up against it
         self.scroll.verticalScrollBar().rangeChanged.connect(
             lambda _lo, hi: self.list_layout.setContentsMargins(0, 0, 10 if hi else 0, 0))
@@ -3452,6 +3458,36 @@ class TriggersTab(QWidget):
             self.about if none else
             _("Pick a trigger on the left to change it, or click + New trigger to make one."))
         self.empty_about.setVisible(self.editor_scroll.isHidden())
+        self._fit_empty_card()
+
+    def eventFilter(self, obj, event):
+        if obj is self.scroll and event.type() == QEvent.Type.Resize:
+            self._fit_empty_card()
+        return super().eventFilter(obj, event)
+
+    def _fit_empty_card(self):
+        """The empty list's card keeps its roomy padding unless that would need a
+        scroll bar (a short, narrow window): then its padding and gaps tighten so Hoot
+        and both paragraphs still fit. Measured at the list's full width, as it is
+        with no scroll bar, so taking the bar away can't flip it back."""
+        lay = self.empty.layout()
+        assert lay is not None
+        items = (lay.itemAt(i) for i in range(lay.count()))
+        gaps = sum(1 for it in items if it is not None and (w := it.widget()) is not None
+                   and not w.isHidden()) - 1
+        m = lay.contentsMargins()
+        scroll: QScrollArea = self.scroll  # pyright: ignore[reportAssignmentType]
+        width = scroll.width()
+        if width <= 0 or gaps < 0:
+            return
+        top, bottom, spacing = EMPTY_ROOMY
+        roomy = (lay.totalHeightForWidth(width) - m.top() - m.bottom()
+                 - gaps * lay.spacing() + top + bottom + gaps * spacing)
+        if roomy > scroll.height():
+            top, bottom, spacing = EMPTY_TIGHT
+        if (m.top(), m.bottom(), lay.spacing()) != (top, bottom, spacing):
+            lay.setContentsMargins(m.left(), top, m.right(), bottom)
+            lay.setSpacing(spacing)
 
     def _on_split_moved(self, _pos: int, _index: int):
         """The handle was dragged (the Pads view): keep the pads' share for next time."""

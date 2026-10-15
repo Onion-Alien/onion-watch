@@ -1,6 +1,8 @@
 """Padding the eye notices: the bottom bar's buttons sit inside its margins (also
 on a wrapped second line), and a trigger card's Test and ⋯ (Duplicate / Delete) share
 More options' line instead of taking a row of their own."""
+import os
+
 from PySide6.QtWidgets import QWidget
 import pytest
 
@@ -93,3 +95,31 @@ def test_the_ring_list_isnt_cut_off_at_the_bottom(tab, qapp, styled, width):
     pair = row.ring_box     # was 26 px tall round a 34 px list: its bottom edge gone
     assert row.until.geometry().bottom() <= pair.height() - 1
     assert pair.geometry().bottom() <= pair.parentWidget().height() - 1
+
+
+@pytest.mark.parametrize("size, roomy", [((440, 750), False), ((440, 1000), True),
+                                         ((1100, 750), True)])
+def test_the_empty_list_fits_without_a_scroll_bar(qapp, app_dir, fake_screen, styled,
+                                                   size, roomy):
+    """Hoot and both paragraphs fit the smallest window; only there does the card's
+    padding tighten, never at a size where the roomy one fits."""
+    from onionwatch.settings import Config
+    from onionwatch.ui import triggerspanel
+    from onionwatch.ui.mainwindow import MainWindow
+    win = MainWindow(Config())
+    try:
+        win.resize(*size)
+        win.show()
+        for _ in range(10):
+            qapp.processEvents()
+        tab = win.triggers
+        assert tab.empty.isVisible()
+        # (only with the real fonts: the stand-in font without QT_QPA_FONTDIR is wider)
+        if os.environ.get("QT_QPA_FONTDIR"):
+            assert tab.scroll.verticalScrollBar().maximum() == 0
+        lay = tab.empty.layout()
+        m = lay.contentsMargins()
+        padding = (m.top(), m.bottom(), lay.spacing())
+        assert padding == (triggerspanel.EMPTY_ROOMY if roomy else triggerspanel.EMPTY_TIGHT)
+    finally:
+        win.quit()
