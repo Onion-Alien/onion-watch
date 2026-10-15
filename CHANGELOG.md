@@ -2,7 +2,7 @@
 
 What changed between releases, for the release notes. Newest first.
 
-## Unreleased
+## 0.11.1 (2026-10-15)
 
 - **Screens with HDR or automatic colour management:** a screen Windows shows in
   HDR, or with Windows 11's automatic colour management (on by default on many new
