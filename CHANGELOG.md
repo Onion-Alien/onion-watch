@@ -2,7 +2,7 @@
 
 What changed between releases, for the release notes. Newest first.
 
-## Unreleased
+## 0.11.0 (2026-10-15)
 
 - **Fullscreen games:** a game window you're playing in fullscreen (exclusive or
   borderless) is now read straight off its screen, so exclusive-fullscreen games no
@@ -11,6 +11,9 @@ What changed between releases, for the release notes. Newest first.
   fullscreen game's window works too.
 - *Stay quiet while I'm in that window* now also works for a trigger watching a
   screen: it stays quiet while a fullscreen game you're playing fills that screen.
+- Cutting a picture from a game that's minimized or comes out black now says how to
+  get one anyway: a game in exclusive fullscreen hides itself when you switch to the
+  app, so take a screenshot in the game and paste it.
 - With *Max detection: only while away*, a game that switches the screen to another
   resolution no longer counts as you being away, so the extra checks stay off while
   you play.
