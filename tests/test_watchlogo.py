@@ -6,7 +6,7 @@ from PySide6.QtWidgets import QWidget
 
 from onionwatch import theme
 from onionwatch.ui import watchlogo
-from onionwatch.ui.watchlogo import BURST_S, PAINTERS, STYLES, WatchLogo, style_for
+from onionwatch.ui.watchlogo import BURST_S, IDLE, PAINTERS, STYLES, WatchLogo, style_for
 
 
 def make(qapp, monkeypatch, front=True):
@@ -22,7 +22,7 @@ def make(qapp, monkeypatch, front=True):
 def test_every_theme_has_a_flourish_of_its_own_kind():
     named = [n for names in STYLES.values() for n in names]
     assert sorted(named) == sorted(theme.THEMES)        # each theme once, none left out
-    assert set(STYLES) == set(PAINTERS)
+    assert set(STYLES) == set(PAINTERS) == set(IDLE)
     assert style_for("A theme from a newer board") == "shine"
 
 
@@ -46,7 +46,7 @@ def test_each_flourish_plays_once_and_the_eye_looks_around(qapp, monkeypatch):
             logo.step(0.8)
             assert logo.look() != 0                      # it looks around
             logo.set_watching(False)
-            assert logo.look() == 0 and not logo._timer.isActive()
+            assert logo.look() == 0 and logo.burst_t() < 0
     finally:
         host.close()
 
@@ -63,3 +63,16 @@ def test_the_flourish_never_takes_a_click(qapp, monkeypatch):
     host, logo = make(qapp, monkeypatch)
     assert logo.beam.testAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
     host.close()
+
+
+def test_it_idles_in_every_theme_while_nothing_is_watched(qapp, monkeypatch):
+    host, logo = make(qapp, monkeypatch)
+    try:
+        assert logo._timer.isActive() and not logo.watching
+        for style in STYLES:
+            logo.style_name = style
+            for _ in range(12):
+                logo.step(0.37)
+                logo.grab()                      # every frame paints without an error
+    finally:
+        host.close()

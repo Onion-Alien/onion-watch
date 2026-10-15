@@ -27,6 +27,9 @@ SCAN_S = 3.4           # the eye looking left, right and back while it watches
 SCAN_X = 0.05          # ...this far each way, in logo widths
 EYE_Y = 0.60           # the eye's centre, in logo heights (theme.paint_logo's `ey`)
 EYE_R = 0.155          # ...and the iris's radius
+IDLE_CALM = 0.55       # the idle animation's strength while not watching (1 = watching)
+SHEEN_PERIOD = 4.5     # seconds between sheens across the logo (as Onion Board's logo)
+SHEEN_TIME = 0.9       # ...and how long one takes
 
 # Which flourish each theme plays. Every theme is named (tests/test_watchlogo.py);
 # one that isn't (a board's newer theme) gets "shine".
@@ -84,6 +87,11 @@ class WatchLogo(QWidget):
         self._timer.timeout.connect(self._tick)
         appstate.pause_in_background(self, self._resume, self._pause)
         self.beam = _Burst(self, beam_host) if beam_host is not None else None
+        self._idle = 0.0          # seconds of the idle animation
+
+    def intensity(self) -> float:
+        """How strong the idle animation is: full while it watches, calmer while not."""
+        return 1.0 if self.watching else IDLE_CALM
 
     # ------------------------------------------------------------------ outside
     def retheme(self):
@@ -112,8 +120,6 @@ class WatchLogo(QWidget):
             self._burst = -1.0
             if self.beam is not None:
                 self.beam.stop()
-            if not on:
-                self._timer.stop()
         self.update()
 
     def burst_t(self) -> float:
@@ -145,7 +151,7 @@ class WatchLogo(QWidget):
         super().hideEvent(ev)
 
     def _resume(self):
-        if self.watching:
+        if self.isVisible() and not self._timer.isActive():
             self._last = time.monotonic()
             self._timer.start()
 
@@ -163,6 +169,7 @@ class WatchLogo(QWidget):
 
     def step(self, dt: float):
         """Move the animation on by `dt` seconds (the tests call this directly)."""
+        self._idle += dt
         if self._burst >= 0:
             self._burst += dt
             if self._burst >= BURST_S:
@@ -180,18 +187,41 @@ class WatchLogo(QWidget):
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
         r = self.logo_rect()
         b = self._burst
-        if b >= 0 and self.style_name == "confetti":   # a quick shake as it goes
+        style, t, on = self.style_name, self._idle, self.intensity()
+        if b >= 0 and style == "confetti":   # a quick shake as it goes
             k = 1 - b / BURST_S
             p.translate(math.sin(b * 70) * 2.2 * k * k, math.cos(b * 53) * 1.4 * k * k)
+        elif style == "comic":               # a little squash-and-bounce now and then
+            k = comic_bounce(t)
+            if k:
+                base = QPointF(r.center().x(), r.bottom())
+                p.translate(base)
+                p.scale(1 + 0.07 * k, 1 - 0.09 * k)
+                p.translate(-base)
+        elif style == "pixels" and t % 1.6 < 0.16:   # an 8-bit hop
+            p.translate(0, -1)
+        elif style == "confetti":            # a slow wobble
+            mid = r.center()
+            p.translate(mid)
+            p.rotate(3.5 * math.sin(t * 2.3))
+            p.translate(-mid)
         look = self.look()
         if look:
             theme.paint_logo(p, r, theme.T.get("accent") or theme.BRAND[0],
                              theme.T.get("accent2") or theme.BRAND[1], look=look)
         else:
             p.drawPixmap(r.topLeft(), self._pm)
-        if b >= 0 and self.style_name == "laser":
-            fade = 1.0 if b < BURST_S * 0.8 else 1 - (b - BURST_S * 0.8) / (BURST_S * 0.2)
-            paint_laser_eye(p, self.eye_center(), self.px * EYE_R, max(0.0, fade))
+        paint_idle(p, style, _Idle(rect=r, u=float(self.px), t=t, on=on,
+                                   a1=QColor(theme.T.get("accent") or theme.BRAND[0]),
+                                   a2=QColor(theme.T.get("accent2") or theme.BRAND[1]),
+                                   name=theme.current_name))
+        if style == "laser":
+            if b >= 0:
+                fade = 1.0 if b < BURST_S * 0.8 else 1 - (b - BURST_S * 0.8) / (BURST_S * 0.2)
+                paint_laser_eye(p, self.eye_center(), self.px * EYE_R, max(0.0, fade))
+            elif self.watching:   # the eye stays a little red-hot while it watches
+                paint_laser_eye(p, self.eye_center(), self.px * EYE_R,
+                                0.4 + 0.2 * math.sin(t * 3))
         p.end()
 
 
@@ -519,36 +549,42 @@ def _pixels(p: QPainter, x: _Ctx):
 
 
 def _comic(p: QPainter, x: _Ctx):
-    """A comic-book "!" burst pops out beside the logo, with speed lines."""
+    """A comic-book "!" pops off the logo's corner, with impact lines round the logo
+    (kept in the gap before the tabs, never on them)."""
     t = x.k
     pop = 1.25 * _ease(t / 0.18) - 0.25 * _ease((t - 0.18) / 0.15) if t < 0.33 else 1.0
     fade = x.fade(0.7)
-    cx = x.c.x() + x.side * x.u * 1.55
-    cy = x.c.y() - x.u * 0.1
-    rad = 13 * pop
+    r = x.rect
+    mid = r.center()
+    p.setPen(QPen(_alpha(x.a1, fade), 1.6, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
+    for n in range(10):
+        a = math.pi * (0.5 + n / 5)
+        r0 = r.width() * 0.62 + 2 * pop
+        r1 = r0 + 6 * pop
+        p.drawLine(QPointF(mid.x() + math.cos(a) * r0, mid.y() + math.sin(a) * r0),
+                   QPointF(mid.x() + math.cos(a) * r1, mid.y() + math.sin(a) * r1))
+    cx = (r.right() if x.side > 0 else r.left()) + x.side * 1
+    cy = r.top() + r.height() * 0.3
+    rad = 8.5 * pop
     path = QPainterPath()
-    for n in range(24):
-        r = rad if n % 2 == 0 else rad * 0.62
-        a = n * math.pi / 12
-        pt = QPointF(cx + math.cos(a) * r, cy + math.sin(a) * r * 0.85)
+    for n in range(20):
+        rr = rad if n % 2 == 0 else rad * 0.6
+        a = n * math.pi / 10
+        pt = QPointF(cx + math.cos(a) * rr, cy + math.sin(a) * rr)
         if n:
             path.lineTo(pt)
         else:
             path.moveTo(pt)
     path.closeSubpath()
-    p.setPen(QPen(_alpha(QColor("#111111"), fade), 1.6))
+    p.setPen(QPen(_alpha(QColor("#111111"), fade), 1.3))
     p.setBrush(_alpha(x.a2, fade))
     p.drawPath(path)
     f = QFont("Comic Sans MS")
-    f.setPixelSize(max(1, int(15 * pop)))
+    f.setPixelSize(max(1, int(11 * pop)))
     f.setBold(True)
     p.setFont(f)
     p.setPen(_alpha(QColor("#111111"), fade))
-    p.drawText(QRectF(cx - 10, cy - 10, 20, 20), Qt.AlignmentFlag.AlignCenter, "!")
-    p.setPen(QPen(_alpha(x.a1, fade), 1.6, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
-    for dy in (-6, 0, 6):
-        a0 = QPointF(x.c.x() - x.side * (x.u * 0.7 + 4), x.c.y() + dy)
-        p.drawLine(a0, QPointF(a0.x() - x.side * 9 * pop, a0.y()))
+    p.drawText(QRectF(cx - 8, cy - 8, 16, 16), Qt.AlignmentFlag.AlignCenter, "!")
 
 
 def _flash(p: QPainter, x: _Ctx):
@@ -617,3 +653,247 @@ PAINTERS = {"laser": _laser, "code": _code, "neon": _neon, "petals": _petals,
             "sonar": _sonar, "embers": _embers, "fireflies": _fireflies,
             "pixels": _pixels, "comic": _comic, "flash": _flash,
             "confetti": _confetti, "shine": _shine}
+
+
+# ---------------------------------------------------------------------- idle, on the logo
+
+def comic_bounce(t: float) -> float:
+    """0, or how far into a squash-and-bounce the comic logo is (one every 4 s)."""
+    ph = (t % 4.0) / 0.45
+    return math.sin(ph * math.pi) if ph < 1 else 0.0
+
+
+def _tile(r: QRectF) -> QPainterPath:
+    path = QPainterPath()
+    s = r.width()
+    path.addRoundedRect(r.adjusted(s * 0.04, s * 0.04, -s * 0.04, -s * 0.04),
+                        s * 0.26, s * 0.26)
+    return path
+
+
+def _sheen(p: QPainter, r: QRectF, t: float, on: float):
+    """A soft band of light sweeping across the tile now and then (Onion Board's logo
+    does the same)."""
+    ph = (t % SHEEN_PERIOD) / SHEEN_TIME
+    if ph >= 1.0:
+        return
+    s = r.width()
+    p.save()
+    p.setClipPath(_tile(r))
+    pos = -0.6 + 2.2 * ph
+    g = QLinearGradient(QPointF(r.left() + s * (pos - 0.3), r.top()),
+                        QPointF(r.left() + s * (pos + 0.3), r.bottom()))
+    g.setColorAt(0.0, QColor(255, 255, 255, 0))
+    g.setColorAt(0.5, QColor(255, 255, 255, int(85 + 70 * on)))
+    g.setColorAt(1.0, QColor(255, 255, 255, 0))
+    p.fillRect(r, g)
+    p.restore()
+
+
+def _scanline(p: QPainter, r: QRectF, t: float, on: float):
+    """A terminal's scan line rolling down the tile."""
+    ph = (t % 2.6) / 0.8
+    if ph >= 1.0:
+        return
+    y = r.top() + r.height() * ph
+    p.save()
+    p.setClipPath(_tile(r))
+    col = QColor(theme.T.get("accent") or theme.BRAND[0]).lighter(160)
+    p.fillRect(QRectF(r.left(), y - 1, r.width(), 2), _alpha(col, 0.7 * on))
+    p.fillRect(QRectF(r.left(), y - 4, r.width(), 3), _alpha(col, 0.2 * on))
+    p.restore()
+
+
+# ---------------------------------------------------------------------- idle, in the tile
+# Drawn over the logo and kept inside its rounded tile: the logo sits in the page's
+# corner with the tabs right beside it, so there's no room for anything round it.
+
+@dataclass
+class _Idle:
+    """What an idle animation draws with: the logo's `rect` and size `u`, `t` seconds
+    in, its strength `on`, the theme's `a1` / `a2` and `name`."""
+    rect: QRectF
+    u: float
+    t: float
+    on: float
+    a1: QColor
+    a2: QColor
+    name: str
+
+
+def paint_idle(p: QPainter, style: str, x: _Idle):
+    p.save()
+    p.setClipPath(_tile(x.rect))
+    IDLE.get(style, _idle_shine)(p, x)
+    p.restore()
+
+
+def _rim(p: QPainter, x: _Idle, col: QColor, strength: float, speed: float = 1.6):
+    """A soft glow round the inside of the tile's edge, breathing slowly."""
+    breathe = 0.5 + 0.5 * math.sin(x.t * speed)
+    a = (0.25 + 0.3 * breathe) * strength * x.on
+    p.setBrush(Qt.BrushStyle.NoBrush)
+    r = x.rect.adjusted(1, 1, -1, -1)
+    for width, k in ((4.0, 0.45), (1.6, 1.0)):
+        p.setPen(QPen(_alpha(col, a * k), width))
+        p.drawRoundedRect(r, x.u * 0.24, x.u * 0.24)
+
+
+def _cycle(t: float, period: float, offset: float, length: float) -> float:
+    """-1, or 0..1 of the way through this round of something that happens every
+    `period` seconds (from `offset`) and lasts `length`."""
+    ph = ((t - offset) % period) / length
+    return ph if ph < 1 else -1.0
+
+
+def _idle_shine(p: QPainter, x: _Idle):
+    _rim(p, x, QColor("white"), 0.6)
+    _sheen(p, x.rect, x.t, x.on)
+
+
+def _idle_flash(p: QPainter, x: _Idle):
+    _sheen(p, x.rect, x.t, 1.0)
+    ph = _cycle(x.t, 3.5, 1.0, 0.5)
+    if ph >= 0:
+        p.save()
+        p.translate(x.rect.right() - 5, x.rect.top() + 5)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(_alpha(QColor("white"), min(1.0, x.on * 1.6)))
+        p.drawPath(_shape("star", math.sin(ph * math.pi) * 4.5))
+        p.restore()
+
+
+def _idle_laser(p: QPainter, x: _Idle):
+    _rim(p, x, QColor(255, 40, 40), 1.3, speed=2.2)
+    c = QPointF(x.rect.center().x(), x.rect.top() + x.u * EYE_Y)
+    breathe = 0.5 + 0.5 * math.sin(x.t * 2.2)
+    g = QRadialGradient(c, x.u * 0.3)
+    g.setColorAt(0.5, _alpha(QColor(255, 40, 40), 0.45 * breathe * x.on))
+    g.setColorAt(1.0, _alpha(QColor(255, 0, 0), 0))
+    p.setPen(Qt.PenStyle.NoPen)
+    p.setBrush(g)
+    p.drawEllipse(c, x.u * 0.3, x.u * 0.3)
+
+
+def _idle_code(p: QPainter, x: _Idle):
+    _rim(p, x, x.a1, 0.5)
+    _scanline(p, x.rect, x.t, x.on)
+    f = QFont("Consolas")
+    f.setPixelSize(6)
+    f.setBold(True)
+    p.setFont(f)
+    for n, dx in enumerate((3, x.u - 6)):
+        ph = _cycle(x.t, 1.9, n * 0.9, 1.5)
+        if ph < 0:
+            continue
+        y = x.rect.top() + ph * (x.rect.height() + 6)
+        ch = GLYPHS[int(x.t * 6 + n * 5) % len(GLYPHS)]
+        p.setPen(_alpha(x.a1.lighter(170), math.sin(ph * math.pi) * x.on * 1.3))
+        p.drawText(QPointF(x.rect.left() + dx, y), ch)
+
+
+def _idle_neon(p: QPainter, x: _Idle):
+    buzz = 0.3 if int(x.t * 10) % 37 in (0, 2) else 1.0   # a neon tube flickering
+    col = x.a1 if int(x.t / 3) % 2 == 0 else x.a2
+    r = x.rect.adjusted(1.2, 1.2, -1.2, -1.2)
+    p.setBrush(Qt.BrushStyle.NoBrush)
+    for width, a in ((4.5, 0.4), (1.5, 1.0)):
+        p.setPen(QPen(_alpha(col.lighter(130), a * buzz * min(1.0, x.on * 1.5)), width))
+        p.drawRoundedRect(r, x.u * 0.24, x.u * 0.24)
+
+
+def _idle_petals(p: QPainter, x: _Idle):
+    _rim(p, x, x.a2, 0.5)
+    kind = {"Cherry Blossom": "petal", "Barbie": "heart"}.get(x.name, "star")
+    p.setPen(Qt.PenStyle.NoPen)
+    for n in range(2):
+        ph = _cycle(x.t, 3.2, n * 1.6, 2.6)
+        if ph < 0:
+            continue
+        px = x.rect.left() + x.u * (0.2 + 0.6 * n) + math.sin(ph * 6 + n) * 2.5
+        py = x.rect.top() + ph * x.rect.height()
+        p.save()
+        p.translate(px, py)
+        p.rotate(ph * 160 + n * 90)
+        p.setBrush(_alpha(QColor("white") if n else x.a2.lighter(140),
+                          math.sin(ph * math.pi) * min(1.0, x.on * 1.6)))
+        p.drawPath(_shape(kind, 2.4))
+        p.restore()
+
+
+def _idle_sonar(p: QPainter, x: _Idle):
+    _rim(p, x, x.a1, 0.5)
+    ph = _cycle(x.t, 2.6, 0.0, 1.4)
+    if ph >= 0:
+        c = QPointF(x.rect.center().x(), x.rect.top() + x.u * EYE_Y)
+        rad = x.u * 0.18 + ph * x.u * 0.55
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.setPen(QPen(_alpha(QColor("white"), (1 - ph) * 0.8 * x.on), 1.2))
+        p.drawEllipse(c, rad, rad)
+
+
+def _idle_embers(p: QPainter, x: _Idle):
+    _rim(p, x, QColor("#ff8a2b"), 1.0, speed=2.4)
+    p.setPen(Qt.PenStyle.NoPen)
+    hot = QColor(255, 225, 130)
+    for n in range(4):
+        ph = _cycle(x.t, 1.7, n * 0.43, 1.3)
+        if ph < 0:
+            continue
+        px = x.rect.left() + x.u * (0.18 + 0.21 * n) + math.sin(ph * 9 + n) * 1.2
+        py = x.rect.bottom() - 2 - ph * x.u * 0.8
+        p.setBrush(_alpha(hot, (1 - ph) * min(1.0, x.on * 1.7)))
+        p.drawEllipse(QPointF(px, py), 1.1, 1.1)
+
+
+def _idle_fireflies(p: QPainter, x: _Idle):
+    c = x.rect.center()
+    p.setPen(Qt.PenStyle.NoPen)
+    for n in range(2):
+        a = x.t * (0.8 + 0.3 * n) + n * 3.1
+        pt = QPointF(c.x() + math.cos(a) * x.u * 0.36, c.y() + math.sin(a) * x.u * 0.36)
+        lit = (0.3 + 0.7 * (0.5 + 0.5 * math.sin(x.t * 4 + n * 2))) * min(1.0, x.on * 1.6)
+        g = QRadialGradient(pt, 3.2)
+        g.setColorAt(0.0, _alpha(QColor(255, 255, 190), lit))
+        g.setColorAt(0.45, _alpha(QColor(210, 255, 120), 0.6 * lit))
+        g.setColorAt(1.0, _alpha(QColor(210, 255, 120), 0))
+        p.setBrush(g)
+        p.drawEllipse(pt, 3.2, 3.2)
+
+
+def _idle_pixels(p: QPainter, x: _Idle):
+    p.setPen(Qt.PenStyle.NoPen)
+    r = x.rect.adjusted(4, 4, -4, -4)
+    corners = (r.topLeft(), r.topRight(), r.bottomRight(), r.bottomLeft())
+    step = int(x.t * 6)                      # 6 steps a second, like an old game
+    for n, pt in enumerate(corners):
+        if (step + n * 3) % 8 < 2:
+            p.setBrush(_alpha(QColor("white"), min(1.0, x.on * 1.7)))
+            p.drawRect(QRectF(round(pt.x()) - 1, round(pt.y()) - 1, 2, 2))
+
+
+def _idle_comic(p: QPainter, x: _Idle):
+    _rim(p, x, QColor("#111111"), 0.5)
+
+
+def _idle_confetti(p: QPainter, x: _Idle):
+    p.setPen(Qt.PenStyle.NoPen)
+    for n in range(3):
+        ph = _cycle(x.t, 2.0, n * 0.66, 1.6)
+        if ph < 0:
+            continue
+        px = x.rect.left() + x.u * (0.2 + 0.3 * n) + math.sin(ph * 7) * 1.5
+        py = x.rect.top() + ph * x.rect.height()
+        p.save()
+        p.translate(px, py)
+        p.rotate(ph * 400 + n * 60)
+        p.setBrush(_alpha((x.a2.lighter(150), QColor("white"))[n % 2],
+                          math.sin(ph * math.pi) * min(1.0, x.on * 1.6)))
+        p.drawRect(QRectF(-1.6, -0.8, 3.2, 1.6))
+        p.restore()
+
+
+IDLE = {"laser": _idle_laser, "code": _idle_code, "neon": _idle_neon,
+        "petals": _idle_petals, "sonar": _idle_sonar, "embers": _idle_embers,
+        "fireflies": _idle_fireflies, "pixels": _idle_pixels, "comic": _idle_comic,
+        "flash": _idle_flash, "confetti": _idle_confetti, "shine": _idle_shine}
