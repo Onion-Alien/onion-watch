@@ -4,6 +4,14 @@ What changed between releases, for the release notes. Newest first.
 
 ## Unreleased
 
+- **Fullscreen games:** a game window you're playing in fullscreen (exclusive or
+  borderless) is now read straight off its screen, so exclusive-fullscreen games no
+  longer come out black when you watch their window, and it costs less. Alt-tab away
+  and the window is copied as before. A screen watched both as a screen and as a
+  fullscreen game's window works too.
+- With *Max detection: only while away*, a game that switches the screen to another
+  resolution no longer counts as you being away, so the extra checks stay off while
+  you play.
 - **Start watching plays a start-up animation that suits your theme:** a laser sweep
   in the dark red themes, code rain in the terminal ones, neon rings, petals, a sonar
   ping, embers, fireflies, an 8-bit burst, a comic "!", a flashbang, confetti or a

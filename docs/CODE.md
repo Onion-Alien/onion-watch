@@ -98,7 +98,7 @@ then installs that file instead of downloading.
 | `onionwatch/screenwatch.py` | the engine: screen capture (DXGI Desktop Duplication, GDI fallback, grey and when needed colour), the matcher, the kinds of trigger (appears, goes away, area changes / stops changing, colour level) and their areas, the fire-once `Gate`, the watcher thread (one capture per screen or window in use, every copy of a game expanded), `Trigger`, `WindowRef` and `Hit` |
 | `onionwatch/cutout.py` | learning a cut's background while it's cut: grabs of the window while the cut dialog is open, the scenery that moved left out of the picture when that does better, and how well the kept picture did (for the cut-time warning) |
 | `onionwatch/imgops.py` | the matcher's image operations: FFTs (scipy.fft, numpy's without it), Gaussian softening, smooth enlarging, mask erosion (numpy). Of scipy, Onion Board ships only scipy.fft |
-| `onionwatch/windows.py` | listing windows, finding a remembered one again (and the right copy), `PrintWindow` capture of a covered window, full-size snapshots for cutting |
+| `onionwatch/windows.py` | listing windows, finding a remembered one again (and the right copy), `PrintWindow` capture of a covered window (a fullscreen game in front is read off its screen through a shared duplication, `screenwatch.share_dup`), full-size snapshots for cutting |
 | `onionwatch/sounds.py` | the built-in alert sounds (made in code) and the added sound files |
 | `onionwatch/player.py` | the output stream that mixes and rings the alerts |
 | `onionwatch/settings.py` | `%APPDATA%\OnionWatch` and `config.json` |

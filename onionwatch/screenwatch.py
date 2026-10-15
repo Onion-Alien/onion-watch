@@ -6,7 +6,9 @@ A screen is captured with Windows' Desktop Duplication (DXGI, over ctypes:
 falls back to plain GDI (`Grabber`), which sees borderless and windowed games but
 can come out black for exclusive-fullscreen ones (`Watcher.black` says so). A
 window is captured on its own (onionwatch.windows.WindowGrabber), so it's still
-seen while other windows cover it. Either way the picture is sampled at about
+seen while other windows cover it; a fullscreen game's window in front is read off
+its screen. Windows lets a process duplicate a screen only once, so the screens and
+windows that need one share it (`share_dup`, `DupView`). Either way the picture is sampled at about
 twice a working width of a few hundred pixels, then turned grey and averaged down
 2x2. Each picture is shrunk by the same factor and found with normalised
 cross-correlation, all of it done with FFTs: the frame's spectrum is worked out
@@ -1984,6 +1986,9 @@ class Monitor:
     width: int
     height: int
     primary: bool = False
+    # the monitor's HMONITOR (0: not known). It stays the same when a game switches
+    # the display mode, while the rectangle above is the one from when it was listed
+    handle: int = field(default=0, compare=False, repr=False)
 
     @property
     def label(self) -> str:
@@ -2011,7 +2016,7 @@ def monitors() -> list[Monitor]:
         if user32.GetMonitorInfoW(hmon, ctypes.byref(mi)):
             r = mi.rcMonitor
             found.append(Monitor(r.left, r.top, r.right - r.left, r.bottom - r.top,
-                                 bool(mi.dwFlags & 1)))
+                                 bool(mi.dwFlags & 1), int(hmon or 0)))
         return True
 
     try:
@@ -2447,6 +2452,13 @@ class DupGrabber:
     want_color = False              # as Grabber's
     color: np.ndarray | None = None
     raw: tuple | None = None    # the last grab's pixels as sampled: (pixels, format, factor)
+    serial = 0                      # frames copied into the staging texture so far
+    fresh = False                   # ...which holds one now (none yet after a mode change)
+    _seen = -1                      # the serial grab() last sampled
+    dead = False                    # it raised CaptureLost: nothing more comes
+    hmon = 0                        # the output's monitor handle (HMONITOR)
+    users = 1                       # who reads it: whoever opened it, and its DupViews
+    _closed = False                 # whoever opened it is done with it
 
     def __init__(self, src: Monitor, w: int, h: int):
         self.src, self.w, self.h = src, w, h
@@ -2519,6 +2531,7 @@ class DupGrabber:
                 if ((r.left, r.top, r.right - r.left, r.bottom - r.top)
                         == (s.left, s.top, s.width, s.height)):
                     self.turns = FRAME_TURNS.get(int(d.Rotation), 0)
+                    self.hmon = int(d.Monitor or 0)
                     return adapter, output
                 output.release()
             adapter.release()
@@ -2568,16 +2581,12 @@ class DupGrabber:
         self._frame = mode[:2]
         self.source = mode[1::-1] if self.turns % 2 else mode[:2]
         self.last = None
+        self.fresh = False      # it holds no frame yet
         self._layout()
 
     def _layout(self):
-        """Which frame pixels make up the (w, h) picture, at 2x where the frame allows.
-        For a frame on its side that's an (h, w) sample, turned upright in grab()."""
-        sw, sh = self._frame
-        w, h = (self.h, self.w) if self.turns % 2 else (self.w, self.h)
-        self.factor = n = 2 if 2 * w <= sw and 2 * h <= sh else 1
-        self.ys = ((np.arange(h * n) + 0.5) * sh / (h * n)).astype(np.intp)
-        self.xs = ((np.arange(w * n) + 0.5) * sw / (w * n)).astype(np.intp)
+        """Which frame pixels make up the (w, h) picture (dup_layout)."""
+        self.factor, self.ys, self.xs = dup_layout(self._frame, self.turns, self.w, self.h)
 
     def resize(self, w: int, h: int):
         """Give out (w, h) pictures from now on."""
@@ -2586,6 +2595,32 @@ class DupGrabber:
         self._layout()
 
     def grab(self, timeout_ms: int = 0) -> np.ndarray | None:
+        new = self._acquire(timeout_ms)
+        if new is None:
+            return None
+        if not self.fresh or (not new and self.serial == self._seen and self.last is not None):
+            return self.last                        # nothing new on screen
+        sample, fmt = self._pick(self.ys, self.xs)
+        self._seen = self.serial
+        self.last = upright(frame_gray(sample, fmt, self.factor), self.turns)
+        self.raw = (np.rot90(sample, self.turns) if self.turns % 4 else sample, fmt, self.factor)
+        self.color = (upright(frame_rgb(sample, fmt, self.factor), self.turns)
+                      if self.want_color else None)
+        return self.last
+
+    def _acquire(self, timeout_ms: int = 0) -> bool | None:
+        """Bring the newest frame into the staging texture: True when one was copied,
+        False when the screen hasn't changed (or only the mouse moved), None while the
+        duplication is lost. Every copy counts up `serial`, so each DupView sharing
+        this duplication can tell a frame it hasn't sampled yet. Raises CaptureLost
+        (and is `dead` from then on) when the screen can't be read any more."""
+        try:
+            return self._next_frame(timeout_ms)
+        except CaptureLost:
+            self._die()
+            raise
+
+    def _next_frame(self, timeout_ms: int) -> bool | None:
         if not self.dup:
             now = time.monotonic()
             if now - self._lost_at < RETRY_S:
@@ -2604,7 +2639,7 @@ class DupGrabber:
                            argtypes=(ctypes.c_uint, ctypes.c_void_p, ctypes.c_void_p))
         code = _hr(hr)
         if code == DXGI_ERROR_WAIT_TIMEOUT:
-            return self.last                        # nothing new on screen
+            return False                            # nothing new on screen
         if code == DXGI_ERROR_ACCESS_LOST:
             # a display mode switch (a game going fullscreen), the UAC / lock screen
             self.dup.release()
@@ -2619,10 +2654,10 @@ class DupGrabber:
         # starts with. The picture is unchanged, so skip the copy, except for the
         # very first frame: on a screen where nothing moves (a static death screen,
         # a launcher) it's the only one carrying the picture, and it isn't blank.
-        if int.from_bytes(bytes(info[:8]), "little", signed=True) == 0 and self.last is not None:
+        if int.from_bytes(bytes(info[:8]), "little", signed=True) == 0 and self.fresh:
             res.release()
             self.dup.call(self.DUP_RELEASE_FRAME)
-            return self.last
+            return False
         try:
             tex = res.query(IID_ID3D11Texture2D)
             try:
@@ -2647,11 +2682,19 @@ class DupGrabber:
         finally:
             res.release()
             self.dup.call(self.DUP_RELEASE_FRAME)
+        self.serial += 1
+        self.fresh = True
+        return True
+
+    def _pick(self, ys: np.ndarray, xs: np.ndarray) -> tuple[np.ndarray, int]:
+        """The staging texture's pixels at rows `ys`, columns `xs` (of the frame as it
+        comes, see turns), and their DXGI format."""
         m = _MAPPED()
         hr = self.ctx.call(self.CTX_MAP, self.staging.p, 0, self.MAP_READ, 0, ctypes.byref(m),
                            argtypes=(ctypes.c_void_p, ctypes.c_uint, ctypes.c_int,
                                      ctypes.c_uint, ctypes.c_void_p))
         if hr < 0:
+            self._die()
             raise CaptureLost(f"Map failed (0x{_hr(hr):08X})")
         try:
             sw, rows = self._frame
@@ -2660,15 +2703,20 @@ class DupGrabber:
             buf = (ctypes.c_uint8 * (rows * pitch)).from_address(m.pData)
             img = np.frombuffer(buf, np.uint8).reshape(rows, pitch)
             px = frame_view(img, fmt, sw)
-            sample = pick(px, self.ys, self.xs)      # a copy, taken while mapped
+            return pick(px, ys, xs), fmt             # a copy, taken while mapped
         finally:
             self.ctx.call(self.CTX_UNMAP, self.staging.p, 0, restype=None,
                           argtypes=(ctypes.c_void_p, ctypes.c_uint))
-        self.last = upright(frame_gray(sample, fmt, self.factor), self.turns)
-        self.raw = (np.rot90(sample, self.turns) if self.turns % 4 else sample, fmt, self.factor)
-        self.color = (upright(frame_rgb(sample, fmt, self.factor), self.turns)
-                      if self.want_color else None)
-        return self.last
+
+    def _die(self):
+        """It can't read the screen any more: let go of the screen at once (so a fresh
+        duplication of it can start) and of the shared list (share_dup)."""
+        self.dead = True
+        _unshare(self)
+        try:
+            self.dup.release()
+        except (OSError, AttributeError):
+            pass
 
     def full_gray(self, y0: int, y1: int, x0: int, x1: int) -> np.ndarray | None:
         """Grey of a rectangle of the last frame given out (y0, y1, x0, x1 in `source`
@@ -2684,7 +2732,7 @@ class DupGrabber:
         return None if got is None else upright(frame_rgb(*got), self.turns)
 
     def _full(self, y0: int, y1: int, x0: int, x1: int) -> tuple | None:
-        if not self.staging or self._mode is None or self.last is None:
+        if not self.staging or self._mode is None or not self.fresh:
             return None
         sw, sh = self._frame
         fy0, fy1, fx0, fx1 = frame_box((y0, y1, x0, x1), self.turns, (sh, sw))
@@ -2707,11 +2755,134 @@ class DupGrabber:
         return piece, fmt
 
     def close(self):
+        """Done with it. The screen is let go once no DupView reads it either."""
+        if not self._closed:
+            self._closed = True
+            self._let_go()
+
+    def _let_go(self):
+        self.users -= 1
+        if self.users > 0:
+            return
+        _unshare(self)
         for c in (self.staging, self.dup, self.output1, self.ctx, self.device):
             try:
                 c.release()
             except OSError:
                 log.debug("releasing a capture object failed", exc_info=True)
+
+
+def dup_layout(frame: tuple[int, int], turns: int, w: int, h: int
+               ) -> tuple[int, np.ndarray, np.ndarray]:
+    """Which pixels of a duplicated frame (`frame` = its (w, h) as it comes) make up a
+    (w, h) picture: (factor, rows, columns), at 2x where the frame allows. For a frame
+    on its side (`turns` odd) that's an (h, w) sample, turned upright after."""
+    sw, sh = frame
+    w, h = (h, w) if turns % 2 else (w, h)
+    n = 2 if 2 * w <= sw and 2 * h <= sh else 1
+    ys = ((np.arange(h * n) + 0.5) * sh / (h * n)).astype(np.intp)
+    xs = ((np.arange(w * n) + 0.5) * sw / (w * n)).astype(np.intp)
+    return n, ys, xs
+
+
+class DupView:
+    """A screen a DupGrabber already duplicates, given out at another size. Windows
+    lets a process duplicate each screen only once (a second try fails), so a screen
+    watched as a screen and as the window of a fullscreen game on it is read through
+    one duplication: whoever grabs first copies the new frame in, the others sample
+    that same copy. Same interface as DupGrabber. Made by share_dup()."""
+
+    want_color = False
+    color: np.ndarray | None = None
+    raw: tuple | None = None
+
+    def __init__(self, owner: DupGrabber, w: int, h: int):
+        self.owner: DupGrabber | None = owner
+        self.w, self.h = w, h
+        self.last: np.ndarray | None = None
+        self._seen = -1
+        self._laid: tuple | None = None
+        self._layout(owner)
+
+    @property
+    def source(self) -> tuple:
+        return self.owner.source if self.owner is not None else (0, 0)
+
+    @property
+    def lost(self) -> bool:
+        return self.owner is not None and self.owner.lost
+
+    def _layout(self, o: DupGrabber):
+        self._laid = (o._frame, o.turns, self.w, self.h)
+        self.factor, self.ys, self.xs = dup_layout(o._frame, o.turns, self.w, self.h)
+
+    def resize(self, w: int, h: int):
+        """Give out (w, h) pictures from now on."""
+        self.w, self.h = w, h
+        self.last = None
+        if self.owner is not None:
+            self._layout(self.owner)
+
+    def grab(self, timeout_ms: int = 0) -> np.ndarray | None:
+        o = self.owner
+        if o is None or o.dead:
+            raise CaptureLost("screen capture lost")
+        new = o._acquire(timeout_ms)
+        if new is None:
+            return None
+        if not o.fresh:
+            return self.last
+        if self._laid != (o._frame, o.turns, self.w, self.h):
+            self._layout(o)                         # the display mode changed
+        elif o.serial == self._seen and self.last is not None:
+            return self.last                        # nothing new on screen
+        sample, fmt = o._pick(self.ys, self.xs)
+        self._seen = o.serial
+        turns = o.turns
+        self.last = upright(frame_gray(sample, fmt, self.factor), turns)
+        self.raw = (np.rot90(sample, turns) if turns % 4 else sample, fmt, self.factor)
+        self.color = (upright(frame_rgb(sample, fmt, self.factor), turns)
+                      if self.want_color else None)
+        return self.last
+
+    def full_gray(self, y0: int, y1: int, x0: int, x1: int) -> np.ndarray | None:
+        """DupGrabber.full_gray(): the staging texture holds this view's last frame."""
+        return None if self.owner is None else self.owner.full_gray(y0, y1, x0, x1)
+
+    def full_rgb(self, y0: int, y1: int, x0: int, x1: int) -> np.ndarray | None:
+        return None if self.owner is None else self.owner.full_rgb(y0, y1, x0, x1)
+
+    def close(self):
+        if self.owner is not None:
+            self.owner._let_go()
+            self.owner = None
+
+
+_shared: list[DupGrabber] = []      # the duplications open now (share_dup)
+_shared_lock = threading.Lock()
+
+
+def _unshare(g: DupGrabber):
+    with _shared_lock:
+        if g in _shared:
+            _shared.remove(g)
+
+
+def share_dup(mon: Monitor, w: int, h: int):
+    """Desktop Duplication of `mon`, given out at (w, h): a DupView of the duplication
+    already open for that screen (found by its handle, which a display mode switch
+    doesn't change, or its rectangle), else a new DupGrabber, shared from then on.
+    OSError (or AttributeError) when the screen can't be duplicated."""
+    with _shared_lock:
+        for g in _shared:
+            if not g.dead and ((mon.handle and g.hmon == mon.handle) or g.src == mon):
+                g.users += 1
+                return DupView(g, w, h)
+    g = DupGrabber(mon, w, h)
+    if hasattr(g, "_let_go"):           # (not a test's stand-in)
+        with _shared_lock:
+            _shared.append(g)
+    return g
 
 
 def open_grabber(src: Monitor, w: int, h: int, tries: int = 1):
@@ -2721,7 +2892,7 @@ def open_grabber(src: Monitor, w: int, h: int, tries: int = 1):
     err = None
     for i in range(max(1, tries)):
         try:
-            return DupGrabber(src, w, h)
+            return share_dup(src, w, h)
         except (OSError, AttributeError) as e:
             err = e
         if i + 1 < tries:
@@ -3385,8 +3556,10 @@ class Watcher:
         DUP_RETRY_S): a lock or UAC screen up for longer than GIVE_UP_S leaves the
         capture on GDI, which sees black in a fullscreen game. Taken once it works."""
         cap.next_dup = time.monotonic() + DUP_RETRY_S
+        if cap.mon is None:
+            return False
         try:
-            dup = DupGrabber(cap.mon, cap.grab.w, cap.grab.h)
+            dup = share_dup(cap.mon, cap.grab.w, cap.grab.h)
         except (OSError, AttributeError):
             return False
         log.info("desktop duplication works again: screen %d is captured with it",
