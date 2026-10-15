@@ -2,6 +2,11 @@
 
 What changed between releases, for the release notes. Newest first.
 
+## Unreleased
+
+- A game switching into (or back into) exclusive fullscreen is seen again within
+  about a tenth of a second, instead of after a second and a half.
+
 ## 0.11.1 (2026-10-15)
 
 - **Screens with HDR or automatic colour management:** a screen Windows shows in
