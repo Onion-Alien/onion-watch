@@ -1,10 +1,11 @@
 """New trigger, the first steps: "What should it watch for?", a tile per kind of
 trigger (a picture showing up or going away, a bar running low, a chat line changing,
 everything going still), each with a little drawing of it in a made-up game; then,
-for a picture, where the picture comes from. Most come from somewhere else (a picture
-copied off the web, a screenshot, a file), so pasting it and dropping it come first;
-cutting it from the game as it is now is the third way. The triggers page does the
-rest: which window to watch, and cutting the picture or picking the area."""
+for every kind, where its picture comes from: for a picture kind the picture to look
+for, for the others a picture of the game to drag the bar's or the area's box on.
+Pasting it and dropping it come first; taking it from the game as it is now is the
+third way. The triggers page does the rest: which window to watch, and cutting the
+picture or picking the area."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -18,7 +19,8 @@ from PySide6.QtWidgets import (QApplication, QDialog, QFileDialog, QGridLayout, 
 from onionwatch import theme
 from onionwatch.i18n import _
 from onionwatch.ui import icons
-from onionwatch.ui.panel import DIALOG_MARGIN, DIALOG_SPACING, add_title
+from onionwatch.ui.panel import (DIALOG_MARGIN, DIALOG_SPACING, TITLE_GAP, add_title,
+                                 hint_label, title_label)
 
 PASTE, FILE, CUT = "paste", "file", "cut"   # where a picture comes from
 PICTURE_KINDS = ("appear", "vanish")
@@ -271,10 +273,40 @@ class DropTile(Tile):
                 self.picker.use_image(img)
 
 
+def step2_texts(mode: str) -> dict[str, str]:
+    """Step 2's words for a kind: the picture to look for, or for a bar, a chat line or
+    everything still, a picture of the game to drag the box on."""
+    if mode in PICTURE_KINDS:
+        return {"title": _("Step 2: the picture to look for"),
+                "hint": _("Any picture of it works: one off Google, a screenshot, a file, or "
+                          "cut from the game as it is now."),
+                "drop": _("Drag a picture in from your browser or a folder, or click to "
+                          "choose a file."),
+                "cut": _("Cut it from the game"),
+                "cut_line": _("Drag a box round it in the game window, as it is right now.")}
+    title, box = {
+        "colour": (_("Step 2: a picture of the game with the bar in it"),
+                   _("Drag a box round the bar in the game window, as it is right now.")),
+        "change": (_("Step 2: a picture of the game with the chat in it"),
+                   _("Drag a box round the chat in the game window, as it is right now.")),
+    }.get(mode, (_("Step 2: a picture of the game"),
+                 _("Drag a box round the part to watch in the game window, as it is right "
+                   "now.")))
+    return {"title": title,
+            "hint": _("A screenshot of the whole game window works (Alt+Print Screen in the "
+                      "game copies one), or take it from the game as it is now. Next you pick "
+                      "the game's window and drag a box on the picture."),
+            "drop": _("Drag a screenshot of the game in from a folder, or click to choose "
+                      "one."),
+            "cut": _("Take it from the game"),
+            "cut_line": box}
+
+
 class WhatPicker(QDialog):
-    """Steps 1 and 2 of New trigger. Once accepted: `picked`, the kind (a mode); for a
-    picture, `source` (PASTE, FILE or CUT) and with FILE `paths` (picture files) or
-    `image` (a picture dragged in from a browser)."""
+    """Steps 1 and 2 of New trigger. Once accepted: `picked`, the kind (a mode), and
+    `source` (PASTE, FILE or CUT), with FILE `paths` (picture files) or `image` (a
+    picture dragged in from a browser). For a picture kind that's the picture to look
+    for; for the others a picture of the game, to drag the bar's or area's box on."""
 
     def __init__(self, parent=None, can_paste: bool = False):
         super().__init__(parent)
@@ -314,23 +346,23 @@ class WhatPicker(QDialog):
         s = QVBoxLayout(src)
         s.setContentsMargins(0, 0, 0, 0)
         s.setSpacing(12)
-        add_title(s, _("Step 2: the picture to look for"),
-                  _("Any picture of it works: one off Google, a screenshot, a file, or cut "
-                    "from the game as it is now."))
+        # its words depend on the kind picked: _show_texts() fills them in
+        self.src_title = title_label("")
+        s.addWidget(self.src_title)
+        self.src_hint = hint_label(" ")
+        self.src_hint.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+        s.addSpacing(TITLE_GAP - s.spacing())
+        s.addWidget(self.src_hint)
         row = QHBoxLayout()
         row.setSpacing(12)
         self.paste_art = Picture("copy")
         self.tile_paste = Tile(_("Paste it"), "", self.paste_art, self)
         self.tile_paste.clicked.connect(self._paste)
         row.addWidget(self.tile_paste)
-        self.tile_drop = DropTile(_("Drop it here"),
-                                  _("Drag a picture in from your browser or a folder, or "
-                                    "click to choose a file."), self)
+        self.tile_drop = DropTile(_("Drop it here"), "", self)
         self.tile_drop.clicked.connect(self._choose)
         row.addWidget(self.tile_drop)
-        self.tile_cut = Tile(_("Cut it from the game"),
-                             _("Drag a box round it in the game window, as it is right now."),
-                             Picture("crop"), self)
+        self.tile_cut = Tile("", "", Picture("crop"), self)
         self.tile_cut.clicked.connect(lambda: self._done(CUT))
         row.addWidget(self.tile_cut)
         s.addLayout(row)
@@ -379,12 +411,32 @@ class WhatPicker(QDialog):
                 img = QImage(files[0])
         return img
 
+    def _game_shot(self) -> bool:
+        """Step 2 wants a picture of the whole game (a bar, a chat line, everything
+        still), not of the thing to look for."""
+        return self.picked is not None and self.picked not in PICTURE_KINDS
+
+    def _show_texts(self):
+        """Step 2's words for the kind picked."""
+        texts = step2_texts(self.picked or "appear")
+        self.src_title.setText(texts["title"])
+        self.src_hint.setText(texts["hint"])
+        self.tile_drop.line.setText(texts["drop"])
+        self.tile_cut.name.setText(texts["cut"])
+        self.tile_cut.setAccessibleName(texts["cut"])
+        self.tile_cut.line.setText(texts["cut_line"])
+        self.tile_cut.setToolTip(texts["cut_line"])
+        self._show_clipboard()
+
     def _show_clipboard(self):
         img = self._copied()
         if img.isNull():
             self.paste_art.show_icon()
-            self.tile_paste.line.setText(_("Nothing copied yet. Right-click a picture on the "
-                                           "web, Copy image, then click here (or Ctrl+V)."))
+            self.tile_paste.line.setText(
+                _("Nothing copied yet. Click the game, press Alt+Print Screen, then click "
+                  "here (or Ctrl+V).") if self._game_shot() else
+                _("Nothing copied yet. Right-click a picture on the web, Copy image, then "
+                  "click here (or Ctrl+V)."))
         else:
             self.paste_art.show_image(img)
             self.tile_paste.line.setText(_("You've copied this picture: click to use it (or "
@@ -401,17 +453,18 @@ class WhatPicker(QDialog):
         for tile in self.tiles:
             if tile.mode == mode:
                 tile.setChecked(True)
-        if mode in PICTURE_KINDS:
-            self._show(1)
-        else:
-            self.accept()
+        self._show_texts()
+        self._show(1)
 
     def _paste(self):
         if self.page != 1:
             return
         if self._copied().isNull():
-            self.tile_paste.line.setText(_("There's no picture copied. Right-click a picture on "
-                                           "the web and pick Copy image first."))
+            self.tile_paste.line.setText(
+                _("There's no picture copied. Click the game and press Alt+Print Screen "
+                  "first.") if self._game_shot() else
+                _("There's no picture copied. Right-click a picture on the web and pick Copy "
+                  "image first."))
             return
         self._done(PASTE)
 

@@ -1,6 +1,6 @@
-"""+ New trigger: step 1 picks what it watches for (WhatPicker), step 2 where a
-picture comes from (paste, drop or choose a file, cut from the game), then the
-window and, for a cut or an area, the box. Also the Extra settings pills: each
+"""+ New trigger: step 1 picks what it watches for (WhatPicker), step 2 where its
+picture comes from (paste, drop or choose a file, take it from the game) for every
+kind, then the window and, for a cut or an area, the box. Also the Extra settings pills: each
 changed setting shows on the card and its ✕ puts it back. Offscreen, stand-in
 windows and pictures only."""
 import pytest
@@ -50,21 +50,26 @@ def tab(qapp, app_dir, monkeypatch):
 
 
 # ---------------------------------------------------------------- WhatPicker
-def test_a_picture_kind_goes_on_to_step_2_and_the_others_are_done(qapp):
-    for mode in whatpick.PICTURE_KINDS:
+def test_every_kind_goes_on_to_its_own_step_2(qapp):
+    """Every kind gets step 2 in the same pop-up (a bar, a chat line and everything
+    still used to jump straight to the window list): a picture kind asks for the
+    picture to look for, the others for a picture of the game to drag the box on."""
+    titles = set()
+    for mode, _name, _example in whatpick.kinds():
         dlg = WhatPicker()
         dlg._pick(mode)
         assert dlg.page == 1 and dlg.result() != QDialog.Accepted, mode
         assert dlg.pages[1].isVisibleTo(dlg) and not dlg.pages[0].isVisibleTo(dlg)
-        dlg._show(0)                    # Back
-        assert dlg.page == 0
-    for mode, _name, _example in whatpick.kinds():
+        assert dlg.src_title.text().startswith("Step 2"), mode
+        titles.add(dlg.src_title.text())
         if mode in whatpick.PICTURE_KINDS:
-            continue
-        dlg = WhatPicker()
-        dlg._pick(mode)
-        assert dlg.result() == QDialog.Accepted and dlg.picked == mode
-        assert dlg.source is None
+            assert dlg.tile_cut.name.text() == "Cut it from the game"
+        else:
+            assert dlg.tile_cut.name.text() == "Take it from the game"
+            assert "game" in dlg.src_hint.text()
+        dlg.tile_cut.click()
+        assert dlg.result() == QDialog.Accepted and (dlg.picked, dlg.source) == (mode, CUT)
+    assert len(titles) == 4             # shows up and goes away share theirs
 
 
 def test_paste_with_nothing_copied_says_so_and_stays_open(qapp):
@@ -141,8 +146,12 @@ def flow(tab, monkeypatch):
         return GAME
     monkeypatch.setattr(tab, "pick_window", pick_window)
     monkeypatch.setattr(tab, "_cut", lambda src, threshold=0.0, heading="": (picture(), [], None))
-    monkeypatch.setattr(tab, "_pick_area",
-                        lambda row, heading="": asked["areas"].append((row.t.mode, heading)))
+    monkeypatch.setattr(tab, "capture", lambda src: (picture(320, 180), "Realm Online"))
+
+    def ask_area(img, where, t, heading=""):
+        asked["areas"].append((t.mode, heading, img.size().toTuple()))
+        return (0.1, 0.1, 0.5, 0.1), "#e04848" if t.mode == "colour" else ""
+    monkeypatch.setattr(tab, "_ask_area", ask_area)
     return asked
 
 
@@ -169,23 +178,44 @@ def test_new_picture_trigger_watches_the_picked_window(tab, flow, monkeypatch, t
 
 
 @pytest.mark.parametrize("mode", ["change", "still", "colour"])
-def test_new_area_trigger_watches_the_picked_window(tab, flow, mode):
-    FakePicker.answer = {"mode": mode}
+@pytest.mark.parametrize("source", [PASTE, FILE, CUT])
+def test_new_area_trigger_watches_the_picked_window(tab, flow, monkeypatch, tmp_path,
+                                                    mode, source):
+    """Step 2 gave a picture of the game (pasted, a file, or the game now); step 3 is
+    the window, step 4 the box dragged on that picture."""
+    answer = {"mode": mode, "source": source}
+    if source == PASTE:
+        monkeypatch.setattr(triggerspanel, "copied_picture", lambda: picture(640, 360))
+    elif source == FILE:
+        path = tmp_path / "shot.png"
+        picture(640, 360).save(str(path))
+        answer["paths"] = [str(path)]
+    FakePicker.answer = answer
     tab.new_trigger()
     process_events()
     assert len(tab.triggers) == 1
     t = tab.triggers[0]
     assert t.mode == mode and t.sources == [GAME] and not t.images
-    assert flow["windows"][0].startswith("Step 2")
-    # a bar, or the part to watch: step 3 asks for its box; "still" needs none
-    assert [m for m, _h in flow["areas"]] == ([mode] if mode != "still" else [])
+    assert flow["windows"] == ["Step 3: which window is the game in?"]
+    [(m, heading, size)] = flow["areas"]
+    assert m == mode and heading.startswith("Step 4")
+    # the box goes on the screenshot it was given, or on the game as it is now
+    assert size == ((320, 180) if source == CUT else (640, 360))
+    assert t.region == (0.1, 0.1, 0.5, 0.1)
+    assert t.colour == ("#e04848" if mode == "colour" else "")
 
 
 def test_cancelling_a_step_makes_nothing(tab, flow, monkeypatch):
     FakePicker.answer = {"mode": "appear", "source": CUT}
     monkeypatch.setattr(tab, "pick_window", lambda current=None, heading="": None)
     tab.new_trigger()
-    FakePicker.answer = {"mode": "change"}
+    FakePicker.answer = {"mode": "change", "source": CUT}
+    tab.new_trigger()
+    assert tab.triggers == []
+    # the box cancelled: nothing either
+    monkeypatch.setattr(tab, "pick_window", lambda current=None, heading="": GAME)
+    monkeypatch.setattr(tab, "_ask_area", lambda img, where, t, heading="": None)
+    FakePicker.answer = {"mode": "colour", "source": CUT}
     tab.new_trigger()
     assert tab.triggers == []
 
@@ -255,8 +285,8 @@ def test_a_click_picks_a_kind_and_continue_goes_on(qapp):
     dlg._show(0)                               # Back: still picked
     assert dlg.tiles[0].isChecked() and dlg.btn_next.isVisibleTo(dlg)
     dlg2 = WhatPicker()
-    dlg2.tiles[3].chosen.emit("change")        # a double-click
-    assert dlg2.result() == QDialog.Accepted and dlg2.picked == "change"
+    dlg2.tiles[3].chosen.emit("change")        # a double-click: on to its step 2
+    assert dlg2.page == 1 and dlg2.picked == "change"
 
 
 def test_area_triggers_say_plainly_what_can_fool_them(tab, flow, monkeypatch):
