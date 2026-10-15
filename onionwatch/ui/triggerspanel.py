@@ -3029,13 +3029,14 @@ class TriggersTab(QWidget):
         v = QVBoxLayout(self)
         v.setContentsMargins(0, 0, 0, 0)
         v.setSpacing(12)
-        head, hv = card(_("Play a sound when something shows up in your game"),
-                        _("Pick the game window, cut out the thing to watch for — a rare "
-                          "spawn's name, a “queue ready” banner, a message — and choose the "
-                          "sound. Onion Watch keeps looking at that window while you're "
-                          "alt-tabbed into another game or away from the keyboard, and plays "
-                          "the sound (or rings until you're back) the moment it appears. It "
-                          "only looks: it never clicks, types or touches the game."))
+        # what Watch does and needs (also said in the empty tab: _fit_empty)
+        self.about = _("Pick the game window, cut out the thing to watch for — a rare "
+                       "spawn's name, a “queue ready” banner, a message — and choose the "
+                       "sound. Onion Watch keeps looking at that window while you're "
+                       "alt-tabbed into another game or away from the keyboard, and plays "
+                       "the sound (or rings until you're back) the moment it appears. It "
+                       "only looks: it never clicks, types or touches the game.")
+        head, hv = card(_("Play a sound when something shows up in your game"), self.about)
         hv.itemAt(0).widget().setWordWrap(True)
         self.hint = hv.itemAt(1).widget()
         self.warn = hint_label("")
@@ -3194,6 +3195,11 @@ class TriggersTab(QWidget):
                             "watch for, and Hoot walks you through the rest."))
         hint.setAlignment(Qt.AlignCenter)
         ev.addWidget(hint)
+        # what Watch needs, said where it's empty (not only behind the tab's ⓘ): here
+        # when the list is the whole width, in the editor's box when it's beside it
+        self.empty_about = hint_label(self.about)
+        self.empty_about.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        ev.addWidget(self.empty_about)
         self.list_layout.addWidget(self.empty)
         self.no_results = hint_label(_("No matching triggers. Try another search or clear "
                                        "filters."))
@@ -3241,15 +3247,15 @@ class TriggersTab(QWidget):
         mark = QLabel()
         icons.set_label_icon(mark, "triggers", size=40)
         ee.addWidget(mark, 0, Qt.AlignmentFlag.AlignHCenter)
-        hint = hint_label(_("Pick a trigger on the left to change it, or click + New "
-                            "trigger to make one."))
-        hint.setAlignment(Qt.AlignCenter)
-        ee.addWidget(hint)
+        self.editor_hint = hint_label("")     # (_fit_empty: what it says)
+        self.editor_hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        ee.addWidget(self.editor_hint)
         ee.addStretch(1)
         ep.addWidget(self.editor_empty, 1)
         ep.addStretch(0)        # under a picked trigger: the gap (_empty_shown)
         self.editor_scroll.setWidget(self.editor_pane)
         self.editor_scroll.hide()
+        self._fit_empty()
         self.splitter.addWidget(self.editor_scroll)
         self.splitter.setStretchFactor(0, 0)
         self.splitter.setStretchFactor(1, 1)
@@ -3434,6 +3440,18 @@ class TriggersTab(QWidget):
             share = self.host.screen.get("pads_split")
             share = share if type(share) is float and 0.1 <= share <= 0.9 else PADS_SHARE
             self.splitter.setSizes([round(total * share), total - round(total * share)])
+        self._fit_empty()
+
+    def _fit_empty(self):
+        """The nothing-here boxes never say the same thing twice: with no triggers the
+        list's box says how to start, and what Watch needs is in the editor's box beside
+        it (or under the list's, with no editor shown); with triggers, the editor's box
+        says to pick one."""
+        none = not self.triggers
+        self.editor_hint.setText(
+            self.about if none else
+            _("Pick a trigger on the left to change it, or click + New trigger to make one."))
+        self.empty_about.setVisible(self.editor_scroll.isHidden())
 
     def _on_split_moved(self, _pos: int, _index: int):
         """The handle was dragged (the Pads view): keep the pads' share for next time."""
@@ -3733,6 +3751,7 @@ class TriggersTab(QWidget):
             body.show()
         self.no_results.setVisible(active and not self._search_ids)
         self.empty.setVisible(not self.triggers and not active)
+        self._fit_empty()
         self.search_summary.setText(
             _("{n} of {n2}", n=len(self._search_ids), n2=len(self.triggers)) if active else "")
         self.search_summary.setToolTip(_("Matching triggers; watching is unchanged"))
@@ -4441,6 +4460,7 @@ class TriggersTab(QWidget):
             if c.open:
                 self._build(sec)
         self.empty.setVisible(not self.triggers)
+        self._fit_empty()
         self._refresh_switches()
         self._refresh_counts()
 
@@ -5063,7 +5083,7 @@ class TriggersTab(QWidget):
         row.area_wanted.connect(self._pick_area)
         row.duplicate.connect(self._duplicate)
         row.hear.connect(lambda sid, r=row: self._hear(r.t, sid))
-        row.test.connect(lambda r: self.test_trigger(r.t))
+        row.test.connect(lambda r: self.test_trigger(r.t, r))
         row.remove.connect(self.ask_remove)
 
     def _place_row(self, t: Trigger, sec: CategorySection, open_: bool = False) -> TriggerRow:
@@ -5083,6 +5103,7 @@ class TriggersTab(QWidget):
         row.setVisible(self._matches_search(t))
         sec.empty.setVisible(False)
         self.empty.setVisible(False)
+        self._fit_empty()
         return row
 
     def _drop_row(self, tid: str):
@@ -5951,12 +5972,19 @@ class TriggersTab(QWidget):
         self._show_tests({t.id for t, __ in out})
         return out
 
-    def test_trigger(self, t: Trigger):
-        """A card's Test: play it as it would go off, shown in Playing now like any
-        other; pressed again while it plays (it says Stop then), stop it."""
+    def test_trigger(self, t: Trigger, row: TriggerRow | None = None):
+        """A card's Test (`row`: that card): play it as it would go off, shown in
+        Playing now like any other; pressed again while it plays (it says Stop then),
+        stop it. With no sound it could play, open the card's sound list instead."""
         usage.used("test")
         if any(x.id == t.id for x, __ in self.playing_now()):
             self.stop_trigger(t.id)
+            return
+        if not self._playable(t):
+            # rather than do nothing (its line already says "Pick the sound to play")
+            if row is not None and row.built:
+                row.sound.setFocus()
+                row.sound.showPopup()
             return
         if self._play_trigger(t, test=True):
             self._live[t.id] = time.monotonic()

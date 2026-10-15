@@ -260,9 +260,14 @@ def test_a_damaged_pack_says_so(tmp_path):
 
 
 def test_the_first_run_hint_points_at_new_trigger(tab):
-    """The empty list and the empty editor point at + New trigger, the one way to make
-    a trigger (they used to say Cut picture, a button the bottom bar no longer has)."""
+    """The empty list, and the empty editor once there are triggers, point at + New
+    trigger, the one way to make a trigger (they used to say Cut picture, a button the
+    bottom bar no longer has)."""
     from PySide6.QtWidgets import QLabel
-    for empty in (tab.empty, tab.editor_empty):
-        hint = " ".join(lb.text() for lb in empty.findChildren(QLabel))
-        assert "+ New trigger" in hint and "Cut picture" not in hint
+
+    def says(box):
+        return " ".join(lb.text() for lb in box.findChildren(QLabel))
+    assert "+ New trigger" in says(tab.empty) and "Cut picture" not in says(tab.empty)
+    tab._new(as_qimage(banner()), "One")
+    assert "+ New trigger" in says(tab.editor_empty)
+    assert "Cut picture" not in says(tab.editor_empty)

@@ -2,6 +2,7 @@
 right, in an editor of its own. Narrower, the list is the whole width again and a
 card opens in it."""
 import test_ui
+from PySide6.QtWidgets import QLabel
 from test_ui import as_qimage, banner
 
 from onionwatch.ui.triggerspanel import LIST_WIDTH, SPLIT_MIN
@@ -182,3 +183,23 @@ def test_pads_fill_the_page_until_one_is_picked_then_share_it(tab, qapp):
     for _ in range(3):
         qapp.processEvents()
     assert not first.pad and tab.scroll.width() == LIST_WIDTH and tab.editor is not None
+
+
+def test_an_empty_window_never_says_the_same_thing_twice(tab, qapp):
+    """No triggers yet: the list's box says how to start, and what Watch needs (a game
+    window, something to cut out, a sound) shows beside it instead of the editor's
+    "+ New trigger" again; with no editor beside it, under the list's box."""
+    wide(tab, qapp)
+    assert tab.split and not tab.editor_scroll.isHidden()
+    assert any("+ New trigger" in lb.text() for lb in tab.empty.findChildren(QLabel))
+    assert "+ New trigger" not in tab.editor_hint.text()
+    assert tab.editor_hint.text() == tab.about        # the tab's own explanation
+    assert tab.empty_about.isHidden()                       # said once, not twice
+    tab.resize(SPLIT_MIN - 100, 700)                        # the list alone
+    for _ in range(3):
+        qapp.processEvents()
+    assert not tab.split and not tab.empty_about.isHidden()
+    assert tab.empty_about.text() == tab.about
+    tab._new(as_qimage(banner()), "First")                  # one made: pick it, says the box
+    wide(tab, qapp)
+    assert "+ New trigger" in tab.editor_hint.text()
