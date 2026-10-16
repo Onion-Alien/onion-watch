@@ -507,7 +507,10 @@ class WindowGrabber:
     while it's in front, as PrintWindow often sees an exclusive-fullscreen game as
     black. Out of front it's copied again, unless that comes out black while
     nothing else shows on its screen: an exclusive game that lost focus but kept its
-    screen (you clicked onto another monitor), still read off it then."""
+    screen (you clicked onto another monitor), still read off it then. The first
+    copy after it was read off its screen is thrown away too (unless it's black):
+    Windows can hand back one from before then, from before it went fullscreen,
+    say (a picture that went away meanwhile would fire)."""
 
     lost = False
     want_color = False      # also keep `color` (screenwatch.Grabber's)
@@ -540,6 +543,7 @@ class WindowGrabber:
         self.w, self.h = w, h
         self.minimized = False
         self.stale = False          # restored from minimized: the next copy is old
+        self.left_screen = False    # was read off its screen: the next copy may be old
         self.failures = 0           # PrintWindow calls in a row that failed
         self.hung = False           # its program isn't answering: not copied (answering)
         self.last: np.ndarray | None = None
@@ -621,6 +625,8 @@ class WindowGrabber:
                 self.stale = False          # read off the screen: what it shows now
                 return gray
         else:
+            if self.on_screen:
+                self.left_screen = True
             self._off_screen()
         if not self._print():
             return self.last
@@ -630,7 +636,15 @@ class WindowGrabber:
             self.stale = False
             self.last = None
             return None
+        left, self.left_screen = self.left_screen, False
         self.dark = not front and self.last is not None and is_black(self.last)
+        if left and not self.dark:
+            # copied again after being read off its screen: this copy can be from
+            # before that (a window gone fullscreen gave its old, smaller frame in a
+            # corner of the new size, the rest black). Thrown away; a black one is
+            # the exclusive-fullscreen case below, read off the screen
+            self.last = None
+            return None
         if self.dark:
             # an exclusive-fullscreen game out of front: its screen still shows it
             # while nothing else is over it there. Read it off that screen at once,
