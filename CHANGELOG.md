@@ -2,8 +2,16 @@
 
 What changed between releases, for the release notes. Newest first.
 
-## Unreleased
+## 0.11.3 (2026-10-16)
 
+- **Fewer wrong sounds:** a small match now has to look like the picture all the
+  way down, not just on the whole, so a picture is no longer "found" on something
+  that only shares its outline (a bright bar over a dark panel, say).
+- A game that stops responding no longer holds up the triggers of your other games
+  until it answers again.
+- A game restored from minimized no longer sets off a trigger for something that
+  went away while it was minimized: Windows hands back the old picture once, and
+  that copy is skipped now.
 - The View box says "Cards (too narrow)" when List and editor is picked but the
   window is too narrow for it, instead of "List and editor" over a page of cards.
 
