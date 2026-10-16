@@ -251,6 +251,41 @@ def test_a_small_match_counts_only_with_the_things_shape_at_full_size():
     assert len(seen) == 1 and sw.Watcher._small_shape(full, box, lk, shape, seen, "t") == a
 
 
+def test_a_small_match_carried_by_one_bright_edge_does_not_count():
+    """A chat strip with a bright edge along its top, found at 0.6x on another
+    overlay with the same edge: at full size the edge alone keeps most of its shape,
+    the lines of text under it match nothing. Every band of it has to match, and the
+    strip itself, shown at that size, still does."""
+    rng = np.random.default_rng(6)
+    pic = np.full((64, 140), 0.12, np.float32) + rng.normal(0, 0.01, (64, 140)).astype(np.float32)
+    for y in (12, 30, 48):                          # three lines of dim "text"
+        x = 4
+        while x < 132:
+            w = int(rng.integers(2, 6))
+            pic[y:y + 9, x:x + w] = rng.uniform(0.3, 0.45)
+            x += w + int(rng.integers(2, 5))
+    pic[:3] = 0.98                                  # the bright edge
+    lk = sw.Look(pic, None, 0.375, [1.0], True)
+    screen = (np.full((720, 1280), 0.15, np.float32)
+              + rng.normal(0, 0.01, (720, 1280)).astype(np.float32))
+    real = sw.resize(pic, 0.6)
+    screen[300:300 + real.shape[0], 500:500 + real.shape[1]] = real
+    yy, xx = np.indices((200, 300))
+    other = (0.15 + 0.06 * np.sin(xx / 9.0) * np.cos(yy / 13.0)).astype(np.float32)
+    other[:3] = 0.98                                # another overlay, the same edge
+    screen[100:300, 800:1100] = other
+    full = (lambda y0, y1, x0, x1: screen[y0:y1, x0:x1]), screen.shape
+    shape, k = (270, 480), 0.375
+    s = (round(64 * 0.6 * k), round(140 * 0.6 * k))
+    assert s[0] * s[1] < sw.SMALL_AREA                                # a small match
+    box = (round(300 * k), round(300 * k) + s[0], round(500 * k), round(500 * k) + s[1])
+    decoy = (round(100 * k), round(100 * k) + s[0], round(850 * k), round(850 * k) + s[1])
+    # the whole shape alone was fooled by the edge
+    assert sw.Watcher._fine_shape(full, decoy, lk, shape, sw.SMALL_STEPS, True) >= sw.SMALL_SHAPE
+    assert sw.Watcher._small_shape(full, decoy, lk, shape) < sw.SMALL_SHAPE
+    assert sw.Watcher._small_shape(full, box, lk, shape) >= sw.SMALL_SHAPE
+
+
 def test_a_cut_outs_shape_is_judged_on_its_own_pixels():
     """A cut-out turned up on other scenery: what shows around it isn't the picture's,
     so only its opaque part is compared."""

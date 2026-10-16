@@ -1034,6 +1034,42 @@ def _ncc_masked(a: np.ndarray, t: np.ndarray, m: np.ndarray) -> float:
     return float((ta * aa).sum()) / d if d > 1e-9 else 0.0
 
 
+# A small match is judged by its shape at full size (SMALL_SHAPE), and one strong line
+# there can carry it alone: a picture with a bright edge along its top fit the bright
+# edge of another overlay at 0.6x its size (0.89, its shape 0.64 at full size) where
+# the rest of it, lines of chat text, matched nothing (0.1 or less). So it's also
+# matched in bands, BAND_SPLIT across and down (blurred by TWIN_BLUR, +-1 px each);
+# a band with something in it (grey spread BAND_PLAIN or more) at BAND_LOW or less
+# brings the shape down to that band's score.
+BAND_SPLIT = 3
+BAND_PLAIN = 0.06
+BAND_LOW = 0.3
+
+
+def band_shape(area: np.ndarray, gray: np.ndarray, mask: np.ndarray | None,
+               at: tuple[int, int]) -> float:
+    """The worst band's score (see BAND_*) of `gray` (`mask` its cut-out) laid on
+    `area` at `at` (x, y), or 1.0 when every band does well enough."""
+    th, tw = gray.shape
+    m = np.ones(gray.shape, np.float32) if mask is None else mask.astype(np.float32)
+    t = gaussian_filter(gray.astype(np.float32), TWIN_BLUR)
+    a = gaussian_filter(area.astype(np.float32), TWIN_BLUR)
+    x, y = at
+    worst = 1.0
+    for down in (True, False):
+        n = BAND_SPLIT if (th if down else tw) >= 2 * BAND_SPLIT else 1
+        for i in range(n if n > 1 else 0):
+            lo, hi = (i * (th if down else tw) // n, (i + 1) * (th if down else tw) // n)
+            sl = (slice(lo, hi), slice(None)) if down else (slice(None), slice(lo, hi))
+            tt, mm = t[sl], m[sl]
+            if mm.sum() < 6 or float(tt[mm > 0].std()) < BAND_PLAIN:
+                continue
+            v = _ncc_shifted(a, tt, mm, y + (lo if down else 0), x + (0 if down else lo))
+            if v <= BAND_LOW:
+                worst = min(worst, v)
+    return worst
+
+
 def _ncc_shifted(a: np.ndarray, t: np.ndarray, m: np.ndarray, y: int, x: int) -> float:
     """The best _ncc_masked() of `t` (under `m`) on `a` at (x, y) or a pixel off any
     way, all the places at once; -1.0 if none fits in `a`."""
@@ -4199,12 +4235,13 @@ class Watcher:
 
     @staticmethod
     def _fine_shape(full: tuple | None, box: tuple, lk: Look, shape: tuple[int, int],
-                    steps: int = 0, masked: bool = False) -> float:
+                    steps: int = 0, masked: bool = False, where: dict | None = None) -> float:
         """structure() of `lk`'s picture, made the size of `box` (y0, y1, x0, x1 in a
         frame of `shape`), on the capture's pixels at full size (`full`: _full_size's)
         where it best fits about there (+-CONFIRM_PAD px). With `steps`, also made up
         to that many CONFIRM_STEPs smaller and bigger: the best of those. `masked`: a
-        cut-out is scored on its opaque part only (cut_structure()). 0.0 without them."""
+        cut-out is scored on its opaque part only (cut_structure()). 0.0 without them.
+        `where` gets the best one's (area, picture, mask, at) for band_shape()."""
         if full is None:
             return 0.0
         cut, (fh, fw) = full
@@ -4231,6 +4268,8 @@ class Watcher:
                 st = cut_structure(area, g, m, at)
             else:
                 st = structure(Frame(area), q, at)
+            if st > best and where is not None:
+                where["at"] = (area, g, m, at)
             best = max(best, st)
         return best
 
@@ -4254,7 +4293,7 @@ class Watcher:
         box's size, as _twin() does: a thing that stays up is worked out again only once
         its pixels change."""
         if seen is None:
-            return Watcher._fine_shape(full, box, lk, shape, SMALL_STEPS, True)
+            return Watcher._small_bands(full, box, lk, shape)
         cut, (fh, fw) = full
         sy, sx = fh / shape[0], fw / shape[1]
         y0, y1, x0, x1 = box
@@ -4265,8 +4304,18 @@ class Watcher:
         got = seen.get(k)
         if got is not None and got[0] is lk.gray and got[1] == px:
             return got[2]
-        score = Watcher._fine_shape(full, box, lk, shape, SMALL_STEPS, True)
+        score = Watcher._small_bands(full, box, lk, shape)
         seen[k] = (lk.gray, px, score)
+        return score
+
+    @staticmethod
+    def _small_bands(full: tuple, box: tuple, lk: Look, shape: tuple[int, int]) -> float:
+        """_small_shape()'s score worked out: _fine_shape() with SMALL_STEPS, down to
+        its worst band (band_shape()) where that's under BAND_LOW."""
+        where: dict = {}
+        score = Watcher._fine_shape(full, box, lk, shape, SMALL_STEPS, True, where)
+        if "at" in where:
+            score = min(score, max(0.0, band_shape(*where["at"])))
         return score
 
     @staticmethod
