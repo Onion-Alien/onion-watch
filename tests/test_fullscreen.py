@@ -150,6 +150,12 @@ class FakeUser32:
     def IsIconic(self, _h):
         return self.state["minimized"]
 
+    def IsHungAppWindow(self, _h):
+        return False
+
+    def SendMessageTimeoutW(self, *_a):
+        return 1                                # it answers
+
     def PrintWindow(self, _h, dc, _flags):
         self.state["printed"] += 1
         dc[...] = self.state["window"]           # exclusive fullscreen: all black

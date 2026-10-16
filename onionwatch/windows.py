@@ -11,6 +11,11 @@ away from it. Two things it can't do:
 - a few games (exclusive fullscreen, some anti-cheat) come out black
   (`Watcher.black` says so); watching the screen they're on works for those.
 
+PrintWindow also waits for the window's program to draw it: a game that's "Not
+Responding" (or stuck loading) would hold it, and every other window's checks, for as
+long as it hangs. So a window that doesn't answer at once isn't copied (`answering`,
+`WindowGrabber.hung`) until it does again.
+
 So a fullscreen game you're playing (it's in front and fills its screen, exclusive or
 borderless) is read off that screen instead, with Desktop Duplication: the same
 pixels, it works in exclusive fullscreen too, and it costs less than PrintWindow.
@@ -65,6 +70,11 @@ DUP_IDLE_S = 30.0
 # copied again this often, to see whether it still does
 DARK_RECHECK_S = 2.0
 MONITOR_DEFAULTTONULL = 0
+WM_NULL = 0
+SMTO_ABORTIFHUNG = 0x2
+# a window that takes longer than this to answer is busy (hung, loading): not copied
+# this check. A game answers within a frame or two
+ANSWER_MS = 50
 
 
 class WindowGone(OSError):
@@ -127,6 +137,11 @@ def _win():
     u.GetClassNameW.argtypes = [H, wintypes.LPWSTR, ctypes.c_int]
     u.GetForegroundWindow.restype = H
     u.PrintWindow.argtypes = [H, wintypes.HDC, wintypes.UINT]
+    u.IsHungAppWindow.argtypes = [H]
+    u.SendMessageTimeoutW.argtypes = [H, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM,
+                                      wintypes.UINT, wintypes.UINT,
+                                      ctypes.POINTER(ctypes.c_size_t)]
+    u.SendMessageTimeoutW.restype = ctypes.c_ssize_t
     u.GetDC.argtypes = [H]
     u.ClientToScreen.argtypes = [H, ctypes.POINTER(wintypes.POINT)]
     u.MonitorFromWindow.argtypes = [H, wintypes.DWORD]
@@ -212,6 +227,18 @@ def _process(k, pid: int) -> tuple[str, int]:
         return exe, started
     finally:
         k.CloseHandle(h)
+
+
+def answering(hwnd: int) -> bool:
+    """The window's program answers: Windows hasn't marked it "Not Responding" (it
+    does after 5 s) and it takes a message within ANSWER_MS. PrintWindow on a window
+    that doesn't waits until it does, however long that is."""
+    u = _win()[0]
+    if u.IsHungAppWindow(hwnd):
+        return False
+    out = ctypes.c_size_t()
+    return bool(u.SendMessageTimeoutW(hwnd, WM_NULL, 0, 0, SMTO_ABORTIFHUNG, ANSWER_MS,
+                                      ctypes.byref(out)))
 
 
 def client_size(hwnd: int) -> tuple[int, int]:
@@ -495,6 +522,7 @@ class WindowGrabber:
     _fills_screen = staticmethod(screen_filled)
     _alone = staticmethod(alone_on_screen)
     _share = staticmethod(screenwatch.share_dup)
+    _answers = staticmethod(answering)
     color: np.ndarray | None = None
     raw: tuple | None = None    # the last grab's pixels as sampled: (pixels, format, factor)
     # ...and all of the window's own (BGRA, a view of the bitmap: only good until the
@@ -510,6 +538,7 @@ class WindowGrabber:
         self.w, self.h = w, h
         self.minimized = False
         self.failures = 0           # PrintWindow calls in a row that failed
+        self.hung = False           # its program isn't answering: not copied (answering)
         self.last: np.ndarray | None = None
         self._bm: _Bitmap | None = None
         self._dup = None            # its screen's duplication, while it's read off it
@@ -608,6 +637,15 @@ class WindowGrabber:
         u, bm = _win()[0], self._bm
         if bm is None:
             return False
+        if not self._answers(self.hwnd):
+            # PrintWindow would wait for it, and every other window's checks with it:
+            # nothing to look at until it answers again (tried every check)
+            if not self.hung:
+                log.info("%s isn't answering: not copied until it does", self.ref.label)
+            self.hung = True
+            self.last = None
+            return False
+        self.hung = False
         if not u.PrintWindow(self.hwnd, bm.dc, PW_CLIENTONLY | PW_RENDERFULLCONTENT):
             self.failures += 1      # the watcher says so if it keeps happening
             return False
