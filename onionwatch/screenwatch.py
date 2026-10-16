@@ -310,6 +310,10 @@ HUE_CHECK = True
 HUE_PER_CHECK = 3       # full-size colour checks of one-colour things a capture gets a check
 CORES = os.cpu_count() or 1
 REARM_MARGIN = 0.08     # a match must fall this far below the threshold to count as gone
+# ...and while it waits for that, one this much better than all it has seen, in a new
+# place, is a new appearance (Gate): two boxes sharing this much of the smaller one
+# are one place
+PLACE_SHARE = 0.3
 FLAT_STD = 2 / 255      # screen windows flatter than this never match (blank areas)
 BLACK_LEVEL = 3 / 255   # a whole frame darker than this is a capture that can't see the game
 INTERVALS_MS = (16, 33, 50, 100, 250, 500)
@@ -1827,16 +1831,28 @@ class Gate:
     yes for `hold` seconds), then waits for a clear no before it can fire again,
     and never sooner than the cooldown. A yes during the cooldown is used up
     without firing, so something that stays up isn't played the moment the
-    cooldown ends. `mode` is the Trigger.mode it was made for."""
+    cooldown ends. `mode` is the Trigger.mode it was made for.
+
+    Given where the yes is (`box`, a picture's best match) and its `score`, a clearly
+    better match somewhere new while it waits is a new appearance too: a look-alike
+    that keeps scoring just over the line elsewhere would otherwise keep the real
+    thing quiet for as long as it's there. `places` holds this yes's places with
+    their best score; one is forgotten once the best match anywhere falls well short
+    of it (it would be the best if it were still there)."""
     armed: bool = True
     last: float = -math.inf
     since: float | None = None      # when the current yes began
     mode: str = "appear"
+    places: list = field(default_factory=list)  # [box, its best score] of this yes
 
-    def step(self, state: bool | None, now: float, cooldown: float, hold: float = 0.0) -> bool:
+    def step(self, state: bool | None, now: float, cooldown: float, hold: float = 0.0,
+             box: tuple | None = None, score: float = 0.0) -> bool:
         if state:
             if not self.armed:
-                return False
+                return box is not None and not hold and self._elsewhere(box, score, now,
+                                                                        cooldown)
+            if box is not None:
+                self.places = [[box, score]]
             if self.since is None:
                 self.since = now
             if now - self.since < hold:
@@ -1849,7 +1865,27 @@ class Gate:
         self.since = None
         if state is False:
             self.armed = True
+            self.places = []
         return False
+
+    def _elsewhere(self, box: tuple, score: float, now: float, cooldown: float) -> bool:
+        """A yes while waiting for a no, at `box` with `score`: whether it's a new
+        appearance (one that fires) rather than one already seen."""
+        top = max((p[1] for p in self.places), default=0.0)
+        self.places = [p for p in self.places
+                       if overlap(p[0], box) or score >= p[1] - REARM_MARGIN]
+        same = [p for p in self.places if overlap(p[0], box)]
+        for p in same:
+            p[1] = max(p[1], score)
+        if same or score < top + REARM_MARGIN:
+            if not same:
+                self.places.append([box, score])
+            return False
+        self.places.append([box, score])
+        if now - self.last < cooldown:
+            return False
+        self.last = now
+        return True
 
     def update(self, score: float, now: float, threshold: float, cooldown: float) -> bool:
         """step() for a picture's match score ("appear")."""
@@ -1895,6 +1931,18 @@ class Quieter:
         elif now - self.still_since >= STOP_SETTLE:
             self.ref = self.last
         return False
+
+
+def overlap(a: tuple, b: tuple) -> bool:
+    """Two boxes (y0, y1, x0, x1) cover the same thing: they share a good part
+    (PLACE_SHARE) of the smaller one, as a match of it at another size or a step
+    further along does."""
+    h = min(a[1], b[1]) - max(a[0], b[0])
+    w = min(a[3], b[3]) - max(a[2], b[2])
+    if h <= 0 or w <= 0:
+        return False
+    least = min((a[1] - a[0]) * (a[3] - a[2]), (b[1] - b[0]) * (b[3] - b[2]))
+    return h * w >= PLACE_SHARE * max(1, least)
 
 
 def new_gate(mode: str) -> Gate:
@@ -3912,7 +3960,9 @@ class Watcher:
             q = self._quiet.get(it.id)
             if q is not None and q.source == cap.source:
                 self._step_quiet(it, q, cap, gray, state, now)
-            if not gate.step(state, now, it.cooldown, it.hold):
+            if not gate.step(state, now, it.cooldown, it.hold,
+                             box if it.mode == "appear" and it.uses_pictures else None,
+                             score):
                 continue
             if it.unfocused and self._in(cap):
                 log.debug("trigger %s went off in the window in front: kept quiet", it.id)

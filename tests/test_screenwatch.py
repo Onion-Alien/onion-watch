@@ -314,6 +314,42 @@ def test_gate_waits_out_the_cooldown():
     assert g.update(0.9, 6.0, 0.8, 5.0)              # ...but fine after 5 s
 
 
+LOOKALIKE = (10, 30, 300, 360)      # (y0, y1, x0, x1): something like the picture
+REAL = (100, 120, 40, 100)          # ...and the picture itself, somewhere else
+
+
+def test_gate_fires_for_the_real_thing_next_to_a_lookalike():
+    """A look-alike scoring just over the line stays up: the picture showing up
+    elsewhere, clearly better, still fires; the look-alike alone again doesn't."""
+    g = Gate()
+    step = lambda t, s, box: g.step(sw.verdict("appear", s, 0.8), t, 1.0, 0.0, box, s)  # noqa: E731
+    assert step(0.0, 0.81, LOOKALIKE)            # the look-alike's own (false) fire
+    assert not step(0.5, 0.82, LOOKALIKE)
+    assert step(2.0, 0.96, REAL)                 # the real one, elsewhere: fires
+    assert not step(2.5, 0.97, REAL)             # ...once
+    assert not step(4.0, 0.81, LOOKALIKE)        # gone: only the look-alike again
+    assert step(6.0, 0.95, REAL)                 # back: fires again
+
+
+def test_gate_waits_while_the_thing_moves_or_is_matched_at_another_size():
+    g = Gate()
+    step = lambda t, s, box: g.step(sw.verdict("appear", s, 0.8), t, 0.0, 0.0, box, s)  # noqa: E731
+    assert step(0.0, 0.9, REAL)
+    assert not step(0.1, 0.99, (102, 124, 44, 108))   # the same place, a bit bigger
+    assert not step(0.2, 0.9, (100, 120, 300, 360))   # moved, scoring the same: still it
+    assert not step(0.3, 0.86, LOOKALIKE)             # ...not clearly better: no fire
+    g.step(False, 0.4, 0.0, 0.0, None, 0.1)
+    assert step(0.5, 0.9, LOOKALIKE)
+
+
+def test_gate_keeps_the_cooldown_for_a_new_place():
+    g = Gate()
+    step = lambda t, s, box: g.step(sw.verdict("appear", s, 0.8), t, 3.0, 0.0, box, s)  # noqa: E731
+    assert step(0.0, 0.81, LOOKALIKE)
+    assert not step(1.0, 0.96, REAL)             # too soon after the last sound
+    assert not step(4.0, 0.96, REAL)             # ...and used up, as any yes in a cooldown
+
+
 def test_trigger_settings_are_checked_when_loaded():
     t = Trigger.from_raw({"id": "a", "name": 3, "delay": -1, "cooldown": "x",
                           "threshold": 5, "enabled": 1, "sound": "s1"})
