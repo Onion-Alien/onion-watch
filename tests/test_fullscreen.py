@@ -253,17 +253,40 @@ def test_alt_tabbed_away_it_is_copied_again_and_back_in_front_read_off_the_scree
     assert g.grab() is not None and g.on_screen
     state["front"] = 77                         # alt-tabbed to another window
     state["window"] = 200                       # (a borderless game: PrintWindow sees it)
-    got = g.grab()
+    assert g.grab() is None and g.last is None  # the first copy can be old: not given out
     assert not g.on_screen and state["printed"] == 1
+    got = g.grab()
+    assert state["printed"] == 2
     assert float(got.mean()) > 0.5 and g.cpu_elsewhere == g.PRINT_CPU
     assert g.full is not None and g.full_gray(0, 4, 0, 4) is None
     state["front"] = 5                          # back in the game
     assert float(g.grab().mean()) == pytest.approx(0.5)
-    assert g.on_screen and state["printed"] == 1
+    assert g.on_screen and state["printed"] == 2
     # the screen was kept for tabbing back: not set up again
     assert state["opened"] == 1 and state["closed"] == 0
     g.close()
     assert state["closed"] == 1
+
+
+def test_the_first_copy_after_the_screen_is_thrown_away(game):
+    """Read off its screen while in front, then alt-tabbed away: Windows' first copy of
+    the window can be one from before (a game gone fullscreen gave its old, smaller
+    frame in a corner, a picture that went away long since still in it). That copy is
+    never checked; the next one is. A black first copy is the exclusive-game case."""
+    state, make = game
+    g = make()
+    assert g.grab() is not None and g.on_screen
+    state["front"], state["window"] = 77, 200   # alt-tabbed; the copy shows something old
+    assert g.grab() is None and state["printed"] == 1 and g.last is None
+    state["window"] = 120                       # what it shows now
+    got = g.grab()
+    assert got is not None and state["printed"] == 2
+    assert float(got.mean()) == pytest.approx(120 / 255, abs=0.01)
+    assert g.grab() is not None and state["printed"] == 3   # then every copy counts
+    state["front"] = 5                          # back in front, then away again
+    g.grab()
+    state["front"] = 77
+    assert g.grab() is None and state["printed"] == 4
 
 
 def test_a_screen_not_read_for_a_while_is_let_go(game, monkeypatch):
@@ -360,6 +383,7 @@ def test_an_exclusive_game_out_of_front_still_on_its_screen_is_read_off_it(game,
     assert float(g.grab().mean()) == pytest.approx(0.5) and state["printed"] == 2
     state["window"] = 200                        # it's drawn into its window again
     g._recheck_at = 0.0
+    assert g.grab() is None and not g.on_screen and not g.dark   # its first copy: maybe old
     assert float(g.grab().mean()) > 0.5 and not g.on_screen and not g.dark
     assert state["opened"] == 1                  # one duplication all along
 
