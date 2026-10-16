@@ -2,6 +2,12 @@
 
 What changed between releases, for the release notes. Newest first.
 
+## 0.11.4 (2026-10-16)
+
+- **Fewer wrong sounds after alt-tabbing out of a fullscreen game:** Windows can
+  hand back an old picture of the game once, from before you went fullscreen, so a
+  trigger could go off for something long gone. That copy is skipped now.
+
 ## 0.11.3 (2026-10-16)
 
 - **Fewer wrong sounds:** a small match now has to look like the picture all the
