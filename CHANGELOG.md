@@ -2,7 +2,7 @@
 
 What changed between releases, for the release notes. Newest first.
 
-## 0.11.4 (2026-10-17)
+## 0.11.4 (2026-10-16)
 
 - **Fewer wrong sounds after alt-tabbing out of a fullscreen game:** Windows can
   hand back an old picture of the game once, from before you went fullscreen, so a
