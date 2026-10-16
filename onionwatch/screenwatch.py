@@ -3263,6 +3263,7 @@ class _Capture:
         self.black = False
         self.lost = False
         self.minimized = False      # a window that's minimized (nothing to see)
+        self.hung = False           # ...or whose program isn't answering (not copied)
         self.next_dup = 0.0         # on the GDI fallback: when to try duplication again
         self.misses = 0             # grabs in a row that gave nothing to look at
         self.miss_since = 0.0       # ...since when
@@ -3768,7 +3769,8 @@ class Watcher:
         cap.failing = False
         cap.lost = bool(getattr(cap.grab, "lost", False))
         cap.minimized = bool(getattr(cap.grab, "minimized", False))
-        if ((gray is None and not cap.lost and not cap.minimized)
+        cap.hung = bool(getattr(cap.grab, "hung", False))
+        if ((gray is None and not cap.lost and not cap.minimized and not cap.hung)
                 or getattr(cap.grab, "failures", 0)):
             # nothing to look at (PrintWindow can't copy the window, say): counted,
             # so a capture that never gives anything is said (`unseen`)
