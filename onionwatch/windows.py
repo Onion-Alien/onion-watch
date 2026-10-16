@@ -499,7 +499,9 @@ class WindowGrabber:
     when this is made (WindowGone if it isn't open) and kept by its handle after
     that; once it closes, grab() raises CaptureLost and the watcher looks for it
     again. `source` is the client area's size and follows the window when it's
-    resized. While it's minimized grab() gives None and `minimized` is set.
+    resized. While it's minimized grab() gives None and `minimized` is set, and the
+    first copy after it's restored is thrown away: Windows hands back the frame from
+    before it was minimized then (a picture that went away meanwhile would fire).
 
     A window that fills its screen is read off that screen (Desktop Duplication)
     while it's in front, as PrintWindow often sees an exclusive-fullscreen game as
@@ -537,6 +539,7 @@ class WindowGrabber:
         self.hwnd = info.hwnd
         self.w, self.h = w, h
         self.minimized = False
+        self.stale = False          # restored from minimized: the next copy is old
         self.failures = 0           # PrintWindow calls in a row that failed
         self.hung = False           # its program isn't answering: not copied (answering)
         self.last: np.ndarray | None = None
@@ -553,7 +556,7 @@ class WindowGrabber:
         if min(size) >= 2:
             self._make(size)
         else:
-            self.minimized = bool(_win()[0].IsIconic(self.hwnd))
+            self.minimized = self.stale = bool(_win()[0].IsIconic(self.hwnd))
         self._layout()
 
     def _make(self, size: tuple[int, int]):
@@ -589,7 +592,8 @@ class WindowGrabber:
         if not u.IsWindow(self.hwnd):
             raise CaptureLost(_("{name} was closed", name=self.ref.label))
         if u.IsIconic(self.hwnd):
-            self.minimized = True
+            self.minimized = self.stale = True
+            self.last = None        # not given out again for a failed copy once it's back
             self._off_screen()
             return None
         self.minimized = False
@@ -614,11 +618,18 @@ class WindowGrabber:
         if mon is not None:
             done, gray = self._from_screen(mon)
             if done:
+                self.stale = False          # read off the screen: what it shows now
                 return gray
         else:
             self._off_screen()
         if not self._print():
             return self.last
+        if self.stale:
+            # the first PrintWindow after a restore can give the frame from before
+            # it was minimized: thrown away, the next grab gets what it shows now
+            self.stale = False
+            self.last = None
+            return None
         self.dark = not front and self.last is not None and is_black(self.last)
         if self.dark:
             # an exclusive-fullscreen game out of front: its screen still shows it
