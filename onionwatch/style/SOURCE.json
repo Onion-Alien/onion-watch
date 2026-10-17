@@ -1,13 +1,14 @@
 {
   "from": "Onion Board",
   "path": "soundboard/style",
-  "commit": "a87d9762c92f4ba60dbcc573900ef8ad0ff6ded9",
+  "commit": "2d692fce66d15030557546d49cea043d8a92068b",
   "files": {
-    "__init__.py": "3813bdb147425f1f927697b271233dcb4c5bcdc507fe8a6bed3eb49178199615",
+    "__init__.py": "6e6317fc1f2e7d9fe832c3d0e494108ff19a1671ed061859030787ff487dbdc3",
     "appstate.py": "8e0c163bd47615a9f18a62f24bdeb5c6d95605a1cc5bc4c78a1221325df39ee2",
     "bunnyfit.py": "f6cb6d2da313a1eaccfdeba9380af38d961d39b8a1c550a7d5fabcd6a6b9dcad",
+    "cover.py": "9e31d1f9bf1e6c8b11c3668eca2d9190c73867069cc9646b8d01859f94f8bae0",
     "hooks.py": "ee0708a4130764c92451bb25824bae462a55b31c3f82dcd13f2793f5103f62fb",
-    "owl.py": "e5df6dcb4b05856d761cd435659df7994554af9bf9fffd750d7598ee9225d67e",
+    "owl.py": "d097688e5d0928771de27873803ff685bb61e75049b7073611523b9d11729058",
     "palettes.py": "ab0d8672413e5de3bac7f8f33cdafcc8d373ac2a93905d0a1732051b83e270c4",
     "textures.py": "2168db87086bfc04239addbd4540bfbf46767658f0138b2978e13eabff6335ae"
   }

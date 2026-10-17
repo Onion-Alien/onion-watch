@@ -101,3 +101,43 @@ def test_inside_the_board_its_colour_and_textured_are_followed():
         theme.textures_on = False
         theme.set_live("")
         theme.set_current(theme.DEFAULT)
+
+
+def test_a_theme_switch_covers_every_window_and_fades(win, dlg):
+    """The main window and Settings each get a still of themselves with Hoot in the
+    new theme while every widget restyles: it fades in over a few frames (never a
+    flash) and out once the new theme is in. A colour change is a plain blend."""
+    from PySide6.QtCore import QEvent
+    from onionwatch.style import cover as kit
+    from onionwatch.ui import themecover
+    import time
+    win.show()
+    dlg.show()
+    QApplication.processEvents()
+    seen, ks = [], []
+    real = kit.Cover.repaint
+    kit.Cover.repaint = lambda self: (ks.append(self.k), real(self))[1]
+    apply = theme.apply
+
+    def during(app, name, live=None):
+        seen.extend(c.parentWidget() for w in themecover.windows()
+                    for c in w.findChildren(kit.Cover) if c.isVisible())
+        return apply(app, name, live)
+    theme.apply = during
+    try:
+        new = next(n for n in theme.THEMES if n != theme.current_name)
+        win.set_theme(new)
+        with themecover.blended() as plain:
+            assert all(c.scrim is None and c.mascot is None for c in plain)
+    finally:
+        theme.apply = apply
+        kit.Cover.repaint = real
+    assert theme.current_name == new
+    assert win in seen and dlg in seen
+    assert ks[:2] == [0.0, 0.0] and 1.0 in ks
+    assert max(b - a for a, b in zip(ks, ks[1:])) < 0.7   # faded in, not one jump
+    end = time.monotonic() + 3
+    while any(w.findChildren(kit.Cover) for w in (win, dlg)) and time.monotonic() < end:
+        QApplication.processEvents()
+        QApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+    assert not win.findChildren(kit.Cover) and not dlg.findChildren(kit.Cover)
