@@ -5,7 +5,7 @@ are waited on."""
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QImage
 
-from onionwatch.style import owl
+from onionwatch.style import mascotlines, owl
 
 
 def paint(w):
@@ -57,12 +57,13 @@ def test_click_cheers(qapp):
     c = QPointF(w.width() / 2, w.height() / 2)
     w.mousePressEvent(QMouseEvent(QMouseEvent.MouseButtonPress, c, c, Qt.LeftButton,
                                   Qt.LeftButton, Qt.NoModifier))
-    assert hits and w.say == "yay"
+    cheer = w.say
+    assert hits and cheer in ("yay",) + mascotlines.hoot()   # his own lines mix in
     w.step(0.4, mouse=None)
     assert "joy" in w.pose()
-    w.step(2.0, mouse=None)
+    w.step(max(2.0, mascotlines.read_secs(cheer)), mouse=None)   # long lines stay to be read
     # the cheer is over (he may already be begging again: a wait line, at random)
-    assert "joy" not in w.pose() and w.say != "yay"
+    assert "joy" not in w.pose() and w.say != cheer
 
 
 def test_owl_image_still_plain(qapp):
