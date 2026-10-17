@@ -9,13 +9,15 @@ button", kept as "show_chances" in the host's screen settings."""
 from __future__ import annotations
 
 import time
+import weakref
 
-from PySide6.QtCore import QRectF, QSize, Qt, QTimer
+from PySide6.QtCore import QObject, QRectF, QSize, Qt, QTimer
 from PySide6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPainterPath, QPixmap
 from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QFrame, QHBoxLayout, QLabel,
                                QPushButton, QScrollArea, QVBoxLayout, QWidget)
 
 from onionwatch import screenwatch, theme
+from onionwatch.style import appstate
 from onionwatch.ui import fit, icons
 from onionwatch.i18n import _
 
@@ -23,6 +25,64 @@ POLL_MS = 150           # as often as the cards' scores refresh
 THUMB = QSize(64, 40)
 NAME_W = 170            # the names' column, so every bar starts in line
 SHOW_KEY = "show_chances"   # host.screen: the Chances button on the Playing now bar
+
+GLIDE_MS = 33           # a bar slides to its new score at 30 fps...
+GLIDE_RATE = 14.0       # ...this fast (1/s: most of the way within one poll)
+
+
+class _Glide(QObject):
+    """Slides the bars to each new score instead of jumping a poll at a time: one
+    shared timer that runs only while a bar on screen is still on its way (behind a
+    game, or hidden, a bar just takes its score)."""
+
+    def __init__(self):
+        super().__init__()
+        self.moving: weakref.WeakSet = weakref.WeakSet()
+        self._last = 0.0
+        self._timer = QTimer(self)
+        self._timer.setInterval(GLIDE_MS)
+        self._timer.timeout.connect(self._tick)
+
+    def add(self, w):
+        self.moving.add(w)
+        if not self._timer.isActive():
+            self._last = time.monotonic()
+            self._timer.start()
+
+    def _tick(self):
+        now = time.monotonic()
+        dt, self._last = min(0.1, now - self._last), now
+        for w in list(self.moving):
+            if not w.glide(dt):
+                self.moving.discard(w)
+        if not self.moving:
+            self._timer.stop()
+
+
+_glide: _Glide | None = None
+
+
+def glide_to(w, target: float) -> float:
+    """The score `w` (a bar) should show now: where it is, sliding to `target`, or
+    `target` itself when nothing should move (hidden, behind a game, first value)."""
+    global _glide
+    shown = getattr(w, "shown", None)
+    if shown is None or not w.isVisible() or not appstate.active():
+        return target
+    if abs(target - shown) > 0.002:
+        if _glide is None:
+            _glide = _Glide()
+        _glide.add(w)
+    return shown
+
+
+def glide_step(shown: float, target: float, dt: float) -> tuple[float, bool]:
+    """One frame of a slide: (the new shown score, still moving)."""
+    shown += (target - shown) * min(1.0, dt * GLIDE_RATE)
+    if abs(target - shown) <= 0.002:
+        return target, False
+    return shown, True
+
 
 # the modes that go off when the score drops below the line, not above it
 BELOW = ("vanish", "still")
@@ -97,12 +157,21 @@ class LiveLabel(QLabel):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.meter: tuple[float, float, bool, bool] | None = None
+        self.shown: float | None = None   # the score the bar shows (sliding: _Glide)
 
     def set_meter(self, meter: tuple[float, float, bool, bool] | None):
         """(score, level, hot, below), or None for the dot and word."""
         if meter != self.meter:
             self.meter = meter
+            self.shown = None if meter is None else glide_to(self, meter[0])
             self.update()
+
+    def glide(self, dt: float) -> bool:
+        if self.meter is None or self.shown is None:
+            return False
+        self.shown, moving = glide_step(self.shown, self.meter[0], dt)
+        self.update()
+        return moving
 
     def _font(self) -> QFont:
         f = QFont(self.font())
@@ -119,6 +188,7 @@ class LiveLabel(QLabel):
         if self.meter is None:
             return super().paintEvent(e)
         score, level, hot, below = self.meter
+        score = score if self.shown is None else self.shown
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing)
         h, m = self.height(), self.contentsMargins()
@@ -211,6 +281,7 @@ class _Bar(QWidget):
     def __init__(self):
         super().__init__()
         self.score: float | None = None
+        self.shown: float | None = None   # the score the bar shows (sliding: _Glide)
         self.level, self.hot, self.below = 0.5, False, False
         self.setMinimumWidth(120)
         self.setFixedHeight(22)
@@ -218,7 +289,15 @@ class _Bar(QWidget):
     def set(self, score, level, hot, below):
         if (score, level, hot, below) != (self.score, self.level, self.hot, self.below):
             self.score, self.level, self.hot, self.below = score, level, hot, below
+            self.shown = None if score is None else glide_to(self, score)
             self.update()
+
+    def glide(self, dt: float) -> bool:
+        if self.score is None or self.shown is None:
+            return False
+        self.shown, moving = glide_step(self.shown, self.score, dt)
+        self.update()
+        return moving
 
     def paintEvent(self, _e):
         p = QPainter(self)
@@ -233,8 +312,8 @@ class _Bar(QWidget):
                  else rect.x() + rect.width() * self.level)
             p.drawRoundedRect(QRectF(x - 1, rect.y() - 2, 2, rect.height() + 4), 1, 1)
         else:
-            paint_meter(p, rect, self.score, self.level, self.hot, self.below,
-                        self.isRightToLeft())
+            paint_meter(p, rect, self.score if self.shown is None else self.shown,
+                        self.level, self.hot, self.below, self.isRightToLeft())
         p.end()
 
 

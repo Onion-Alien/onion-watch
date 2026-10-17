@@ -46,6 +46,11 @@ def test_each_flourish_plays_once_and_the_eye_looks_around(qapp, monkeypatch):
             logo.step(0.8)
             assert logo.look() != 0                      # it looks around
             logo.set_watching(False)
+            was = logo.look()
+            logo.step(0.033)
+            assert abs(logo.look() - was) < 0.01         # eases back, never a snap
+            for _ in range(60):
+                logo.step(0.05)
             assert logo.look() == 0 and logo.burst_t() < 0
     finally:
         host.close()
@@ -76,3 +81,44 @@ def test_it_idles_in_every_theme_while_nothing_is_watched(qapp, monkeypatch):
                 logo.grab()                      # every frame paints without an error
     finally:
         host.close()
+
+
+def _jumps(logo, secs, fps=30):
+    """The biggest frame-to-frame change of the eye, the strength and the laser glow."""
+    worst, last = [0.0, 0.0], None
+    for _ in range(round(secs * fps)):
+        logo.step(1 / fps)
+        now = (logo.look(), logo.intensity())
+        if last:
+            worst = [max(w, abs(a - b)) for w, a, b in zip(worst, now, last)]
+        last = now
+    return worst
+
+
+def test_starting_and_stopping_eases_instead_of_snapping(qapp, monkeypatch):
+    host, logo = make(qapp, monkeypatch)
+    try:
+        logo.style_name = "laser"
+        logo.set_watching(True)
+        look, calm = _jumps(logo, BURST_S + 2)         # flourish, then looking round
+        assert logo.intensity() > 0.95 and look < 0.01 and calm < 0.06
+        logo.set_watching(False)
+        look, calm = _jumps(logo, 2.0)
+        assert abs(logo.intensity() - watchlogo.IDLE_CALM) < 0.01
+        assert look < 0.01 and calm < 0.06
+        logo.set_watching(True)                        # stopped mid-flourish:
+        logo.step(0.3)
+        logo.set_watching(False)
+        assert logo.beam.isVisible() and 0 < logo.cut_fade() <= 1   # it fades out
+        for _ in range(10):
+            logo.step(0.05)
+        assert logo.burst_t() < 0 and not logo.beam.isVisible()
+    finally:
+        host.close()
+
+
+def test_the_comic_bounce_starts_and_ends_still():
+    from onionwatch.ui.watchlogo import comic_bounce
+    k = [comic_bounce(i / 60) for i in range(60 * 8)]
+    assert max(k) > 0.9 and min(k) < -0.3                 # a squash, a stretch past it
+    assert max(abs(b - a) for a, b in zip(k, k[1:])) < 0.2

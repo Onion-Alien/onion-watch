@@ -67,3 +67,26 @@ def test_the_chances_button_can_be_hidden(make):  # noqa: F811
     assert bar.btn_chances.isVisibleTo(bar)
     dlg.deleteLater()
     pages.deleteLater()
+
+
+def test_a_bar_slides_to_its_new_score(qapp, monkeypatch):
+    """A new score slides the bar there (on a timer that stops once it's there)
+    instead of jumping a poll at a time; behind a game it just takes the score."""
+    from onionwatch.ui import chances
+    monkeypatch.setattr(chances.appstate, "active", lambda: True)
+    bar = chances.LiveLabel()
+    bar.resize(120, 20)
+    bar.show()
+    bar.set_meter((0.2, 0.5, False, False))
+    assert bar.shown == 0.2                        # the first score: no slide
+    bar.set_meter((0.9, 0.5, False, False))
+    assert bar.shown == 0.2 and bar in chances._glide.moving
+    steps = 0
+    while bar.glide(1 / 30):
+        steps += 1
+        assert steps < 40
+    assert bar.shown == 0.9 and steps > 3
+    monkeypatch.setattr(chances.appstate, "active", lambda: False)
+    bar.set_meter((0.1, 0.5, False, False))
+    assert bar.shown == 0.1
+    bar.close()
