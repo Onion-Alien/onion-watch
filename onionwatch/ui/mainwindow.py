@@ -215,15 +215,21 @@ class MainWindow(QMainWindow):
             self.quit()
 
     def set_theme(self, name: str):
-        self.cfg.theme = theme.apply(QApplication.instance(), name)
-        icons.retheme()
-        self.paint_logo()
+        # a still of each window with Hoot over it while every widget restyles: no
+        # frame of a half-styled window, and it fades to the new theme (ui/themecover)
+        from onionwatch.ui import themecover
+        with themecover.covered(name):
+            self.cfg.theme = theme.apply(QApplication.instance(), name)
+            icons.retheme()
+            self.paint_logo()
         self.save_later()
 
     def set_live_color(self, colour: str) -> bool:
         """Your own highlight colour ("" = each theme's): only what's drawn in it is
         restyled. True when it changed."""
-        kept = theme.apply_live(QApplication.instance(), colour)
+        from onionwatch.ui import themecover
+        with themecover.blended():   # (a fade from the old colour, not a swap)
+            kept = theme.apply_live(QApplication.instance(), colour)
         changed = kept != self.cfg.live_color
         self.cfg.live_color = kept
         self.save_later()
@@ -234,8 +240,10 @@ class MainWindow(QMainWindow):
         Plain: the whole app is restyled."""
         if on == theme.textures_on:
             return
-        theme.textures_on = self.cfg.theme_texture = on
-        theme.apply(QApplication.instance(), theme.current_name)
+        from onionwatch.ui import themecover
+        with themecover.covered(theme.current_name):
+            theme.textures_on = self.cfg.theme_texture = on
+            theme.apply(QApplication.instance(), theme.current_name)
         self.save_later()
 
     def paint_logo(self):

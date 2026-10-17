@@ -107,6 +107,7 @@ then installs that file instead of downloading.
 | `onionwatch/ui/countdialog.py` | *What Count me in sends*: the table behind Settings' eye button (in step with `usage.py` and SECURITY.md) |
 | `onionwatch/feedback.py` | Send feedback / Report a problem links |
 | `onionwatch/app.py` | start-up: logging, one copy at a time, the window, `--selftest` |
+| `onionwatch/ui/themecover.py` | a still of each window with Hoot over it while a theme switch restyles every widget, faded in and out (the kit's `style/cover.py`): never a half-styled frame or a flash |
 | `onionwatch/ui/splash.py` | the start-up splash: Hoot hopping on the desktop until the window is up, drawn on a thread of its own |
 | `onionwatch/__main__.py` | `python -m onionwatch` |
 | `onionwatch/host.py` | what the triggers page needs from the program it runs in (settings, sounds, playing, theme): the Onion Watch app or Onion Board |
