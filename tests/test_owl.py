@@ -81,25 +81,29 @@ def test_room_beside_him_gives_way(qapp):
     paint(w)
 
 
-def test_feathers_follow_the_theme_but_artwork_stays_teal(qapp):
+def test_his_look_follows_the_theme_but_artwork_stays_teal(qapp):
+    """Each theme dresses Hoot in its own look (the kit's owl.LOOKS); Onion Watch's own
+    Hoot theme and the artwork are plain teal Hoot."""
     from PySide6.QtCore import QRectF
-    from PySide6.QtGui import QColor, QPainter
+    from PySide6.QtGui import QPainter
 
     from onionwatch import theme
 
-    def body_colour():
+    def hoot(**kw):
         img = QImage(100, 120, QImage.Format_ARGB32)
         img.fill(Qt.transparent)
         p = QPainter(img)
-        owl.draw_owl(p, QRectF(0, 0, 100, 120))
+        owl.draw_owl(p, QRectF(0, 0, 100, 120), outfit=(), **kw)
         p.end()
-        return img.pixelColor(50, 30)   # the top of his head, above the face
+        return img
 
     try:
-        theme.use_palette({"accent": "#ff0000"})   # a host's theme
-        assert body_colour() == QColor("#ff0000")
-        img = owl.owl_image(120)
-        assert img.pixelColor(img.width() // 2, 30) == owl.FEATHER
+        theme.set_current("Mocha")
+        assert hoot() == hoot(kit=owl.look("Mocha")) != hoot(kit=owl.VANILLA)
+        art = owl.owl_image(120)           # the artwork: plain Hoot whatever the theme
+        theme.set_current("Hoot")
+        assert hoot() == hoot(kit=owl.VANILLA)
+        assert owl.owl_image(120) == art
     finally:
         theme.set_current(theme.DEFAULT)
 
