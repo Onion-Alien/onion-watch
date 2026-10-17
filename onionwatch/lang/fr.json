@@ -804,5 +804,9 @@
   "Step 4: drag a box round the part to watch, or pick All of it": "Étape 4 : trace un cadre autour de la zone à surveiller, ou choisis « Tout »",
   "Take it from the game": "La prendre dans le jeu",
   "There's no picture copied. Click the game and press Alt+Print Screen first.": "Aucune image copiée. Clique d'abord dans le jeu et appuie sur Alt+Impr. écran.",
-  "Cards (too narrow)": "Cartes (trop étroit)"
+  "Cards (too narrow)": "Cartes (trop étroit)",
+  "Limited edition": "Édition limitée",
+  "Limited edition: this one's yours to keep.": "Édition limitée : celui-ci est à toi pour de bon.",
+  "Limited edition: use it by {date} and it's yours to keep. After that it's gone for good.": "Édition limitée : utilise-le avant le {date} et il est à toi pour de bon. Après, il disparaît pour toujours.",
+  "by {name}": "par {name}"
 }

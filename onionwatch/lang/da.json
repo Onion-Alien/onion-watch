@@ -804,5 +804,9 @@
   "Step 4: drag a box round the part to watch, or pick All of it": "Trin 4: træk en boks rundt om den del, der skal holdes øje med, eller vælg Det hele",
   "Take it from the game": "Tag det fra spillet",
   "There's no picture copied. Click the game and press Alt+Print Screen first.": "Der er ikke kopieret noget billede. Klik i spillet og tryk Alt+Print Screen først.",
-  "Cards (too narrow)": "Kort (for smalt)"
+  "Cards (too narrow)": "Kort (for smalt)",
+  "Limited edition": "Begrænset udgave",
+  "Limited edition: this one's yours to keep.": "Begrænset udgave: den her er din for altid.",
+  "Limited edition: use it by {date} and it's yours to keep. After that it's gone for good.": "Begrænset udgave: brug den senest {date}, så er den din for altid. Derefter forsvinder den for evigt.",
+  "by {name}": "af {name}"
 }

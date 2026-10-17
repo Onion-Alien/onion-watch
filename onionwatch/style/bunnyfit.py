@@ -50,6 +50,7 @@ OUTFITS: dict[str, tuple[str, ...]] = {
     "Synthwave": ("visor",),
     "Vaporwave": ("glasses_3d",),
     "Blood Moon": ("moon", "horns"),
+    "Halloween": ("witch_hat", "fangs"),
     "Lava": ("bandana",),
     "Amber Terminal": ("eyeshade", "pencil"),
     "Hacker": ("hood", "strings", "shades"),
@@ -64,7 +65,7 @@ OUTFITS: dict[str, tuple[str, ...]] = {
 
 HATS = {"pom_beanie", "wizard", "captain", "beret", "crown", "onion", "horns", "bandana",
         "eyeshade", "pencil", "frog", "snapback", "party", "propeller", "blossom", "leaves",
-        "flower_crown", "mint_sprig", "bow", "dizzy"}
+        "flower_crown", "mint_sprig", "bow", "dizzy", "santa", "witch_hat"}
 
 # glasses and visors: off while he sleeps under the nightcap
 EYEWEAR = {"shades", "round_glasses", "heart_glasses", "glasses_3d",
@@ -152,6 +153,9 @@ LOOKS: dict[str, dict] = {
     "Blood Moon": {"fur": "#433b4c", "ears": "left", "extras": ("chomp", "shiner"),
                    "tail": "tuft", "iris": "#ff3b2f", "inner": "#c4505a", "nose": "#241d29",
                    "pattern": ("spots",), "marks": "#7a4652", "pads": "#c4505a"},
+    "Halloween": {"fur": "#3a3140", "ears": "both", "extras": ("chomp",), "tail": "tuft",
+                  "iris": "#ff8a1f", "inner": "#a259ff", "nose": "#ff7518",
+                  "pattern": ("spots",), "marks": "#5c4a66", "pads": "#a259ff"},
     "Lava": {"fur": "#f3cdae", "extras": ("bandaid", "chomp"), "tail": "tuft", "iris": "#ff5a1f",
              "inner": "#ff9a6b", "nose": "#e0482a", "pattern": ("patch",), "marks": "#3d2c2c",
              "pads": "#ff9a6b"},
@@ -609,6 +613,27 @@ def _onion(p, ink):
     p.drawLine(QPointF(50, 11), QPointF(55, 2))
 
 
+def _santa(p, ink):
+    """A floppy red Santa hat (the start-up splash puts it on him in December): over
+    the headphone band, its tip and white bobble flopped down to the viewer's right."""
+    body = QPainterPath(QPointF(23, 50))
+    body.cubicTo(QPointF(22, 30), QPointF(39, 16), QPointF(57, 17))
+    body.cubicTo(QPointF(76, 18), QPointF(90, 30), QPointF(93, 50))
+    body.cubicTo(QPointF(87, 42), QPointF(81, 40), QPointF(77, 48))
+    body.quadTo(QPointF(50, 40), QPointF(23, 50))
+    _fill(p, body, QColor("#e0353f"), ink)
+    brim = QPainterPath(QPointF(21, 51))   # the white fur band round the bottom
+    brim.quadTo(QPointF(50, 39.5), QPointF(79, 49))
+    p.setBrush(Qt.BrushStyle.NoBrush)
+    p.setPen(QPen(INK_COL, 10.5, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
+    p.drawPath(brim)
+    p.setPen(QPen(WHITE, 7.5, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
+    p.drawPath(brim)
+    p.setPen(ink)
+    p.setBrush(WHITE)
+    p.drawEllipse(QPointF(93, 51), 6.5, 6.5)
+
+
 def _party(p, ink):
     col = _col("accent2")
     cone = _poly((36, 40), (60, 2), (66, 38))
@@ -623,6 +648,37 @@ def _party(p, ink):
     p.setBrush(Qt.BrushStyle.NoBrush)
     p.drawPath(cone)
     _flower(p, 60, 2, 6, GOLD, QColor("#ff5d8f"))
+
+
+def _witch_hat(p, ink):
+    """A crooked black witch's hat with a pumpkin band and buckle, and a little bat."""
+    col = QColor("#3a2452")
+    cone = QPainterPath(QPointF(30, 42))
+    cone.cubicTo(QPointF(40, 30), QPointF(44, 12), QPointF(54, 2))
+    cone.cubicTo(QPointF(60, -3), QPointF(70, -2), QPointF(76, 6))
+    cone.cubicTo(QPointF(68, 4), QPointF(62, 10), QPointF(62, 22))
+    cone.cubicTo(QPointF(62, 30), QPointF(66, 36), QPointF(70, 42))
+    cone.closeSubpath()
+    _fill(p, cone, col, ink)
+    p.save()
+    p.setClipPath(cone)
+    p.fillRect(QRectF(20, 31, 60, 7), _col("accent"))
+    p.restore()
+    _fill(p, _rect(45, 30, 9, 9), GOLD, QPen(GOLD_DARK, 1.2))
+    _fill(p, _rect(47.5, 32.5, 4, 4), col, None)
+    brim = QPainterPath()
+    brim.addEllipse(QRectF(12, 37, 76, 11))
+    _fill(p, brim, col.lighter(115), ink)
+    bat = QPainterPath(QPointF(84, 12))       # a bat flapping by the hat's tip
+    bat.quadTo(QPointF(88, 6), QPointF(94, 7))
+    bat.quadTo(QPointF(91, 10), QPointF(92, 13))
+    bat.quadTo(QPointF(89, 12), QPointF(87, 15))
+    bat.quadTo(QPointF(85, 13), QPointF(84, 16))
+    bat.quadTo(QPointF(83, 13), QPointF(81, 15))
+    bat.quadTo(QPointF(79, 12), QPointF(76, 13))
+    bat.quadTo(QPointF(77, 10), QPointF(74, 7))
+    bat.quadTo(QPointF(80, 6), QPointF(84, 12))
+    _fill(p, bat, col.lighter(125), ink)
 
 
 def _propeller(p, ink):
@@ -878,8 +934,10 @@ PIECES = {
     "onion": ("over", _onion),
     "party": ("over", _party),
     "propeller": ("over", _propeller),
+    "witch_hat": ("over", _witch_hat),
     "bow": ("over", _bow),
     "dizzy": ("over", _dizzy),
+    "santa": ("over", _santa),
     "sweater": ("face", _sweater),
     "shades": ("face", lambda p, ink: _lenses(p, ink, DARK)),
     "round_glasses": ("face", lambda p, ink: _lenses(p, ink, QColor(200, 230, 255, 60),

@@ -792,5 +792,9 @@
   "Step 4: drag a box round the part to watch, or pick All of it": "ขั้นตอนที่ 4: ลากกรอบรอบส่วนที่จะเฝ้าดู หรือเลือก \"ทั้งหมด\"",
   "Take it from the game": "ดึงจากเกม",
   "There's no picture copied. Click the game and press Alt+Print Screen first.": "ยังไม่มีรูปที่คัดลอกไว้ คลิกที่เกมแล้วกด Alt+Print Screen ก่อน",
-  "Cards (too narrow)": "การ์ด (แคบเกินไป)"
+  "Cards (too narrow)": "การ์ด (แคบเกินไป)",
+  "Limited edition": "รุ่นลิมิเต็ด",
+  "Limited edition: this one's yours to keep.": "รุ่นลิมิเต็ด: ธีมนี้เป็นของคุณตลอดไปแล้ว",
+  "Limited edition: use it by {date} and it's yours to keep. After that it's gone for good.": "รุ่นลิมิเต็ด: ใช้ก่อน {date} แล้วจะเป็นของคุณตลอดไป หลังจากนั้นจะหายไปถาวร",
+  "by {name}": "โดย {name}"
 }

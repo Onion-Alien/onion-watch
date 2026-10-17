@@ -14,8 +14,9 @@ import threading
 import time
 import webbrowser
 
-from PySide6.QtCore import QRectF, QSize, Qt, QTimer
-from PySide6.QtGui import QBrush, QColor, QFont, QImage, QPainter, QPainterPath, QPixmap
+from PySide6.QtCore import QDate, QLocale, QPointF, QRectF, QSize, Qt, QTimer
+from PySide6.QtGui import (QBrush, QColor, QFont, QFontMetricsF, QImage, QLinearGradient,
+                           QPainter, QPainterPath, QPen, QPixmap)
 from PySide6.QtWidgets import (QButtonGroup, QCheckBox, QColorDialog, QComboBox, QDialog,
                                QFrame, QGridLayout, QHBoxLayout, QLabel, QLayout,
                                QListWidget, QListWidgetItem, QPushButton, QRadioButton,
@@ -85,6 +86,67 @@ def wave_pose(t: float) -> dict | None:
             "blink": 1.0 if happy else 0.0, "beak": 0.4 if happy else 0.0}
 
 
+def limited_tip(name: str) -> str:
+    """A limited-edition theme card's tooltip: until when it can be had, or that it's
+    kept (as Onion Board's)."""
+    if name in theme.kept:
+        return _("Limited edition: this one's yours to keep.")
+    last = theme.LIMITED[name]
+    day = QLocale().toString(QDate(last.year, last.month, last.day), "d MMMM")
+    return _("Limited edition: use it by {date} and it's yours to keep. After that it's "
+             "gone for good.", date=day)
+
+
+def paint_limited_tag(p: QPainter, x: float, y: float, font: QFont, max_w: float) -> None:
+    """The "Limited edition" tag (as Onion Board's): a glowing pumpkin-to-purple ribbon
+    with a sparkle, its top-left corner at (x, y), no wider than `max_w`."""
+    text = _("Limited edition")
+    f = QFont(font)
+    f.setFamily(theme.FONT)
+    f.setBold(True)
+    f.setPointSizeF(6.8)
+    fm = QFontMetricsF(f)
+    star, pad, h = 9.0, 6.0, 16.0
+    text = fm.elidedText(text, Qt.TextElideMode.ElideRight, max_w - 2 * pad - star - 3)
+    w = min(max_w, 2 * pad + star + 3 + fm.horizontalAdvance(text))
+    tag = QRectF(x, y, w, h)
+    p.save()
+    p.setRenderHint(QPainter.RenderHint.Antialiasing)
+    p.setPen(Qt.PenStyle.NoPen)
+    for grow, alpha in ((3.0, 40), (1.5, 70)):   # its glow
+        p.setBrush(QColor(255, 117, 24, alpha))
+        p.drawRoundedRect(tag.adjusted(-grow, -grow, grow, grow), h / 2 + grow, h / 2 + grow)
+    fill = QLinearGradient(tag.topLeft(), tag.topRight())
+    fill.setColorAt(0, QColor("#ff7518"))
+    fill.setColorAt(0.55, QColor("#e0469a"))
+    fill.setColorAt(1, QColor("#8f3ff0"))
+    p.setBrush(fill)
+    p.setPen(QPen(QColor(255, 255, 255, 120), 1))
+    p.drawRoundedRect(tag, h / 2, h / 2)
+    shine = QLinearGradient(tag.topLeft(), tag.bottomLeft())   # glossy top half
+    shine.setColorAt(0, QColor(255, 255, 255, 90))
+    shine.setColorAt(0.5, QColor(255, 255, 255, 0))
+    p.setPen(Qt.PenStyle.NoPen)
+    p.setBrush(shine)
+    p.drawRoundedRect(tag.adjusted(1, 1, -1, -h / 2), h / 2 - 1, h / 2 - 1)
+    cx, cy, r = x + pad + star / 2, y + h / 2, star / 2   # a four-point sparkle
+    spark = QPainterPath(QPointF(cx, cy - r))
+    for px, py in ((cx + r * 0.28, cy - r * 0.28), (cx + r, cy), (cx + r * 0.28, cy + r * 0.28),
+                   (cx, cy + r), (cx - r * 0.28, cy + r * 0.28), (cx - r, cy),
+                   (cx - r * 0.28, cy - r * 0.28), (cx, cy - r)):
+        spark.lineTo(QPointF(px, py))
+    p.setBrush(QColor("#fff3b0"))
+    p.drawPath(spark)
+    p.setFont(f)
+    at = QRectF(x + pad + star + 3, y, w, h)
+    left = Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
+    p.setPen(QColor(0, 0, 0, 90))   # a soft drop shadow under the white text
+    p.drawText(at.translated(0, 1), left, text)
+    p.setPen(QColor("#ffffff"))
+    p.drawText(at, left, text)
+    p.restore()
+
+
 class ThemeCard(QPushButton):
     """A clickable mini-preview of a theme (the same as Onion Board's): its colours, and
     with Textured on, its pattern on the panels and its glow behind them. Hoot stands in
@@ -95,9 +157,12 @@ class ThemeCard(QPushButton):
         self.name = name
         self.setObjectName("themecard")
         self.setCheckable(True)
-        self.setFixedSize(QSize(150, 112))
+        self.setFixedSize(QSize(150, 112))   # (ThemeGrid widens it to fill its column)
         self.setCursor(Qt.PointingHandCursor)
         self.setAccessibleName(name)
+        if name in theme.LIMITED:
+            self.setToolTip(limited_tip(name))
+            self.setAccessibleDescription(_("Limited edition"))
         self._hello = None   # when Hoot started waving (time.monotonic), None: he isn't
         self._tick = QTimer(self)
         self._tick.setInterval(33)
@@ -136,13 +201,15 @@ class ThemeCard(QPushButton):
             if brush is not None:
                 p.setBrush(brush)
                 p.drawRoundedRect(QRectF(r.right() - 44, r.top() + 6, 38, r.height() - 12), 5, 5)
+        # two columns of cards across what the side panel leaves (a wider card: wider ones)
+        pw = max(40.0, (r.width() - 44 - 7 - 6 - 4) / 2)   # (40: the old fixed size)
         for i, col in enumerate(("#7c5cff", "#ff5c8a", "#1fb6ff", "#13ce66")):
-            x = r.left() + 7 + (i % 2) * 44
+            x = r.left() + 7 + (i % 2) * (pw + 4)
             y = r.top() + 7 + (i // 2) * 34
             for brush in (QColor(t["card"]), tile):
                 if brush is not None:
                     p.setBrush(brush)
-                    p.drawRoundedRect(QRectF(x, y, 40, 28), 5, 5)
+                    p.drawRoundedRect(QRectF(x, y, pw, 28), 5, 5)
             p.setBrush(QColor(col))
             p.drawRoundedRect(QRectF(x + 5, y + 5, 10, 3), 1.5, 1.5)
         # Hoot on the side panel, standing at its foot: the theme's look and outfit, so
@@ -164,6 +231,8 @@ class ThemeCard(QPushButton):
         p.setFont(f)
         p.drawText(QRectF(10, self.height() - 28, self.width() - 20, 22),
                    Qt.AlignLeft | Qt.AlignVCenter, self.name)
+        if self.name in theme.LIMITED:   # just inside the preview's top-left corner
+            paint_limited_tag(p, r.left() + 5, r.top() + 5, self.font(), r.width() - 10)
         p.end()
 
 
@@ -185,7 +254,14 @@ class ThemeGrid(QWidget):
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        self._reflow(max(1, min(len(self.cards), (self.width() + 12) // 162)))
+        # as many columns as fit, even past this group's cards, so every group's cards
+        # line up; they widen to share the width left over, with the same 12 px gap
+        # across as down (as Onion Board's)
+        columns = max(1, (self.width() + 12) // 162)
+        self._reflow(columns)
+        width = max(150, (self.width() - 12 * (columns - 1)) // columns)
+        for card in self.cards:
+            card.setFixedWidth(width)
 
     def _reflow(self, columns):
         if columns == self.columns:
@@ -375,14 +451,20 @@ class SettingsDialog(QDialog):
         return w
 
     def _appearance(self):
-        """Language on its own, then one box for the look with a row of tabs (the themes,
-        the highlight colour, the style), as in Onion Board's Settings."""
+        """Language on its own, then one box for the look with two tabs, as in Onion
+        Board's Settings: Themes (Textured or Plain on top, then the cards) and Colour."""
         w, v = self._page()
         v.addWidget(self._language_card())
         self.theme_cards: list[ThemeCard] = []
         themes, tv = self._card(_("Themes"))
         tv.setSpacing(6)
-        for group, names in theme.GROUPS:
+        style = self._texture_card()
+        style.setObjectName("lookpage")   # a part of the tab: flat, its title a heading
+        if (lay := style.layout()) is not None:
+            lay.setContentsMargins(0, 0, 0, 0)
+        tv.addWidget(style)
+        tv.addSpacing(14)
+        for group, names in theme.groups():
             head = QLabel(group_label(group))
             head.setObjectName("section")
             tv.addWidget(head)
@@ -395,9 +477,7 @@ class SettingsDialog(QDialog):
                 self.theme_cards.append(c)
             tv.addWidget(ThemeGrid(cards))
             tv.addSpacing(8)
-        pages = [(_("Themes"), themes),
-                 (_("Colour"), self._highlight_card()),
-                 (_("Theme style"), self._texture_card())]
+        pages = [(_("Themes"), themes), (_("Colour"), self._highlight_card())]
         v.addWidget(self._look_box(pages))
         v.addStretch(1)
         return w
@@ -652,6 +732,8 @@ class SettingsDialog(QDialog):
             self._sync_highlight()   # the theme's own colour, unless you picked one
         for c in self.theme_cards:
             c.setChecked(c.name == name)
+            if c.name in theme.LIMITED:   # picked in time: now it's theirs
+                c.setToolTip(limited_tip(c.name))
             c.update()
 
     def _updates(self):

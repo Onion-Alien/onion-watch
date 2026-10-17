@@ -792,5 +792,9 @@
   "Step 4: drag a box round the part to watch, or pick All of it": "ステップ 4: 見張る部分を枠で囲むか、「全体」を選ぶ",
   "Take it from the game": "ゲームから取り込む",
   "There's no picture copied. Click the game and press Alt+Print Screen first.": "画像がコピーされていません。先にゲームをクリックして Alt+Print Screen を押してください。",
-  "Cards (too narrow)": "カード (狭すぎます)"
+  "Cards (too narrow)": "カード (狭すぎます)",
+  "Limited edition": "限定版",
+  "Limited edition: this one's yours to keep.": "限定版：このテーマはずっとあなたのものです。",
+  "Limited edition: use it by {date} and it's yours to keep. After that it's gone for good.": "限定版：{date}までに使えばずっとあなたのもの。それを過ぎると二度と手に入りません。",
+  "by {name}": "{name}著"
 }

@@ -792,5 +792,9 @@
   "Step 4: drag a box round the part to watch, or pick All of it": "4단계: 지켜볼 부분 주위에 상자를 그리거나 \"전체\"를 고르세요",
   "Take it from the game": "게임에서 가져오기",
   "There's no picture copied. Click the game and press Alt+Print Screen first.": "복사된 그림이 없어요. 먼저 게임을 클릭하고 Alt+Print Screen을 누르세요.",
-  "Cards (too narrow)": "카드 (너무 좁음)"
+  "Cards (too narrow)": "카드 (너무 좁음)",
+  "Limited edition": "한정판",
+  "Limited edition: this one's yours to keep.": "한정판: 이제 영원히 내 거예요.",
+  "Limited edition: use it by {date} and it's yours to keep. After that it's gone for good.": "한정판: {date}까지 사용하면 영원히 내 거예요. 그 후에는 영영 사라져요.",
+  "by {name}": "작성자: {name}"
 }
