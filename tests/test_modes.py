@@ -248,6 +248,48 @@ def test_every_copy_picks_up_a_copy_started_later(ws):
         w.stop()
 
 
+def test_a_picture_up_again_after_its_window_reopens_goes_off_again(ws):
+    # a game closed with the picture up and started again showing it: that's a new
+    # picture, whether the window was gone for a while or is just a new one. A
+    # capture that only blinks (the same window stayed open) isn't
+    ws.open = {GAME1: showing(scene(1))}
+    fired = []
+    w = watcher(ws, fired)
+    w.set_items([Watched("t", [(banner(), None)], 0.8, 0.0, sources=[GAME1])])
+    init, grab, blinks, hwnd = ws.Grab.__init__, ws.Grab.grab, [], [1]
+
+    def opening(self, *a):
+        init(self, *a)
+        self.hwnd = hwnd[0]
+
+    def blinking(self):
+        if blinks:
+            blinks.pop()
+            raise sw.CaptureLost("blink")
+        return grab(self)
+
+    ws.Grab.__init__, ws.Grab.grab = opening, blinking
+    w.start()
+    try:
+        assert run_until(lambda: len(fired) == 1)
+        blinks.append(1)                                  # the same window, back at once
+        assert run_until(lambda: not blinks)
+        assert run_until(lambda: w.scores.get("t", 0) > 0.95)
+        time.sleep(0.1)
+        assert len(fired) == 1
+        shown = ws.open.pop(GAME1)                        # closed for a while
+        assert run_until(lambda: "isn't open" in w.failed.get(GAME1, ""))
+        ws.open[GAME1] = shown
+        assert run_until(lambda: len(fired) == 2)
+        hwnd[0] = 2                                       # a new window, back at once
+        blinks.append(1)
+        assert run_until(lambda: len(fired) == 3)
+        time.sleep(0.1)
+        assert len(fired) == 3
+    finally:
+        w.stop()
+
+
 def test_every_copy_waits_while_none_is_open(ws):
     fired = []
     w = watcher(ws, fired)

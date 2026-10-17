@@ -7,6 +7,10 @@ What changed between releases, for the release notes. Newest first.
 - **No more double sounds when a game's picture blinks dark:** if a window's capture
   came out black for a moment while a picture stayed up, its trigger went off again
   when the picture came back. It now plays once, however often the capture blinks.
+- **A game restarted with its picture up plays it again:** if a watched window closed
+  while a trigger's picture showed and came back showing it, the trigger stayed quiet
+  until the picture went away once. A window that closes and opens again now counts
+  as a fresh start (the cooldown still holds).
 
 ## 0.12.0 (2026-10-17)
 
