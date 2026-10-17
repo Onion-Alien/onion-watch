@@ -393,6 +393,24 @@ def test_watcher_says_when_it_only_sees_black(fake_screen):
         w.stop()
 
 
+def test_a_black_frame_mid_picture_doesnt_fire_it_again(fake_screen):
+    # one dark capture while the picture stays up (a window repainting, a capture
+    # that blinks) means "can't see", not "it's gone": it plays once
+    hit, dark = with_banner(scene()), np.zeros((H, W), np.float32)
+    fake_screen.frames = [hit, hit, dark, hit, hit, dark, dark, hit, hit]
+    fired = []
+    w = sw.Watcher(fired.append)
+    w.interval = 0.001
+    w.set_items([sw.Watched("t1", pics(banner()), 0.8, 0.0)])
+    w.start()
+    try:
+        assert run_until(lambda: len(fake_screen.frames) == 1)
+        time.sleep(0.05)
+    finally:
+        w.stop()
+    assert fired == ["t1"]
+
+
 def test_watcher_reports_a_capture_that_fails(monkeypatch):
     def broken(*_a):
         raise OSError("no screen")

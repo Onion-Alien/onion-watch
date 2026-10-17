@@ -2,6 +2,12 @@
 
 What changed between releases, for the release notes. Newest first.
 
+## Unreleased
+
+- **No more double sounds when a game's picture blinks dark:** if a window's capture
+  came out black for a moment while a picture stayed up, its trigger went off again
+  when the picture came back. It now plays once, however often the capture blinks.
+
 ## 0.12.0 (2026-10-17)
 
 - **Hoot on every theme card:** each theme in Settings > Appearance shows Hoot dressed
