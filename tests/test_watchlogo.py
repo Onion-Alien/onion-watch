@@ -122,3 +122,20 @@ def test_the_comic_bounce_starts_and_ends_still():
     k = [comic_bounce(i / 60) for i in range(60 * 8)]
     assert max(k) > 0.9 and min(k) < -0.3                 # a squash, a stretch past it
     assert max(abs(b - a) for a, b in zip(k, k[1:])) < 0.2
+
+
+def test_a_click_wobbles_it_like_the_board_logo(qapp, monkeypatch):
+    from PySide6.QtCore import QPointF
+    from PySide6.QtGui import QMouseEvent
+    host, logo = make(qapp, monkeypatch)
+    mid = QPointF(logo.width() / 2, logo.height() / 2)
+    press = QMouseEvent(QMouseEvent.Type.MouseButtonPress, mid, logo.mapToGlobal(mid),
+                        Qt.MouseButton.LeftButton, Qt.MouseButton.LeftButton,
+                        Qt.KeyboardModifier.NoModifier)
+    logo.mousePressEvent(press)
+    assert logo.squish == 1.0
+    logo.grab()                         # paints mid-wobble without trouble
+    for _ in range(10):
+        logo.step(0.05)
+    assert logo.squish == 0.0           # and it settles by itself, in a quarter second
+    host.close()
