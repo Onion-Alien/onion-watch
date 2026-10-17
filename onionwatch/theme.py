@@ -7,6 +7,7 @@ the hand-painted widgets (pads, meters, EQ curve, logo) read the same tokens thr
 from __future__ import annotations
 
 import tempfile
+from contextlib import contextmanager
 from pathlib import Path
 from string import Template
 
@@ -98,6 +99,21 @@ def set_current(name: str) -> str:
     T.update(tokens(name))
     current_name = name
     return name
+
+
+@contextmanager
+def previewing(name: str):
+    """Theme `name` in `T` for the block, then the current one back: paints something
+    (Hoot on a theme card) in a theme that isn't the current one (as Onion Board's)."""
+    global current_name
+    was, colours = current_name, dict(T)
+    set_current(name)
+    try:
+        yield
+    finally:
+        current_name = was
+        T.clear()
+        T.update(colours)
 
 
 def use_palette(colours: dict[str, str]) -> None:

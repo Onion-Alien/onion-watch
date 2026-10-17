@@ -141,3 +141,47 @@ def test_a_theme_switch_covers_every_window_and_fades(win, dlg):
         QApplication.processEvents()
         QApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
     assert not win.findChildren(kit.Cover) and not dlg.findChildren(kit.Cover)
+
+
+def test_every_theme_card_shows_hoot_dressed_for_it(qapp):
+    """Each card's Hoot wears that theme's look and outfit; Onion Watch's own Hoot theme
+    and Dark show plain teal Hoot. Drawing a card leaves the current theme alone."""
+    from onionwatch.style import bunnyfit, owl
+    from onionwatch.ui import settingsdialog as sd
+    plain = sd._hoot("Hoot", 1.0).toImage()
+    assert sd._hoot("Dark", 1.0).toImage() == plain
+    for name in theme.THEMES:
+        if name in owl.LOOKS or bunnyfit.outfit(name):
+            assert sd._hoot(name, 1.0).toImage() != plain, name
+    was = dict(theme.T), theme.current_name
+    card = sd.ThemeCard("Royal")
+    card.grab()
+    assert (dict(theme.T), theme.current_name) == was
+
+
+def test_hoot_waves_hello_when_the_mouse_comes_onto_a_card(qapp, monkeypatch):
+    from PySide6.QtCore import QPointF
+    from PySide6.QtGui import QEnterEvent
+
+    from onionwatch.ui import settingsdialog as sd
+
+    def enter():
+        return QEnterEvent(QPointF(5, 5), QPointF(5, 5), QPointF(5, 5))
+    assert sd.wave_pose(-0.1) is None and sd.wave_pose(sd.WAVE_S) is None
+    assert sd.wave_pose(0.5)["blink"] == 1.0                 # a happy face mid-wave
+    waves = {round(sd.wave_pose(t)["wave"], 2) for t in (0.3, 0.5, 0.7, 0.9)}
+    assert len(waves) > 2                                    # the wing swings
+    now = [100.0]
+    monkeypatch.setattr(sd.time, "monotonic", lambda: now[0])
+    card = sd.ThemeCard("Royal")
+    still = card.grab().toImage()
+    card.enterEvent(enter())
+    assert card._tick.isActive()
+    now[0] += 0.6
+    assert card.grab().toImage() != still                    # waving
+    card.enterEvent(enter())               # no restart mid-wave
+    assert card._hello == 100.0
+    now[0] += sd.WAVE_S
+    card._step()
+    assert card._hello is None and not card._tick.isActive()
+    assert card.grab().toImage() == still                    # back to standing

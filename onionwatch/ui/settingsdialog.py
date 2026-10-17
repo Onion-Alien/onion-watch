@@ -8,12 +8,14 @@ Every change applies straight away, but a new language only shows once Onion Wat
 restarts (Restart now)."""
 from __future__ import annotations
 
+import math
 import os
 import threading
+import time
 import webbrowser
 
 from PySide6.QtCore import QRectF, QSize, Qt, QTimer
-from PySide6.QtGui import QBrush, QColor, QFont, QPainter, QPainterPath, QPixmap
+from PySide6.QtGui import QBrush, QColor, QFont, QImage, QPainter, QPainterPath, QPixmap
 from PySide6.QtWidgets import (QButtonGroup, QCheckBox, QColorDialog, QComboBox, QDialog,
                                QFrame, QGridLayout, QHBoxLayout, QLabel, QLayout,
                                QListWidget, QListWidgetItem, QPushButton, QRadioButton,
@@ -21,6 +23,7 @@ from PySide6.QtWidgets import (QButtonGroup, QCheckBox, QColorDialog, QComboBox,
 
 from onionwatch import __version__, feedback, i18n, theme
 from onionwatch.sounds import DEFAULT_SOUND
+from onionwatch.style import owl
 from onionwatch.ui import fit, icons
 from onionwatch.ui.panel import hint_label
 from onionwatch.wheelguard import no_wheel
@@ -45,9 +48,47 @@ def _tile(name: str) -> QBrush | None:
     return _tiles[name]
 
 
+_hoots: dict[tuple[str, float], QPixmap] = {}
+HOOT_H = 58     # Hoot's height on a theme card
+HOOT_ROOM = 10  # room above him: a tall hat reaches past his canvas
+
+
+def _hoot(name: str, dpr: float) -> QPixmap:
+    """Hoot as he looks in theme `name` (its look and outfit), for its card, HOOT_ROOM
+    taller than him so nothing on top of his head is cut off."""
+    key = (name, dpr)
+    if key not in _hoots:
+        w, room, h = HOOT_H * owl.W / owl.H * dpr, HOOT_ROOM * dpr, HOOT_H * dpr
+        img = QImage(math.ceil(w), math.ceil(room + h), QImage.Format.Format_ARGB32_Premultiplied)
+        img.fill(Qt.GlobalColor.transparent)
+        p = QPainter(img)
+        with theme.previewing(name):
+            owl.draw_owl(p, QRectF(0, room, w, h))
+        p.end()
+        img.setDevicePixelRatio(dpr)
+        _hoots[key] = QPixmap.fromImage(img)
+    return _hoots[key]
+
+
+WAVE_S = 1.7   # his hello when the mouse comes onto a card, seconds
+
+
+def wave_pose(t: float) -> dict | None:
+    """Hoot's hello `t` seconds after the mouse came onto his card (None: done): a little
+    hop, then three waves of his wing with a happy face (Bun's on Onion Board's cards)."""
+    if not 0 <= t < WAVE_S:
+        return None
+    k = min(1.0, t / 0.2, (WAVE_S - t) / 0.2)   # (the wing swings in and out softly)
+    happy = 0.35 <= t < 1.3
+    return {"hop": 3.5 * math.sin(math.pi * t / 0.3) if t < 0.3 else 0.0,
+            "wave": k * math.sin(2 * math.pi * 1.9 * (t - 0.15)),
+            "blink": 1.0 if happy else 0.0, "beak": 0.4 if happy else 0.0}
+
+
 class ThemeCard(QPushButton):
     """A clickable mini-preview of a theme (the same as Onion Board's): its colours, and
-    with Textured on, its pattern on the panels and its glow behind them."""
+    with Textured on, its pattern on the panels and its glow behind them. Hoot stands in
+    its corner dressed for the theme, and waves when the mouse comes onto it."""
 
     def __init__(self, name: str):
         super().__init__()
@@ -57,6 +98,22 @@ class ThemeCard(QPushButton):
         self.setFixedSize(QSize(150, 112))
         self.setCursor(Qt.PointingHandCursor)
         self.setAccessibleName(name)
+        self._hello = None   # when Hoot started waving (time.monotonic), None: he isn't
+        self._tick = QTimer(self)
+        self._tick.setInterval(33)
+        self._tick.timeout.connect(self._step)
+
+    def enterEvent(self, e):
+        super().enterEvent(e)
+        if self._hello is None:   # (once per visit: no restart)
+            self._hello = time.monotonic()
+            self._tick.start()
+
+    def _step(self):
+        if self._hello is not None and wave_pose(time.monotonic() - self._hello) is None:
+            self._hello = None
+            self._tick.stop()
+        self.update()
 
     def paintEvent(self, e):
         super().paintEvent(e)   # frame + checked border from the stylesheet
@@ -73,7 +130,7 @@ class ThemeCard(QPushButton):
             p.setClipPath(win)
             theme.paint_window_bg(p, r, r.topLeft(), r.width(), r.height(), tk=t)
             p.restore()
-        # side panel, cards and a slider, in the theme's own colours
+        # side panel and cards, in the theme's own colours
         p.setPen(Qt.NoPen)
         for brush in (QColor(t["panel"]), tile):
             if brush is not None:
@@ -88,12 +145,17 @@ class ThemeCard(QPushButton):
                     p.drawRoundedRect(QRectF(x, y, 40, 28), 5, 5)
             p.setBrush(QColor(col))
             p.drawRoundedRect(QRectF(x + 5, y + 5, 10, 3), 1.5, 1.5)
-        p.setBrush(QColor(t["groove"]))
-        p.drawRoundedRect(QRectF(r.right() - 39, r.top() + 20, 28, 3), 1.5, 1.5)
-        p.setBrush(QColor(t["accent"]))
-        p.drawRoundedRect(QRectF(r.right() - 39, r.top() + 20, 17, 3), 1.5, 1.5)
-        theme.paint_logo(p, QRectF(r.right() - 36, r.bottom() - 30, 22, 22),
-                         t["accent"], t["accent2"])
+        # Hoot on the side panel, standing at its foot: the theme's look and outfit, so
+        # you can see who you'd get
+        hoot = _hoot(self.name, self.devicePixelRatioF() or 1.0)
+        hw, hh = hoot.width() / hoot.devicePixelRatio(), hoot.height() / hoot.devicePixelRatio()
+        spot = QRectF(r.right() - 3 - hw, r.bottom() - 1 - HOOT_H, hw, HOOT_H)
+        pose = wave_pose(time.monotonic() - self._hello) if self._hello is not None else None
+        if pose is None:
+            p.drawPixmap(QRectF(spot.left(), spot.bottom() - hh, hw, hh), hoot, QRectF(hoot.rect()))
+        else:   # saying hello: drawn live in his theme
+            with theme.previewing(self.name):
+                owl.draw_owl(p, spot.translated(0, -pose.pop("hop")), **pose)
         # name, in the theme's own font
         p.setPen(QColor(theme.T["text"]))
         f = QFont(self.font())
