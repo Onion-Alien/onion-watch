@@ -33,6 +33,7 @@ EASE_RATE = 3.0        # how fast its strength, the eye's look and the laser's g
 CUT_S = 0.3            # a flourish cut short (watching stopped) fades out this long
 SHEEN_PERIOD = 4.5     # seconds between sheens across the logo (as Onion Board's logo)
 SHEEN_TIME = 0.9       # ...and how long one takes
+SQUISH_RATE = 4.0      # a click's wobble eases out this fast (1/s), as Onion Board's logo
 
 # Which flourish each theme plays. Every theme is named (tests/test_watchlogo.py);
 # one that isn't (a board's newer theme) gets "shine".
@@ -95,6 +96,7 @@ class WatchLogo(QWidget):
         self._look_k = 0.0        # 0..1, how much the eye looks around (eased)
         self._hot = 0.0           # 0..1, the laser eye's glow while it watches (eased)
         self._cut = -1.0          # seconds into a cut flourish's fade, or -1
+        self.squish = 0.0         # a click's wobble, 1 just clicked, easing to 0
 
     def intensity(self) -> float:
         """How strong the idle animation is: full while it watches, calmer while not
@@ -157,6 +159,17 @@ class WatchLogo(QWidget):
         return QPointF(r.center().x() + self.look() * r.width(),
                        r.top() + r.height() * EYE_Y)
 
+    def mousePressEvent(self, ev):
+        if ev.button() == Qt.MouseButton.LeftButton:
+            self.poke()
+        super().mousePressEvent(ev)
+
+    def poke(self):
+        """A click: the same little wobble as Onion Board's logo."""
+        self.squish = 1.0
+        self._resume()
+        self.update()
+
     # ------------------------------------------------------------------ time
     def showEvent(self, ev):
         if appstate.active():
@@ -187,6 +200,7 @@ class WatchLogo(QWidget):
     def step(self, dt: float):
         """Move the animation on by `dt` seconds (the tests call this directly)."""
         self._idle += dt
+        self.squish = max(0.0, self.squish - dt * SQUISH_RATE)
         e = min(1.0, dt * EASE_RATE)
         self._on += ((1.0 if self.watching else IDLE_CALM) - self._on) * e
         self._hot += (float(self.watching) - self._hot) * e
@@ -216,6 +230,12 @@ class WatchLogo(QWidget):
         r = self.logo_rect()
         b = self._burst
         style, t, on = self.style_name, self._idle, self.intensity()
+        if self.squish > 0:   # a click's wobble, from the bottom of the tile
+            k = self.squish * math.cos((1 - self.squish) * 14)
+            base = QPointF(r.center().x(), r.bottom())
+            p.translate(base)
+            p.scale(1 + 0.08 * k, 1 - 0.1 * k)
+            p.translate(-base)
         if b >= 0 and style == "confetti":   # a quick shake as it goes
             k = 1 - b / BURST_S
             p.translate(math.sin(b * 70) * 2.2 * k * k, math.cos(b * 53) * 1.4 * k * k)
