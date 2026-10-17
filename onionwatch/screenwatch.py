@@ -3937,8 +3937,10 @@ class Watcher:
             gate = it.gate_for(cap.source)
             if black:
                 scores[it.id] = 0.0
+                # can't see, not gone: a picture still up when the frames come
+                # back mustn't fire again (a hold starts over, though)
                 if it.mode == "appear":
-                    gate.step(False, now, it.cooldown)
+                    gate.step(None, now, it.cooldown)
                 continue
             score, box = judged[it.id]
             scores[it.id] = 0.0 if score is None else score
