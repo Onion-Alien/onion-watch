@@ -2,6 +2,15 @@
 
 What changed between releases, for the release notes. Newest first.
 
+## 0.12.0 (2026-10-17)
+
+- **Hoot on every theme card:** each theme in Settings > Appearance shows Hoot dressed
+  for that theme, waving hello.
+- **Smoother all round:** switching themes fades over instead of flashing half-styled
+  for a moment; the start-up hop, the logo and the live score bars move smoothly
+  instead of jumping.
+- A click on the logo gives it a little wobble, like Onion Board's.
+
 ## 0.11.4 (2026-10-16)
 
 - **Fewer wrong sounds after alt-tabbing out of a fullscreen game:** Windows can
