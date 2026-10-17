@@ -2,7 +2,7 @@
 
 What changed between releases, for the release notes. Newest first.
 
-## Unreleased
+## 0.13.0 (2026-10-18)
 
 - **Limited-edition Halloween theme:** pumpkin orange and witch purple with cobwebs,
   Hoot in a witch's hat, and the logo carved into a jack-o'-lantern whose eye still
@@ -10,7 +10,7 @@ What changed between releases, for the release notes. Newest first.
   31 October and it's yours to keep; after that it's gone.
 - **Settings > Appearance:** Textured or Plain now sits on the Themes tab, and the theme
   cards widen to fill each row with even gaps.
-- **The version under the name:** the header now says "by Onion Alien · v0.12.0" (the
+- **The version under the name:** the header now says "by Onion Alien · v0.13.0" (the
   version you have), as Onion Board's does.
 - **No more double sounds when a game's picture blinks dark:** if a window's capture
   came out black for a moment while a picture stayed up, its trigger went off again
