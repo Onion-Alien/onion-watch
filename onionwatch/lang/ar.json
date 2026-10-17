@@ -852,5 +852,9 @@
   "Step 4: drag a box round the part to watch, or pick All of it": "الخطوة 4: ارسم مربعًا حول الجزء المراد مراقبته، أو اختر «كلها»",
   "Take it from the game": "خذها من اللعبة",
   "There's no picture copied. Click the game and press Alt+Print Screen first.": "لا توجد صورة منسوخة. انقر على اللعبة واضغط Alt+Print Screen أولًا.",
-  "Cards (too narrow)": "بطاقات (ضيقة جدًا)"
+  "Cards (too narrow)": "بطاقات (ضيقة جدًا)",
+  "Limited edition": "إصدار محدود",
+  "Limited edition: this one's yours to keep.": "إصدار محدود: هذا لك للأبد.",
+  "Limited edition: use it by {date} and it's yours to keep. After that it's gone for good.": "إصدار محدود: استخدمه قبل {date} ويصبح لك للأبد. بعد ذلك يختفي نهائيًا.",
+  "by {name}": "بواسطة {name}"
 }

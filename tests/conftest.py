@@ -109,6 +109,16 @@ def pytest_xdist_auto_num_workers(config):
 
 
 @pytest.fixture(autouse=True)
+def _limited_themes_on_offer(monkeypatch):
+    """Today is pinned inside every limited-edition theme's offer, so the tests that
+    go through every theme still find them once the real offer has ended."""
+    from onionwatch import theme
+    if theme.LIMITED:
+        day = min(theme.LIMITED.values())
+        monkeypatch.setattr(theme, "_today", lambda: day)
+
+
+@pytest.fixture(autouse=True)
 def _free_test_windows():
     """Close and free the windows a test leaves behind. Qt keeps a closed top-level
     window alive, and every stylesheet change restyles all of them: with hundreds

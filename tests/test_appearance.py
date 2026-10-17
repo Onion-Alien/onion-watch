@@ -1,6 +1,6 @@
 """Settings → Appearance, laid out like Onion Board's: Language, then one box with tabs
-(Themes, Colour, Theme style). The highlight colour and Textured / Plain apply at once,
-are saved, and are back on the next start."""
+(Themes with Textured / Plain on top, Colour). The highlight colour and Textured /
+Plain apply at once, are saved, and are back on the next start."""
 import pytest
 from PySide6.QtWidgets import QApplication
 
@@ -29,10 +29,11 @@ def dlg(win):
 
 
 def test_the_look_box_has_onion_boards_tabs(dlg):
-    assert [b.text() for b in dlg.look_tabs] == ["Themes", "Colour", "Theme style"]
+    assert [b.text() for b in dlg.look_tabs] == ["Themes", "Colour"]
     assert dlg.look_shown == 0
-    dlg.look_tabs[2].click()
-    assert dlg.look_shown == 2 and dlg.look_pages[2].isVisibleTo(dlg)
+    assert dlg.look_pages[0].isAncestorOf(dlg.texture_on)   # Textured / Plain: on Themes
+    dlg.look_tabs[1].click()
+    assert dlg.look_shown == 1 and dlg.look_pages[1].isVisibleTo(dlg)
     assert not dlg.look_pages[0].isVisibleTo(dlg)
     assert len(dlg.theme_cards) == len(theme.THEMES)
 

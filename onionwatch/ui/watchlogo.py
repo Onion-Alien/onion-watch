@@ -43,7 +43,7 @@ STYLES: dict[str, tuple[str, ...]] = {
     "neon": ("Synthwave", "Vaporwave"),
     "petals": ("Cherry Blossom", "Barbie", "Lilac", "Mint"),
     "sonar": ("Ocean", "Arctic", "Slate"),
-    "embers": ("Lava", "Sunset", "Mocha"),
+    "embers": ("Lava", "Sunset", "Mocha", "Halloween"),
     "fireflies": ("Forest", "Swamp", "Onion"),
     "pixels": ("Retro 98", "High Contrast"),
     "comic": ("Comic Sans", "Paper"),

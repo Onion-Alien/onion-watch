@@ -792,5 +792,9 @@
   "Step 4: drag a box round the part to watch, or pick All of it": "Bước 4: kéo một khung quanh phần cần theo dõi, hoặc chọn \"Toàn bộ\"",
   "Take it from the game": "Lấy từ trò chơi",
   "There's no picture copied. Click the game and press Alt+Print Screen first.": "Chưa có ảnh nào được chép. Bấm vào trò chơi và nhấn Alt+Print Screen trước.",
-  "Cards (too narrow)": "Thẻ (quá hẹp)"
+  "Cards (too narrow)": "Thẻ (quá hẹp)",
+  "Limited edition": "Phiên bản giới hạn",
+  "Limited edition: this one's yours to keep.": "Phiên bản giới hạn: cái này là của bạn mãi mãi.",
+  "Limited edition: use it by {date} and it's yours to keep. After that it's gone for good.": "Phiên bản giới hạn: dùng trước {date} là của bạn mãi mãi. Sau đó nó biến mất vĩnh viễn.",
+  "by {name}": "bởi {name}"
 }

@@ -6,6 +6,7 @@ the hand-painted widgets (pads, meters, EQ curve, logo) read the same tokens thr
 """
 from __future__ import annotations
 
+import datetime
 import tempfile
 from contextlib import contextmanager
 from pathlib import Path
@@ -13,7 +14,7 @@ from string import Template
 
 from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import (QColor, QIcon, QImage, QLinearGradient, QPainter, QPainterPath,
-                           QPen, QPixmap, QTransform)
+                           QPen, QPixmap, QRadialGradient, QTransform)
 
 from onionwatch.i18n import _
 from onionwatch.style import hooks
@@ -21,8 +22,8 @@ from onionwatch.style import hooks
 # an exact copy made by scripts/sync_style.py: never edit it here), so both apps look the
 # same in every theme.
 from onionwatch.style import palettes, textures
-from onionwatch.style.palettes import (_DARK_STATUS, DEFAULT, FONT, LIVE_NAMES,  # noqa: F401
-                                       TEXT_ON,
+from onionwatch.style.palettes import (_DARK_STATUS, DEFAULT, FONT, LIMITED,  # noqa: F401
+                                       LIVE_NAMES, TEXT_ON,
                                        _contrast, _mix, finish, is_light_colour, mix)
 from onionwatch.style.textures import TEXTURE_TILE, TEXTURES, texture_image  # noqa: F401
 
@@ -38,15 +39,50 @@ HOOT = finish(dict(   # Dark's greys with Hoot's teal and the logo's gold eye
     ))
 THEMES: dict[str, dict[str, str]] = {"Hoot": HOOT, **palettes.THEMES}
 APP_DEFAULT = "Hoot"   # what the Onion Watch app starts in (DEFAULT, Dark, is the fallback)
-# How the Settings window groups the theme cards: Onion Board's groups, Hoot first
+# How the Settings window groups the theme cards: Onion Board's groups, Hoot first after
+# the limited editions Board puts at the front (Halloween)
 GROUPS: list[tuple[str, list[str]]] = [
-    (group, (["Hoot"] if group == "Classic" else []) + names)
+    (group, ([n for n in names if n in LIMITED] + ["Hoot"]
+             + [n for n in names if n not in LIMITED]) if group == "Classic" else names)
     for group, names in palettes.GROUPS]
 
 
 def font_families() -> list[str]:
     """Every font a theme uses."""
     return sorted({FONT, *(t["font"] for t in THEMES.values() if t.get("font"))})
+
+
+kept: set[str] = set()   # limited-edition themes this user picked in time (Config.kept_themes)
+
+
+def _today() -> datetime.date:
+    return datetime.date.today()   # (the tests pin it inside every offer)
+
+
+def on_offer(name: str, today: datetime.date | None = None) -> bool:
+    """Whether limited-edition theme `name` can still be picked by anyone (False for an
+    everyday theme: it has no offer to end). As Onion Board's."""
+    return name in LIMITED and (today or _today()) <= LIMITED[name]
+
+
+def offered(name: str, today: datetime.date | None = None) -> bool:
+    """Whether theme `name` is in this user's list: every everyday theme, and a limited
+    one while it's on offer or once they've kept it."""
+    return name in THEMES and (name not in LIMITED or name in kept or on_offer(name, today))
+
+
+def keep(name: str, today: datetime.date | None = None) -> bool:
+    """Theme `name` was used: a limited one still on offer is the user's for good.
+    True when that's new (the caller saves `kept`)."""
+    if name in kept or not on_offer(name, today):
+        return False
+    kept.add(name)
+    return True
+
+
+def groups(today: datetime.date | None = None) -> list[tuple[str, list[str]]]:
+    """GROUPS as this user's Settings shows them: limited themes gone once missed."""
+    return [(g, [n for n in names if offered(n, today)]) for g, names in GROUPS]
 
 
 T: dict[str, str] = dict(THEMES[DEFAULT])   # current theme (read at paint time)
@@ -94,7 +130,7 @@ def set_tone(label, kind: str = "") -> None:
 
 def set_current(name: str) -> str:
     global current_name
-    name = name if name in THEMES else DEFAULT
+    name = name if offered(name) else DEFAULT
     T.clear()
     T.update(tokens(name))
     current_name = name
@@ -991,14 +1027,99 @@ def apply_live(app, colour: str) -> str:
 
 # --------------------------------------------------------------------------- logo
 
+# a theme with logo="lantern" (Halloween) carves the onion into a jack-o'-lantern, as
+# Onion Board's does. Picked by its accent pair, so every cache keyed by the two colours
+# stays right.
+_LANTERN = {(t["accent"].lower(), t["accent2"].lower()) for t in THEMES.values()
+            if t.get("logo") == "lantern"}
+
+
+def _paint_lantern(p: QPainter, x0: float, y0: float, s: float, awake: bool, look: float):
+    """The mark as a jack-o'-lantern: the onion's shape on a night-sky tile, pumpkin
+    orange with darker ribs, its one eye carved out and glowing (a cat's slit for a
+    pupil, still looking around), or a glowing closed lid while nothing is watched."""
+    body = QPainterPath()
+    body.addRoundedRect(QRectF(x0 + s * 0.04, y0 + s * 0.04, s * 0.92, s * 0.92),
+                        s * 0.26, s * 0.26)
+    sky = QLinearGradient(QPointF(x0, y0), QPointF(x0 + s, y0 + s))
+    sky.setColorAt(0.0, QColor("#3b2152"))
+    sky.setColorAt(1.0, QColor("#120a18"))
+    p.fillPath(body, sky)
+    cx = x0 + s * 0.5
+
+    def pt(dx, dy):
+        return QPointF(cx + dx * s, y0 + dy * s)
+
+    def bulb(w):
+        path = QPainterPath(pt(0, 0.27))
+        path.cubicTo(pt(w * 0.25, 0.36), pt(w, 0.42), pt(w, 0.59))
+        path.cubicTo(pt(w, 0.74), pt(w * 0.55, 0.81), pt(0, 0.81))
+        path.cubicTo(pt(-w * 0.55, 0.81), pt(-w, 0.74), pt(-w, 0.59))
+        path.cubicTo(pt(-w, 0.42), pt(-w * 0.25, 0.36), pt(0, 0.27))
+        return path
+
+    halo = QRadialGradient(pt(0, 0.6), s * 0.45)   # the candle's light on the night
+    halo.setColorAt(0.0, QColor(255, 140, 40, 110))
+    halo.setColorAt(1.0, QColor(255, 140, 40, 0))
+    p.fillPath(body, halo)
+    stem = QPen(QColor("#6cc04a"), max(1.2, s * 0.055))
+    stem.setCapStyle(Qt.PenCapStyle.RoundCap)
+    p.setPen(stem)
+    p.setBrush(Qt.BrushStyle.NoBrush)
+    leaf = QPainterPath(pt(0, 0.29))
+    leaf.cubicTo(pt(0, 0.20), pt(-0.04, 0.15), pt(-0.12, 0.12))
+    leaf.moveTo(pt(0, 0.27))
+    leaf.cubicTo(pt(0.01, 0.19), pt(0.05, 0.14), pt(0.10, 0.10))
+    p.drawPath(leaf)
+    skin = QRadialGradient(pt(-0.06, 0.52), s * 0.36)
+    skin.setColorAt(0.0, QColor("#ffb347"))
+    skin.setColorAt(0.6, QColor("#ff7518"))
+    skin.setColorAt(1.0, QColor("#c2440a"))
+    p.setPen(Qt.PenStyle.NoPen)
+    p.fillPath(bulb(0.31), skin)
+    if s >= 20:   # ribs: the onion's layers
+        p.setPen(QPen(QColor(150, 50, 0, 150), max(1.0, s * 0.026)))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawPath(bulb(0.235))
+    ey = 0.60
+    glow = QRadialGradient(pt(look, ey), s * 0.16)   # candlelight through the carving
+    glow.setColorAt(0.0, QColor("#fff6a8"))
+    glow.setColorAt(1.0, QColor("#ffb020"))
+    if awake:
+        r = s * 0.155
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(glow)
+        p.drawEllipse(pt(look, ey), r, r)
+        px = look * 1.25   # a cat's slit pupil
+        slit = QPainterPath(pt(px, ey - 0.12))
+        slit.quadTo(pt(px + 0.05, ey), pt(px, ey + 0.12))
+        slit.quadTo(pt(px - 0.05, ey), pt(px, ey - 0.12))
+        p.fillPath(slit, QColor("#3a1206"))
+    else:   # asleep: the lid, carved and glowing
+        lp = QPen(QColor("#ffd23d"), max(1.4, s * 0.055))
+        lp.setCapStyle(Qt.PenCapStyle.RoundCap)
+        p.setPen(lp)
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        lid = QPainterPath(pt(-0.15, ey - 0.03))
+        lid.quadTo(pt(0, ey + 0.09), pt(0.15, ey - 0.03))
+        p.drawPath(lid)
+
+
 def paint_logo(p: QPainter, rect: QRectF, c1: str, c2: str, awake: bool = True,
                look: float = 0.0):
     """The Onion Watch mark: Onion Alien's onion (the family look it shares with Onion
     Board) in Hoot's teal, with one big gold eye in the bulb. `awake=False` closes the
     eye: the tray shows that while nothing is being watched. `look`: the eye moved that
-    far sideways, in icon widths (ui.watchlogo: looking around while it watches)."""
+    far sideways, in icon widths (ui.watchlogo: looking around while it watches).
+    (Halloween's colours carve it into a jack-o'-lantern: _LANTERN.)"""
     s = rect.width()
     x0, y0 = rect.left(), rect.top()
+    if (c1.lower(), c2.lower()) in _LANTERN:
+        p.save()
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        _paint_lantern(p, x0, y0, s, awake, look)
+        p.restore()
+        return
     p.save()
     p.setRenderHint(QPainter.Antialiasing)
     # body

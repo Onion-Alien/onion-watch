@@ -37,6 +37,8 @@ def _keep_aside(path: Path):
 @dataclass
 class Config:
     theme: str = "Hoot"
+    # limited-edition themes picked while on offer: theirs for good (theme.kept)
+    kept_themes: list = field(default_factory=list)
     # Settings → Look, as in Onion Board: your own colour for what's switched on (""
     # = each theme's), and each theme's own pattern on the panels (Textured) or flat
     live_color: str = ""

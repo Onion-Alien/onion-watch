@@ -54,7 +54,10 @@ class MainWindow(QMainWindow):
         self._saver.timeout.connect(self.save_now)
         app = QApplication.instance()
         theme.textures_on = self.cfg.theme_texture
+        kept = self.cfg.kept_themes if isinstance(self.cfg.kept_themes, list) else []
+        theme.kept = {n for n in kept if isinstance(n, str)}   # (a hand-edited file)
         self.cfg.theme = theme.apply(app, self.cfg.theme, self.cfg.live_color)
+        self.keep_limited()
         self.cfg.live_color = theme.live_override   # (a damaged one is dropped)
         self.setWindowTitle("Onion Watch")
         self._awake = False   # watching: the tray icon's eye is open
@@ -80,8 +83,10 @@ class MainWindow(QMainWindow):
         names.setSpacing(0)
         self.wordmark = QLabel("ONION WATCH")
         self.wordmark.setObjectName("wordmark")
-        self.tagline = QLabel(_("an app by Onion Alien"))
+        # as Onion Board's: the maker and the version under the name
+        self.tagline = QLabel(f"{_('by {name}', name='Onion Alien')} · v{__version__}")
         self.tagline.setObjectName("tagline")
+        self.tagline.setToolTip(_("an app by Onion Alien"))
         names.addWidget(self.wordmark)
         names.addWidget(self.tagline)
         head.addLayout(names)
@@ -222,7 +227,14 @@ class MainWindow(QMainWindow):
             self.cfg.theme = theme.apply(QApplication.instance(), name)
             icons.retheme()
             self.paint_logo()
+        self.keep_limited()
         self.save_later()
+
+    def keep_limited(self):
+        """The theme in use is a limited edition still on offer: theirs to keep."""
+        if theme.keep(self.cfg.theme):
+            self.cfg.kept_themes = sorted(theme.kept)
+            self.save_later()
 
     def set_live_color(self, colour: str) -> bool:
         """Your own highlight colour ("" = each theme's): only what's drawn in it is
