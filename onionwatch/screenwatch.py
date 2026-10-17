@@ -3294,6 +3294,8 @@ class _Capture:
         self.reopen_since = 0.0     # > 0: the capture was lost (or never opened); trying again
         self.next_try = 0.0         # ...not before this time
         self.opened = False         # it has captured at some point
+        self.gone = False           # a window that wasn't open on a try since it was lost
+        self.was_hwnd = None        # ...or the window it had before then (a new one = reopened)
         self.failing = False        # grabs keep failing (said once in the log)
         self.error = ""             # why the last open failed
         self.black = False
@@ -3726,6 +3728,8 @@ class Watcher:
             if not cap.reopen_since:
                 cap.reopen_since = now
             if cap.is_window:
+                from onionwatch.windows import WindowGone
+                cap.gone = cap.gone or isinstance(e, WindowGone)
                 cap.next_try = now + WINDOW_RETRY_S
                 return False
             slow = now - cap.reopen_since > GIVE_UP_S
@@ -3735,6 +3739,19 @@ class Watcher:
             cap.next_try = now + (GIVE_UP_S if slow else RETRY_S)
             return False
         cap.reopen_since, cap.error = 0.0, ""
+        was, cap.was_hwnd = cap.was_hwnd, None
+        hwnd = getattr(cap.grab, "hwnd", None)
+        if cap.gone or (was is not None and hwnd is not None and hwnd != was):
+            # the window was closed and is open again (a game restarted: it wasn't
+            # there for a while, or it's a new window however fast it came back).
+            # A picture it shows now is a new one, so "appear" triggers that went
+            # off before it closed may go off again (the cooldown still holds). A
+            # capture that only blinked keeps its triggers as they were
+            cap.gone = False
+            for it in items:
+                g = it.gates.get(cap.source)
+                if g is not None and g.mode == "appear":
+                    g.armed, g.since = True, None
         cap.opened, cap.lost = True, False
         cap.next_dup, cap.misses = now + DUP_RETRY_S, 0
         cap.fitted, cap.scaled = self._fit(cap.grab, cap.mon, items, cap.scaled,
@@ -3792,6 +3809,7 @@ class Watcher:
             if not cap.failing:
                 log.info("capture lost (%s): starting it afresh", e)
             cap.failing = True
+            cap.was_hwnd = getattr(cap.grab, "hwnd", None)
             cap.close()
             cap.reopen_since = time.monotonic()
             cap.next_try = cap.reopen_since + (WINDOW_RETRY_S if cap.is_window else RETRY_S)
