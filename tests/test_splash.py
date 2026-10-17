@@ -32,3 +32,26 @@ def test_show_follows_the_saved_theme(qapp, tmp_path, monkeypatch):
     finally:
         splash.close()
         theme.set_current(theme.DEFAULT)
+
+
+def test_his_hop_never_jumps_between_frames(monkeypatch):
+    """Turning round, landing and blinking all move over a few frames, never in one."""
+    seen = []
+
+    class Rec:
+        def __getattr__(self, name):
+            return lambda *a, **k: seen.append((name, a)) if name == "scale" else None
+
+    monkeypatch.setattr(splash, "_sprite", lambda flap, tufts, blink, scale: (
+        seen.append(("pose", (tufts, blink))), QImage())[1])
+    frames = []
+    for i in range(6 * 60):
+        seen.clear()
+        splash.paint_frame(Rec(), i / 60, splash.CARD_W, splash.CARD_H)
+        sx, sy = dict(seen)["scale"]
+        tufts, blink = dict(seen)["pose"]
+        frames.append((abs(sx) * sy ** 0.5, sy, tufts, blink))   # (his width: the turn)
+    for k, limit in enumerate((0.1, 0.06, 5.0, 0.55)):   # width, squash, tufts, blink
+        # (a blink is quick by nature: it was on/off, 1.0)
+        v = [f[k] for f in frames]
+        assert max(abs(b - a) for a, b in zip(v, v[1:])) < limit, k

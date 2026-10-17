@@ -35,6 +35,8 @@ HOOT_W = HOOT_H * OWL_W / OWL_H
 HOP = 0.62       # seconds per hop
 HOP_PX = 46      # how high he gets
 ROAM_PX = 95     # how far he wanders either side of the middle
+LAND_S = 0.24    # one jiggle back after a landing, seconds
+TURN = 5.0       # how quickly he turns round (higher: quicker)
 FPS = 60
 # while it's up, Python hands the GIL over every 0.5 ms instead of every 5: each frame
 # takes the GIL many times, and a busy UI thread would otherwise hold it 5 ms each
@@ -62,14 +64,32 @@ def _sprite(flap: float, tufts: float, blink: float, scale: float) -> QImage:
     return img
 
 
+def _landing(s: float) -> float:
+    """How squashed he is `s` seconds after touching down: it comes on over a couple
+    of frames (never in one), then he jiggles back, a little taller than himself first."""
+    if s < 0:
+        return 0.0
+    return min(1.0, s / 0.04) * math.exp(-s / 0.1) * math.cos(s * 2 * math.pi / LAND_S)
+
+
+def _blink(t: float) -> float:
+    """His eyes 0..1 shut: a quick blink every 2.7 s that shuts and opens smoothly."""
+    b = (t % 2.7 - 2.55) / 0.15
+    return 0.0 if b < 0 else math.sin(math.pi * b) ** 2
+
+
 def paint_frame(p: QPainter, t: float, w: float, h: float, scale: float = 1.0):
     """One frame of Hoot hopping, `t` seconds in, on a `w` x `h` (logical px) canvas
     that `p` maps onto `scale` device px per logical px."""
     u = (t % HOP) / HOP                     # 0..1 through this hop
     air = 4 * u * (1 - u)                   # 0 on the ground, 1 at the top
-    land = max(0.0, 1 - u / 0.18)           # just landed: squash, tufts droop
+    rise = 1 - 2 * u                        # going up (1) .. coming down (-1)
+    land = _landing(u * HOP)                # just landed: squash, then jiggle back
     wander = math.sin(t * 0.9)
-    facing = 1 if math.cos(t * 0.9) >= 0 else -1   # the way he's heading
+    # the way he's heading: he narrows a little as he turns round (an outfit that isn't
+    # the same both sides flips mid-turn, not on a full-width frame)
+    turn = max(-1.0, min(1.0, math.cos(t * 0.9) * TURN))
+    facing = math.copysign(max(0.75, abs(turn)), turn)
     stretch = 1 + 0.08 * air - 0.14 * land   # taller in the air, squat on landing
     foot_x = w / 2 + wander * ROAM_PX
     foot_y = h - 18
@@ -84,9 +104,11 @@ def paint_frame(p: QPainter, t: float, w: float, h: float, scale: float = 1.0):
     p.save()
     p.translate(foot_x, foot_y - HOP_PX * air)
     p.scale(facing / stretch ** 0.5, stretch)
-    blink = 1.0 if (t % 2.7) > 2.55 else 0.0
+    # tufts trail the hop (down going up, up coming down), droop on a landing and
+    # bounce back with him
+    tufts = 12 * land - 8 * air + 10 * rise * air
     p.drawImage(QRectF(-HOOT_W / 2, -HOOT_H, HOOT_W, HOOT_H),
-                _sprite(0.8 * air, 12 * land - 8 * air, blink, scale))
+                _sprite(0.8 * air, tufts, round(_blink(t) * 6) / 6, scale))
     p.restore()
 
 

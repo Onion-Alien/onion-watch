@@ -28,6 +28,9 @@ SCAN_X = 0.05          # ...this far each way, in logo widths
 EYE_Y = 0.60           # the eye's centre, in logo heights (theme.paint_logo's `ey`)
 EYE_R = 0.155          # ...and the iris's radius
 IDLE_CALM = 0.55       # the idle animation's strength while not watching (1 = watching)
+EASE_RATE = 3.0        # how fast its strength, the eye's look and the laser's glow follow
+                       # watching on and off (1/s): eased, never a jump
+CUT_S = 0.3            # a flourish cut short (watching stopped) fades out this long
 SHEEN_PERIOD = 4.5     # seconds between sheens across the logo (as Onion Board's logo)
 SHEEN_TIME = 0.9       # ...and how long one takes
 
@@ -88,10 +91,15 @@ class WatchLogo(QWidget):
         appstate.pause_in_background(self, self._resume, self._pause)
         self.beam = _Burst(self, beam_host) if beam_host is not None else None
         self._idle = 0.0          # seconds of the idle animation
+        self._on = IDLE_CALM      # intensity(), eased
+        self._look_k = 0.0        # 0..1, how much the eye looks around (eased)
+        self._hot = 0.0           # 0..1, the laser eye's glow while it watches (eased)
+        self._cut = -1.0          # seconds into a cut flourish's fade, or -1
 
     def intensity(self) -> float:
-        """How strong the idle animation is: full while it watches, calmer while not."""
-        return 1.0 if self.watching else IDLE_CALM
+        """How strong the idle animation is: full while it watches, calmer while not
+        (eased from one to the other)."""
+        return self._on
 
     # ------------------------------------------------------------------ outside
     def retheme(self):
@@ -110,26 +118,35 @@ class WatchLogo(QWidget):
         if on == self.watching:
             return
         self.watching = on
-        self._scan = 0.0
+        if self._look_k < 0.01:   # (still easing back: it carries on from where it is)
+            self._scan = 0.0
         if on and self.isVisible() and appstate.active():
-            self._burst = 0.0
+            self._burst, self._cut = 0.0, -1.0
             if self.beam is not None:
                 self.beam.start()
             self._resume()
+        elif self._burst >= 0 and self._timer.isActive():
+            self._cut = 0.0       # the flourish fades out instead of vanishing
         else:
             self._burst = -1.0
             if self.beam is not None:
                 self.beam.stop()
         self.update()
 
+    def cut_fade(self) -> float:
+        """1, or down to 0 while a flourish cut short fades out."""
+        return 1.0 if self._cut < 0 else max(0.0, 1 - self._cut / CUT_S)
+
     def burst_t(self) -> float:
         return self._burst
 
     def look(self) -> float:
-        """How far the eye looks sideways now, in logo widths."""
-        if not self.watching or self._burst >= 0:
+        """How far the eye looks sideways now, in logo widths (easing in after the
+        flourish and back to the middle when watching stops)."""
+        k = _ease(self._look_k)
+        if k < 0.001:
             return 0.0
-        return SCAN_X * math.sin(self._scan * 2 * math.pi / SCAN_S)
+        return SCAN_X * math.sin(self._scan * 2 * math.pi / SCAN_S) * k
 
     def logo_rect(self) -> QRectF:
         return QRectF((self.width() - self.px) / 2, (self.height() - self.px) / 2,
@@ -151,13 +168,13 @@ class WatchLogo(QWidget):
         super().hideEvent(ev)
 
     def _resume(self):
-        if self.isVisible() and not self._timer.isActive():
+        if self.isVisible() and appstate.active() and not self._timer.isActive():
             self._last = time.monotonic()
             self._timer.start()
 
     def _pause(self):
         self._timer.stop()
-        self._burst = -1.0
+        self._burst, self._cut = -1.0, -1.0
         if self.beam is not None:
             self.beam.stop()
         self.update()
@@ -170,11 +187,22 @@ class WatchLogo(QWidget):
     def step(self, dt: float):
         """Move the animation on by `dt` seconds (the tests call this directly)."""
         self._idle += dt
+        e = min(1.0, dt * EASE_RATE)
+        self._on += ((1.0 if self.watching else IDLE_CALM) - self._on) * e
+        self._hot += (float(self.watching) - self._hot) * e
+        looks = self.watching and self._burst < 0
+        self._look_k += (float(looks) - self._look_k) * e
+        if self._look_k < 0.001 and not looks:
+            self._look_k = 0.0
+        if self._cut >= 0:
+            self._cut += dt
+            if self._cut >= CUT_S:
+                self._burst = self._cut = -1.0
         if self._burst >= 0:
             self._burst += dt
             if self._burst >= BURST_S:
-                self._burst = -1.0
-        elif self.watching:
+                self._burst = self._cut = -1.0
+        elif self._look_k > 0:
             self._scan += dt
         if self.beam is not None:
             self.beam.step()
@@ -216,12 +244,16 @@ class WatchLogo(QWidget):
                                    a2=QColor(theme.T.get("accent2") or theme.BRAND[1]),
                                    name=theme.current_name))
         if style == "laser":
+            # the eye stays a little red-hot while it watches: the flourish's glow
+            # settles to that, and it cools off when watching stops
+            warm = (0.4 + 0.2 * math.sin(t * 3)) * self._hot
             if b >= 0:
                 fade = 1.0 if b < BURST_S * 0.8 else 1 - (b - BURST_S * 0.8) / (BURST_S * 0.2)
-                paint_laser_eye(p, self.eye_center(), self.px * EYE_R, max(0.0, fade))
-            elif self.watching:   # the eye stays a little red-hot while it watches
+                fade = max(0.0, fade) * self.cut_fade()
                 paint_laser_eye(p, self.eye_center(), self.px * EYE_R,
-                                0.4 + 0.2 * math.sin(t * 3))
+                                warm + (1 - warm) * fade)
+            elif warm > 0.01:
+                paint_laser_eye(p, self.eye_center(), self.px * EYE_R, warm)
         p.end()
 
 
@@ -304,6 +336,7 @@ class _Burst(QWidget):
                    rect=QRectF(top_left, lr.size()),
                    page=QRectF(0, 0, self.width(), self.height()),
                    parts=self.parts, name=theme.current_name)
+        p.setOpacity(logo.cut_fade())
         PAINTERS.get(logo.style_name, _shine)(p, ctx)
         p.end()
 
@@ -658,9 +691,12 @@ PAINTERS = {"laser": _laser, "code": _code, "neon": _neon, "petals": _petals,
 # ---------------------------------------------------------------------- idle, on the logo
 
 def comic_bounce(t: float) -> float:
-    """0, or how far into a squash-and-bounce the comic logo is (one every 4 s)."""
-    ph = (t % 4.0) / 0.45
-    return math.sin(ph * math.pi) if ph < 1 else 0.0
+    """0, or how far into a squash-and-bounce the comic logo is (one every 4 s): a
+    squash that starts and ends still, a little stretch past it and a settle."""
+    ph = (t % 4.0) / 0.6
+    if ph >= 1:
+        return 0.0
+    return 6.5 * math.sin(math.pi * ph) ** 2 * math.cos(1.1 * math.pi * ph) * math.exp(-3 * ph)
 
 
 def _tile(r: QRectF) -> QPainterPath:
