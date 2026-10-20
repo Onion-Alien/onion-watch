@@ -134,9 +134,23 @@ def test_a_tile_shows_one_picture_and_how_many_more(tab, qapp):
 
 def test_the_live_state_says_off_when_switched_off(tab):
     row, = cards(tab, 1)
-    row.chk_on.setChecked(False)
     row.show_score(None)
+    assert "Off" not in row.live.text()
+    row.chk_on.setChecked(False)
+    assert "Off" in row.live.text()     # at once: it kept saying Ready until the next check
+    row.chk_on.setChecked(True)
+    assert "Off" not in row.live.text()
+    tab.set_category_triggers(row.t.category, False)
     assert "Off" in row.live.text()
+    tab.set_category_triggers(row.t.category, True)
+    tab.set_list_view(True)                 # the editor beside the list catches up too
+    tab._select(row)
+    ed = tab.editor
+    assert ed is not row and "Off" not in ed.live.text()
+    row.chk_on.setChecked(False)
+    assert "Off" in ed.live.text() and "Off" in row.live.text()
+    tab.set_category_triggers(row.t.category, True)
+    assert "Off" not in ed.live.text() and ed.chk_on.isChecked()
     row.chk_on.setChecked(True)
     row.show_score(0.97)
     assert "97%" in row.live.text() and "<b>" in row.live.text()   # it would go off

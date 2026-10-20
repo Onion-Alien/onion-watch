@@ -2825,6 +2825,7 @@ class TriggerRow(QFrame):
 
     def _on_enabled(self, on: bool):
         self.t.enabled = on
+        self.show_score(None)   # "Off" (or back to Ready) now, not on the next check
         self.changed.emit(self)
 
     def _on_ring(self, on: bool):
@@ -3609,6 +3610,7 @@ class TriggersTab(QWidget):
                 r.chk_on.blockSignals(True)
                 r.chk_on.setChecked(t.enabled)
                 r.chk_on.blockSignals(False)
+                r.show_score(None)
             r.refresh_pictures()
         if ed.cb_category.currentData() != t.category:     # moved by its tile, a drag...
             ed.set_categories(self.groups.names())
@@ -4813,12 +4815,12 @@ class TriggersTab(QWidget):
             if t.category != name or t.enabled == on:
                 continue
             t.enabled = on
-            row = self.rows.get(t.id)
-            if row is not None:
+            for row in self._views(t.id):   # its card in the list, and the editor
                 row.chk_on.blockSignals(True)
                 row.chk_on.setChecked(on)
                 row.chk_on.blockSignals(False)
                 row._update_state()
+                row.show_score(None)
             if not on:
                 self._silence(t.id, ring=True)
         self._store()
