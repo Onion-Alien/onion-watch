@@ -847,18 +847,20 @@ def find_peaks(f: Frame, p: Pattern, n: int = 1, floor: float = 1.0,
             break
         score[max(0, y - th // 2):y + th // 2 + 1, max(0, x - tw // 2):x + tw // 2 + 1] = 0
     if p.soft and p.sharp is not None:
-        out = sorted(((_confirm(full, p, at, sc, check), at) for sc, at in out), reverse=True)
+        out = sorted((_confirm(full, p, at, sc, check) for sc, at in out), reverse=True)
     return out
 
 
 def _confirm(full: Frame, p: Pattern, at: tuple[int, int], sc: float,
-             check: float = 0.0) -> float:
-    """A soft match's score once it's checked with the sharp picture where it was
-    found, in the full-size frame (see SOFT_CONFIRM; for a picture at its own size,
-    EXACT_NEAR: there the sharp score is the score, if the soft one is `check` or
-    more)."""
+             check: float = 0.0) -> tuple[float, tuple[int, int]]:
+    """A soft match's (score, place) once it's checked with the sharp picture where
+    it was found, in the full-size frame (see SOFT_CONFIRM; for a picture at its own
+    size, EXACT_NEAR: there the sharp score is the score, if the soft one is `check`
+    or more). The place is where the sharp picture fits best: the soft frame's places
+    are every other pixel, so one can be a pixel or two off, and the checks after
+    this one (the twin's few pixels of play) need the picture's real place."""
     if sc < (check if p.exact else SOFT_CHECK):
-        return sc
+        return sc, at
     if p._sharps is None:
         gray, mask, s = p.sharp
         p._sharps = []
@@ -869,20 +871,22 @@ def _confirm(full: Frame, p: Pattern, at: tuple[int, int], sc: float,
                 p._sharps.append(q)
     x, y = at
     fh, fw = full.shape
-    best = 0.0
+    best, where = 0.0, at
     for q in p._sharps:
         th, tw = q.shape
         y0, x0 = max(0, y - CONFIRM_PAD), max(0, x - CONFIRM_PAD)
         y1, x1 = min(fh, y + th + CONFIRM_PAD), min(fw, x + tw + CONFIRM_PAD)
         if y1 - y0 >= th and x1 - x0 >= tw:
             area = full.s[y0:y1, x0:x1]
-            best = max(best, _ncc_near(area, q) if th * tw <= DIRECT_MAX
-                       else find(Frame(area), q)[0])
+            got, (ax, ay) = (_ncc_at(area, q) if th * tw <= DIRECT_MAX
+                             else find(Frame(area), q))
+            if got > best:
+                best, where = got, (x0 + ax, y0 + ay)
             if best >= SOFT_CONFIRM and not p.exact:
                 break                       # it counts: the other sizes can't change that
     if p.exact:
-        return best
-    return sc if best >= SOFT_CONFIRM else min(sc, best)
+        return best, where
+    return (sc if best >= SOFT_CONFIRM else min(sc, best)), where
 
 
 def _box_mean(a: np.ndarray, k: int) -> np.ndarray:
@@ -991,14 +995,10 @@ def cut_structure(area: np.ndarray, gray: np.ndarray, mask: np.ndarray,
     return best
 
 
-def _ncc_near(area: np.ndarray, q: Pattern) -> float:
-    """find_peaks()'s best score for `q` in a small `area`, worked out directly:
-    for a few dozen places that's cheaper than transforms."""
-    return _ncc_at(area, q)[0]
-
-
 def _ncc_at(area: np.ndarray, q: Pattern) -> tuple[float, tuple[int, int]]:
-    """_ncc_near(), and where in `area` (x, y) that score is."""
+    """find_peaks()'s best score for `q` in a small `area`, and where in it (x, y)
+    that is, worked out directly: for a few dozen places that's cheaper than
+    transforms."""
     th, tw = q.shape
     a = area.astype(np.float64)
     win = np.lib.stride_tricks.sliding_window_view(a, (th, tw))

@@ -9,6 +9,7 @@ import numpy as np
 import pytest
 
 from onionwatch import screenwatch as sw
+from onionwatch.imgops import gaussian_filter
 from onionwatch.screenwatch import Monitor
 from test_screenwatch import glyphs
 
@@ -146,3 +147,32 @@ def test_a_look_alike_on_a_watched_screen_no_longer_goes_off():
     assert sc < 0.8 and grab.asked         # the box was looked at, at full size
     sc, grab = check(pic, gives_box=True)
     assert sc >= 0.8                       # the thing itself still does
+
+
+def test_a_picture_found_on_the_half_size_frame_is_handed_on_at_its_real_place():
+    """A big picture is looked for on the frame's soft half-size copy first, whose
+    places are every other pixel. Its sharp check scored it where it really was, but
+    the box handed on stayed the soft place: up to 5 px off at full size, past the
+    twin check's few pixels of play, so a picture shown plainly in a game window
+    was taken for a look-alike (0.65) and missed until another size happened to fit."""
+    rng = np.random.default_rng(3)
+    scenery = (gaussian_filter(rng.random((720, 1280)), 4) * 3 - 1).clip(0, 1) * 0.6 + 0.2
+    pic = (gaussian_filter(rng.random((75, 231)), 3) * 4 - 1.5).clip(0, 1).astype(np.float32)
+    it = sw.Watched("t", [(pic, None)], 0.8, 0.0, cuts=[(1280, 720)])
+    off = []
+    for y in (1, 2):
+        for x in range(500, 508):
+            screen = scenery.astype(np.float32)
+            screen[y:y + 75, x:x + 231] = pic
+            grab = ScreenGrab(screen)
+            cap = sw._Capture(0, Monitor(0, 0, 1280, 720, True))
+            cap.grab = grab
+            cap.fitted, cap.scaled = sw.Watcher._fit(grab, cap.mon, [it])
+            assert cap.scaled["t"][0].pats[0][1].soft      # matched on the half-size copy
+            frame = sw.shrink(screen, grab.w / 1280)[:grab.h, :grab.w]
+            sc, (y0, y1, x0, x1) = sw.Watcher._score(cap, frame, it, 0.0, {})
+            k = 1280 / frame.shape[1]
+            assert sc >= 0.8
+            off.append(max(abs((x0 + x1) / 2 * k - 231 / 2 - x),
+                           abs((y0 + y1) / 2 * k - 75 / 2 - y)))
+    assert max(off) < sw.TWIN_ALIGN - 1        # within the twin check's reach

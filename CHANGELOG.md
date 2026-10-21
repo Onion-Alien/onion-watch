@@ -2,6 +2,13 @@
 
 What changed between releases, for the release notes. Newest first.
 
+## Unreleased
+
+- **Pictures that sat plainly in a game window are caught at once:** some bigger
+  pictures, ones with a sharp edge or mark in them, were taken for a look-alike
+  for a few seconds before they counted, so one that showed for only 2 or 3 seconds
+  could be missed. They now go off on the first check that sees them.
+
 ## 0.13.0 (2026-10-18)
 
 - **Limited-edition Halloween theme:** pumpkin orange and witch purple with cobwebs,
