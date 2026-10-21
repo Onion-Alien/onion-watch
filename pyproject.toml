@@ -20,7 +20,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest==9.1.1", "ruff==0.17.0", "pyright==1.1.414", "pyinstaller==6.22.3"]
+dev = ["pytest==9.1.1", "ruff==0.17.1", "pyright==1.1.414", "pyinstaller==6.22.3"]
 
 [project.gui-scripts]
 onionwatch = "onionwatch.app:main"
