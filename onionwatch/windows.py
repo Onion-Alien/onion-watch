@@ -535,6 +535,7 @@ class WindowGrabber:
     say (a picture that went away meanwhile would fire)."""
 
     lost = False
+    follows = True          # opened on the window follow() picks (the watcher's)
     want_color = False      # also keep `color` (screenwatch.Grabber's)
     # A grab's processor time outside the watching thread, for the watcher's budget:
     # PrintWindow with full content measured about 3 ms of the whole processor per

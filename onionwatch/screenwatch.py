@@ -3704,7 +3704,10 @@ class Watcher:
     def _follows(self) -> bool:
         """Copies of a game are followed by their windows (needs the window list:
         a stand-in opener without one keeps finding copy `nth`)."""
-        return self._window_grabber is None or self._lister is not None
+        if self._lister is not None:
+            return True
+        from onionwatch import windows
+        return self._window_grabber is None and getattr(windows.WindowGrabber, "follows", False)
 
     def _follow(self, cap: _Capture, items: list[Watched], caps: dict | None):
         """The window `cap` (a game's copy) opens now: windows.follow, given the
