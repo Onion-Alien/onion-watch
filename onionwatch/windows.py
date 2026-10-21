@@ -397,6 +397,28 @@ def find(ref: WindowRef, wins: list[WindowInfo] | None = None) -> WindowInfo | N
     return pool[ref.nth] if ref.nth < len(pool) else None
 
 
+def follow(ref: WindowRef, wins: list[WindowInfo], taken=(), was: int | None = None,
+           before=None) -> WindowInfo | None:
+    """The window a capture of `ref` opens now, or None (it waits). Copies are told
+    apart by when they started, but a copy that closes and starts again is the
+    newest then: copy `nth` would be another copy's window. So a window another
+    capture has (`taken`, its handles) is never taken twice; after a loss the same
+    window comes back if it's still there (`was`), else only a window that wasn't
+    open when it was lost (`before`, the copies' handles then): the copy that was
+    started again, not the one somebody else is playing. Otherwise copy `nth`."""
+    pool = copies(ref, wins)
+    free = [w for w in pool if w.hwnd not in taken]
+    if was is not None:
+        back = next((w for w in free if w.hwnd == was), None)
+        if back is not None:
+            return back
+    if before is not None:
+        return next((w for w in free if w.hwnd not in before), None)
+    if ref.nth < len(pool) and pool[ref.nth].hwnd not in taken:
+        return pool[ref.nth]
+    return None
+
+
 def ref_for(info: WindowInfo, wins: list[WindowInfo]) -> WindowRef:
     """How to remember `info`: its program and title, and which copy it is when
     several windows fit."""
@@ -513,6 +535,7 @@ class WindowGrabber:
     say (a picture that went away meanwhile would fire)."""
 
     lost = False
+    follows = True          # opened on the window follow() picks (the watcher's)
     want_color = False      # also keep `color` (screenwatch.Grabber's)
     # A grab's processor time outside the watching thread, for the watcher's budget:
     # PrintWindow with full content measured about 3 ms of the whole processor per
