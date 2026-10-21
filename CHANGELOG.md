@@ -4,6 +4,9 @@ What changed between releases, for the release notes. Newest first.
 
 ## Unreleased
 
+- **Several copies of one game:** when you close one copy and start it again, its
+  triggers now follow that copy. Before, it came back as the newest copy, so its
+  triggers watched another copy (and that copy's pictures set them off).
 - **Pictures that sat plainly in a game window are caught at once:** some bigger
   pictures, ones with a sharp edge or mark in them, were taken for a look-alike
   for a few seconds before they counted, so one that showed for only 2 or 3 seconds
