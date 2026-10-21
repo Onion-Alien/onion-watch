@@ -3296,7 +3296,7 @@ class _Capture:
         self.opened = False         # it has captured at some point
         self.gone = False           # a window that wasn't open on a try since it was lost
         self.was_hwnd = None        # ...or the window it had before then (a new one = reopened)
-        self.before = None          # ...and its copies open then (windows.follow)
+        self.before: set | None = None    # ...and its copies open then (windows.follow)
         self.failing = False        # grabs keep failing (said once in the log)
         self.error = ""             # why the last open failed
         self.black = False
@@ -3712,6 +3712,8 @@ class Watcher:
         (only "every copy" triggers look there, or no window list); WindowGone: it
         waits."""
         src = cap.source
+        if not isinstance(src, WindowRef):
+            return None
         named = src == self.default or any(src in it.sources for it in items)
         if src.every or not named or not self._follows():
             return None
@@ -3737,18 +3739,17 @@ class Watcher:
                 opener = self._window_grabber
                 if opener is None:
                     from onionwatch.windows import WindowGrabber as opener
-                ref = cap.source
+                ref: int | WindowRef = cap.source
+                kw: dict = {}
                 info = self._follow(cap, items, caps)
-                if info is not None:
+                if info is not None and isinstance(ref, WindowRef):
                     from onionwatch.windows import WindowGrabber, copies
                     if opener is WindowGrabber:
-                        cap.grab = opener(ref, WORK_WIDTH, WORK_WIDTH * 9 // 16, info=info)
+                        kw["info"] = info
                     else:           # a stand-in opener knows copies by their place
                         nth = [w.hwnd for w in copies(ref, self._windows())].index(info.hwnd)
-                        cap.grab = opener(WindowRef(ref.exe, ref.title, nth),
-                                          WORK_WIDTH, WORK_WIDTH * 9 // 16)
-                else:
-                    cap.grab = opener(ref, WORK_WIDTH, WORK_WIDTH * 9 // 16)
+                        ref = WindowRef(ref.exe, ref.title, nth)
+                cap.grab = opener(ref, WORK_WIDTH, WORK_WIDTH * 9 // 16, **kw)  # pyright: ignore[reportArgumentType]  (is_window: a WindowRef)
             else:
                 mon = cap.mon
                 scale = work_scale(mon.width, sides)
@@ -3845,10 +3846,9 @@ class Watcher:
                 log.info("capture lost (%s): starting it afresh", e)
             cap.failing = True
             cap.was_hwnd = getattr(cap.grab, "hwnd", None)
-            if cap.is_window and self._follows():
+            if isinstance(cap.source, WindowRef) and self._follows():
                 from onionwatch.windows import copies
-                cap.before = {w.hwnd for w in copies(cap.source, self._windows())}
-                cap.before.add(cap.was_hwnd)
+                cap.before = {w.hwnd for w in copies(cap.source, self._windows())} | {cap.was_hwnd}
             cap.close()
             cap.reopen_since = time.monotonic()
             cap.next_try = cap.reopen_since + (WINDOW_RETRY_S if cap.is_window else RETRY_S)
