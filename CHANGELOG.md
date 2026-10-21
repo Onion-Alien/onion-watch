@@ -2,7 +2,7 @@
 
 What changed between releases, for the release notes. Newest first.
 
-## Unreleased
+## 0.13.1 (2026-10-22)
 
 - **Several copies of one game:** when you close one copy and start it again, its
   triggers now follow that copy. Before, it came back as the newest copy, so its
