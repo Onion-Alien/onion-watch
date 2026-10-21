@@ -3296,6 +3296,7 @@ class _Capture:
         self.opened = False         # it has captured at some point
         self.gone = False           # a window that wasn't open on a try since it was lost
         self.was_hwnd = None        # ...or the window it had before then (a new one = reopened)
+        self.before = None          # ...and its copies open then (windows.follow)
         self.failing = False        # grabs keep failing (said once in the log)
         self.error = ""             # why the last open failed
         self.black = False
@@ -3582,7 +3583,7 @@ class Watcher:
                 now = time.monotonic()
                 for k, cap in caps.items():
                     if cap.grab is None and now >= cap.next_try:
-                        self._open(cap, groups[k])
+                        self._open(cap, groups[k], caps)
                     elif getattr(cap.grab, "fallback", False) and now >= cap.next_dup:
                         self._retry_dup(cap, groups[k])
                 live = [c for c in caps.values() if c.grab is not None]
@@ -3700,11 +3701,34 @@ class Watcher:
             where[it.id] = tuple(places)
         return groups, fell_back, where
 
-    def _open(self, cap: _Capture, items: list[Watched]) -> bool:
+    def _follows(self) -> bool:
+        """Copies of a game are followed by their windows (needs the window list:
+        a stand-in opener without one keeps finding copy `nth`)."""
+        return self._window_grabber is None or self._lister is not None
+
+    def _follow(self, cap: _Capture, items: list[Watched], caps: dict | None):
+        """The window `cap` (a game's copy) opens now: windows.follow, given the
+        windows the other window captures have. None: copy `nth` as it's found
+        (only "every copy" triggers look there, or no window list); WindowGone: it
+        waits."""
+        src = cap.source
+        named = src == self.default or any(src in it.sources for it in items)
+        if src.every or not named or not self._follows():
+            return None
+        from onionwatch.windows import WindowGone, follow
+        taken = {getattr(c.grab, "hwnd", None) for c in (caps or {}).values()
+                 if c is not cap and c.is_window and c.grab is not None}
+        info = follow(src, self._windows(), taken, cap.was_hwnd, cap.before)
+        if info is None:
+            raise WindowGone(i18n._("{name} isn't open", name=src.label))
+        return info
+
+    def _open(self, cap: _Capture, items: list[Watched], caps: dict | None = None) -> bool:
         """Open the capture (a fresh start after a loss gives duplication a few goes).
         A failure is kept on the capture and tried again later: a screen RETRY_S apart
         at first, every GIVE_UP_S once it's clearly not coming back; a window every
-        WINDOW_RETRY_S (it may be a game that isn't started yet)."""
+        WINDOW_RETRY_S (it may be a game that isn't started yet). A copy of a game
+        follows its own window (windows.follow), not another capture's (`caps`)."""
         now = time.monotonic()
         sides = [s for i in items for s in i.sides_at(
             (cap.mon.width, cap.mon.height) if cap.mon else (0, 0))]
@@ -3713,7 +3737,18 @@ class Watcher:
                 opener = self._window_grabber
                 if opener is None:
                     from onionwatch.windows import WindowGrabber as opener
-                cap.grab = opener(cap.source, WORK_WIDTH, WORK_WIDTH * 9 // 16)
+                ref = cap.source
+                info = self._follow(cap, items, caps)
+                if info is not None:
+                    from onionwatch.windows import WindowGrabber, copies
+                    if opener is WindowGrabber:
+                        cap.grab = opener(ref, WORK_WIDTH, WORK_WIDTH * 9 // 16, info=info)
+                    else:           # a stand-in opener knows copies by their place
+                        nth = [w.hwnd for w in copies(ref, self._windows())].index(info.hwnd)
+                        cap.grab = opener(WindowRef(ref.exe, ref.title, nth),
+                                          WORK_WIDTH, WORK_WIDTH * 9 // 16)
+                else:
+                    cap.grab = opener(ref, WORK_WIDTH, WORK_WIDTH * 9 // 16)
             else:
                 mon = cap.mon
                 scale = work_scale(mon.width, sides)
@@ -3739,7 +3774,7 @@ class Watcher:
             cap.next_try = now + (GIVE_UP_S if slow else RETRY_S)
             return False
         cap.reopen_since, cap.error = 0.0, ""
-        was, cap.was_hwnd = cap.was_hwnd, None
+        was, cap.was_hwnd, cap.before = cap.was_hwnd, None, None
         hwnd = getattr(cap.grab, "hwnd", None)
         if cap.gone or (was is not None and hwnd is not None and hwnd != was):
             # the window was closed and is open again (a game restarted: it wasn't
@@ -3810,6 +3845,10 @@ class Watcher:
                 log.info("capture lost (%s): starting it afresh", e)
             cap.failing = True
             cap.was_hwnd = getattr(cap.grab, "hwnd", None)
+            if cap.is_window and self._follows():
+                from onionwatch.windows import copies
+                cap.before = {w.hwnd for w in copies(cap.source, self._windows())}
+                cap.before.add(cap.was_hwnd)
             cap.close()
             cap.reopen_since = time.monotonic()
             cap.next_try = cap.reopen_since + (WINDOW_RETRY_S if cap.is_window else RETRY_S)
