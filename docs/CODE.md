@@ -146,7 +146,7 @@ then installs that file instead of downloading.
 | `build.ps1`, `installer/OnionWatch.iss` | the Windows build (PyInstaller) and its installer (Inno Setup) |
 | `scripts/prune_build.py`, `make_notices.py`, `make_installer_art.py`, `make_version_info.py` | the build's helpers: drop the Qt parts the app never loads, the third-party licence notices, the icon and the setup wizard's pictures, the exe's version details |
 | `scripts/build_bootloader.ps1`, `scripts/vt_scan.py` | PyInstaller with a bootloader compiled on your PC (virus scanners distrust the stock one); the VirusTotal check for a release |
-| `docs/index.html` | the website, [onion-alien.github.io/onion-watch](https://onion-alien.github.io/onion-watch/) (GitHub Pages, from `docs/`) |
+| `docs/index.html` | forwards the old address, onion-alien.github.io/onion-watch, to the website at [onionalien.com/onionwatch](https://onionalien.com/onionwatch/) (GitHub Pages, from `docs/`) |
 | `scripts/check_sensitive.py` | scans files, commits and history for secrets and personal data; the pre-commit hook |
 | `scripts/precommit.ps1` | every check a commit needs in one go (see CLAUDE.md); `-Tests` adds the suite |
 | `scripts/check_types.py`, `scripts/pyright_baseline.json` | pyright, failing only on errors that aren't in the baseline |
