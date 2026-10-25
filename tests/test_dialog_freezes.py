@@ -43,7 +43,7 @@ def test_a_quick_picture_is_there_on_the_first_paint(tab, qapp):
 
 
 @pytest.mark.parametrize("module, open_it", [
-    ("onionwatch.ui.triggers.deleted", lambda tab, row: tab.show_deleted()),
+    ("onionwatch.ui.triggers.deleted", lambda tab, row: tab.binctl.show_deleted()),
     ("onionwatch.ui.settings.watching", lambda tab, row: tab.show_watching()),
     ("onionwatch.ui.triggers.viewer", lambda tab, row: tab._view_picture(row, 0)),
 ])

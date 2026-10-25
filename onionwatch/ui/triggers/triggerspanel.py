@@ -17,7 +17,6 @@ in (host.data_dir / "triggers").
 from __future__ import annotations
 
 import dataclasses
-import functools
 import logging
 import math
 import time
@@ -35,7 +34,7 @@ from PySide6.QtWidgets import (QApplication, QBoxLayout, QCheckBox, QFileDialog,
 
 from onionwatch.audio.shuffle import ShuffleBag
 from onionwatch.core import usage
-from onionwatch.engine import cutout, packs, profiles, screenwatch, windows
+from onionwatch.engine import cutout, profiles, screenwatch, windows
 from onionwatch.engine.screenwatch import (INTERVALS_MS, MAX_PICTURES, MAX_SOUNDS, Monitor, Picture,
                                            Trigger, Watched, WindowRef)
 from onionwatch.i18n import _, ngettext
@@ -45,46 +44,26 @@ from onionwatch.ui.kit.wheelguard import no_wheel
 from onionwatch.ui.settings.watching import share_label
 from onionwatch.ui.triggers.card import (LEVELS, NEW_CATEGORY, POLL_MS, UNTILS, TriggerRow,
                                          trigger_ready)
+from onionwatch.ui.triggers.bincontrol import KEEP_DAYS, BinControl
 from onionwatch.ui.triggers.cardkit import (PICK_WINDOW, BarFlow, ElidedLabel, WideCombo,
                                             align_control, card_css, fill_sources, labelled,
                                             pictures, retarget, retargeted, source_label, triggers)
 from onionwatch.ui.triggers.categories import (MAX_PER_ROW, PAD, CategoriesDialog, CategorySection,
-                                               ProfilesDialog, counts_text)
+                                               counts_text)
+from onionwatch.ui.triggers.controller import MAX_TRIGGERS, needs_part
 from onionwatch.ui.triggers.history import THUMB as LOG_THUMB, HistoryDialog
-from onionwatch.ui.triggers.pictures import (_num, copied_picture, cut_size, delete_picture,
+from onionwatch.ui.triggers.pictures import (copied_picture, cut_size, delete_picture,
                                              fit_web, flatness, hit_image, is_web, picture_file,
                                              picture_filter, picture_name, picture_of, picture_rgb,
                                              picture_tint, pictures_dir, save_picture, set_cut_size,
                                              set_web, with_alpha)
+from onionwatch.ui.triggers.packcontrol import PackControl
+from onionwatch.ui.triggers.profilecontrol import ProfileControl
 from onionwatch.ui.triggers.windowpicker import places_label
 
 log = logging.getLogger(__name__)
 
 
-def needs_part(fallback=None):
-    """For a TriggersTab method that opens a window from one of Onion Watch's own
-    files, imported inside it: when that file is missing or out of step (an update that
-    only half went in once crashed "Recently deleted"), say so plainly and return
-    `fallback` instead. The import stays a plain one in the method, outside any `try`,
-    so scripts/buildtools/build_module.py still sees the file is needed and packs it."""
-    def wrap(method):
-        @functools.wraps(method)
-        def run(self, *args, **kwargs):
-            try:
-                return method(self, *args, **kwargs)
-            except ImportError:
-                log.exception("part of Onion Watch is missing (%s)", method.__name__)
-                QMessageBox.warning(
-                    self, _("Part of Onion Watch is missing"),
-                    _("This window can't open: one of Onion Watch's files is missing, most "
-                      "likely because an update didn't finish.\n\nUpdate or reinstall Onion "
-                      "Watch to fix it. Your triggers and pictures are safe."))
-                return fallback
-        return run
-    return wrap
-
-
-MAX_TRIGGERS = 500      # in all; how many can be on at once is up to the computer
 # Versions before categories load only the first 50 of Config.screen["triggers"] and
 # save just those back. So only the first OLD_TRIGGERS are kept there and the rest
 # under "more_triggers", which those versions never read or write: opening the same
@@ -107,16 +86,12 @@ INPUT_POLL_MS = 100     # how often an "input" ring checks for the mouse or keyb
 
 GUESS_PLAYING_S = 8     # a sound counts as playing this long when the host can't say
 HISTORY = 50            # alerts kept in the history (in memory only)
-APP_POLL_MS = 2000      # how often Automatic profiles look at which programs are open
 BUILD_NOW = 8           # an opened category's cards made at once (the first ones, on
 BUILD_STEP_MS = 40      # ...screen); the rest this long at a time, so the window never
                         # ...freezes, however many there are (a card takes ~20-30 ms)
 SCREEN_LEARN_MS = 1300  # a screen cut's frames for the cut-out: grabbed this long after
 HEAVY_GAP = 0.5         # s: checks spaced out further than this (to keep to the share of
 HEAVY_FOR = 5.0         # ...the processor picked) for this long: say too many pictures are on
-EDIT_PROFILES = "__edit_profiles__"   # the Profile list's "Edit profiles"
-KEEP_DAYS = 30          # deleted triggers stay in Recently deleted this long
-MAX_DELETED = 50        # ...and at most this many of them
 
 
 @dataclass
@@ -166,6 +141,9 @@ class TriggersTab(QWidget):
     def __init__(self, host, parent=None):
         super().__init__(parent)
         self.host = host
+        self.binctl = BinControl(self)        # Recently deleted
+        self.packctl = PackControl(self)      # saving / loading packs
+        self.profilectl = ProfileControl(self)   # the Profile list
         s = host.screen
         self.triggers: list[Trigger] = []
         saved = [d for k in ("triggers", "more_triggers")
@@ -276,7 +254,7 @@ class TriggersTab(QWidget):
                                      "profile's, or Automatic: the profile of the program that's "
                                      "open"))
         no_wheel(self.cb_profile)
-        self.cb_profile.activated.connect(self._on_profile)
+        self.cb_profile.activated.connect(self.profilectl._on_profile)
         gb.addWidget(labelled(_("Profile"), self.cb_profile), 0, Qt.AlignmentFlag.AlignLeft)
         self.btn_categories = QPushButton()
         self.btn_categories.setAccessibleName(_("Categories"))
@@ -383,9 +361,6 @@ class TriggersTab(QWidget):
         self.close_search_shortcut = QShortcut(QKeySequence("Escape"), self.search_bar)
         self.close_search_shortcut.setContext(Qt.WidgetWithChildrenShortcut)
         self.close_search_shortcut.activated.connect(self.clear_search)
-        self._app_timer = QTimer(self)
-        self._app_timer.setInterval(APP_POLL_MS)
-        self._app_timer.timeout.connect(self._check_apps)
 
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
@@ -511,18 +486,18 @@ class TriggersTab(QWidget):
         menu.addAction(_("New category"), self.new_category)
         self.act_categories = menu.addAction(icons.icon("palette"), _("Categories"),
                                              lambda: self.edit_categories())
-        menu.addAction(_("Profiles"), self.edit_profiles)
+        menu.addAction(_("Profiles"), self.profilectl.edit_profiles)
         menu.addSeparator()
-        self.act_export = menu.addAction(_("Save triggers to a file"), self.export_triggers)
-        menu.addAction(_("Load triggers from a file"), self.import_triggers)
+        self.act_export = menu.addAction(_("Save triggers to a file"), self.packctl.export_triggers)
+        menu.addAction(_("Load triggers from a file"), self.packctl.import_triggers)
         menu.addSeparator()
         self.act_bin = menu.addAction(icons.icon("trash"), _("Recently deleted"),
-                                      self.show_deleted)
+                                      self.binctl.show_deleted)
 
         def about_to_show():
             self.act_export.setEnabled(bool(self.triggers))
             self.act_categories.setEnabled(self._named_categories())
-            n = len(self._bin())
+            n = len(self.binctl._bin())
             self.act_bin.setText(_("Recently deleted ({n})", n=n) if n else _("Recently deleted"))
         menu.aboutToShow.connect(about_to_show)
         self.btn_more.setMenu(menu)
@@ -562,7 +537,7 @@ class TriggersTab(QWidget):
             menu.addAction(_("Help"), self.btn_info.click)
         self.btn_bin = QPushButton()     # the bin's icon and count (_label_bin)
         icons.set_icon(self.btn_bin, "trash")
-        self.btn_bin.clicked.connect(self.show_deleted)
+        self.btn_bin.clicked.connect(self.binctl.show_deleted)
         h.addWidget(self.btn_bin)
         for control in (self.btn_watch, self.btn_more,
                         self.cb_where, self.btn_settings, self.btn_bin):
@@ -578,10 +553,10 @@ class TriggersTab(QWidget):
             self.btn_watch.setEnabled(False)
         self._fill_sources()
         self._layout_sections()
-        self._fill_profiles()
-        self._update_app_timer()
-        self._prune_bin()
-        self._label_bin()
+        self.profilectl._fill_profiles()
+        self.profilectl._update_app_timer()
+        self.binctl._prune_bin()
+        self.binctl._label_bin()
         self.poll = QTimer(self)
         self.poll.timeout.connect(self._poll)
         self._label_watch()
@@ -1109,7 +1084,7 @@ class TriggersTab(QWidget):
                     row.note = row.waiting = None
                     row.set_screens(self._mons)
             self._fill_sources()
-            self._update_app_timer()
+            self.profilectl._update_app_timer()
             self._store()
         refresh()
 
@@ -1877,7 +1852,7 @@ class TriggersTab(QWidget):
         self._gap_shown = self._gap_text()
         if self._gap_shown:
             parts.append(self._gap_shown)
-        state = self._profile_state()
+        state = self.profilectl._profile_state()
         self.lbl_counts.setText(" · ".join(parts) + (f"  —  {state}" if state else ""))
         self.lbl_counts.setToolTip(
             _("Triggers on, and the pictures they look for. Each picture on takes a share of the "
@@ -2068,7 +2043,7 @@ class TriggersTab(QWidget):
                     t.category = name
             self._drop_section(profiles.UNCATEGORISED)
             self._categories_changed()
-            self._fill_profiles()
+            self.profilectl._fill_profiles()
             self._store()
         self.undo_bar.show_for(_("Deleted the category “{name}”", name=name), undo,
                                tip=_("Put it back, its triggers and all"))
@@ -2077,7 +2052,7 @@ class TriggersTab(QWidget):
     def export_category(self, name: str):
         ts = [t for t in self.triggers if t.category == name]
         if ts:
-            self.export_triggers(ts, profiles.label(name))
+            self.packctl.export_triggers(ts, profiles.label(name))
 
     def add_in_category(self, name: str, make):
         """Make a new trigger (`make`: add_from_cut and co.) in this category: it's
@@ -2152,93 +2127,6 @@ class TriggersTab(QWidget):
         new, ok = QInputDialog.getText(self, _("Rename category"), _("New name:"), text=name)
         if ok:
             self.rename_category(name, new)
-
-    # ------------------------------------------------------------------ profiles
-    def _fill_profiles(self):
-        cb, g = self.cb_profile, self.groups
-        cb.blockSignals(True)
-        cb.clear()
-        cb.addItem(_("Manual (your switches)"), "")
-        for p in g.profiles:
-            cb.addItem(p.name, p.id)
-        if g.profiles:
-            cb.addItem(_("Automatic (by program)"), profiles.AUTO)
-        cb.insertSeparator(cb.count())
-        cb.addItem(_("Edit profiles"), EDIT_PROFILES)
-        cb.setCurrentIndex(max(0, cb.findData(g.mode)))
-        cb.blockSignals(False)
-        self.groupbar.setVisible(self._grouped())
-
-    def _profile_state(self) -> str:
-        """Who decides what's on, in a few words, when it isn't Manual."""
-        if self.groups.mode != profiles.AUTO:
-            return ""
-        ps = self.groups.in_charge(self.apps.matched)
-        if not ps:
-            return _("no profile's program is open: your switches apply")
-        return _("on now: {names}", names=", ".join(p.name for p in ps))
-
-    def set_profile(self, mode: str):
-        """Manual (""), a profile's id, or profiles.AUTO."""
-        g = self.groups
-        if mode != profiles.AUTO and mode and g.profile(mode) is None:
-            mode = ""
-        g.mode = mode
-        self._save_groups()
-        self._fill_profiles()
-        self._update_app_timer()
-        self._apply_active(force=True)
-
-    def _on_profile(self, _i: int):
-        want = self.cb_profile.currentData()
-        if want == EDIT_PROFILES:
-            self.cb_profile.setCurrentIndex(max(0, self.cb_profile.findData(self.groups.mode)))
-            self.edit_profiles()
-            return
-        self.set_profile(want or "")
-
-    def edit_profiles(self):
-        start = self.groups.mode if self.groups.profile(self.groups.mode) else ""
-        dlg = ProfilesDialog(self, self.groups.profiles, self.groups.names(), self._lister,
-                             start)
-        if dlg.exec():
-            self.set_profiles(dlg.result_profiles)
-
-    def set_profiles(self, ps: list):
-        self.groups.profiles = ps[:profiles.MAX_PROFILES]
-        mode = self.groups.mode
-        if mode == profiles.AUTO and not ps:
-            mode = ""
-        self.apps.matched = [m for m in self.apps.matched if self.groups.profile(m)]
-        self.set_profile(mode)
-        self._layout_sections()
-
-    def _update_app_timer(self):
-        """Automatic looks at the open programs every APP_POLL_MS (only then)."""
-        g = self.groups
-        if g.mode == profiles.AUTO and any(p.apps for p in g.profiles):
-            if not self._app_timer.isActive():
-                self._app_timer.start()
-            self._check_apps()
-        else:
-            self._app_timer.stop()
-            self.apps.matched = []
-
-    def _check_apps(self):
-        """Which profiles' programs are open (or in front) now; a change switches
-        their categories on or off. A ring going on isn't stopped by it."""
-        try:
-            wins = self._lister()
-            fg = self._front()
-        except OSError:
-            log.debug("couldn't list the windows for the profiles", exc_info=True)
-            return
-        running = {w.exe for w in wins if w.exe}
-        front = next((w.exe for w in wins if w.hwnd == fg), "")
-        if self.apps.update(self.groups.profiles, running, front, time.monotonic()):
-            log.info("profiles on now: %s", ", ".join(
-                p.name for p in self.groups.in_charge(self.apps.matched)) or "none")
-            self._apply_active(force=True)
 
     # ------------------------------------------------------------------ the list
     def sound_groups(self) -> list[tuple[str, list[str]]]:
@@ -2874,7 +2762,7 @@ class TriggersTab(QWidget):
             self._store()
 
         def done():
-            if not self._picture_used(path):
+            if not self.binctl._picture_used(path):
                 delete_picture(path, self.pictures)
                 self._gray.pop(path, None)
         self.undo_bar.show_for(_("Removed a picture from “{name}”", name=t.name), undo, done)
@@ -2927,7 +2815,7 @@ class TriggersTab(QWidget):
         index = next((i for i, x in enumerate(self.triggers) if x.id == t.id), 0)
         entry = {"id": uuid.uuid4().hex[:12], "when": time.time(), "index": index,
                  "trigger": t.to_raw()}
-        self.host.screen["deleted"] = self._bin() + [entry]
+        self.host.screen["deleted"] = self.binctl._bin() + [entry]
         self.triggers = [x for x in self.triggers if x.id != t.id]
         self._bag.forget(t.id)
         self._order.pop(t.id, None)
@@ -2945,118 +2833,16 @@ class TriggersTab(QWidget):
         for path in t.images:
             self._gray.pop(path, None)   # the file stays, in the bin
         self._layout_sections()
-        self._prune_bin()
+        self.binctl._prune_bin()
         self._store()
         self.ringing_changed.emit()
         if not self.triggers and self.is_active():
             self.set_watching(False)
-        self._label_bin()
+        self.binctl._label_bin()
         self.undo_bar.show_for(_("Deleted “{name}”", name=t.name),
-                               lambda: self.restore_deleted(entry["id"]),
+                               lambda: self.binctl.restore_deleted(entry["id"]),
                                tip=_("Put it back, exactly as it was. Later: Recently "
                                      "deleted (kept {n} days)", n=KEEP_DAYS))
-
-    # ------------------------------------------------------------------ recently deleted
-    def _bin(self) -> list[dict]:
-        """host.screen["deleted"], oldest first: {id, when, index, trigger (to_raw)}."""
-        raw = self.host.screen.get("deleted")
-        return [d for d in raw if isinstance(d, dict) and isinstance(d.get("trigger"), dict)
-                and isinstance(d.get("id"), str)] if isinstance(raw, list) else []
-
-    def _label_bin(self):
-        """The "Recently deleted (n)" button: there while the bin has triggers in it."""
-        n = len(self._bin())
-        # just the bin and how many: a compact button that never makes the bar wrap
-        self.btn_bin.setText(str(n))
-        what = _("Recently deleted ({n})", n=n)
-        self.btn_bin.setToolTip(what + "…\n" + _("Triggers you deleted: bring them back, "
-                                                 "pictures and all"))
-        self.btn_bin.setAccessibleName(what)
-        self.btn_bin.setVisible(n > 0)
-
-    def _picture_used(self, path: str, but: dict | None = None) -> bool:
-        """Whether a live trigger, or one in the bin (other than `but`), has this file."""
-        if any(path in x.images for x in self.triggers):
-            return True
-        for d in self._bin():
-            if d is not but and d["id"] != (but or {}).get("id"):
-                t = Trigger.from_raw(d["trigger"])
-                if t is not None and path in t.images:
-                    return True
-        return False
-
-    def _prune_bin(self):
-        """Let go of deleted triggers older than KEEP_DAYS or past MAX_DELETED, and
-        their pictures."""
-        all_ = self._bin()
-        cutoff = time.time() - KEEP_DAYS * 86400
-        kept = [d for d in all_ if _num(d.get("when")) >= cutoff][-MAX_DELETED:]
-        if len(kept) == len(all_):
-            return
-        self.host.screen["deleted"] = kept
-        for d in all_:
-            if d not in kept:
-                self._drop_pictures(d)
-        self.host.save()
-
-    def _drop_pictures(self, entry: dict):
-        """Delete a binned trigger's picture files (it's gone from the bin already, or
-        about to be)."""
-        t = Trigger.from_raw(entry.get("trigger", {}))
-        for path in t.images if t is not None else []:
-            if not self._picture_used(path, but=entry):
-                delete_picture(path, self.pictures)
-
-    def deleted(self) -> list[tuple[str, str, float]]:
-        """The bin for the Recently deleted window: (id, name, when), newest first."""
-        return [(d["id"], str(d["trigger"].get("name") or _("Trigger")), _num(d.get("when")))
-                for d in reversed(self._bin())]
-
-    def restore_deleted(self, entry_id: str) -> bool:
-        """Bring a deleted trigger back where it was, as it was."""
-        all_ = self._bin()
-        entry = next((d for d in all_ if d["id"] == entry_id), None)
-        if entry is None:
-            return False
-        if len(self.triggers) >= MAX_TRIGGERS:
-            QMessageBox.information(self, _("Too many triggers"),
-                                    _("You can have up to {max_triggers} triggers. Delete one to "
-                                      "bring this one back.", max_triggers=MAX_TRIGGERS))
-            return False
-        t = Trigger.from_raw(entry["trigger"])
-        if t is None:
-            return False
-        if any(x.id == t.id for x in self.triggers):
-            t = t.copy(uuid.uuid4().hex[:12])   # its id was taken meanwhile (a loaded pack)
-        t.images = [p for p in t.images if Path(p).exists()]
-        t.pending = ""
-        self.host.screen["deleted"] = [d for d in all_ if d is not entry]
-        index = min(max(int(_num(entry.get("index"))), 0), len(self.triggers))
-        self.triggers.insert(index, t)
-        row = self._add_row(t, at=index)
-        self._store()
-        self._label_bin()
-        QTimer.singleShot(0, row, lambda: self.scroll.ensureWidgetVisible(row))
-        usage.used("restore-deleted")
-        return True
-
-    def forget_deleted(self, entry_id: str):
-        """Delete one from the bin for good."""
-        all_ = self._bin()
-        entry = next((d for d in all_ if d["id"] == entry_id), None)
-        if entry is None:
-            return
-        self.host.screen["deleted"] = [d for d in all_ if d is not entry]
-        self._drop_pictures(entry)
-        self.host.save()
-        self._label_bin()
-
-    @needs_part()
-    def show_deleted(self):
-        from onionwatch.ui.triggers.deleted import DeletedDialog
-        self.undo_bar.finish()
-        DeletedDialog(self, KEEP_DAYS, self).exec()
-        self._label_bin()
 
     # ------------------------------------------------------------------ areas, copies
     @needs_part()
@@ -3308,127 +3094,6 @@ class TriggersTab(QWidget):
         self._live.clear()
         self.stop_ringing()
         self.playing_changed.emit()
-
-    # ------------------------------------------------------------------ packs
-    def export_triggers(self, triggers: list[Trigger] | None = None, name: str = ""):
-        """Save triggers to a pack: all of them, or `triggers` (a category, `name`)."""
-        triggers = self.triggers if triggers is None else triggers
-        if not triggers:
-            return
-        file = f"Onion Watch {name}.zip" if name else "Onion Watch triggers.zip"
-        file = "".join("_" if c in '\\/:*?"<>|' else c for c in file)
-        path, __ = QFileDialog.getSaveFileName(self, _("Save triggers"), str(Path.home() / file),
-                                              _("Trigger packs") + " (*.zip)")
-        if not path:
-            return
-        from onionwatch.ui.triggers.categories import pictures_dir as category_pictures_dir
-        names = {t.category for t in triggers}
-        cats = [c for c in self.groups.categories if c.name in names]
-        try:
-            packs.write_pack(path, triggers, dict(self.host.sounds()), cats,
-                             category_pictures_dir(self.host.data_dir))
-        except OSError as e:
-            QMessageBox.warning(self, _("Couldn't save the triggers"), str(e))
-            return
-        usage.used("pack-export")
-        QMessageBox.information(
-            self, _("Triggers saved"),
-            ngettext("{n} trigger saved to {name}, pictures and all, each in its category "
-                     "with its colours, picture and banner. Sounds go by name: sound files of "
-                     "yours aren't in it.",
-                     "{n} triggers saved to {name}, pictures and all, each in its category "
-                     "with its colours, picture and banner. Sounds go by name: sound files of "
-                     "yours aren't in it.", len(triggers), name=Path(path).name))
-
-    def import_triggers(self):
-        path, __ = QFileDialog.getOpenFileName(self, _("Load triggers"), str(Path.home()),
-                                              _("Trigger packs") + " (*.zip);;"
-                                              + _("All files") + " (*)")
-        if not path:
-            return
-        try:
-            found = packs.read_pack(path)
-        except packs.PackError as e:
-            QMessageBox.warning(self, _("Can't load those triggers"), str(e))
-            return
-        if found and not any(t.category for t, _p, _s in found):
-            # a pack without categories (an older one): its triggers go in one named
-            # after the file, so they stay together
-            name = profiles.clean_name(Path(path).stem.removeprefix("Onion Watch "))
-            for t, _p, _s in found:
-                t.category = name
-        added = self.add_pack(found)
-        if added:
-            usage.used("pack-import")
-            self.add_pack_looks(packs.read_categories(path))
-        if found and not added:
-            QMessageBox.information(self, _("Too many triggers"),
-                                    _("You can have up to {max_triggers} triggers.",
-                                      max_triggers=MAX_TRIGGERS))
-        elif not found:
-            QMessageBox.information(self, _("No triggers"), _("That file has no triggers in it."))
-
-    def add_pack_looks(self, looks: dict):
-        """Give the categories a pack brought their looks (packs.read_categories),
-        each picture kept like a picked one. A category that already has a look
-        or banner of its own keeps it."""
-        from onionwatch.ui.triggers.categories import save_banner
-        from onionwatch.ui.triggers.categories import save_picture as save_category_picture
-        changed = {}
-        for name, (look, pic, wide) in looks.items():
-            c = self.groups.find(name)
-            if c is None:
-                continue
-            new = c.full_look()
-            if not c.look():
-                new.update({k: v for k, v in look.items() if k != "banner"})
-                img = QImage()
-                if pic and img.loadFromData(pic):
-                    new["image"] = save_category_picture(img, self.host.data_dir)
-            img = QImage()
-            if not c.banner and wide and img.loadFromData(wide):
-                b = save_banner(img, self.host.data_dir)
-                if b:
-                    new["banner"] = {**look.get("banner", {}), "image": b}
-            if new != c.full_look():
-                changed[name] = new
-        if changed:
-            self.set_category_looks(changed)
-
-    def add_pack(self, found) -> int:
-        """Add the triggers read from a pack (packs.read_pack): each gets a new id,
-        its pictures are kept like cut ones, and its sounds are the host's of the
-        same id or name, else the default. Each keeps its category (made if need be).
-        Returns how many were added."""
-        have = self.host.sounds()
-        ids, by_name = {sid for sid, _n in have}, {n.lower(): sid for sid, n in have}
-        added = 0
-        for t, pics, sounds in found:
-            if len(self.triggers) >= MAX_TRIGGERS:
-                break
-            t.id = uuid.uuid4().hex[:12]
-            t.enabled = True
-            t.images = []
-            for data in pics:
-                img = QImage()
-                if not img.loadFromData(data) or self._check_picture(img)[0] is None:
-                    continue
-                try:
-                    t.images.append(save_picture(img, picture_name(t, self.pictures),
-                                                 self.pictures))
-                except OSError:
-                    log.warning("couldn't keep a picture from a pack", exc_info=True)
-            mapped = []
-            for sid, name in sounds or [(sid, "") for sid in t.sounds]:
-                got = sid if sid in ids else by_name.get(name.lower()) if name else None
-                if got and got not in mapped:
-                    mapped.append(got)
-            if not mapped and self.host.default_sound:
-                mapped = [self.host.default_sound]
-            t.sounds = mapped
-            self._insert(t)
-            added += 1
-        return added
 
 
 def fullscreen_hint() -> str:

@@ -134,6 +134,10 @@ our files that deep: `core/usage.py` `_OUR_FRAME`).
 | `onionwatch/core/apphost.py` | the Onion Watch app as that host |
 | `onionwatch/board.py` | the Onion Board add-on's entry point: `create(host, parent=None)` gives the board its Triggers tab, made on `parent` when given (alarm bar + triggers page) |
 | `onionwatch/ui/triggers/triggerspanel.py` | the triggers page (`TriggersTab`): the list of cards, search and views, "Look in", Watching, Cut picture, saving the triggers. Talks only to its host |
+| `onionwatch/ui/triggers/controller.py` | the base of the page's feature controllers (`*control.py`, each a QObject the page owns), and `needs_part` |
+| `onionwatch/ui/triggers/bincontrol.py` | Recently deleted (`tab.binctl`): the bin of deleted triggers, its button, letting old ones go, bringing one back |
+| `onionwatch/ui/triggers/packcontrol.py` | trigger packs (`tab.packctl`): saving triggers to a pack, loading one, adding its triggers and its categories' looks |
+| `onionwatch/ui/triggers/profilecontrol.py` | profiles (`tab.profilectl`): the Profile list, switching and editing them, Automatic's look at the open programs |
 | `onionwatch/ui/triggers/card.py` | one trigger's card (`TriggerRow`): its header and, opened, everything about the trigger |
 | `onionwatch/ui/triggers/cardkit.py` | the small widgets a card is built from: lists and number boxes that fit their text, the picture strip, flowing rows, the tune grid, switches, the cards' style sheet |
 | `onionwatch/ui/triggers/pictures.py` | a trigger's pictures on disk: the size each was cut at, saving, loading, deleting, thumbnails |

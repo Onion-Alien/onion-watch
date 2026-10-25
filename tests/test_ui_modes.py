@@ -163,7 +163,7 @@ def test_triggers_are_saved_to_a_file_and_loaded_back(tab, tmp_path):
     found = packs.read_pack(path)
     assert [t.mode for t, _p, _s in found] == ["vanish", "still"]
     before = {t.id for t in tab.triggers}
-    assert tab.add_pack(found) == 2
+    assert tab.packctl.add_pack(found) == 2
     new = [t for t in tab.triggers if t.id not in before]
     assert new[0].mode == "vanish" and new[0].sources == [GAME] and len(new[0].images) == 1
     assert new[0].images[0] != row.t.images[0]

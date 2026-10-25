@@ -340,8 +340,8 @@ def main(out: Path):
     raids.apps = ["realmonline.exe"]
     tab._lister = lambda: list(wins)      # the invented windows: the game is open
     tab._front = lambda: 104
-    tab.set_profiles([raids])
-    tab.set_profile(profiles.AUTO)
+    tab.profilectl.set_profiles([raids])
+    tab.profilectl.set_profile(profiles.AUTO)
     for c in tab.groups.categories:
         c.open = c.name == "Dungeons and queues"
     tab._drop_section("Dungeons and queues")

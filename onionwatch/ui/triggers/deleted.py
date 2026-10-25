@@ -1,5 +1,5 @@
 """The "Recently deleted" window for triggers: newest first, with Bring back and
-Delete for good. The bin itself is the panel's (TriggersTab.deleted)."""
+Delete for good. The bin itself is the page's (TriggersTab.binctl, bincontrol.py)."""
 from __future__ import annotations
 
 import time
@@ -27,14 +27,14 @@ def ago(when: float, now: float | None = None) -> str:
 
 
 class DeletedDialog(QDialog):
-    """Follows `panel` (a TriggersTab): panel.deleted() lists the bin as
-    (id, name, when), panel.restore_deleted(id) brings one back (False if it
-    couldn't), panel.forget_deleted(id) drops one for good."""
+    """Follows `binctl` (the page's BinControl): binctl.deleted() lists the bin as
+    (id, name, when), binctl.restore_deleted(id) brings one back (False if it
+    couldn't), binctl.forget_deleted(id) drops one for good."""
 
-    def __init__(self, panel, keep_days: int, parent=None):
+    def __init__(self, binctl, keep_days: int, parent=None):
         super().__init__(parent)
         fit.watch(self)          # grows to fit its (translated) text
-        self.panel = panel
+        self.binctl = binctl
         self.setWindowTitle(_("Recently deleted triggers"))
         lay = QVBoxLayout(self)
         lay.addWidget(hint_label(_("Triggers you delete are kept here for {keep_days} days, "
@@ -65,7 +65,7 @@ class DeletedDialog(QDialog):
 
     def fill(self):
         self.list.clear()
-        for iid, name, when in self.panel.deleted():
+        for iid, name, when in self.binctl.deleted():
             li = QListWidgetItem(_("{name}    ·    deleted {ago}", name=name, ago=ago(when)))
             li.setData(Qt.UserRole, iid)
             self.list.addItem(li)
@@ -88,8 +88,8 @@ class DeletedDialog(QDialog):
 
     def bring_back(self):
         for iid in self._picked():
-            if not self.panel.restore_deleted(iid):
-                break   # the panel said why (e.g. too many triggers)
+            if not self.binctl.restore_deleted(iid):
+                break   # it said why (e.g. too many triggers)
         self.fill()
 
     def delete_for_good(self):
@@ -105,5 +105,5 @@ class DeletedDialog(QDialog):
             ) != QMessageBox.Yes:
             return
         for iid in ids:
-            self.panel.forget_deleted(iid)
+            self.binctl.forget_deleted(iid)
         self.fill()
