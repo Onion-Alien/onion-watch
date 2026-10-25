@@ -405,7 +405,7 @@ class CategorySection(QWidget):
         self._tip = ""                  # what clicking its name does (_show_tip)
         self._data_dir = None
         self.look: Category | None = None
-        from onionwatch.ui.triggers.triggerspanel import FlowBox, Switch  # (it imports this one)
+        from onionwatch.ui.triggers.cardkit import FlowBox, Switch  # (it imports this one)
         self.name = name
         self.built = False              # its cards have been made
         v = QVBoxLayout(self)
@@ -442,7 +442,7 @@ class CategorySection(QWidget):
         self.count = hint_label("")
         self.count.setWordWrap(False)
         h.addWidget(self.count)
-        from onionwatch.ui.triggers.triggerspanel import align_control
+        from onionwatch.ui.triggers.cardkit import align_control
         self.switch = Switch()
         self.switch.clicked.connect(lambda on: self.switched.emit(self.name, on))
         h.addWidget(self.switch)

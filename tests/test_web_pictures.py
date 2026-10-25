@@ -10,7 +10,7 @@ from test_ui import as_qimage, banner, fake_screen, tab  # noqa: F401 (fixtures)
 
 from onionwatch.engine import screenwatch as sw
 from onionwatch.engine.screenwatch import Monitor
-from onionwatch.ui.triggers import triggerspanel as tp
+from onionwatch.ui.triggers import pictures as pics
 
 
 def web_watcher(level: np.ndarray, pic: np.ndarray, wide: bool, any_size: bool = True):
@@ -78,34 +78,34 @@ def test_a_file_onion_watch_did_not_cut_counts_as_from_the_web(qapp, tmp_path):
     img = QImage(400, 300, QImage.Format_ARGB32)
     img.fill(0xFF336699)
     img.save(str(tmp_path / "web.png"))
-    assert tp.is_web(tp.picture_file(str(tmp_path / "web.png")))
-    tp.set_cut_size(img, (1920, 1080))      # one Onion Watch kept: it knows its size
+    assert pics.is_web(pics.picture_file(str(tmp_path / "web.png")))
+    pics.set_cut_size(img, (1920, 1080))      # one Onion Watch kept: it knows its size
     img.save(str(tmp_path / "cut.png"))
-    assert not tp.is_web(tp.picture_file(str(tmp_path / "cut.png")))
+    assert not pics.is_web(pics.picture_file(str(tmp_path / "cut.png")))
 
 
 def test_a_picture_from_the_web_is_shrunk_to_fit_what_is_watched(qapp):
     img = QImage(3000, 1000, QImage.Format_ARGB32)
     img.fill(0xFF336699)
-    tp.set_web(img)
-    out = tp.fit_web(img, (1920, 1080))
-    assert out.width() == round(1920 * tp.WEB_FILL) and out.height() <= 1080 * tp.WEB_FILL
-    assert tp.is_web(out)                   # its notes go with it
+    pics.set_web(img)
+    out = pics.fit_web(img, (1920, 1080))
+    assert out.width() == round(1920 * pics.WEB_FILL) and out.height() <= 1080 * pics.WEB_FILL
+    assert pics.is_web(out)                   # its notes go with it
     small = QImage(64, 64, QImage.Format_ARGB32)
-    assert tp.fit_web(small, (1920, 1080)) is small
+    assert pics.fit_web(small, (1920, 1080)) is small
     huge = QImage(9000, 300, QImage.Format_ARGB32)     # over MAX_SIDE: shrunk, not refused
-    assert tp.fit_web(huge, None).width() <= tp.WEB_GUESS[0]
+    assert pics.fit_web(huge, None).width() <= pics.WEB_GUESS[0]
 
 
 def test_a_picture_copied_in_a_browser_counts_as_from_the_web(qapp):
     clip = qapp.clipboard()
     clip.setImage(as_qimage(banner()))      # Win+Shift+S: the picture alone
-    assert not tp.copied_picture().isNull() and not tp.is_web(tp.copied_picture())
+    assert not pics.copied_picture().isNull() and not pics.is_web(pics.copied_picture())
     mime = QMimeData()
     mime.setImageData(as_qimage(banner()))
     mime.setHtml('<img src="https://example.com/skull.png">')
     clip.setMimeData(mime)                  # a browser's "Copy image"
-    assert tp.is_web(tp.copied_picture())
+    assert pics.is_web(pics.copied_picture())
 
 
 def test_a_picture_file_copied_in_explorer_can_be_pasted(qapp, tmp_path):
@@ -113,18 +113,18 @@ def test_a_picture_file_copied_in_explorer_can_be_pasted(qapp, tmp_path):
     mime = QMimeData()
     mime.setUrls([QUrl.fromLocalFile(str(tmp_path / "skull.png"))])
     qapp.clipboard().setMimeData(mime)
-    img = tp.copied_picture()
-    assert not img.isNull() and tp.is_web(img)
+    img = pics.copied_picture()
+    assert not img.isNull() and pics.is_web(img)
 
 
 def test_a_web_picture_is_added_shrunk_marked_and_explained(tab, qapp, tmp_path):  # noqa: F811
     big = QImage(as_qimage(banner()).scaled(900, 300))
     big.save(str(tmp_path / "skull.png"))
-    t = tab._new(tp.picture_file(str(tmp_path / "skull.png")), "Skull")
+    t = tab._new(pics.picture_file(str(tmp_path / "skull.png")), "Skull")
     assert t is not None
     kept = QImage(t.images[0])
-    assert tp.is_web(kept) and tp.cut_size(kept) is not None    # older versions: as before
-    assert kept.width() <= 320 * tp.WEB_FILL + 1                # the 320 x 180 screen
+    assert pics.is_web(kept) and pics.cut_size(kept) is not None    # older versions: as before
+    assert kept.width() <= 320 * pics.WEB_FILL + 1                # the 320 x 180 screen
     row = tab.rows[t.id]
     assert process_events(qapp, lambda: "every size" in row.state.text())
     tab._sync()
@@ -137,7 +137,7 @@ def test_a_picture_dragged_from_a_browser_is_added(tab, qapp):  # noqa: F811
     mime = QMimeData()
     mime.setImageData(as_qimage(banner()))
     img = row.dropped_picture(mime)
-    assert img is not None and tp.is_web(img)
+    assert img is not None and pics.is_web(img)
     tab._add_dropped_picture(row, img)
     assert len(row.t.images) == 2
 

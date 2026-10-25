@@ -1,5 +1,29 @@
 [
 {
+"file": "onionwatch/audio/sounds.py",
+"rule": "reportCallIssue",
+"message": "Object of type \"object\" is not callable",
+"count": 1
+},
+{
+"file": "onionwatch/board.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"RightToLeft\" for class \"type[Qt]\"",
+"count": 2
+},
+{
+"file": "onionwatch/board.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"layoutDirection\" for class \"QCoreApplication\"",
+"count": 1
+},
+{
+"file": "onionwatch/board.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot assign to attribute \"pages\" for class \"TriggersTab\"",
+"count": 1
+},
+{
 "file": "onionwatch/core/app.py",
 "rule": "reportAttributeAccessIssue",
 "message": "Cannot access attribute \"RightToLeft\" for class \"type[Qt]\"",
@@ -24,45 +48,33 @@
 "count": 1
 },
 {
-"file": "onionwatch/board.py",
+"file": "onionwatch/core/settings.py",
 "rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"RightToLeft\" for class \"type[Qt]\"",
+"message": "Cannot assign to attribute \"_unknown\" for class \"Config*\"",
+"count": 1
+},
+{
+"file": "onionwatch/core/singleinstance.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"WindowActive\" for class \"type[Qt]\"",
+"count": 1
+},
+{
+"file": "onionwatch/core/singleinstance.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"WindowMinimized\" for class \"type[Qt]\"",
+"count": 1
+},
+{
+"file": "onionwatch/core/singleinstance.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot assign to attribute \"show_requested\" for class \"QLocalServer\"",
 "count": 2
 },
 {
-"file": "onionwatch/board.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"layoutDirection\" for class \"QCoreApplication\"",
-"count": 1
-},
-{
-"file": "onionwatch/board.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot assign to attribute \"pages\" for class \"TriggersTab\"",
-"count": 1
-},
-{
-"file": "onionwatch/host.py",
-"rule": "reportReturnType",
-"message": "Function with declared return type \"bool\" must return value on all code paths",
-"count": 1
-},
-{
-"file": "onionwatch/host.py",
-"rule": "reportReturnType",
-"message": "Function with declared return type \"dict[str, str]\" must return value on all code paths",
-"count": 1
-},
-{
-"file": "onionwatch/host.py",
-"rule": "reportReturnType",
-"message": "Function with declared return type \"list[str]\" must return value on all code paths",
-"count": 1
-},
-{
-"file": "onionwatch/host.py",
-"rule": "reportReturnType",
-"message": "Function with declared return type \"list[tuple[str, str]]\" must return value on all code paths",
+"file": "onionwatch/core/usage.py",
+"rule": "reportOptionalIterable",
+"message": "Object of type \"None\" cannot be used as iterable value",
 "count": 1
 },
 {
@@ -117,108 +129,6 @@
 "file": "onionwatch/engine/imgops.py",
 "rule": "reportReturnType",
 "message": "Type \"tuple[Dispatchable] | Unknown\" is not assignable to return type \"ndarray[_AnyShape, dtype[Any]]\"",
-"count": 1
-},
-{
-"file": "onionwatch/owl.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"AlignCenter\" for class \"type[Qt]\"",
-"count": 1
-},
-{
-"file": "onionwatch/owl.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"Antialiasing\" for class \"type[QPainter]\"",
-"count": 2
-},
-{
-"file": "onionwatch/owl.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"ApplicationActive\" for class \"type[Qt]\"",
-"count": 2
-},
-{
-"file": "onionwatch/owl.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"ElideRight\" for class \"type[Qt]\"",
-"count": 1
-},
-{
-"file": "onionwatch/owl.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"Fixed\" for class \"type[QSizePolicy]\"",
-"count": 1
-},
-{
-"file": "onionwatch/owl.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"Format_ARGB32_Premultiplied\" for class \"type[QImage]\"",
-"count": 1
-},
-{
-"file": "onionwatch/owl.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"LeftButton\" for class \"type[Qt]\"",
-"count": 1
-},
-{
-"file": "onionwatch/owl.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"Maximum\" for class \"type[QSizePolicy]\"",
-"count": 1
-},
-{
-"file": "onionwatch/owl.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"NoBrush\" for class \"type[Qt]\"",
-"count": 2
-},
-{
-"file": "onionwatch/owl.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"NoPen\" for class \"type[Qt]\"",
-"count": 5
-},
-{
-"file": "onionwatch/owl.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"PointingHandCursor\" for class \"type[Qt]\"",
-"count": 1
-},
-{
-"file": "onionwatch/owl.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"RoundCap\" for class \"type[Qt]\"",
-"count": 4
-},
-{
-"file": "onionwatch/owl.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"RoundJoin\" for class \"type[Qt]\"",
-"count": 2
-},
-{
-"file": "onionwatch/owl.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"SolidLine\" for class \"type[Qt]\"",
-"count": 3
-},
-{
-"file": "onionwatch/owl.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"applicationState\" for class \"QCoreApplication\"",
-"count": 1
-},
-{
-"file": "onionwatch/owl.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"applicationStateChanged\" for class \"QCoreApplication\"",
-"count": 1
-},
-{
-"file": "onionwatch/owl.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"transparent\" for class \"type[Qt]\"",
 "count": 1
 },
 {
@@ -290,12 +200,6 @@
 {
 "file": "onionwatch/engine/screenwatch.py",
 "rule": "reportArgumentType",
-"message": "Argument of type \"Monitor | None\" cannot be assigned to parameter \"src\" of type \"Monitor\" in function \"__init__\"",
-"count": 1
-},
-{
-"file": "onionwatch/engine/screenwatch.py",
-"rule": "reportArgumentType",
 "message": "Argument of type \"Monitor | None\" cannot be assigned to parameter \"src\" of type \"Monitor\" in function \"open_grabber\"",
 "count": 2
 },
@@ -321,12 +225,6 @@
 "file": "onionwatch/engine/screenwatch.py",
 "rule": "reportArgumentType",
 "message": "Argument of type \"_Array1D[_ScalarNumeric]\" cannot be assigned to parameter \"b\" of type \"_ArrayLikeTD64_co\" in function \"outer\"",
-"count": 1
-},
-{
-"file": "onionwatch/engine/screenwatch.py",
-"rule": "reportArgumentType",
-"message": "Argument of type \"int | WindowRef\" cannot be assigned to parameter \"ref\" of type \"WindowRef\" in function \"__init__\"",
 "count": 1
 },
 {
@@ -474,46 +372,202 @@
 "count": 3
 },
 {
-"file": "onionwatch/core/settings.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot assign to attribute \"_unknown\" for class \"Config*\"",
+"file": "onionwatch/host.py",
+"rule": "reportReturnType",
+"message": "Function with declared return type \"bool\" must return value on all code paths",
 "count": 1
 },
 {
-"file": "onionwatch/core/singleinstance.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"WindowActive\" for class \"type[Qt]\"",
+"file": "onionwatch/host.py",
+"rule": "reportReturnType",
+"message": "Function with declared return type \"dict[str, str]\" must return value on all code paths",
 "count": 1
 },
 {
-"file": "onionwatch/core/singleinstance.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"WindowMinimized\" for class \"type[Qt]\"",
+"file": "onionwatch/host.py",
+"rule": "reportReturnType",
+"message": "Function with declared return type \"list[str]\" must return value on all code paths",
 "count": 1
 },
 {
-"file": "onionwatch/core/singleinstance.py",
+"file": "onionwatch/host.py",
+"rule": "reportReturnType",
+"message": "Function with declared return type \"list[tuple[str, str]]\" must return value on all code paths",
+"count": 1
+},
+{
+"file": "onionwatch/ui/kit/fit.py",
+"rule": "reportArgumentType",
+"message": "Argument of type \"QObject | None\" cannot be assigned to parameter \"w\" of type \"QWidget\" in function \"fit\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/kit/fit.py",
 "rule": "reportAttributeAccessIssue",
-"message": "Cannot assign to attribute \"show_requested\" for class \"QLocalServer\"",
+"message": "Cannot access attribute \"LayoutRequest\" for class \"type[QEvent]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/kit/fit.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"Resize\" for class \"type[QEvent]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/kit/fit.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"Show\" for class \"type[QEvent]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/kit/icons.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"Active\" for class \"type[QIcon]\"",
 "count": 2
 },
 {
-"file": "onionwatch/audio/sounds.py",
-"rule": "reportCallIssue",
-"message": "Object of type \"object\" is not callable",
+"file": "onionwatch/ui/kit/icons.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"Antialiasing\" for class \"type[QPainter]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/kit/icons.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"Disabled\" for class \"type[QIcon]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/kit/icons.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"DynamicPropertyChange\" for class \"type[QEvent]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/kit/icons.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"NoBrush\" for class \"type[Qt]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/kit/icons.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"Normal\" for class \"type[QIcon]\"",
+"count": 3
+},
+{
+"file": "onionwatch/ui/kit/icons.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"Off\" for class \"type[QIcon]\"",
+"count": 2
+},
+{
+"file": "onionwatch/ui/kit/icons.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"On\" for class \"type[QIcon]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/kit/icons.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"RoundCap\" for class \"type[Qt]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/kit/icons.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"RoundJoin\" for class \"type[Qt]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/kit/icons.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"Selected\" for class \"type[QIcon]\"",
+"count": 2
+},
+{
+"file": "onionwatch/ui/kit/icons.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"transparent\" for class \"type[Qt]\"",
+"count": 2
+},
+{
+"file": "onionwatch/ui/kit/panel.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"Antialiasing\" for class \"type[QPainter]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/kit/panel.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"ElideRight\" for class \"type[Qt]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/kit/panel.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"PlainText\" for class \"type[Qt]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/kit/panel.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"PointingHandCursor\" for class \"type[Qt]\"",
+"count": 2
+},
+{
+"file": "onionwatch/ui/kit/panel.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"Resize\" for class \"type[QEvent]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/kit/panel.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"RoundCap\" for class \"type[Qt]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/kit/panel.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"SolidLine\" for class \"type[Qt]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/kit/panel.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"transparent\" for class \"type[Qt]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/kit/panel.py",
+"rule": "reportOptionalMemberAccess",
+"message": "\"contentsMargins\" is not a known attribute of \"None\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/kit/panel.py",
+"rule": "reportOptionalMemberAccess",
+"message": "\"installEventFilter\" is not a known attribute of \"None\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/kit/panel.py",
+"rule": "reportOptionalMemberAccess",
+"message": "\"spacing\" is not a known attribute of \"None\"",
 "count": 1
 },
 {
 "file": "onionwatch/ui/kit/theme.py",
 "rule": "reportAttributeAccessIssue",
 "message": "Cannot access attribute \"Antialiasing\" for class \"type[QPainter]\"",
-"count": 5
+"count": 4
 },
 {
 "file": "onionwatch/ui/kit/theme.py",
 "rule": "reportAttributeAccessIssue",
 "message": "Cannot access attribute \"Format_ARGB32\" for class \"type[QImage]\"",
-"count": 6
+"count": 4
 },
 {
 "file": "onionwatch/ui/kit/theme.py",
@@ -525,7 +579,7 @@
 "file": "onionwatch/ui/kit/theme.py",
 "rule": "reportAttributeAccessIssue",
 "message": "Cannot access attribute \"NoPen\" for class \"type[Qt]\"",
-"count": 3
+"count": 2
 },
 {
 "file": "onionwatch/ui/kit/theme.py",
@@ -544,6 +598,702 @@
 "rule": "reportAttributeAccessIssue",
 "message": "Cannot access attribute \"transparent\" for class \"type[Qt]\"",
 "count": 5
+},
+{
+"file": "onionwatch/ui/kit/wheelguard.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"Wheel\" for class \"type[QEvent]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/settings/countdialog.py",
+"rule": "reportOptionalMemberAccess",
+"message": "\"totalHeightForWidth\" is not a known attribute of \"None\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/settings/langpick.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"AlignAbsolute\" for class \"type[Qt]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/settings/langpick.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"AlignCenter\" for class \"type[Qt]\"",
+"count": 2
+},
+{
+"file": "onionwatch/ui/settings/langpick.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"AlignLeft\" for class \"type[Qt]\"",
+"count": 2
+},
+{
+"file": "onionwatch/ui/settings/langpick.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"AlignRight\" for class \"type[Qt]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/settings/langpick.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"AlignTop\" for class \"type[Qt]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/settings/langpick.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"AlignVCenter\" for class \"type[Qt]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/settings/langpick.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"Antialiasing\" for class \"type[QPainter]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/settings/langpick.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"ElideRight\" for class \"type[Qt]\"",
+"count": 5
+},
+{
+"file": "onionwatch/ui/settings/langpick.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"LeftToRight\" for class \"type[Qt]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/settings/langpick.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"NoFrame\" for class \"type[QScrollArea]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/settings/langpick.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"PointingHandCursor\" for class \"type[Qt]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/settings/langpick.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"RightToLeft\" for class \"type[Qt]\"",
+"count": 2
+},
+{
+"file": "onionwatch/ui/settings/langpick.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"ScrollBarAlwaysOff\" for class \"type[Qt]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/settings/langpick.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"WindowContextHelpButtonHint\" for class \"type[Qt]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/settings/settingsdialog.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"AdjustToContents\" for class \"type[QComboBox]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/settings/settingsdialog.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"AlignAbsolute\" for class \"type[Qt]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/settings/settingsdialog.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"AlignLeft\" for class \"type[Qt]\"",
+"count": 3
+},
+{
+"file": "onionwatch/ui/settings/settingsdialog.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"AlignRight\" for class \"type[Qt]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/settings/settingsdialog.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"AlignVCenter\" for class \"type[Qt]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/settings/settingsdialog.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"Antialiasing\" for class \"type[QPainter]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/settings/settingsdialog.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"Horizontal\" for class \"type[Qt]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/settings/settingsdialog.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"LeftToRight\" for class \"type[Qt]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/settings/settingsdialog.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"NoFrame\" for class \"type[QScrollArea]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/settings/settingsdialog.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"NoPen\" for class \"type[Qt]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/settings/settingsdialog.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"PointingHandCursor\" for class \"type[Qt]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/settings/settingsdialog.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"RightToLeft\" for class \"type[Qt]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/settings/settingsdialog.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"ScrollBarAlwaysOff\" for class \"type[Qt]\"",
+"count": 2
+},
+{
+"file": "onionwatch/ui/settings/settingsdialog.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"SetNoConstraint\" for class \"type[QLayout]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/settings/settingsdialog.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"UserRole\" for class \"type[Qt]\"",
+"count": 2
+},
+{
+"file": "onionwatch/ui/settings/settingsdialog.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"widget\" for class \"QWidget\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/settings/settingsdialog.py",
+"rule": "reportOptionalMemberAccess",
+"message": "\"widget\" is not a known attribute of \"None\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/settings/watching.py",
+"rule": "reportArgumentType",
+"message": "Argument of type \"Overload[(dx: int, dy: int, /) -> None, (dx: int, dy: int, arg__3: QRect, /) -> None]\" cannot be assigned to parameter \"arg__1\" of type \"QWidget\" in function \"addWidget\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/settings/watching.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"Close\" for class \"type[QDialogButtonBox]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/settings/watching.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"NoFrame\" for class \"type[QFrame]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/settings/watching.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"ScrollBarAlwaysOff\" for class \"type[Qt]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/settings/watching.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"setFrameShape\" for class \"MethodType\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/settings/watching.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"setHorizontalScrollBarPolicy\" for class \"MethodType\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/settings/watching.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"setStyleSheet\" for class \"MethodType\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/settings/watching.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"setWidget\" for class \"MethodType\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/settings/watching.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"setWidgetResizable\" for class \"MethodType\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/settings/watching.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"verticalScrollBar\" for class \"MethodType\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/settings/watching.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"viewport\" for class \"MethodType\"",
+"count": 2
+},
+{
+"file": "onionwatch/ui/settings/watching.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot assign to attribute \"scroll\" for class \"WatchingDialog*\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/settings/watching.py",
+"rule": "reportOptionalMemberAccess",
+"message": "\"activate\" is not a known attribute of \"None\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/settings/watching.py",
+"rule": "reportOptionalMemberAccess",
+"message": "\"contentsMargins\" is not a known attribute of \"None\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/settings/watching.py",
+"rule": "reportOptionalMemberAccess",
+"message": "\"spacing\" is not a known attribute of \"None\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/settings/watching.py",
+"rule": "reportOptionalMemberAccess",
+"message": "\"totalHeightForWidth\" is not a known attribute of \"None\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/triggers/card.py",
+"rule": "reportArgumentType",
+"message": "Expression of type \"tuple[()]\" cannot be assigned to parameter of type \"list[Monitor]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/triggers/card.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"AlignBottom\" for class \"type[Qt]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/triggers/card.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"AlignCenter\" for class \"type[Qt]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/triggers/card.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"AlignHCenter\" for class \"type[Qt]\"",
+"count": 2
+},
+{
+"file": "onionwatch/ui/triggers/card.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"AlignLeft\" for class \"type[Qt]\"",
+"count": 5
+},
+{
+"file": "onionwatch/ui/triggers/card.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"AlignRight\" for class \"type[Qt]\"",
+"count": 2
+},
+{
+"file": "onionwatch/ui/triggers/card.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"AlignTop\" for class \"type[Qt]\"",
+"count": 4
+},
+{
+"file": "onionwatch/ui/triggers/card.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"AlignVCenter\" for class \"type[Qt]\"",
+"count": 2
+},
+{
+"file": "onionwatch/ui/triggers/card.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"Expanding\" for class \"type[QSizePolicy]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/triggers/card.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"FontChange\" for class \"type[QEvent]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/triggers/card.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"Ignored\" for class \"type[QSizePolicy]\"",
+"count": 5
+},
+{
+"file": "onionwatch/ui/triggers/card.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"LeftButton\" for class \"type[Qt]\"",
+"count": 3
+},
+{
+"file": "onionwatch/ui/triggers/card.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"MoveAction\" for class \"type[Qt]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/triggers/card.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"PointingHandCursor\" for class \"type[Qt]\"",
+"count": 3
+},
+{
+"file": "onionwatch/ui/triggers/card.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"Preferred\" for class \"type[QSizePolicy]\"",
+"count": 4
+},
+{
+"file": "onionwatch/ui/triggers/card.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"RichText\" for class \"type[Qt]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/triggers/card.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"SmoothTransformation\" for class \"type[Qt]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/triggers/card.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"StyleChange\" for class \"type[QEvent]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/triggers/card.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"ToolTipRole\" for class \"type[Qt]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/triggers/card.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"addLayout\" for class \"QLayout\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/triggers/card.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"addSpacing\" for class \"QLayout\"",
+"count": 2
+},
+{
+"file": "onionwatch/ui/triggers/card.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"insertWidget\" for class \"QLayout\"",
+"count": 3
+},
+{
+"file": "onionwatch/ui/triggers/card.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"setRowHidden\" for class \"QAbstractItemView\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/triggers/card.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"transparent\" for class \"type[Qt]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/triggers/card.py",
+"rule": "reportOptionalMemberAccess",
+"message": "\"insertWidget\" is not a known attribute of \"None\"",
+"count": 3
+},
+{
+"file": "onionwatch/ui/triggers/card.py",
+"rule": "reportOptionalOperand",
+"message": "Operator \"+\" not supported for \"None\"",
+"count": 2
+},
+{
+"file": "onionwatch/ui/triggers/cardkit.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"AdjustToContents\" for class \"type[QComboBox]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/triggers/cardkit.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"AdjustToMinimumContentsLengthWithIcon\" for class \"type[QComboBox]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/triggers/cardkit.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"AlignBottom\" for class \"type[Qt]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/triggers/cardkit.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"AlignLeft\" for class \"type[Qt]\"",
+"count": 7
+},
+{
+"file": "onionwatch/ui/triggers/cardkit.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"AlignTop\" for class \"type[Qt]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/triggers/cardkit.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"AlignVCenter\" for class \"type[Qt]\"",
+"count": 3
+},
+{
+"file": "onionwatch/ui/triggers/cardkit.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"Antialiasing\" for class \"type[QPainter]\"",
+"count": 2
+},
+{
+"file": "onionwatch/ui/triggers/cardkit.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"CC_SpinBox\" for class \"type[QStyle]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/triggers/cardkit.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"CT_ComboBox\" for class \"type[QStyle]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/triggers/cardkit.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"ElideRight\" for class \"type[Qt]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/triggers/cardkit.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"Expanding\" for class \"type[QSizePolicy]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/triggers/cardkit.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"Fixed\" for class \"type[QSizePolicy]\"",
+"count": 3
+},
+{
+"file": "onionwatch/ui/triggers/cardkit.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"Ignored\" for class \"type[QSizePolicy]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/triggers/cardkit.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"LayoutRequest\" for class \"type[QEvent]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/triggers/cardkit.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"LeftToRight\" for class \"type[QBoxLayout]\"",
+"count": 2
+},
+{
+"file": "onionwatch/ui/triggers/cardkit.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"Maximum\" for class \"type[QSizePolicy]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/triggers/cardkit.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"Minimum\" for class \"type[QSizePolicy]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/triggers/cardkit.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"NoFocus\" for class \"type[Qt]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/triggers/cardkit.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"NoFrame\" for class \"type[QFrame]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/triggers/cardkit.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"NoPen\" for class \"type[Qt]\"",
+"count": 2
+},
+{
+"file": "onionwatch/ui/triggers/cardkit.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"PointingHandCursor\" for class \"type[Qt]\"",
+"count": 4
+},
+{
+"file": "onionwatch/ui/triggers/cardkit.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"Preferred\" for class \"type[QSizePolicy]\"",
+"count": 3
+},
+{
+"file": "onionwatch/ui/triggers/cardkit.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"SC_SpinBoxEditField\" for class \"type[QStyle]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/triggers/cardkit.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"ScrollBarAlwaysOff\" for class \"type[Qt]\"",
+"count": 2
+},
+{
+"file": "onionwatch/ui/triggers/cardkit.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"ScrollBarAsNeeded\" for class \"type[Qt]\"",
+"count": 2
+},
+{
+"file": "onionwatch/ui/triggers/cardkit.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"StyleChange\" for class \"type[QEvent]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/triggers/cardkit.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"ToolTipRole\" for class \"type[Qt]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/triggers/cardkit.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"TopToBottom\" for class \"type[QBoxLayout]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/triggers/cardkit.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"WA_TransparentForMouseEvents\" for class \"type[Qt]\"",
+"count": 2
+},
+{
+"file": "onionwatch/ui/triggers/cardkit.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"WA_WState_Polished\" for class \"type[Qt]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/triggers/cardkit.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"clicked\" for class \"MethodType\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/triggers/cardkit.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"hide\" for class \"MethodType\"",
+"count": 2
+},
+{
+"file": "onionwatch/ui/triggers/cardkit.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"move\" for class \"MethodType\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/triggers/cardkit.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"raise_\" for class \"MethodType\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/triggers/cardkit.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"setFixedSize\" for class \"MethodType\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/triggers/cardkit.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"setObjectName\" for class \"MethodType\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/triggers/cardkit.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"setProperty\" for class \"MethodType\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/triggers/cardkit.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"setToolTip\" for class \"MethodType\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/triggers/cardkit.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"show\" for class \"MethodType\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/triggers/cardkit.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"width\" for class \"MethodType\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/triggers/cardkit.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot assign to attribute \"x\" for class \"Thumb*\"",
+"count": 1
 },
 {
 "file": "onionwatch/ui/triggers/categories.py",
@@ -888,12 +1638,6 @@
 "count": 1
 },
 {
-"file": "onionwatch/ui/settings/countdialog.py",
-"rule": "reportOptionalMemberAccess",
-"message": "\"totalHeightForWidth\" is not a known attribute of \"None\"",
-"count": 1
-},
-{
 "file": "onionwatch/ui/triggers/deleted.py",
 "rule": "reportAttributeAccessIssue",
 "message": "Cannot access attribute \"Close\" for class \"type[QDialogButtonBox]\"",
@@ -921,30 +1665,6 @@
 "file": "onionwatch/ui/triggers/deleted.py",
 "rule": "reportAttributeAccessIssue",
 "message": "Cannot access attribute \"Yes\" for class \"type[QMessageBox]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/kit/fit.py",
-"rule": "reportArgumentType",
-"message": "Argument of type \"QObject | None\" cannot be assigned to parameter \"w\" of type \"QWidget\" in function \"fit\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/kit/fit.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"LayoutRequest\" for class \"type[QEvent]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/kit/fit.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"Resize\" for class \"type[QEvent]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/kit/fit.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"Show\" for class \"type[QEvent]\"",
 "count": 1
 },
 {
@@ -978,387 +1698,63 @@
 "count": 1
 },
 {
-"file": "onionwatch/ui/kit/icons.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"Active\" for class \"type[QIcon]\"",
-"count": 2
-},
-{
-"file": "onionwatch/ui/kit/icons.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"Antialiasing\" for class \"type[QPainter]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/kit/icons.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"Disabled\" for class \"type[QIcon]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/kit/icons.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"DynamicPropertyChange\" for class \"type[QEvent]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/kit/icons.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"NoBrush\" for class \"type[Qt]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/kit/icons.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"Normal\" for class \"type[QIcon]\"",
-"count": 3
-},
-{
-"file": "onionwatch/ui/kit/icons.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"Off\" for class \"type[QIcon]\"",
-"count": 2
-},
-{
-"file": "onionwatch/ui/kit/icons.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"On\" for class \"type[QIcon]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/kit/icons.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"RoundCap\" for class \"type[Qt]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/kit/icons.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"RoundJoin\" for class \"type[Qt]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/kit/icons.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"Selected\" for class \"type[QIcon]\"",
-"count": 2
-},
-{
-"file": "onionwatch/ui/kit/icons.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"transparent\" for class \"type[Qt]\"",
-"count": 2
-},
-{
-"file": "onionwatch/ui/settings/langpick.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"AlignAbsolute\" for class \"type[Qt]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/settings/langpick.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"AlignCenter\" for class \"type[Qt]\"",
-"count": 2
-},
-{
-"file": "onionwatch/ui/settings/langpick.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"AlignLeft\" for class \"type[Qt]\"",
-"count": 2
-},
-{
-"file": "onionwatch/ui/settings/langpick.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"AlignRight\" for class \"type[Qt]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/settings/langpick.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"AlignTop\" for class \"type[Qt]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/settings/langpick.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"AlignVCenter\" for class \"type[Qt]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/settings/langpick.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"Antialiasing\" for class \"type[QPainter]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/settings/langpick.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"ElideRight\" for class \"type[Qt]\"",
-"count": 5
-},
-{
-"file": "onionwatch/ui/settings/langpick.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"LeftToRight\" for class \"type[Qt]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/settings/langpick.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"NoFrame\" for class \"type[QScrollArea]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/settings/langpick.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"PointingHandCursor\" for class \"type[Qt]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/settings/langpick.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"RightToLeft\" for class \"type[Qt]\"",
-"count": 2
-},
-{
-"file": "onionwatch/ui/settings/langpick.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"ScrollBarAlwaysOff\" for class \"type[Qt]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/settings/langpick.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"WindowContextHelpButtonHint\" for class \"type[Qt]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/window/mainwindow.py",
-"rule": "reportArgumentType",
-"message": "Argument of type \"QByteArray\" cannot be assigned to parameter \"o\" of type \"Iterable[SupportsIndex] | SupportsIndex | SupportsBytes | ReadableBuffer\" in function \"__new__\"",
-"count": 4
-},
-{
-"file": "onionwatch/ui/window/mainwindow.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"ClickFocus\" for class \"type[Qt]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/window/mainwindow.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"DoubleClick\" for class \"type[QSystemTrayIcon]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/window/mainwindow.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"TabFocus\" for class \"type[Qt]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/window/mainwindow.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"Trigger\" for class \"type[QSystemTrayIcon]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/window/mainwindow.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"WindowActive\" for class \"type[Qt]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/window/mainwindow.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"WindowMinimized\" for class \"type[Qt]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/window/mainwindow.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot assign to attribute \"pages\" for class \"TriggersTab\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/window/mainwindow.py",
-"rule": "reportOptionalMemberAccess",
-"message": "\"quit\" is not a known attribute of \"None\"",
-"count": 1
-},
-{
 "file": "onionwatch/ui/triggers/pages.py",
 "rule": "reportOptionalMemberAccess",
 "message": "\"widget\" is not a known attribute of \"None\"",
 "count": 1
 },
 {
-"file": "onionwatch/ui/kit/panel.py",
+"file": "onionwatch/ui/triggers/pictures.py",
+"rule": "reportArgumentType",
+"message": "Argument of type \"Literal['PNG']\" cannot be assigned to parameter \"format\" of type \"bytes | bytearray | memoryview[int] | None\" in function \"save\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/triggers/pictures.py",
 "rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"Antialiasing\" for class \"type[QPainter]\"",
-"count": 1
+"message": "Cannot access attribute \"Format_ARGB32\" for class \"type[QImage]\"",
+"count": 4
 },
 {
-"file": "onionwatch/ui/kit/panel.py",
+"file": "onionwatch/ui/triggers/pictures.py",
 "rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"ElideRight\" for class \"type[Qt]\"",
+"message": "Cannot access attribute \"Format_Grayscale8\" for class \"type[QImage]\"",
 "count": 1
 },
 {
-"file": "onionwatch/ui/kit/panel.py",
+"file": "onionwatch/ui/triggers/pictures.py",
 "rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"PlainText\" for class \"type[Qt]\"",
+"message": "Cannot access attribute \"Format_RGB32\" for class \"type[QImage]\"",
 "count": 1
 },
 {
-"file": "onionwatch/ui/kit/panel.py",
+"file": "onionwatch/ui/triggers/pictures.py",
 "rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"PointingHandCursor\" for class \"type[Qt]\"",
-"count": 2
+"message": "Cannot access attribute \"Format_RGB888\" for class \"type[QImage]\"",
+"count": 1
 },
 {
-"file": "onionwatch/ui/kit/panel.py",
+"file": "onionwatch/ui/triggers/pictures.py",
 "rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"Resize\" for class \"type[QEvent]\"",
+"message": "Cannot access attribute \"IgnoreAspectRatio\" for class \"type[Qt]\"",
 "count": 1
 },
 {
-"file": "onionwatch/ui/kit/panel.py",
+"file": "onionwatch/ui/triggers/pictures.py",
 "rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"RoundCap\" for class \"type[Qt]\"",
+"message": "Cannot access attribute \"KeepAspectRatio\" for class \"type[Qt]\"",
 "count": 1
 },
 {
-"file": "onionwatch/ui/kit/panel.py",
+"file": "onionwatch/ui/triggers/pictures.py",
 "rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"SolidLine\" for class \"type[Qt]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/kit/panel.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"transparent\" for class \"type[Qt]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/kit/panel.py",
-"rule": "reportOptionalMemberAccess",
-"message": "\"contentsMargins\" is not a known attribute of \"None\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/kit/panel.py",
-"rule": "reportOptionalMemberAccess",
-"message": "\"installEventFilter\" is not a known attribute of \"None\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/kit/panel.py",
-"rule": "reportOptionalMemberAccess",
-"message": "\"spacing\" is not a known attribute of \"None\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/settings/settingsdialog.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"AdjustToContents\" for class \"type[QComboBox]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/settings/settingsdialog.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"AlignAbsolute\" for class \"type[Qt]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/settings/settingsdialog.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"AlignLeft\" for class \"type[Qt]\"",
+"message": "Cannot access attribute \"SmoothTransformation\" for class \"type[Qt]\"",
 "count": 3
 },
 {
-"file": "onionwatch/ui/settings/settingsdialog.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"AlignRight\" for class \"type[Qt]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/settings/settingsdialog.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"AlignVCenter\" for class \"type[Qt]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/settings/settingsdialog.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"Antialiasing\" for class \"type[QPainter]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/settings/settingsdialog.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"Horizontal\" for class \"type[Qt]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/settings/settingsdialog.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"LeftToRight\" for class \"type[Qt]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/settings/settingsdialog.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"NoFrame\" for class \"type[QScrollArea]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/settings/settingsdialog.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"NoPen\" for class \"type[Qt]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/settings/settingsdialog.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"PointingHandCursor\" for class \"type[Qt]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/settings/settingsdialog.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"RightToLeft\" for class \"type[Qt]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/settings/settingsdialog.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"ScrollBarAlwaysOff\" for class \"type[Qt]\"",
-"count": 2
-},
-{
-"file": "onionwatch/ui/settings/settingsdialog.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"SetNoConstraint\" for class \"type[QLayout]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/settings/settingsdialog.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"UserRole\" for class \"type[Qt]\"",
-"count": 2
-},
-{
-"file": "onionwatch/ui/settings/settingsdialog.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"widget\" for class \"QWidget\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/settings/settingsdialog.py",
-"rule": "reportOptionalMemberAccess",
-"message": "\"widget\" is not a known attribute of \"None\"",
+"file": "onionwatch/ui/triggers/pictures.py",
+"rule": "reportCallIssue",
+"message": "No overloads for \"save\" match the provided arguments",
 "count": 1
 },
 {
@@ -1416,42 +1812,6 @@
 "count": 1
 },
 {
-"file": "onionwatch/ui/window/splash.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"Antialiasing\" for class \"type[QPainter]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/window/splash.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"Format_ARGB32_Premultiplied\" for class \"type[QImage]\"",
-"count": 2
-},
-{
-"file": "onionwatch/ui/window/splash.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"NoPen\" for class \"type[Qt]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/window/splash.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"SmoothPixmapTransform\" for class \"type[QPainter]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/window/splash.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"transparent\" for class \"type[Qt]\"",
-"count": 2
-},
-{
-"file": "onionwatch/ui/triggers/triggerspanel.py",
-"rule": "reportArgumentType",
-"message": "Argument of type \"Literal['PNG']\" cannot be assigned to parameter \"format\" of type \"bytes | bytearray | memoryview[int] | None\" in function \"save\"",
-"count": 1
-},
-{
 "file": "onionwatch/ui/triggers/triggerspanel.py",
 "rule": "reportArgumentType",
 "message": "Argument of type \"list[Unknown] | list[str | None]\" cannot be assigned to parameter \"value\" of type \"list[str]\" in function \"__setitem__\"",
@@ -1484,12 +1844,6 @@
 {
 "file": "onionwatch/ui/triggers/triggerspanel.py",
 "rule": "reportArgumentType",
-"message": "Expression of type \"tuple[()]\" cannot be assigned to parameter of type \"list[Monitor]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/triggers/triggerspanel.py",
-"rule": "reportArgumentType",
 "message": "Expression of type \"tuple[()]\" cannot be assigned to parameter of type \"list[str]\"",
 "count": 3
 },
@@ -1502,79 +1856,13 @@
 {
 "file": "onionwatch/ui/triggers/triggerspanel.py",
 "rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"AdjustToContents\" for class \"type[QComboBox]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/triggers/triggerspanel.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"AdjustToMinimumContentsLengthWithIcon\" for class \"type[QComboBox]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/triggers/triggerspanel.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"AlignBottom\" for class \"type[Qt]\"",
-"count": 2
-},
-{
-"file": "onionwatch/ui/triggers/triggerspanel.py",
-"rule": "reportAttributeAccessIssue",
 "message": "Cannot access attribute \"AlignCenter\" for class \"type[Qt]\"",
-"count": 4
-},
-{
-"file": "onionwatch/ui/triggers/triggerspanel.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"AlignHCenter\" for class \"type[Qt]\"",
 "count": 2
-},
-{
-"file": "onionwatch/ui/triggers/triggerspanel.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"AlignLeft\" for class \"type[Qt]\"",
-"count": 16
-},
-{
-"file": "onionwatch/ui/triggers/triggerspanel.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"AlignRight\" for class \"type[Qt]\"",
-"count": 2
-},
-{
-"file": "onionwatch/ui/triggers/triggerspanel.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"AlignTop\" for class \"type[Qt]\"",
-"count": 9
-},
-{
-"file": "onionwatch/ui/triggers/triggerspanel.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"AlignVCenter\" for class \"type[Qt]\"",
-"count": 5
 },
 {
 "file": "onionwatch/ui/triggers/triggerspanel.py",
 "rule": "reportAttributeAccessIssue",
 "message": "Cannot access attribute \"Alignment\" for class \"type[Qt]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/triggers/triggerspanel.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"Antialiasing\" for class \"type[QPainter]\"",
-"count": 2
-},
-{
-"file": "onionwatch/ui/triggers/triggerspanel.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"CC_SpinBox\" for class \"type[QStyle]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/triggers/triggerspanel.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"CT_ComboBox\" for class \"type[QStyle]\"",
 "count": 1
 },
 {
@@ -1586,14 +1874,8 @@
 {
 "file": "onionwatch/ui/triggers/triggerspanel.py",
 "rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"ElideRight\" for class \"type[Qt]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/triggers/triggerspanel.py",
-"rule": "reportAttributeAccessIssue",
 "message": "Cannot access attribute \"Expanding\" for class \"type[QSizePolicy]\"",
-"count": 3
+"count": 1
 },
 {
 "file": "onionwatch/ui/triggers/triggerspanel.py",
@@ -1604,61 +1886,13 @@
 {
 "file": "onionwatch/ui/triggers/triggerspanel.py",
 "rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"Fixed\" for class \"type[QSizePolicy]\"",
-"count": 3
-},
-{
-"file": "onionwatch/ui/triggers/triggerspanel.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"FontChange\" for class \"type[QEvent]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/triggers/triggerspanel.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"Format_ARGB32\" for class \"type[QImage]\"",
-"count": 4
-},
-{
-"file": "onionwatch/ui/triggers/triggerspanel.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"Format_Grayscale8\" for class \"type[QImage]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/triggers/triggerspanel.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"Format_RGB32\" for class \"type[QImage]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/triggers/triggerspanel.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"Format_RGB888\" for class \"type[QImage]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/triggers/triggerspanel.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"IgnoreAspectRatio\" for class \"type[Qt]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/triggers/triggerspanel.py",
-"rule": "reportAttributeAccessIssue",
 "message": "Cannot access attribute \"Ignored\" for class \"type[QSizePolicy]\"",
-"count": 7
+"count": 1
 },
 {
 "file": "onionwatch/ui/triggers/triggerspanel.py",
 "rule": "reportAttributeAccessIssue",
 "message": "Cannot access attribute \"KeepAspectRatio\" for class \"type[Qt]\"",
-"count": 2
-},
-{
-"file": "onionwatch/ui/triggers/triggerspanel.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"LayoutRequest\" for class \"type[QEvent]\"",
 "count": 1
 },
 {
@@ -1670,49 +1904,13 @@
 {
 "file": "onionwatch/ui/triggers/triggerspanel.py",
 "rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"LeftButton\" for class \"type[Qt]\"",
-"count": 3
-},
-{
-"file": "onionwatch/ui/triggers/triggerspanel.py",
-"rule": "reportAttributeAccessIssue",
 "message": "Cannot access attribute \"LeftToRight\" for class \"type[QBoxLayout]\"",
-"count": 6
-},
-{
-"file": "onionwatch/ui/triggers/triggerspanel.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"Maximum\" for class \"type[QSizePolicy]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/triggers/triggerspanel.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"Minimum\" for class \"type[QSizePolicy]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/triggers/triggerspanel.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"MoveAction\" for class \"type[Qt]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/triggers/triggerspanel.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"NoFocus\" for class \"type[Qt]\"",
-"count": 1
+"count": 4
 },
 {
 "file": "onionwatch/ui/triggers/triggerspanel.py",
 "rule": "reportAttributeAccessIssue",
 "message": "Cannot access attribute \"NoFrame\" for class \"type[QFrame]\"",
-"count": 3
-},
-{
-"file": "onionwatch/ui/triggers/triggerspanel.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"NoPen\" for class \"type[Qt]\"",
 "count": 2
 },
 {
@@ -1724,14 +1922,8 @@
 {
 "file": "onionwatch/ui/triggers/triggerspanel.py",
 "rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"PointingHandCursor\" for class \"type[Qt]\"",
-"count": 7
-},
-{
-"file": "onionwatch/ui/triggers/triggerspanel.py",
-"rule": "reportAttributeAccessIssue",
 "message": "Cannot access attribute \"Preferred\" for class \"type[QSizePolicy]\"",
-"count": 10
+"count": 2
 },
 {
 "file": "onionwatch/ui/triggers/triggerspanel.py",
@@ -1742,67 +1934,25 @@
 {
 "file": "onionwatch/ui/triggers/triggerspanel.py",
 "rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"RichText\" for class \"type[Qt]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/triggers/triggerspanel.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"SC_SpinBoxEditField\" for class \"type[QStyle]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/triggers/triggerspanel.py",
-"rule": "reportAttributeAccessIssue",
 "message": "Cannot access attribute \"ScrollBarAlwaysOff\" for class \"type[Qt]\"",
-"count": 4
-},
-{
-"file": "onionwatch/ui/triggers/triggerspanel.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"ScrollBarAsNeeded\" for class \"type[Qt]\"",
 "count": 2
 },
 {
 "file": "onionwatch/ui/triggers/triggerspanel.py",
 "rule": "reportAttributeAccessIssue",
 "message": "Cannot access attribute \"SmoothTransformation\" for class \"type[Qt]\"",
-"count": 5
-},
-{
-"file": "onionwatch/ui/triggers/triggerspanel.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"StyleChange\" for class \"type[QEvent]\"",
-"count": 2
-},
-{
-"file": "onionwatch/ui/triggers/triggerspanel.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"ToolTipRole\" for class \"type[Qt]\"",
-"count": 2
-},
-{
-"file": "onionwatch/ui/triggers/triggerspanel.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"TopToBottom\" for class \"type[QBoxLayout]\"",
-"count": 3
-},
-{
-"file": "onionwatch/ui/triggers/triggerspanel.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"WA_DeleteOnClose\" for class \"type[Qt]\"",
 "count": 1
 },
 {
 "file": "onionwatch/ui/triggers/triggerspanel.py",
 "rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"WA_TransparentForMouseEvents\" for class \"type[Qt]\"",
+"message": "Cannot access attribute \"TopToBottom\" for class \"type[QBoxLayout]\"",
 "count": 2
 },
 {
 "file": "onionwatch/ui/triggers/triggerspanel.py",
 "rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"WA_WState_Polished\" for class \"type[Qt]\"",
+"message": "Cannot access attribute \"WA_DeleteOnClose\" for class \"type[Qt]\"",
 "count": 1
 },
 {
@@ -1826,49 +1976,13 @@
 {
 "file": "onionwatch/ui/triggers/triggerspanel.py",
 "rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"addLayout\" for class \"QLayout\"",
-"count": 2
-},
-{
-"file": "onionwatch/ui/triggers/triggerspanel.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"addSpacing\" for class \"QLayout\"",
-"count": 2
-},
-{
-"file": "onionwatch/ui/triggers/triggerspanel.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"clicked\" for class \"MethodType\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/triggers/triggerspanel.py",
-"rule": "reportAttributeAccessIssue",
 "message": "Cannot access attribute \"ensureWidgetVisible\" for class \"MethodType\"",
 "count": 3
 },
 {
 "file": "onionwatch/ui/triggers/triggerspanel.py",
 "rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"hide\" for class \"MethodType\"",
-"count": 2
-},
-{
-"file": "onionwatch/ui/triggers/triggerspanel.py",
-"rule": "reportAttributeAccessIssue",
 "message": "Cannot access attribute \"insertWidget\" for class \"QLayout\"",
-"count": 4
-},
-{
-"file": "onionwatch/ui/triggers/triggerspanel.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"move\" for class \"MethodType\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/triggers/triggerspanel.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"raise_\" for class \"MethodType\"",
 "count": 1
 },
 {
@@ -1876,12 +1990,6 @@
 "rule": "reportAttributeAccessIssue",
 "message": "Cannot access attribute \"setDirection\" for class \"QLayout\"",
 "count": 2
-},
-{
-"file": "onionwatch/ui/triggers/triggerspanel.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"setFixedSize\" for class \"MethodType\"",
-"count": 1
 },
 {
 "file": "onionwatch/ui/triggers/triggerspanel.py",
@@ -1910,31 +2018,7 @@
 {
 "file": "onionwatch/ui/triggers/triggerspanel.py",
 "rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"setObjectName\" for class \"MethodType\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/triggers/triggerspanel.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"setProperty\" for class \"MethodType\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/triggers/triggerspanel.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"setRowHidden\" for class \"QAbstractItemView\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/triggers/triggerspanel.py",
-"rule": "reportAttributeAccessIssue",
 "message": "Cannot access attribute \"setStretch\" for class \"QLayout\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/triggers/triggerspanel.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"setToolTip\" for class \"MethodType\"",
 "count": 1
 },
 {
@@ -1958,20 +2042,8 @@
 {
 "file": "onionwatch/ui/triggers/triggerspanel.py",
 "rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"show\" for class \"MethodType\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/triggers/triggerspanel.py",
-"rule": "reportAttributeAccessIssue",
 "message": "Cannot access attribute \"text\" for class \"QWidget\"",
 "count": 2
-},
-{
-"file": "onionwatch/ui/triggers/triggerspanel.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"transparent\" for class \"type[Qt]\"",
-"count": 1
 },
 {
 "file": "onionwatch/ui/triggers/triggerspanel.py",
@@ -1988,12 +2060,6 @@
 {
 "file": "onionwatch/ui/triggers/triggerspanel.py",
 "rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"width\" for class \"MethodType\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/triggers/triggerspanel.py",
-"rule": "reportAttributeAccessIssue",
 "message": "Cannot assign to attribute \"on_open\" for class \"TriggerRow\"",
 "count": 2
 },
@@ -2005,39 +2071,9 @@
 },
 {
 "file": "onionwatch/ui/triggers/triggerspanel.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot assign to attribute \"x\" for class \"Thumb*\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/triggers/triggerspanel.py",
-"rule": "reportCallIssue",
-"message": "No overloads for \"save\" match the provided arguments",
-"count": 1
-},
-{
-"file": "onionwatch/ui/triggers/triggerspanel.py",
 "rule": "reportOptionalMemberAccess",
 "message": "\"add\" is not a known attribute of \"None\"",
 "count": 1
-},
-{
-"file": "onionwatch/ui/triggers/triggerspanel.py",
-"rule": "reportOptionalMemberAccess",
-"message": "\"addLayout\" is not a known attribute of \"None\"",
-"count": 2
-},
-{
-"file": "onionwatch/ui/triggers/triggerspanel.py",
-"rule": "reportOptionalMemberAccess",
-"message": "\"addSpacing\" is not a known attribute of \"None\"",
-"count": 2
-},
-{
-"file": "onionwatch/ui/triggers/triggerspanel.py",
-"rule": "reportOptionalMemberAccess",
-"message": "\"addWidget\" is not a known attribute of \"None\"",
-"count": 4
 },
 {
 "file": "onionwatch/ui/triggers/triggerspanel.py",
@@ -2049,7 +2085,7 @@
 "file": "onionwatch/ui/triggers/triggerspanel.py",
 "rule": "reportOptionalMemberAccess",
 "message": "\"insertWidget\" is not a known attribute of \"None\"",
-"count": 4
+"count": 1
 },
 {
 "file": "onionwatch/ui/triggers/triggerspanel.py",
@@ -2066,20 +2102,8 @@
 {
 "file": "onionwatch/ui/triggers/triggerspanel.py",
 "rule": "reportOptionalMemberAccess",
-"message": "\"parentWidget\" is not a known attribute of \"None\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/triggers/triggerspanel.py",
-"rule": "reportOptionalMemberAccess",
 "message": "\"removeWidget\" is not a known attribute of \"None\"",
 "count": 4
-},
-{
-"file": "onionwatch/ui/triggers/triggerspanel.py",
-"rule": "reportOptionalMemberAccess",
-"message": "\"setAlignment\" is not a known attribute of \"None\"",
-"count": 1
 },
 {
 "file": "onionwatch/ui/triggers/triggerspanel.py",
@@ -2119,12 +2143,6 @@
 },
 {
 "file": "onionwatch/ui/triggers/triggerspanel.py",
-"rule": "reportOptionalOperand",
-"message": "Operator \"+\" not supported for \"None\"",
-"count": 2
-},
-{
-"file": "onionwatch/ui/triggers/triggerspanel.py",
 "rule": "reportReturnType",
 "message": "Type \"dict[str, QWidget | QPushButton | None]\" is not assignable to return type \"dict[str, QWidget]\"",
 "count": 1
@@ -2139,12 +2157,6 @@
 "file": "onionwatch/ui/triggers/triggerspanel.py",
 "rule": "reportReturnType",
 "message": "Type \"tuple[Picture, tuple[()]]\" is not assignable to return type \"tuple[Picture | None, tuple[str, str]]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/window/updatedialog.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"PlainText\" for class \"type[Qt]\"",
 "count": 1
 },
 {
@@ -2211,102 +2223,6 @@
 "file": "onionwatch/ui/triggers/viewer.py",
 "rule": "reportAttributeAccessIssue",
 "message": "Cannot access attribute \"WindowMaximizeButtonHint\" for class \"type[Qt]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/settings/watching.py",
-"rule": "reportArgumentType",
-"message": "Argument of type \"Overload[(dx: int, dy: int, /) -> None, (dx: int, dy: int, arg__3: QRect, /) -> None]\" cannot be assigned to parameter \"arg__1\" of type \"QWidget\" in function \"addWidget\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/settings/watching.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"Close\" for class \"type[QDialogButtonBox]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/settings/watching.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"NoFrame\" for class \"type[QFrame]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/settings/watching.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"ScrollBarAlwaysOff\" for class \"type[Qt]\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/settings/watching.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"setFrameShape\" for class \"MethodType\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/settings/watching.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"setHorizontalScrollBarPolicy\" for class \"MethodType\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/settings/watching.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"setStyleSheet\" for class \"MethodType\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/settings/watching.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"setWidget\" for class \"MethodType\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/settings/watching.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"setWidgetResizable\" for class \"MethodType\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/settings/watching.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"verticalScrollBar\" for class \"MethodType\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/settings/watching.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"viewport\" for class \"MethodType\"",
-"count": 2
-},
-{
-"file": "onionwatch/ui/settings/watching.py",
-"rule": "reportAttributeAccessIssue",
-"message": "Cannot assign to attribute \"scroll\" for class \"WatchingDialog*\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/settings/watching.py",
-"rule": "reportOptionalMemberAccess",
-"message": "\"activate\" is not a known attribute of \"None\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/settings/watching.py",
-"rule": "reportOptionalMemberAccess",
-"message": "\"contentsMargins\" is not a known attribute of \"None\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/settings/watching.py",
-"rule": "reportOptionalMemberAccess",
-"message": "\"spacing\" is not a known attribute of \"None\"",
-"count": 1
-},
-{
-"file": "onionwatch/ui/settings/watching.py",
-"rule": "reportOptionalMemberAccess",
-"message": "\"totalHeightForWidth\" is not a known attribute of \"None\"",
 "count": 1
 },
 {
@@ -2394,15 +2310,93 @@
 "count": 1
 },
 {
-"file": "onionwatch/core/usage.py",
-"rule": "reportOptionalIterable",
-"message": "Object of type \"None\" cannot be used as iterable value",
+"file": "onionwatch/ui/window/mainwindow.py",
+"rule": "reportArgumentType",
+"message": "Argument of type \"QByteArray\" cannot be assigned to parameter \"o\" of type \"Iterable[SupportsIndex] | SupportsIndex | SupportsBytes | ReadableBuffer\" in function \"__new__\"",
+"count": 4
+},
+{
+"file": "onionwatch/ui/window/mainwindow.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"ClickFocus\" for class \"type[Qt]\"",
 "count": 1
 },
 {
-"file": "onionwatch/ui/kit/wheelguard.py",
+"file": "onionwatch/ui/window/mainwindow.py",
 "rule": "reportAttributeAccessIssue",
-"message": "Cannot access attribute \"Wheel\" for class \"type[QEvent]\"",
+"message": "Cannot access attribute \"DoubleClick\" for class \"type[QSystemTrayIcon]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/window/mainwindow.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"TabFocus\" for class \"type[Qt]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/window/mainwindow.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"Trigger\" for class \"type[QSystemTrayIcon]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/window/mainwindow.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"WindowActive\" for class \"type[Qt]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/window/mainwindow.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"WindowMinimized\" for class \"type[Qt]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/window/mainwindow.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot assign to attribute \"pages\" for class \"TriggersTab\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/window/mainwindow.py",
+"rule": "reportOptionalMemberAccess",
+"message": "\"quit\" is not a known attribute of \"None\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/window/splash.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"Antialiasing\" for class \"type[QPainter]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/window/splash.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"Format_ARGB32_Premultiplied\" for class \"type[QImage]\"",
+"count": 2
+},
+{
+"file": "onionwatch/ui/window/splash.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"NoPen\" for class \"type[Qt]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/window/splash.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"SmoothPixmapTransform\" for class \"type[QPainter]\"",
+"count": 1
+},
+{
+"file": "onionwatch/ui/window/splash.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"transparent\" for class \"type[Qt]\"",
+"count": 2
+},
+{
+"file": "onionwatch/ui/window/updatedialog.py",
+"rule": "reportAttributeAccessIssue",
+"message": "Cannot access attribute \"PlainText\" for class \"type[Qt]\"",
 "count": 1
 }
 ]

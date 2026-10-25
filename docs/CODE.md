@@ -113,7 +113,10 @@ then installs that file instead of downloading.
 | `onionwatch/host.py` | what the triggers page needs from the program it runs in (settings, sounds, playing, theme): the Onion Watch app or Onion Board |
 | `onionwatch/core/apphost.py` | the Onion Watch app as that host |
 | `onionwatch/board.py` | the Onion Board add-on's entry point: `create(host, parent=None)` gives the board its Triggers tab, made on `parent` when given (alarm bar + triggers page) |
-| `onionwatch/ui/triggers/triggerspanel.py` | the triggers page: one card per trigger, "Look in", Watching, Cut picture. Talks only to its host |
+| `onionwatch/ui/triggers/triggerspanel.py` | the triggers page (`TriggersTab`): the list of cards, search and views, "Look in", Watching, Cut picture, saving the triggers. Talks only to its host |
+| `onionwatch/ui/triggers/card.py` | one trigger's card (`TriggerRow`): its header and, opened, everything about the trigger |
+| `onionwatch/ui/triggers/cardkit.py` | the small widgets a card is built from: lists and number boxes that fit their text, the picture strip, flowing rows, the tune grid, switches, the cards' style sheet |
+| `onionwatch/ui/triggers/pictures.py` | a trigger's pictures on disk: the size each was cut at, saving, loading, deleting, thumbnails |
 | `onionwatch/ui/triggers/pages.py` | the triggers page as both hosts show it: the Triggers / Log tabs and the Playing now bar under them |
 | `onionwatch/ui/kit/watchlogo.py` | the logo that shows it's watching: a start-up animation and an idle animation that suit the theme, the eye looking around while it watches |
 | `onionwatch/ui/settings/boardsettings.py` | inside Onion Board only, the Settings tab: what Onion Watch is with its links, the Watching cards, and the board's Remove Onion Watch |

@@ -319,7 +319,7 @@ class _Bar(QWidget):
 
 
 def _thumb(t) -> QPixmap:
-    from onionwatch.ui.triggers.triggerspanel import thumb_pixmap
+    from onionwatch.ui.triggers.pictures import thumb_pixmap
     pm = thumb_pixmap(t.images[0], THUMB) if t.images else QPixmap()
     if not pm.isNull():
         return pm

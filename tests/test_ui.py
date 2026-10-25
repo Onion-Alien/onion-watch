@@ -19,8 +19,9 @@ from onionwatch.audio.player import Player
 from onionwatch.engine.screenwatch import Monitor, WindowRef
 from onionwatch.core.settings import Config
 from onionwatch.audio.sounds import DEFAULT_SOUND, Library
-from onionwatch.ui.triggers import triggerspanel
-from onionwatch.ui.triggers.triggerspanel import PICK_WINDOW, TriggersTab
+from onionwatch.ui.triggers import pictures, triggerspanel
+from onionwatch.ui.triggers.cardkit import PICK_WINDOW
+from onionwatch.ui.triggers.triggerspanel import TriggersTab
 
 W, H = 320, 180
 
@@ -329,7 +330,7 @@ def test_scenery_moving_behind_a_cut_is_learned_and_left_out(tab, monkeypatch):
     assert len(tab.triggers) == 1
     got = QImage(tab.triggers[0].images[0])
     assert (got.width(), got.height()) == (110, 50) and got.hasAlphaChannel()
-    pic = triggerspanel.load_picture(tab.triggers[0].images[0])
+    pic = pictures.load_picture(tab.triggers[0].images[0])
     assert pic[1] is not None
     assert pic[1][10:40, 10:100].mean() > 0.95          # the banner is kept...
     assert pic[1][:, :8].mean() < 0.3                   # ...the scenery beside it isn't

@@ -15,7 +15,7 @@ from onionwatch.audio.player import Player
 from onionwatch.engine.screenwatch import Monitor
 from onionwatch.core.settings import Config
 from onionwatch.audio.sounds import Library
-from onionwatch.ui.triggers import triggerspanel
+from onionwatch.ui.triggers import card, triggerspanel
 from onionwatch.ui.triggers.alarmbar import AlarmBar
 from onionwatch.ui.triggers.triggerspanel import TriggersTab
 
@@ -74,14 +74,14 @@ def test_a_sound_file_is_added_in_the_background(board, monkeypatch):
     row = next(iter(tab.rows.values()))
     monkeypatch.setattr(triggerspanel.QFileDialog, "getOpenFileName",
                         lambda *a, **k: ("C:/sounds/wow.m4a", ""))
-    row.sound.activated.emit(row.sound.findData(triggerspanel.FILE))
+    row.sound.activated.emit(row.sound.findData(card.FILE))
     assert host.adding and row.state.text() == "Adding the sound…"
     host.finish_adding("s9", "Wow")
     assert row.t.sounds == ["s9"] and host.screen["triggers"][0]["sounds"] == ["s9"]
     assert [c.findChild(triggerspanel.QPushButton, "chipname").text()
             for c in row.chips] == ["Wow"]
     # one the board gives up on is said so, and nothing is added
-    row.sound.activated.emit(row.sound.findData(triggerspanel.FILE))
+    row.sound.activated.emit(row.sound.findData(card.FILE))
     host.finish_adding(None)
     assert row.t.sounds == ["s9"] and "couldn't be added" in row.state.text()
 
@@ -95,7 +95,7 @@ def test_a_sound_file_the_host_refuses_is_said_so(board, monkeypatch):
     monkeypatch.setattr(triggerspanel.QFileDialog, "getOpenFileName",
                         lambda *a, **k: ("C:/sounds/x.txt", ""))
     host.refuse = "x.txt isn't a sound"
-    row.sound.activated.emit(row.sound.findData(triggerspanel.FILE))
+    row.sound.activated.emit(row.sound.findData(card.FILE))
     assert said == ["x.txt isn't a sound"] and row.t.sounds == []
 
 

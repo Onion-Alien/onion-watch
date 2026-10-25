@@ -11,7 +11,8 @@ import test_ui
 from test_ui import as_qimage, banner
 
 from onionwatch.engine import screenwatch as sw
-from onionwatch.ui.triggers.triggerspanel import TILE_THUMB, TriggerRow, TriggersTab
+from onionwatch.ui.triggers.card import TILE_THUMB, TriggerRow
+from onionwatch.ui.triggers.triggerspanel import TriggersTab
 
 fake_screen, tab, styled = test_ui.fake_screen, test_ui.tab, test_ui.styled
 

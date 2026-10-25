@@ -8,7 +8,7 @@ from test_ui import as_qimage, banner
 
 from PySide6.QtWidgets import QPushButton
 
-from onionwatch.ui.triggers.triggerspanel import FlowBox
+from onionwatch.ui.triggers.cardkit import FlowBox
 
 fake_screen, tab = test_ui.fake_screen, test_ui.tab   # the same stand-ins
 
