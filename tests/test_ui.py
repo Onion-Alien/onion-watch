@@ -439,14 +439,14 @@ def test_a_deleted_trigger_can_be_undone_or_brought_back_later(tab, monkeypatch)
     # after the Undo bar has gone, it's still in Recently deleted
     tab._remove(tab.rows[first.id])
     tab.undo_bar.finish()
-    [(iid, name, _when)] = tab.deleted()
+    [(iid, name, _when)] = tab.binctl.deleted()
     assert name == "First"
-    assert tab.restore_deleted(iid)
-    assert tab.triggers[0].name == "First" and tab.deleted() == []
+    assert tab.binctl.restore_deleted(iid)
+    assert tab.triggers[0].name == "First" and tab.binctl.deleted() == []
     # deleted for good: its picture goes too
     tab._remove(tab.rows[first.id])
-    tab.forget_deleted(tab.deleted()[0][0])
-    assert not pic.exists() and tab.deleted() == []
+    tab.binctl.forget_deleted(tab.binctl.deleted()[0][0])
+    assert not pic.exists() and tab.binctl.deleted() == []
 
 
 @pytest.fixture
@@ -487,7 +487,7 @@ def test_the_undo_notice_floats_without_moving_the_list(tab, qapp, styled):
     assert bar.isHidden() and [t.id for t in tab.triggers] == [first.id, second.id]
     tab._remove(tab.rows[first.id])
     bar.btn_close.click()                     # dismissed: still in Recently deleted
-    assert bar.isHidden() and [name for _i, name, _w in tab.deleted()] == ["First"]
+    assert bar.isHidden() and [name for _i, name, _w in tab.binctl.deleted()] == ["First"]
 
 
 def test_old_deleted_triggers_are_let_go(tab):
@@ -499,8 +499,8 @@ def test_old_deleted_triggers_are_let_go(tab):
     tab._remove(tab.rows[t.id])
     tab.undo_bar.finish()
     tab.host.screen["deleted"][0]["when"] = time.time() - (triggerspanel.KEEP_DAYS + 1) * 86400
-    tab._prune_bin()
-    assert tab.deleted() == [] and not pic.exists()
+    tab.binctl._prune_bin()
+    assert tab.binctl.deleted() == [] and not pic.exists()
 
 
 def test_a_removed_picture_can_be_undone(tab):
@@ -521,7 +521,7 @@ def test_the_recently_deleted_window_brings_triggers_back(tab):
     from onionwatch.ui.triggers.deleted import DeletedDialog
     tab._new(as_qimage(banner()), "Gone")
     tab._remove(tab.rows[tab.triggers[0].id])
-    dlg = DeletedDialog(tab, triggerspanel.KEEP_DAYS)
+    dlg = DeletedDialog(tab.binctl, triggerspanel.KEEP_DAYS, tab)
     assert dlg.list.count() == 1 and "Gone" in dlg.list.item(0).text()
     dlg.bring_back()
     assert [t.name for t in tab.triggers] == ["Gone"]
@@ -535,7 +535,7 @@ def test_the_recently_deleted_button_shows_while_the_bin_has_triggers(tab):
     assert not tab.btn_bin.isHidden() and tab.btn_bin.text() == "1"
     assert tab.btn_bin.accessibleName() == "Recently deleted (1)"
     assert tab.btn_bin.toolTip().startswith("Recently deleted (1)")
-    tab.restore_deleted(tab.deleted()[0][0])
+    tab.binctl.restore_deleted(tab.binctl.deleted()[0][0])
     assert tab.btn_bin.isHidden()
 
 
@@ -548,7 +548,7 @@ def test_the_delete_button_asks_first(tab, monkeypatch):
     assert [t.name for t in tab.triggers] == ["Keep me"]
     monkeypatch.setattr(box, "exec", lambda self: box.Yes)
     row.btn_del.click()
-    assert tab.triggers == [] and tab.deleted()[0][1] == "Keep me"
+    assert tab.triggers == [] and tab.binctl.deleted()[0][1] == "Keep me"
 
 
 def test_toolbar_is_one_row_when_there_is_room(tab, qapp, styled):

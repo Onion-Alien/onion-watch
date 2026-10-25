@@ -153,8 +153,8 @@ def test_the_search_box_stays_usable_beside_categories_and_a_profile(make, qapp,
     theme.apply(qapp, theme_name)
     try:
         tab = make({"triggers": [raw(i, f"Cat {i % 3}") for i in range(30)]})
-        tab.set_profiles([profiles.new_profile("Realm Online raids")])
-        tab.set_profile(profiles.AUTO)
+        tab.profilectl.set_profiles([profiles.new_profile("Realm Online raids")])
+        tab.profilectl.set_profile(profiles.AUTO)
         tab.resize(width, 640)
         tab.show()
         tab.search_text.setText("Ready check 3")

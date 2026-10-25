@@ -120,7 +120,7 @@ def test_rename_and_delete_a_category_with_undo(make, monkeypatch):
     tab = make({"triggers": [raw(1, "Old"), raw(2)]})
     p = profiles.new_profile("Evening")
     p.categories = ["Old"]
-    tab.set_profiles([p])
+    tab.profilectl.set_profiles([p])
     assert tab.rename_category("Old", "New")
     assert tab.triggers[0].category == "New" and p.categories == ["New"]
     assert "Old" not in tab.sections and "New" in tab.sections
@@ -137,26 +137,26 @@ def test_a_profile_picked_by_hand_and_automatic_by_program(make):
     tab = make({"triggers": [raw(1, "Raids"), raw(2, "Fishing"), raw(3)]})
     raid = profiles.new_profile("Raid night")
     raid.categories, raid.apps = ["Raids"], ["game.exe"]
-    tab.set_profiles([raid])
+    tab.profilectl.set_profiles([raid])
     assert not tab.groupbar.isHidden()
     assert watched(tab) == ["t1", "t2", "t3"]       # Manual: every switch on
-    tab.set_profile(raid.id)
+    tab.profilectl.set_profile(raid.id)
     assert tab.watched[-1] == ["t1"]
     tab._on_switch("Fishing", True)                  # edits the profile in charge
     assert raid.categories == ["Raids", "Fishing"] and tab.watched[-1] == ["t1", "t2"]
     tab._on_switch("Fishing", False)
-    tab.set_profile(profiles.AUTO)
-    assert tab._app_timer.isActive()
+    tab.profilectl.set_profile(profiles.AUTO)
+    assert tab.profilectl._app_timer.isActive()
     assert tab.watched[-1] == ["t1", "t2", "t3"]     # game.exe isn't open: Manual's
     assert "your switches apply" in tab.lbl_counts.text()
     tab._lister = lambda: [WindowInfo(5, "The Game", "game.exe", 1, 0, 800, 600)]
-    tab._check_apps()
+    tab.profilectl._check_apps()
     assert tab.watched[-1] == ["t1"] and "Raid night" in tab.lbl_counts.text()
     tab._lister = lambda: []
-    tab._check_apps()
+    tab.profilectl._check_apps()
     assert tab.watched[-1] == ["t1", "t2", "t3"]
-    tab.set_profile("")
-    assert not tab._app_timer.isActive()
+    tab.profilectl.set_profile("")
+    assert not tab.profilectl._app_timer.isActive()
     assert tab.host.screen["profile"] == "" and tab.host.screen["profiles"][0]["apps"] == [
         "game.exe"]
 
@@ -175,7 +175,7 @@ def test_the_profiles_window_edits_copies(make, qapp):
     item.setCheckState(triggerspanel.Qt.Checked)
     assert p.categories == ["Raids"]
     assert tab.groups.profiles == []                  # nothing changed until OK
-    tab.set_profiles(dlg.result_profiles)
+    tab.profilectl.set_profiles(dlg.result_profiles)
     assert tab.cb_profile.findData(p.id) >= 0 and tab.cb_profile.findData(profiles.AUTO) >= 0
     dlg.deleteLater()
 
@@ -202,7 +202,7 @@ def test_packs_carry_categories(make, tmp_path, monkeypatch):
     found = packs.read_pack(path)
     assert [t.category for t, _p, _s in found] == ["Raids", ""]
     other = make({"triggers": []})
-    assert other.add_pack(found) == 2
+    assert other.packctl.add_pack(found) == 2
     assert [t.category for t in other.triggers] == ["Raids", ""]
     assert "Raids" in other.sections
     # a pack without categories (an older one) lands in one named after its file
@@ -212,7 +212,7 @@ def test_packs_carry_categories(make, tmp_path, monkeypatch):
                    '"triggers": [{"id": "x", "mode": "change"}]}')
     monkeypatch.setattr(triggerspanel.QFileDialog, "getOpenFileName",
                         lambda *a, **k: (str(old), ""))
-    other.import_triggers()
+    other.packctl.import_triggers()
     assert other.triggers[-1].category == "Fishing"
 
 
