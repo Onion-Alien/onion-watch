@@ -95,10 +95,10 @@ then installs that file instead of downloading.
 
 | Path | What |
 |---|---|
-| `onionwatch/screenwatch.py` | the engine: screen capture (DXGI Desktop Duplication, GDI fallback, grey and when needed colour), the matcher, the kinds of trigger (appears, goes away, area changes / stops changing, colour level) and their areas, the fire-once `Gate`, the watcher thread (one capture per screen or window in use, every copy of a game expanded), `Trigger`, `WindowRef` and `Hit` |
-| `onionwatch/cutout.py` | learning a cut's background while it's cut: grabs of the window while the cut dialog is open, the scenery that moved left out of the picture when that does better, and how well the kept picture did (for the cut-time warning) |
-| `onionwatch/imgops.py` | the matcher's image operations: FFTs (scipy.fft, numpy's without it), Gaussian softening, smooth enlarging, mask erosion (numpy). Of scipy, Onion Board ships only scipy.fft |
-| `onionwatch/windows.py` | listing windows, finding a remembered one again (and the right copy), `PrintWindow` capture of a covered window (a fullscreen game in front is read off its screen through a shared duplication, `screenwatch.share_dup`), full-size snapshots for cutting |
+| `onionwatch/engine/screenwatch.py` | the engine: screen capture (DXGI Desktop Duplication, GDI fallback, grey and when needed colour), the matcher, the kinds of trigger (appears, goes away, area changes / stops changing, colour level) and their areas, the fire-once `Gate`, the watcher thread (one capture per screen or window in use, every copy of a game expanded), `Trigger`, `WindowRef` and `Hit` |
+| `onionwatch/engine/cutout.py` | learning a cut's background while it's cut: grabs of the window while the cut dialog is open, the scenery that moved left out of the picture when that does better, and how well the kept picture did (for the cut-time warning) |
+| `onionwatch/engine/imgops.py` | the matcher's image operations: FFTs (scipy.fft, numpy's without it), Gaussian softening, smooth enlarging, mask erosion (numpy). Of scipy, Onion Board ships only scipy.fft |
+| `onionwatch/engine/windows.py` | listing windows, finding a remembered one again (and the right copy), `PrintWindow` capture of a covered window (a fullscreen game in front is read off its screen through a shared duplication, `screenwatch.share_dup`), full-size snapshots for cutting |
 | `onionwatch/sounds.py` | the built-in alert sounds (made in code) and the added sound files |
 | `onionwatch/player.py` | the output stream that mixes and rings the alerts |
 | `onionwatch/settings.py` | `%APPDATA%\OnionWatch` and `config.json` |
@@ -118,7 +118,7 @@ then installs that file instead of downloading.
 | `onionwatch/ui/watchlogo.py` | the logo that shows it's watching: a start-up animation and an idle animation that suit the theme, the eye looking around while it watches |
 | `onionwatch/ui/boardsettings.py` | inside Onion Board only, the Settings tab: what Onion Watch is with its links, the Watching cards, and the board's Remove Onion Watch |
 | `onionwatch/ui/alarmbar.py` | the red bar shown while a trigger rings, with Stop |
-| `onionwatch/profiles.py` | trigger categories and profiles: which triggers are on now (Manual switches, a profile, or Automatic by the programs open), saved beside the triggers in `Config.screen` (a category's look in `category_looks`, apart, so older versions keep it) |
+| `onionwatch/engine/profiles.py` | trigger categories and profiles: which triggers are on now (Manual switches, a profile, or Automatic by the programs open), saved beside the triggers in `Config.screen` (a category's look in `category_looks`, apart, so older versions keep it) |
 | `onionwatch/ui/categories.py` | a category's section in the list (fold, switch, counts, menu, its colours and picture; its cards made only once opened), the Categories window (each one's look) and the Profiles window |
 | `onionwatch/ui/windowpicker.py` | the window list with live thumbnails; ticking several windows and screens, or every copy of a game |
 | `onionwatch/ui/soundmenu.py` | A trigger card's Play + menu: search box, the host's sound categories, the sounds, Choose a sound file |
@@ -128,7 +128,7 @@ then installs that file instead of downloading.
 | `onionwatch/ui/chances.py` | Live chances: the card's score bar (with the trigger's line) and the window, from the Playing now bar's Chances button, with every trigger's chance right now ("show_chances" hides the button) |
 | `onionwatch/ui/history.py` | "What went off": the latest alerts with a picture of each moment (in memory only) |
 | `onionwatch/ui/deleted.py` | Recently deleted triggers (kept 30 days with their pictures, in the saved settings) |
-| `onionwatch/packs.py` | saving triggers to a .zip with their pictures and loading them back |
+| `onionwatch/engine/packs.py` | saving triggers to a .zip with their pictures and loading them back |
 | `onionwatch/ui/mainwindow.py` | the window, the tray icon, notifications |
 | `onionwatch/ui/settingsdialog.py` | Settings, laid out like Onion Board's (categories on the left): output device, volume, notifications, tray, language and theme, updates and privacy, about |
 | `onionwatch/ui/langpick.py`, `onionwatch/langnames_data.py` | the Language picker: a tile per language with a search; language names from Unicode CLDR (`scripts/make_langnames.py` writes them) |

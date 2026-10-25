@@ -139,9 +139,10 @@ def main() -> int:
         app = QApplication([])
         from fakehost import FakeHost
 
-        from onionwatch import board, windows
-        from onionwatch import screenwatch as sw
-        from onionwatch.screenwatch import WindowRef
+        from onionwatch import board
+        from onionwatch.engine import windows
+        from onionwatch.engine import screenwatch as sw
+        from onionwatch.engine.screenwatch import WindowRef
 
         def spin(until, timeout=10.0):
             end = time.monotonic() + timeout

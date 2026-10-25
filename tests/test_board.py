@@ -14,9 +14,9 @@ from fakehost import FakeHost
 from test_ui import FakeGrabber, W, H, as_qimage, banner, scene, showing
 
 from onionwatch import board, theme
-from onionwatch import screenwatch as sw
+from onionwatch.engine import screenwatch as sw
 from onionwatch.host import API_VERSION
-from onionwatch.screenwatch import Monitor
+from onionwatch.engine.screenwatch import Monitor
 from onionwatch.ui.pages import TriggerPages
 
 

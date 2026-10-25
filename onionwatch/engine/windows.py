@@ -43,10 +43,10 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from onionwatch import screenwatch
-from onionwatch.screenwatch import (_BITMAPINFOHEADER, FMT_BGRA8, RETRY_S, CaptureLost,
-                                    Monitor, WindowRef, frame_rgb, gray_2x, is_black, pick,
-                                    to_gray)
+from onionwatch.engine import screenwatch
+from onionwatch.engine.screenwatch import (_BITMAPINFOHEADER, FMT_BGRA8, RETRY_S, CaptureLost,
+                                           Monitor, WindowRef, frame_rgb, gray_2x, is_black, pick,
+                                           to_gray)
 from onionwatch.i18n import _
 
 log = logging.getLogger(__name__)

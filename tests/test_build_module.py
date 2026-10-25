@@ -27,7 +27,8 @@ def test_it_holds_the_page_and_engine_but_not_the_app(built):
     with zipfile.ZipFile(built) as z:
         names = set(z.namelist())
     top = "onion-watch/onionwatch/"
-    for want in ("board.py", "host.py", "screenwatch.py", "windows.py", "ui/triggerspanel.py",
+    for want in ("board.py", "host.py", "engine/screenwatch.py", "engine/windows.py",
+                 "ui/triggerspanel.py",
                  "ui/windowpicker.py", "ui/snip.py", "ui/alarmbar.py", "theme.py",
                  "ui/viewer.py", "ui/deleted.py", "ui/watching.py"):  # opened only when asked
         assert top + want in names, want

@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (QApplication, QBoxLayout, QButtonGroup, QCheckBox
                                QDialog, QDialogButtonBox, QFrame, QHBoxLayout, QLabel,
                                QRadioButton, QScrollArea, QVBoxLayout, QWidget)
 
-from onionwatch import screenwatch
+from onionwatch.engine import screenwatch
 from onionwatch.ui.panel import card, hint_label
 from onionwatch.ui import fit
 from onionwatch.i18n import _

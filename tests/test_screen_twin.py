@@ -8,9 +8,9 @@ import ctypes
 import numpy as np
 import pytest
 
-from onionwatch import screenwatch as sw
-from onionwatch.imgops import gaussian_filter
-from onionwatch.screenwatch import Monitor
+from onionwatch.engine import screenwatch as sw
+from onionwatch.engine.imgops import gaussian_filter
+from onionwatch.engine.screenwatch import Monitor
 from test_screenwatch import glyphs
 
 

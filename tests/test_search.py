@@ -146,7 +146,8 @@ def test_the_search_box_stays_usable_beside_categories_and_a_profile(make, qapp,
     room left for the search box: "Sea…", and "Ready" typed showed as "eady"."""
     from PySide6.QtWidgets import QWidget
 
-    from onionwatch import profiles, theme
+    from onionwatch.engine import profiles
+    from onionwatch import theme
     from onionwatch.ui.triggerspanel import SEARCH_MIN
     old = qapp.styleSheet()
     theme.apply(qapp, theme_name)

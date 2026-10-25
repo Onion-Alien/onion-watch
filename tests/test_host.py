@@ -8,11 +8,11 @@ from fakehost import FakeHost
 from test_ui import FakeGrabber, W, H, as_qimage, banner, scene, showing  # noqa: F401
 
 from onionwatch import host as hostmod
-from onionwatch import screenwatch as sw
+from onionwatch.engine import screenwatch as sw
 from onionwatch import theme
 from onionwatch.apphost import AppHost
 from onionwatch.player import Player
-from onionwatch.screenwatch import Monitor
+from onionwatch.engine.screenwatch import Monitor
 from onionwatch.settings import Config
 from onionwatch.sounds import Library
 from onionwatch.ui import triggerspanel

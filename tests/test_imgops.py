@@ -11,7 +11,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from onionwatch import imgops
+from onionwatch.engine import imgops
 
 sfft = pytest.importorskip("scipy.fft")
 ndi = pytest.importorskip("scipy.ndimage")
@@ -117,7 +117,8 @@ def test_scipy_is_loaded_by_the_first_transform_not_with_the_engine():
     """Onion Board builds the triggers page at start: watching off must not load
     scipy (and its second maths library's threads)."""
     code = ("import sys\n"
-            "from onionwatch import board, imgops, screenwatch\n"
+            "from onionwatch import board\n"
+            "from onionwatch.engine import imgops, screenwatch\n"
             "assert not [m for m in sys.modules if m.startswith('scipy')], 'loaded early'\n"
             "import numpy as np\n"
             "imgops.rfft2(np.ones((4, 6), np.float32), (4, 6))\n"
@@ -152,7 +153,7 @@ def test_irfft2_kept_corner_is_the_whole_ones(backend):
 @pytest.mark.parametrize("shape", [(2, 2), (7, 3), (24, 40), (270, 480)])
 def test_box_sums_match_the_transforms_they_replace(shape):
     # a box picture's window sums used to be two correlations with scipy.fft
-    from onionwatch.screenwatch import Frame
+    from onionwatch.engine.screenwatch import Frame
     f = Frame(_gray((270, 480), 3))
     th, tw = shape
     n = f.n

@@ -6,7 +6,7 @@ import time
 
 import numpy as np
 
-from onionwatch import cutout
+from onionwatch.engine import cutout
 
 W, H = 480, 270
 RECT = (180, 110, 120, 40)      # x, y, w, h: the cut, the word plus scenery around it

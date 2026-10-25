@@ -16,7 +16,8 @@ from PySide6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPainterPath, Q
 from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QFrame, QHBoxLayout, QLabel,
                                QPushButton, QScrollArea, QVBoxLayout, QWidget)
 
-from onionwatch import screenwatch, theme
+from onionwatch.engine import screenwatch
+from onionwatch import theme
 from onionwatch.style import appstate
 from onionwatch.ui import fit, icons
 from onionwatch.i18n import _

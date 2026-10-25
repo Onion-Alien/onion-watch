@@ -10,7 +10,7 @@ from PySide6.QtWidgets import QPushButton
 import test_ui
 from test_ui import as_qimage, banner
 
-from onionwatch import screenwatch as sw
+from onionwatch.engine import screenwatch as sw
 from onionwatch.ui.triggerspanel import TILE_THUMB, TriggerRow, TriggersTab
 
 fake_screen, tab, styled = test_ui.fake_screen, test_ui.tab, test_ui.styled

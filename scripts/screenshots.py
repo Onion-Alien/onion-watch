@@ -164,8 +164,9 @@ def main(out: Path):
     out.mkdir(parents=True, exist_ok=True)
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
-    from onionwatch import screenwatch, settings, theme, windows
-    from onionwatch.screenwatch import Monitor, Trigger, WindowRef
+    from onionwatch.engine import screenwatch, windows
+    from onionwatch import settings, theme
+    from onionwatch.engine.screenwatch import Monitor, Trigger, WindowRef
     from onionwatch.settings import Config
     from onionwatch.ui.mainwindow import MainWindow
 
@@ -262,7 +263,7 @@ def main(out: Path):
     windows.list_windows = lambda: list(wins)
     windows.snapshot = fake_snapshot
     from onionwatch.ui.windowpicker import WindowPicker
-    from onionwatch import screenwatch
+    from onionwatch.engine import screenwatch
     screenwatch.monitors = lambda: [Monitor(0, 0, 1920, 1080, True)]   # not this PC's
     dlg = WindowPicker(win, [every], multi=True)
     dlg.list.setCurrentRow(1)
@@ -296,7 +297,7 @@ def main(out: Path):
     area.close()
 
     # a bigger library in categories, a profile turned on by the game being open
-    from onionwatch import profiles
+    from onionwatch.engine import profiles
     win.host.ringing = lambda: []
     win.alarm.hide()
     tab.set_watching(False, remember=False)

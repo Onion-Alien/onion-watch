@@ -6,7 +6,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from onionwatch import screenwatch as sw
+from onionwatch.engine import screenwatch as sw
 
 
 def _answer(n_bytes: int, score: float = 0.5):

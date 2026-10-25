@@ -199,7 +199,7 @@ def _raw_triggers(screen) -> list[dict]:
 
 def setup_features(screen) -> list[str]:
     """The SET_UP features the saved triggers use now (names only, in SET_UP's order)."""
-    from onionwatch import screenwatch
+    from onionwatch.engine import screenwatch
     have = set()
     for d in _raw_triggers(screen):
         t = screenwatch.Trigger.from_raw(d)

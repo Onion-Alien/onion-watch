@@ -11,9 +11,9 @@ from PySide6.QtGui import QColor, QImage
 from test_ui import (H, W, FakeGrabber, as_qimage, banner, fake_screen, scene,  # noqa: F401
                      showing, tab)
 
-from onionwatch import packs, windows
-from onionwatch import screenwatch as sw
-from onionwatch.screenwatch import WindowRef
+from onionwatch.engine import packs, windows
+from onionwatch.engine import screenwatch as sw
+from onionwatch.engine.screenwatch import WindowRef
 from onionwatch.ui import snip
 from onionwatch.ui.history import HistoryDialog, alert_text
 

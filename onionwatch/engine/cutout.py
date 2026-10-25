@@ -27,7 +27,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from onionwatch import screenwatch
+from onionwatch.engine import screenwatch
 from onionwatch.i18n import _
 
 TOL = 12            # a channel moving more than this (of 255) counts as a change

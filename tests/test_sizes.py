@@ -7,8 +7,8 @@ import time
 import numpy as np
 import pytest
 
-from onionwatch import screenwatch as sw
-from onionwatch.screenwatch import Monitor, Trigger
+from onionwatch.engine import screenwatch as sw
+from onionwatch.engine.screenwatch import Monitor, Trigger
 
 ORANGE = (200, 100, 50)     # these two are all but the same grey (luma ~124)...
 TEAL = (60, 160, 120)       # ...so only their colours tell them apart

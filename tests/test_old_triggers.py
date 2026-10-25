@@ -11,8 +11,8 @@ import pytest
 from fakehost import FakeHost
 from PySide6.QtGui import QColor, QImage
 
-from onionwatch import screenwatch as sw
-from onionwatch.screenwatch import Trigger, WindowRef
+from onionwatch.engine import screenwatch as sw
+from onionwatch.engine.screenwatch import Trigger, WindowRef
 from onionwatch.ui import triggerspanel
 from onionwatch.ui.triggerspanel import TriggersTab
 

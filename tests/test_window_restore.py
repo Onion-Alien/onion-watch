@@ -3,7 +3,7 @@ from before it was minimized, so that copy is never checked (a picture that went
 away while it was minimized mustn't fire). Stand-in windows only."""
 import numpy as np
 
-from onionwatch import windows
+from onionwatch.engine import windows
 from test_fullscreen import game  # noqa: F401 (a fixture)
 
 

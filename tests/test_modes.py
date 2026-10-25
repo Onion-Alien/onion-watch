@@ -9,9 +9,9 @@ import time
 import numpy as np
 import pytest
 
-from onionwatch import screenwatch as sw
-from onionwatch.screenwatch import Gate, Hit, Monitor, Trigger, Watched, WindowRef
-from onionwatch.windows import WindowGone, WindowInfo
+from onionwatch.engine import screenwatch as sw
+from onionwatch.engine.screenwatch import Gate, Hit, Monitor, Trigger, Watched, WindowRef
+from onionwatch.engine.windows import WindowGone, WindowInfo
 
 W, H = 320, 180
 GAME1, GAME2, GAME3 = (WindowRef("game.exe", "Game", i) for i in range(3))

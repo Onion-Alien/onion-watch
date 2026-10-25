@@ -5,7 +5,7 @@ A screen is captured with Windows' Desktop Duplication (DXGI, over ctypes:
 `DupGrabber`), which also sees fullscreen games; where that isn't available it
 falls back to plain GDI (`Grabber`), which sees borderless and windowed games but
 can come out black for exclusive-fullscreen ones (`Watcher.black` says so). A
-window is captured on its own (onionwatch.windows.WindowGrabber), so it's still
+window is captured on its own (onionwatch.engine.windows.WindowGrabber), so it's still
 seen while other windows cover it; a fullscreen game's window in front is read off
 its screen. Windows lets a process duplicate a screen only once, so the screens and
 windows that need one share it (`share_dup`, `DupView`). Either way the picture is sampled at about
@@ -71,8 +71,8 @@ from dataclasses import asdict, dataclass, field
 import numpy as np
 
 from onionwatch import i18n
-from onionwatch.imgops import (binary_erosion, gaussian_filter, irfft2, next_fast_len, rfft2,
-                              zoom_linear)
+from onionwatch.engine.imgops import (binary_erosion, gaussian_filter, irfft2, next_fast_len, rfft2,
+                                      zoom_linear)
 
 log = logging.getLogger(__name__)
 
@@ -378,7 +378,7 @@ class WindowRef:
     """A window to watch, as it's remembered: the program's file name ("game.exe",
     lower case) and the window's title. Several open windows can fit (two copies of
     the same game): `nth` picks one of them, counting from the copy started first.
-    Found again by onionwatch.windows.find, also after a restart."""
+    Found again by onionwatch.engine.windows.find, also after a restart."""
     exe: str = ""
     title: str = ""
     nth: int = 0
@@ -457,7 +457,7 @@ class Trigger:
     unfocused: bool = False
     # find its pictures at other sizes too (cut fullscreen, played in a window)
     any_size: bool = True
-    # the category it's in (onionwatch.profiles; "" = Uncategorised): one line,
+    # the category it's in (onionwatch.engine.profiles; "" = Uncategorised): one line,
     # at most CATEGORY_MAX characters
     category: str = ""
     interval_ms: int = 0     # 0 inherits the global check interval
@@ -3168,13 +3168,13 @@ def is_black(gray: np.ndarray) -> bool:
 
 def expand(src, wins) -> list:
     """The places `src` stands for: a WindowRef for every copy is each copy open
-    now (`wins`, from onionwatch.windows.list_windows), or its first while none is
+    now (`wins`, from onionwatch.engine.windows.list_windows), or its first while none is
     (so it's waited for); anything else is itself."""
     if not isinstance(src, WindowRef) or not src.every:
         return [src]
     n = 0
     if wins:
-        from onionwatch.windows import copies
+        from onionwatch.engine.windows import copies
         n = len(copies(src, wins))
     return [WindowRef(src.exe, src.title, i) for i in range(max(n, 1))]
 
@@ -3425,7 +3425,7 @@ class Watcher:
         try:
             if self._front is not None:
                 return self._front()
-            from onionwatch.windows import foreground
+            from onionwatch.engine.windows import foreground
             return foreground()
         except OSError:
             return 0
@@ -3454,7 +3454,7 @@ class Watcher:
         that can't be told."""
         fills = self._fills
         if fills is None:
-            from onionwatch.windows import fills
+            from onionwatch.engine.windows import fills
         return fills(front, mon)
 
     def _in(self, cap: _Capture) -> bool:
@@ -3516,7 +3516,7 @@ class Watcher:
         try:
             if self._lister is not None:
                 return list(self._lister())
-            from onionwatch.windows import list_windows
+            from onionwatch.engine.windows import list_windows
             return list_windows()
         except OSError:
             log.debug("listing windows failed", exc_info=True)
@@ -3706,7 +3706,7 @@ class Watcher:
         a stand-in opener without one keeps finding copy `nth`)."""
         if self._lister is not None:
             return True
-        from onionwatch import windows
+        from onionwatch.engine import windows
         return self._window_grabber is None and getattr(windows.WindowGrabber, "follows", False)
 
     def _follow(self, cap: _Capture, items: list[Watched], caps: dict | None):
@@ -3720,7 +3720,7 @@ class Watcher:
         named = src == self.default or any(src in it.sources for it in items)
         if src.every or not named or not self._follows():
             return None
-        from onionwatch.windows import WindowGone, follow
+        from onionwatch.engine.windows import WindowGone, follow
         taken = {getattr(c.grab, "hwnd", None) for c in (caps or {}).values()
                  if c is not cap and c.is_window and c.grab is not None}
         info = follow(src, self._windows(), taken, cap.was_hwnd, cap.before)
@@ -3741,12 +3741,12 @@ class Watcher:
             if cap.is_window:
                 opener = self._window_grabber
                 if opener is None:
-                    from onionwatch.windows import WindowGrabber as opener
+                    from onionwatch.engine.windows import WindowGrabber as opener
                 ref: int | WindowRef = cap.source
                 kw: dict = {}
                 info = self._follow(cap, items, caps)
                 if info is not None and isinstance(ref, WindowRef):
-                    from onionwatch.windows import WindowGrabber, copies
+                    from onionwatch.engine.windows import WindowGrabber, copies
                     if opener is WindowGrabber:
                         kw["info"] = info
                     else:           # a stand-in opener knows copies by their place
@@ -3767,7 +3767,7 @@ class Watcher:
             if not cap.reopen_since:
                 cap.reopen_since = now
             if cap.is_window:
-                from onionwatch.windows import WindowGone
+                from onionwatch.engine.windows import WindowGone
                 cap.gone = cap.gone or isinstance(e, WindowGone)
                 cap.next_try = now + WINDOW_RETRY_S
                 return False
@@ -3850,7 +3850,7 @@ class Watcher:
             cap.failing = True
             cap.was_hwnd = getattr(cap.grab, "hwnd", None)
             if isinstance(cap.source, WindowRef) and self._follows():
-                from onionwatch.windows import copies
+                from onionwatch.engine.windows import copies
                 cap.before = {w.hwnd for w in copies(cap.source, self._windows())} | {cap.was_hwnd}
             cap.close()
             cap.reopen_since = time.monotonic()

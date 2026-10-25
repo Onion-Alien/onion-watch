@@ -66,55 +66,55 @@
 "count": 1
 },
 {
-"file": "onionwatch/imgops.py",
+"file": "onionwatch/engine/imgops.py",
 "rule": "reportArgumentType",
 "message": "Argument of type \"ndarray[_AnyShape, dtype[Any]] | tuple[Dispatchable, ...] | Unknown | tuple[Dispatchable]\" cannot be assigned to parameter \"a\" of type \"_ArrayLikeNumber_co\" in function \"irfft\"",
 "count": 1
 },
 {
-"file": "onionwatch/imgops.py",
+"file": "onionwatch/engine/imgops.py",
 "rule": "reportArgumentType",
 "message": "Argument of type \"tuple[slice[None, None, None], slice[None, int, None]]\" cannot be assigned to parameter \"key\" of type \"slice[SupportsIndex | None, SupportsIndex | None, SupportsIndex | None]\" in function \"__getitem__\"",
 "count": 1
 },
 {
-"file": "onionwatch/imgops.py",
+"file": "onionwatch/engine/imgops.py",
 "rule": "reportAttributeAccessIssue",
 "message": "Cannot access attribute \"ifft\" for class \"str\"",
 "count": 1
 },
 {
-"file": "onionwatch/imgops.py",
+"file": "onionwatch/engine/imgops.py",
 "rule": "reportAttributeAccessIssue",
 "message": "Cannot access attribute \"irfft\" for class \"str\"",
 "count": 1
 },
 {
-"file": "onionwatch/imgops.py",
+"file": "onionwatch/engine/imgops.py",
 "rule": "reportAttributeAccessIssue",
 "message": "Cannot access attribute \"rfft2\" for class \"str\"",
 "count": 1
 },
 {
-"file": "onionwatch/imgops.py",
+"file": "onionwatch/engine/imgops.py",
 "rule": "reportCallIssue",
 "message": "No overloads for \"__getitem__\" match the provided arguments",
 "count": 1
 },
 {
-"file": "onionwatch/imgops.py",
+"file": "onionwatch/engine/imgops.py",
 "rule": "reportCallIssue",
 "message": "No overloads for \"irfft\" match the provided arguments",
 "count": 1
 },
 {
-"file": "onionwatch/imgops.py",
+"file": "onionwatch/engine/imgops.py",
 "rule": "reportReturnType",
 "message": "Type \"Unknown | tuple[Dispatchable]\" is not assignable to return type \"ndarray[_AnyShape, dtype[Any]]\"",
 "count": 1
 },
 {
-"file": "onionwatch/imgops.py",
+"file": "onionwatch/engine/imgops.py",
 "rule": "reportReturnType",
 "message": "Type \"tuple[Dispatchable] | Unknown\" is not assignable to return type \"ndarray[_AnyShape, dtype[Any]]\"",
 "count": 1
@@ -222,253 +222,253 @@
 "count": 1
 },
 {
-"file": "onionwatch/packs.py",
+"file": "onionwatch/engine/packs.py",
 "rule": "reportArgumentType",
 "message": "Argument of type \"Unknown | None\" cannot be assigned to parameter \"args\" of type \"StrPath\" in function \"__init__\"",
 "count": 1
 },
 {
-"file": "onionwatch/packs.py",
+"file": "onionwatch/engine/packs.py",
 "rule": "reportArgumentType",
 "message": "Argument of type \"Unknown | None\" cannot be assigned to parameter \"args\" of type \"StrPath\" in function \"__new__\"",
 "count": 1
 },
 {
-"file": "onionwatch/packs.py",
+"file": "onionwatch/engine/packs.py",
 "rule": "reportGeneralTypeIssues",
 "message": "Expected mapping for dictionary unpack operator",
 "count": 1
 },
 {
-"file": "onionwatch/packs.py",
+"file": "onionwatch/engine/packs.py",
 "rule": "reportOptionalMemberAccess",
 "message": "\"get\" is not a known attribute of \"None\"",
 "count": 1
 },
 {
-"file": "onionwatch/profiles.py",
+"file": "onionwatch/engine/profiles.py",
 "rule": "reportArgumentType",
 "message": "Expression of type \"tuple[()]\" cannot be assigned to parameter of type \"list[str]\"",
 "count": 4
 },
 {
-"file": "onionwatch/profiles.py",
+"file": "onionwatch/engine/profiles.py",
 "rule": "reportOptionalMemberAccess",
 "message": "\"get\" is not a known attribute of \"None\"",
 "count": 2
 },
 {
-"file": "onionwatch/screenwatch.py",
+"file": "onionwatch/engine/screenwatch.py",
 "rule": "reportArgumentType",
 "message": "Argument of type \"Answers\" cannot be assigned to parameter \"seen\" of type \"dict[Unknown, Unknown] | None\" in function \"_small_shape\"",
 "count": 1
 },
 {
-"file": "onionwatch/screenwatch.py",
+"file": "onionwatch/engine/screenwatch.py",
 "rule": "reportArgumentType",
 "message": "Argument of type \"Answers\" cannot be assigned to parameter \"seen\" of type \"dict[Unknown, Unknown] | None\" in function \"_twin\"",
 "count": 1
 },
 {
-"file": "onionwatch/screenwatch.py",
+"file": "onionwatch/engine/screenwatch.py",
 "rule": "reportArgumentType",
 "message": "Argument of type \"Any | None\" cannot be assigned to parameter \"raw\" of type \"tuple[Unknown, ...]\" in function \"_colour_cover\"",
 "count": 1
 },
 {
-"file": "onionwatch/screenwatch.py",
+"file": "onionwatch/engine/screenwatch.py",
 "rule": "reportArgumentType",
 "message": "Argument of type \"Any | None\" cannot be assigned to parameter \"raw\" of type \"tuple[Unknown, ...]\" in function \"_grey_cover\"",
 "count": 1
 },
 {
-"file": "onionwatch/screenwatch.py",
+"file": "onionwatch/engine/screenwatch.py",
 "rule": "reportArgumentType",
 "message": "Argument of type \"Any | None\" cannot be assigned to parameter \"raw\" of type \"tuple[Unknown, ...]\" in function \"_tint_factor\"",
 "count": 2
 },
 {
-"file": "onionwatch/screenwatch.py",
+"file": "onionwatch/engine/screenwatch.py",
 "rule": "reportArgumentType",
 "message": "Argument of type \"Monitor | None\" cannot be assigned to parameter \"src\" of type \"Monitor\" in function \"__init__\"",
 "count": 1
 },
 {
-"file": "onionwatch/screenwatch.py",
+"file": "onionwatch/engine/screenwatch.py",
 "rule": "reportArgumentType",
 "message": "Argument of type \"Monitor | None\" cannot be assigned to parameter \"src\" of type \"Monitor\" in function \"open_grabber\"",
 "count": 2
 },
 {
-"file": "onionwatch/screenwatch.py",
+"file": "onionwatch/engine/screenwatch.py",
 "rule": "reportArgumentType",
 "message": "Argument of type \"None\" cannot be assigned to parameter \"restype\" of type \"type[c_long]\" in function \"call\"",
 "count": 5
 },
 {
-"file": "onionwatch/screenwatch.py",
+"file": "onionwatch/engine/screenwatch.py",
 "rule": "reportArgumentType",
 "message": "Argument of type \"Pattern | None\" cannot be assigned to parameter \"p\" of type \"Pattern\" in function \"find_peaks\"",
 "count": 1
 },
 {
-"file": "onionwatch/screenwatch.py",
+"file": "onionwatch/engine/screenwatch.py",
 "rule": "reportArgumentType",
 "message": "Argument of type \"_Array1D[_ScalarNumeric]\" cannot be assigned to parameter \"a\" of type \"_ArrayLikeTD64_co\" in function \"outer\"",
 "count": 1
 },
 {
-"file": "onionwatch/screenwatch.py",
+"file": "onionwatch/engine/screenwatch.py",
 "rule": "reportArgumentType",
 "message": "Argument of type \"_Array1D[_ScalarNumeric]\" cannot be assigned to parameter \"b\" of type \"_ArrayLikeTD64_co\" in function \"outer\"",
 "count": 1
 },
 {
-"file": "onionwatch/screenwatch.py",
+"file": "onionwatch/engine/screenwatch.py",
 "rule": "reportArgumentType",
 "message": "Argument of type \"int | WindowRef\" cannot be assigned to parameter \"ref\" of type \"WindowRef\" in function \"__init__\"",
 "count": 1
 },
 {
-"file": "onionwatch/screenwatch.py",
+"file": "onionwatch/engine/screenwatch.py",
 "rule": "reportArgumentType",
 "message": "Argument of type \"list[float] | list[int]\" cannot be assigned to parameter \"hunt\" of type \"list[int] | None\" in function \"_score\"",
 "count": 1
 },
 {
-"file": "onionwatch/screenwatch.py",
+"file": "onionwatch/engine/screenwatch.py",
 "rule": "reportArgumentType",
 "message": "Argument of type \"list[int] | None\" cannot be assigned to parameter \"budget\" of type \"list[float] | None\" in function \"_hunt\"",
 "count": 1
 },
 {
-"file": "onionwatch/screenwatch.py",
+"file": "onionwatch/engine/screenwatch.py",
 "rule": "reportArgumentType",
 "message": "Argument of type \"ndarray[_AnyShape, dtype[Any]] | None\" cannot be assigned to parameter \"mask\" of type \"ndarray[_AnyShape, dtype[Any]]\" in function \"cut_structure\"",
 "count": 1
 },
 {
-"file": "onionwatch/screenwatch.py",
+"file": "onionwatch/engine/screenwatch.py",
 "rule": "reportArgumentType",
 "message": "Argument of type \"ndarray[_AnyShape, dtype[Any]] | None\" cannot be assigned to parameter \"pspec\" of type \"ndarray[_AnyShape, dtype[Any]]\" in function \"corr\"",
 "count": 2
 },
 {
-"file": "onionwatch/screenwatch.py",
+"file": "onionwatch/engine/screenwatch.py",
 "rule": "reportArgumentType",
 "message": "Argument of type \"ndarray[_AnyShape, dtype[Any]] | None\" cannot be assigned to parameter \"want\" of type \"ndarray[_AnyShape, dtype[Any]]\" in function \"_tint_factor\"",
 "count": 2
 },
 {
-"file": "onionwatch/screenwatch.py",
+"file": "onionwatch/engine/screenwatch.py",
 "rule": "reportArgumentType",
 "message": "Argument of type \"ndarray[tuple[Any, Any], _dtype] | ndarray[_AnyShape, _dtype] | None\" cannot be assigned to parameter \"a\" of type \"ndarray[_AnyShape, dtype[Any]]\" in function \"rfft2\"",
 "count": 1
 },
 {
-"file": "onionwatch/screenwatch.py",
+"file": "onionwatch/engine/screenwatch.py",
 "rule": "reportArgumentType",
 "message": "Argument of type \"tuple[Unknown, ...] | None\" cannot be assigned to parameter \"full\" of type \"tuple[Unknown, ...]\" in function \"_small_shape\"",
 "count": 1
 },
 {
-"file": "onionwatch/screenwatch.py",
+"file": "onionwatch/engine/screenwatch.py",
 "rule": "reportArgumentType",
 "message": "Argument of type \"type[c_ulong]\" cannot be assigned to parameter \"restype\" of type \"type[c_long]\" in function \"call\"",
 "count": 1
 },
 {
-"file": "onionwatch/screenwatch.py",
+"file": "onionwatch/engine/screenwatch.py",
 "rule": "reportArgumentType",
 "message": "Expression of type \"tuple[()]\" cannot be assigned to parameter of type \"list[float]\"",
 "count": 1
 },
 {
-"file": "onionwatch/screenwatch.py",
+"file": "onionwatch/engine/screenwatch.py",
 "rule": "reportAttributeAccessIssue",
 "message": "Cannot access attribute \"close\" for class \"None\"",
 "count": 1
 },
 {
-"file": "onionwatch/screenwatch.py",
+"file": "onionwatch/engine/screenwatch.py",
 "rule": "reportAttributeAccessIssue",
 "message": "Cannot access attribute \"grab\" for class \"None\"",
 "count": 1
 },
 {
-"file": "onionwatch/screenwatch.py",
+"file": "onionwatch/engine/screenwatch.py",
 "rule": "reportAttributeAccessIssue",
 "message": "Cannot access attribute \"h\" for class \"None\"",
 "count": 1
 },
 {
-"file": "onionwatch/screenwatch.py",
+"file": "onionwatch/engine/screenwatch.py",
 "rule": "reportAttributeAccessIssue",
 "message": "Cannot access attribute \"w\" for class \"None\"",
 "count": 1
 },
 {
-"file": "onionwatch/screenwatch.py",
+"file": "onionwatch/engine/screenwatch.py",
 "rule": "reportAttributeAccessIssue",
 "message": "Cannot assign to attribute \"fitted\" for class \"_Capture\"",
 "count": 3
 },
 {
-"file": "onionwatch/screenwatch.py",
+"file": "onionwatch/engine/screenwatch.py",
 "rule": "reportAttributeAccessIssue",
 "message": "Cannot assign to attribute \"grab\" for class \"_Capture\"",
 "count": 4
 },
 {
-"file": "onionwatch/screenwatch.py",
+"file": "onionwatch/engine/screenwatch.py",
 "rule": "reportCallIssue",
 "message": "No overloads for \"outer\" match the provided arguments",
 "count": 1
 },
 {
-"file": "onionwatch/screenwatch.py",
+"file": "onionwatch/engine/screenwatch.py",
 "rule": "reportGeneralTypeIssues",
 "message": "\"Never\" is not iterable",
 "count": 1
 },
 {
-"file": "onionwatch/screenwatch.py",
+"file": "onionwatch/engine/screenwatch.py",
 "rule": "reportGeneralTypeIssues",
 "message": "\"None\" is not iterable",
 "count": 2
 },
 {
-"file": "onionwatch/screenwatch.py",
+"file": "onionwatch/engine/screenwatch.py",
 "rule": "reportOperatorIssue",
 "message": "Operator \"+\" not supported for types \"int | WindowRef\" and \"Literal[1]\"",
 "count": 2
 },
 {
-"file": "onionwatch/screenwatch.py",
+"file": "onionwatch/engine/screenwatch.py",
 "rule": "reportOptionalIterable",
 "message": "Object of type \"None\" cannot be used as iterable value",
 "count": 1
 },
 {
-"file": "onionwatch/screenwatch.py",
+"file": "onionwatch/engine/screenwatch.py",
 "rule": "reportOptionalMemberAccess",
 "message": "\"astype\" is not a known attribute of \"None\"",
 "count": 1
 },
 {
-"file": "onionwatch/screenwatch.py",
+"file": "onionwatch/engine/screenwatch.py",
 "rule": "reportOptionalMemberAccess",
 "message": "\"height\" is not a known attribute of \"None\"",
 "count": 2
 },
 {
-"file": "onionwatch/screenwatch.py",
+"file": "onionwatch/engine/screenwatch.py",
 "rule": "reportOptionalMemberAccess",
 "message": "\"width\" is not a known attribute of \"None\"",
 "count": 3
 },
 {
-"file": "onionwatch/screenwatch.py",
+"file": "onionwatch/engine/screenwatch.py",
 "rule": "reportOptionalSubscript",
 "message": "Object of type \"None\" is not subscriptable",
 "count": 3

@@ -12,11 +12,11 @@ from PySide6.QtCore import QPoint, QPointF, QRect, Qt
 from PySide6.QtGui import QImage, QMouseEvent
 from PySide6.QtWidgets import QLabel
 
-from onionwatch import screenwatch as sw
-from onionwatch import windows
+from onionwatch.engine import screenwatch as sw
+from onionwatch.engine import windows
 from onionwatch.apphost import AppHost
 from onionwatch.player import Player
-from onionwatch.screenwatch import Monitor, WindowRef
+from onionwatch.engine.screenwatch import Monitor, WindowRef
 from onionwatch.settings import Config
 from onionwatch.sounds import DEFAULT_SOUND, Library
 from onionwatch.ui import triggerspanel
@@ -287,7 +287,7 @@ def cut_while(tab, monkeypatch, grabs, rect, secs=0.4):
     import itertools
     import time
 
-    from onionwatch import cutout
+    from onionwatch.engine import cutout
     from onionwatch.ui import snip
     monkeypatch.setattr(cutout, "GRAB_S", 0.02)
     monkeypatch.setattr(windows, "find", lambda r, wins=None: windows.WindowInfo(

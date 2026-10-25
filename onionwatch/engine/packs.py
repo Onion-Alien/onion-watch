@@ -24,8 +24,9 @@ import json
 import zipfile
 from pathlib import Path
 
-from onionwatch import __version__, profiles
-from onionwatch.screenwatch import MAX_PICTURES, Trigger
+from onionwatch import __version__
+from onionwatch.engine import profiles
+from onionwatch.engine.screenwatch import MAX_PICTURES, Trigger
 from onionwatch.i18n import _
 
 FORMAT = "onion-watch-triggers"

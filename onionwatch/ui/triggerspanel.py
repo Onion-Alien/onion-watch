@@ -9,7 +9,7 @@ look: a window (watched even while other windows cover it) or a screen — "Same
 below" being the one picked at the bottom of the page.
 
 The watching itself (capture and matching on a worker thread) is
-onionwatch.screenwatch, windows are onionwatch.windows. Everything else comes from
+onionwatch.engine.screenwatch, windows are onionwatch.engine.windows. Everything else comes from
 the host (onionwatch.host: the Onion Watch app, or Onion Board): the saved triggers
 (host.screen), the sounds and playing them, and the folder the pictures are kept
 in (host.data_dir / "triggers").
@@ -42,9 +42,10 @@ from PySide6.QtWidgets import (QAbstractSpinBox, QApplication, QBoxLayout, QChec
                                QStyleOptionSpinBox,
                                QVBoxLayout, QWidget)
 
-from onionwatch import cutout, kit, packs, profiles, screenwatch, theme, usage, windows
-from onionwatch.screenwatch import (INTERVALS_MS, MAX_PICTURES, MAX_SOUNDS, Monitor, Picture,
-                                    Trigger, Watched, WindowRef)
+from onionwatch.engine import cutout, packs, profiles, screenwatch, windows
+from onionwatch import kit, theme, usage
+from onionwatch.engine.screenwatch import (INTERVALS_MS, MAX_PICTURES, MAX_SOUNDS, Monitor, Picture,
+                                           Trigger, Watched, WindowRef)
 from onionwatch.shuffle import ShuffleBag
 from onionwatch.ui import icons
 from onionwatch.ui.categories import (MAX_PER_ROW, PAD, CategoriesDialog, CategorySection,
@@ -2803,7 +2804,7 @@ class TriggerRow(QFrame):
             self.changed.emit(self)
 
     def set_categories(self, names: list[str]):
-        """The categories it can be put in (onionwatch.profiles), its own picked."""
+        """The categories it can be put in (onionwatch.engine.profiles), its own picked."""
         self._categories = list(names)
         if not self._built:
             return
@@ -2980,7 +2981,7 @@ class TriggersTab(QWidget):
                 self.triggers.append(t)
         self.rows: dict[str, TriggerRow] = {}   # the cards made so far (open categories')
         self.cooldowns: dict[str, float] = {}   # trigger id -> its cooldown's end (monotonic)
-        # the categories and profiles (onionwatch.profiles), and the categories on now
+        # the categories and profiles (onionwatch.engine.profiles), and the categories on now
         self.groups = profiles.Groups.load(s, [t.category for t in self.triggers])
         self.groups.ensure(profiles.UNCATEGORISED)
         self.apps = profiles.AppWatch()
@@ -4378,7 +4379,7 @@ class TriggersTab(QWidget):
         self._mons = mons
 
     # ------------------------------------------------------------------ categories
-    # Triggers sit in categories (Trigger.category, onionwatch.profiles), each a
+    # Triggers sit in categories (Trigger.category, onionwatch.engine.profiles), each a
     # section of the list. A section's cards are only made once it's opened, so a
     # library of hundreds opens at once, and a trigger is watched for only while
     # it's on and so is its category (is_on): one that's off costs nothing.

@@ -8,8 +8,8 @@ from PySide6.QtGui import QImage
 from test_sizes import Grab, gray, scaled, world
 from test_ui import as_qimage, banner, fake_screen, tab  # noqa: F401 (fixtures)
 
-from onionwatch import screenwatch as sw
-from onionwatch.screenwatch import Monitor
+from onionwatch.engine import screenwatch as sw
+from onionwatch.engine.screenwatch import Monitor
 from onionwatch.ui import triggerspanel as tp
 
 

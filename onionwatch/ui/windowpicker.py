@@ -14,8 +14,9 @@ from PySide6.QtGui import QColor, QIcon, QImage, QPixmap
 from PySide6.QtWidgets import (QCheckBox, QDialog, QDialogButtonBox, QHBoxLayout, QListWidget,
                                QListWidgetItem, QPushButton, QStyledItemDelegate)
 
-from onionwatch import screenwatch, theme, windows
-from onionwatch.screenwatch import MAX_SOURCES, WindowRef
+from onionwatch.engine import screenwatch, windows
+from onionwatch import theme
+from onionwatch.engine.screenwatch import MAX_SOURCES, WindowRef
 from onionwatch.ui import fit, icons
 from onionwatch.ui.panel import dialog_layout
 from onionwatch.i18n import _, ngettext

@@ -1,4 +1,4 @@
-"""The triggers page's categories and profiles (the rules are onionwatch.profiles):
+"""The triggers page's categories and profiles (the rules are onionwatch.engine.profiles):
 a category's section in the list (a header to fold it, switch it on or off and
 open its menu, over its trigger cards), the Categories window (each one's colours
 and picture) and the Profiles window."""
@@ -16,8 +16,9 @@ from PySide6.QtWidgets import (QColorDialog, QComboBox, QDialog, QDialogButtonBo
                                QLineEdit, QListWidget, QListWidgetItem, QMenu, QPushButton,
                                QVBoxLayout, QWidget, QWidgetItem, QSizePolicy)
 
-from onionwatch import profiles, theme
-from onionwatch.profiles import Category, Profile
+from onionwatch.engine import profiles
+from onionwatch import theme
+from onionwatch.engine.profiles import Category, Profile
 from onionwatch.ui import fit, icons
 from onionwatch.ui.panel import Flow, hint_label, section_label
 from onionwatch.i18n import _, ngettext

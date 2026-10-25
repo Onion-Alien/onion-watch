@@ -1,7 +1,7 @@
 """The icon-to-words gap on Onion Watch's buttons (the same 8 px as Onion Board's)."""
 from fakehost import FakeHost
 
-from onionwatch import screenwatch as sw
+from onionwatch.engine import screenwatch as sw
 from onionwatch.ui.triggerspanel import TriggersTab
 
 

@@ -114,7 +114,7 @@ def test_the_log_page_follows_what_went_off(make, tmp_path):  # noqa: F811
 
 def test_log_pictures_are_small_colour_copies_of_the_grab():
     import numpy as np
-    from onionwatch import screenwatch as sw
+    from onionwatch.engine import screenwatch as sw
     px = np.zeros((1080, 1920, 4), np.uint8)
     px[..., 2] = 200                                   # BGRA: red
     out = sw.log_rgb((px, sw.FMT_BGRA8, 2))
