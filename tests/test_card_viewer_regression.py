@@ -6,7 +6,7 @@ from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
 
 import test_ui
-from onionwatch.ui import viewer
+from onionwatch.ui.triggers import viewer
 from test_card_layout import new_card
 
 fake_screen, tab = test_ui.fake_screen, test_ui.tab

@@ -8,7 +8,7 @@ import logging
 import numpy as np
 import pytest
 
-from onionwatch import screenwatch as sw
+from onionwatch.engine import screenwatch as sw
 
 
 def srgb_to_linear(v: float) -> float:
@@ -146,7 +146,7 @@ def test_the_duplication_falls_back_to_gdi_on_an_unknown_format(monkeypatch, cap
     g.output1, g.dup = FakeCom(), FakeCom(fill_desc)
     g._mode = None
     monkeypatch.setattr(sw, "_unknown_formats", set())
-    with caplog.at_level(logging.INFO, logger="onionwatch.screenwatch"):
+    with caplog.at_level(logging.INFO, logger="onionwatch.engine.screenwatch"):
         for _ in range(2):
             with pytest.raises(OSError, match="unsupported duplication format 28"):
                 g._duplicate()

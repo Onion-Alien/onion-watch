@@ -1,8 +1,8 @@
 """What the triggers panel needs from the program it runs in, and nothing more.
 
-Two programs host the panel: the Onion Watch app (onionwatch.apphost) and Onion
+Two programs host the panel: the Onion Watch app (onionwatch.core.apphost) and Onion
 Board, which loads it as an add-on module (onionwatch.board, packed by
-scripts/build_module.py). The panel talks to its host only through `Host`; the
+scripts/buildtools/build_module.py). The panel talks to its host only through `Host`; the
 engine (screenwatch, windows) knows nothing about hosts at all.
 
 API_VERSION goes up whenever this interface changes in a way the other side can't
@@ -58,7 +58,7 @@ class Host(Protocol):
         """The tags of the looping sounds playing now."""
 
     def palette(self) -> dict[str, str]:
-        """The host's theme colours now (onionwatch.theme.THEMES' keys)."""
+        """The host's theme colours now (onionwatch.ui.kit.theme.THEMES' keys)."""
 
     def notify(self, title: str, body: str) -> None:
         """A desktop notification, if the host has a way to show one (else nothing)."""
@@ -78,7 +78,7 @@ class Host(Protocol):
 #
 #     def count(self, key: str) -> None:
 #         """A feature of the page was used or is set up (`key`: one of
-#         onionwatch.usage.FEATURES), for the host's own anonymous usage count:
+#         onionwatch.core.usage.FEATURES), for the host's own anonymous usage count:
 #         Onion Board sends it as used/triggers-<key> with its daily count, when
 #         that's switched on. Without it nothing is counted."""
 #
@@ -90,7 +90,7 @@ class Host(Protocol):
 #     def kit(self):
 #         """The host's style kit package (Onion Board's soundboard.style). When its
 #         KIT_VERSION is at least ours, Hoot is drawn with it instead of
-#         onionwatch.style, so he matches the host exactly (onionwatch/kit.py)."""
+#         onionwatch.style, so he matches the host exactly (onionwatch/ui/kit/kit.py)."""
 
 
 def missing(host) -> list[str]:

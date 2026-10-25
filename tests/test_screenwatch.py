@@ -7,8 +7,8 @@ import time
 import numpy as np
 import pytest
 
-from onionwatch import screenwatch as sw
-from onionwatch.screenwatch import Gate, Monitor, Trigger
+from onionwatch.engine import screenwatch as sw
+from onionwatch.engine.screenwatch import Gate, Monitor, Trigger
 
 W, H = 320, 180
 SCREENS = [Monitor(0, 0, W, H, True), Monitor(W, 0, W, H)]

@@ -32,8 +32,8 @@ credentials*.json
 # app data copied from %APPDATA%\OnionWatch while debugging
 config.json
 config.json.*
-triggers/
-sounds/
+/triggers/
+/sounds/
 # personal sound files dropped in for testing
 *.mp3
 *.wav

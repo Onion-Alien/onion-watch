@@ -10,8 +10,9 @@ from PySide6.QtWidgets import QPushButton
 import test_ui
 from test_ui import as_qimage, banner
 
-from onionwatch import screenwatch as sw
-from onionwatch.ui.triggerspanel import TILE_THUMB, TriggerRow, TriggersTab
+from onionwatch.engine import screenwatch as sw
+from onionwatch.ui.triggers.card import TILE_THUMB, TriggerRow
+from onionwatch.ui.triggers.triggerspanel import TriggersTab
 
 fake_screen, tab, styled = test_ui.fake_screen, test_ui.tab, test_ui.styled
 
@@ -256,7 +257,7 @@ def test_where_a_dragged_card_lands(tab, qapp):
 def test_the_check_speed_is_picked_under_the_cog(tab, monkeypatch):
     """Not on the bottom bar: under ⚙, for every trigger left on Default. Each card's
     Check every says what Default is, and the next start reads it back."""
-    from onionwatch.ui.watching import WatchingDialog
+    from onionwatch.ui.settings.watching import WatchingDialog
     row, = cards(tab, 1)
     shown = []
     monkeypatch.setattr(WatchingDialog, "exec", lambda self: shown.append(self) or 0)

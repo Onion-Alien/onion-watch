@@ -7,8 +7,8 @@ import time
 import numpy as np
 import pytest
 
-from onionwatch import screenwatch as sw
-from onionwatch.screenwatch import Monitor, Trigger
+from onionwatch.engine import screenwatch as sw
+from onionwatch.engine.screenwatch import Monitor, Trigger
 
 ORANGE = (200, 100, 50)     # these two are all but the same grey (luma ~124)...
 TEAL = (60, 160, 120)       # ...so only their colours tell them apart
@@ -452,7 +452,7 @@ def test_a_quick_check_keeps_the_interval():
 def test_a_picture_keeps_the_size_it_was_cut_from(qapp, tmp_path):
     from PySide6.QtGui import QImage
 
-    from onionwatch.ui import triggerspanel as tp
+    from onionwatch.ui.triggers import triggerspanel as tp
     img = QImage(40, 30, QImage.Format_ARGB32)
     img.fill(0xFF336699)
     assert tp.cut_size(img) is None

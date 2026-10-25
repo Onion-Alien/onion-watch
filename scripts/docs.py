@@ -90,7 +90,7 @@ def main():
 
     stamp(ROOT / "README.md", readme_block(r))
     if not args.no_shots:
-        for script in ("screenshots.py", "make_art.py"):
+        for script in ("screenshots.py", "buildtools/make_art.py"):
             subprocess.run([sys.executable, str(ROOT / "scripts" / script)], cwd=ROOT, check=True)
     bust_caches()
 

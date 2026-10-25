@@ -5,12 +5,12 @@ import zipfile
 import pytest
 from fakehost import FakeHost
 
-from onionwatch import packs, profiles
-from onionwatch import screenwatch as sw
-from onionwatch.screenwatch import Trigger
-from onionwatch.ui import triggerspanel
-from onionwatch.ui.triggerspanel import TriggersTab
-from onionwatch.windows import WindowInfo
+from onionwatch.engine import packs, profiles
+from onionwatch.engine import screenwatch as sw
+from onionwatch.engine.screenwatch import Trigger
+from onionwatch.ui.triggers import triggerspanel
+from onionwatch.ui.triggers.triggerspanel import TriggersTab
+from onionwatch.engine.windows import WindowInfo
 
 
 def raw(i, cat="", **kw):
@@ -162,7 +162,7 @@ def test_a_profile_picked_by_hand_and_automatic_by_program(make):
 
 
 def test_the_profiles_window_edits_copies(make, qapp):
-    from onionwatch.ui.categories import ProfilesDialog
+    from onionwatch.ui.triggers.categories import ProfilesDialog
     tab = make({"triggers": [raw(1, "Raids")]})
     lister = [WindowInfo(5, "The Game", "Game.exe", 1, 0, 800, 600)]
     dlg = ProfilesDialog(tab, [], tab.groups.names(), lambda: lister)

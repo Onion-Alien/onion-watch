@@ -19,12 +19,12 @@ def _run(code: str, **env) -> str:
 
 def test_the_app_sets_one_maths_thread_before_numpy_loads():
     out = _run("import sys, os\n"
-               "import onionwatch.app\n"
+               "import onionwatch.core.app\n"
                "print('numpy' in sys.modules, os.environ.get('OPENBLAS_NUM_THREADS'))")
     assert out == "False 1"
 
 
 def test_a_maths_thread_count_given_by_the_user_is_kept():
-    out = _run("import os, onionwatch.app\nprint(os.environ['OPENBLAS_NUM_THREADS'])",
+    out = _run("import os, onionwatch.core.app\nprint(os.environ['OPENBLAS_NUM_THREADS'])",
                OPENBLAS_NUM_THREADS="4")
     assert out == "4"

@@ -23,7 +23,7 @@ dependencies = [
 dev = ["pytest==9.1.1", "ruff==0.17.0", "pyright==1.1.414", "pyinstaller==6.22.3"]
 
 [project.gui-scripts]
-onionwatch = "onionwatch.app:main"
+onionwatch = "onionwatch.core.app:main"
 
 [tool.setuptools.packages.find]
 include = ["onionwatch*"]
@@ -44,12 +44,12 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"onionwatch/theme.py" = ["E501"]   # the stylesheet is one rule per line
+"onionwatch/ui/kit/theme.py" = ["E501"]   # the stylesheet is one rule per line
 "tests/*" = ["BLE"]
 
 # ---------------------------------------------------------------- pyright
 # Type checking, basic mode, as Onion Board. Old errors are in
-# scripts/pyright_baseline.json and only new ones fail: scripts/check_types.py
+# scripts/checks/pyright_baseline.json and only new ones fail: scripts/checks/check_types.py
 # (precommit: changed files; CI: the whole repo).
 [tool.pyright]
 include = ["onionwatch", "main.py"]

@@ -12,7 +12,7 @@ import logging
 import numpy as np
 import pytest
 
-from onionwatch import screenwatch as sw
+from onionwatch.engine import screenwatch as sw
 
 
 def bgra(r, g, b) -> np.ndarray:
@@ -102,7 +102,7 @@ def test_the_duplication_asks_for_float_frames_first(monkeypatch):
 def test_the_old_way_is_kept_when_the_new_one_is_refused(monkeypatch, caplog):
     monkeypatch.setattr(sw, "sdr_white", lambda name: 1.0)
     g, calls = _grabber(new_hr=-2147024891)                 # E_ACCESSDENIED
-    with caplog.at_level(logging.INFO, logger="onionwatch.screenwatch"):
+    with caplog.at_level(logging.INFO, logger="onionwatch.engine.screenwatch"):
         g._duplicate()
     assert [c[0] for c in calls] == ["new", "old"]
     assert g.output5 is None                                # not asked again

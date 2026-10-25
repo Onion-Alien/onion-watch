@@ -4,7 +4,7 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
-from onionwatch import screenwatch as sw
+from onionwatch.engine import screenwatch as sw
 import test_ui
 from test_card_layout import new_card
 

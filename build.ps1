@@ -3,7 +3,7 @@
 #   dist\OnionWatch-Installer.exe     (the one file to give people)
 #   dist\OnionWatch-Update.exe        (the same file, for the app's Update now to fetch,
 #                                      so GitHub's counts tell updates from downloads)
-#   dist\OnionWatch-module.zip        (the Onion Board add-on, see scripts\build_module.py)
+#   dist\OnionWatch-module.zip        (the Onion Board add-on, see scripts\buildtools\build_module.py)
 #
 # Needs the dev tools once:  .venv\Scripts\pip install -r requirements-dev.txt
 # The installer step needs Inno Setup 6 once:  winget install JRSoftware.InnoSetup
@@ -20,7 +20,7 @@
 #   "Trojan:Win32/Wacatac.B!ml", whatever was inside: 0.4.0, 0.3.1's source built again,
 #   even an installer with no OnionWatch.exe in it. The same files zipped scan clean.
 # - Every build uses a PyInstaller bootloader compiled on this PC
-#   (scripts\build_bootloader.ps1, run automatically when the stock one is installed):
+#   (scripts\buildtools\build_bootloader.ps1, run automatically when the stock one is installed):
 #   the stock one is the same file in thousands of programs, some of them malware.
 # A release build (-Scan) that's flagged anyway isn't released.
 param([switch]$Clean, [switch]$NoInstaller, [switch]$Scan)
@@ -34,21 +34,21 @@ $stock = "2291f269c3a3804fde1079462239e09a8b32fffbeeaa8f628a531faf5be77d41"   # 
 $runw = & $py -c "import PyInstaller, os; print(os.path.join(os.path.dirname(PyInstaller.__file__), 'bootloader', 'Windows-64bit-intel', 'runw.exe'))"
 if ((Get-FileHash $runw -Algorithm SHA256).Hash.ToLower() -eq $stock) {
     Write-Host "PyInstaller's stock bootloader: compiling one here first" -ForegroundColor Yellow
-    & powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build_bootloader.ps1
-    if ($LASTEXITCODE -ne 0) { throw "scripts\build_bootloader.ps1 failed (see above)" }
+    & powershell -NoProfile -ExecutionPolicy Bypass -File scripts\buildtools\build_bootloader.ps1
+    if ($LASTEXITCODE -ne 0) { throw "scripts\buildtools\build_bootloader.ps1 failed (see above)" }
     $Clean = $true
 }
 
 # the icon and the setup wizard's pictures are drawn in code, like the rest of the art
-& $py scripts\make_installer_art.py
+& $py scripts\buildtools\make_installer_art.py
 if ($LASTEXITCODE -ne 0) { throw "make_installer_art.py failed" }
 # the exe's Properties -> Details (an exe without them looks suspicious to virus scanners)
-& $py scripts\make_version_info.py
+& $py scripts\buildtools\make_version_info.py
 if ($LASTEXITCODE -ne 0) { throw "make_version_info.py failed" }
 
 $cleanArg = @()
 if ($Clean) { $cleanArg = @("--clean") }
-# Of scipy only scipy.fft is used (onionwatch\imgops.py), with the linalg and special
+# Of scipy only scipy.fft is used (onionwatch\engine\imgops.py), with the linalg and special
 # it imports; scipy's __init__ names every subpackage, so the rest is excluded by name.
 & $py -m PyInstaller --noconfirm @cleanArg --windowed `
     --name OnionWatch --icon build\onionwatch.ico --version-file build\version_info.txt `
@@ -62,17 +62,17 @@ if ($Clean) { $cleanArg = @("--clean") }
 if ($LASTEXITCODE -ne 0) { throw "PyInstaller failed" }
 
 # PyInstaller ships all of Qt; drop what the app never loads, then prove it still starts
-& $py scripts\prune_build.py dist\OnionWatch
+& $py scripts\buildtools\prune_build.py dist\OnionWatch
 if ($LASTEXITCODE -ne 0) { throw "prune_build.py failed" }
 & "dist\OnionWatch\OnionWatch.exe" --selftest | Out-Host
 if ($LASTEXITCODE -ne 0) { throw "the built app failed its self-test (see above)" }
 
-# Licences travel with the binaries (Qt is LGPL; see scripts\make_notices.py)
+# Licences travel with the binaries (Qt is LGPL; see scripts\buildtools\make_notices.py)
 Copy-Item LICENSE "dist\OnionWatch\LICENSE.txt"
-& $py scripts\make_notices.py "dist\OnionWatch\THIRD-PARTY-NOTICES.txt"
+& $py scripts\buildtools\make_notices.py "dist\OnionWatch\THIRD-PARTY-NOTICES.txt"
 if ($LASTEXITCODE -ne 0) { throw "make_notices.py failed" }
 
-& $py scripts\build_module.py
+& $py scripts\buildtools\build_module.py
 if ($LASTEXITCODE -ne 0) { throw "build_module.py failed" }
 
 $size = [math]::Round((Get-ChildItem dist\OnionWatch -Recurse | Measure-Object Length -Sum).Sum / 1MB)
@@ -93,9 +93,9 @@ if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed" }
 Copy-Item dist\OnionWatch-Installer.exe dist\OnionWatch-Update.exe -Force
 Write-Host "Built dist\OnionWatch-Installer.exe - that's the one file to give people." -ForegroundColor Green
 
-# -Scan: VirusTotal (scripts\vt_scan.py, needs VT_API_KEY); the line for the release notes
+# -Scan: VirusTotal (scripts\buildtools\vt_scan.py, needs VT_API_KEY); the line for the release notes
 if ($Scan) {
-    & $py scripts\vt_scan.py dist\OnionWatch-Installer.exe --markdown | Out-Host
+    & $py scripts\buildtools\vt_scan.py dist\OnionWatch-Installer.exe --markdown | Out-Host
     $scanned = $LASTEXITCODE
     if ($scanned -eq 1) { throw "a virus scanner flagged OnionWatch-Installer.exe: don't release it (README -> releasing)" }
     if ($scanned -ne 0) { throw "the VirusTotal scan didn't run (see above)" }

@@ -15,9 +15,9 @@ from ctypes import wintypes
 import numpy as np
 import pytest
 
-from onionwatch import screenwatch as sw
-from onionwatch import windows
-from onionwatch.screenwatch import Monitor, WindowRef
+from onionwatch.engine import screenwatch as sw
+from onionwatch.engine import windows
+from onionwatch.engine.screenwatch import Monitor, WindowRef
 from test_screen_twin import FakeCom, staged
 from test_screenwatch import fake_screen  # noqa: F401 (a fixture)
 from test_screenwatch import banner, pics, run_until, scene, with_banner

@@ -3,7 +3,7 @@ front) must not start the app: only `python -m onionwatch` does."""
 import importlib
 import sys
 
-from onionwatch import app
+from onionwatch.core import app
 
 
 def test_importing_the_python_m_start_file_does_not_start_the_app(monkeypatch):

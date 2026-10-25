@@ -14,8 +14,8 @@ import time
 import numpy as np
 import pytest
 
-from onionwatch import screenwatch as sw
-from onionwatch.screenwatch import Monitor
+from onionwatch.engine import screenwatch as sw
+from onionwatch.engine.screenwatch import Monitor
 
 W, H = 640, 360
 SKIN = np.array([0.55, 0.35, 0.75], np.float32)      # a purple beast
