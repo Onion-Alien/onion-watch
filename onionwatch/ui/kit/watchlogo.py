@@ -18,7 +18,7 @@ from PySide6.QtGui import (QColor, QConicalGradient, QFont, QLinearGradient, QPa
                            QPainterPath, QPen, QPixmap, QRadialGradient)
 from PySide6.QtWidgets import QWidget
 
-from onionwatch import theme
+from onionwatch.ui.kit import theme
 from onionwatch.style import appstate
 
 FRAME_MS = 33          # 30 fps while it moves

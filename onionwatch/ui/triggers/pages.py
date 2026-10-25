@@ -9,10 +9,11 @@ from PySide6.QtCore import QSize, Qt, QTimer
 from PySide6.QtWidgets import (QFrame, QHBoxLayout, QLabel, QPushButton, QStackedWidget,
                                QTabBar, QVBoxLayout, QWidget)
 
-from onionwatch import theme
-from onionwatch.ui import chances, icons
-from onionwatch.ui.history import HistoryView
-from onionwatch.ui.watchlogo import WatchLogo
+from onionwatch.ui.kit import theme
+from onionwatch.ui.triggers import chances
+from onionwatch.ui.kit import icons
+from onionwatch.ui.triggers.history import HistoryView
+from onionwatch.ui.kit.watchlogo import WatchLogo
 from onionwatch.i18n import _
 
 CHECK_MS = 400          # how often the bar looks whether a sound has ended
@@ -176,7 +177,7 @@ class TriggerPages(QWidget):
         lv.addLayout(self.log.button_row())
         self.stack.addWidget(log_page)
         if settings_menu is not None:
-            from onionwatch.ui.boardsettings import BoardSettings
+            from onionwatch.ui.settings.boardsettings import BoardSettings
             self.settings = BoardSettings(panel, settings_menu)
             self.stack.addWidget(self.settings)
         v.addWidget(self.stack, 1)

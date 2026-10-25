@@ -1,7 +1,7 @@
 """Light themes: buttons and boxes stand out from what they sit on."""
 import pytest
 
-from onionwatch import theme
+from onionwatch.ui.kit import theme
 
 
 @pytest.mark.parametrize("name", [n for n in theme.THEMES if theme.is_light(n)])

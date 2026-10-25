@@ -13,11 +13,12 @@ from conftest import process_events
 from fakehost import FakeHost
 from test_ui import FakeGrabber, W, H, as_qimage, banner, scene, showing
 
-from onionwatch import board, theme
+from onionwatch import board
+from onionwatch.ui.kit import theme
 from onionwatch.engine import screenwatch as sw
 from onionwatch.host import API_VERSION
 from onionwatch.engine.screenwatch import Monitor
-from onionwatch.ui.pages import TriggerPages
+from onionwatch.ui.triggers.pages import TriggerPages
 
 
 @pytest.fixture
@@ -155,7 +156,7 @@ def test_the_chip_on_the_bottom_bar_opens_the_settings_tab(tab):
 
 
 def test_the_owl_is_the_boards_onion_size_on_its_line(tab):
-    from onionwatch.ui.pages import LOGO_BOX, LOGO_PX
+    from onionwatch.ui.triggers.pages import LOGO_BOX, LOGO_PX
     assert (LOGO_PX, LOGO_BOX) == (24, 34)      # Onion Board's sidebar.LOGO and its box
     assert tab.pages.logo.size().width() == LOGO_PX
     assert tab.pages.logo.size().height() == LOGO_BOX

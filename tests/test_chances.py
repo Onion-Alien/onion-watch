@@ -1,8 +1,8 @@
 """Live chances: the card's little bar, and the Chances window behind the Playing
 now bar's button, which Watching settings can hide."""
-from onionwatch.ui import chances
-from onionwatch.ui.pages import TriggerPages
-from onionwatch.ui.watching import WatchingDialog
+from onionwatch.ui.triggers import chances
+from onionwatch.ui.triggers.pages import TriggerPages
+from onionwatch.ui.settings.watching import WatchingDialog
 
 from test_categories import make, raw  # noqa: F401  (the fixture, and its triggers)
 
@@ -72,7 +72,7 @@ def test_the_chances_button_can_be_hidden(make):  # noqa: F811
 def test_a_bar_slides_to_its_new_score(qapp, monkeypatch):
     """A new score slides the bar there (on a timer that stops once it's there)
     instead of jumping a poll at a time; behind a game it just takes the score."""
-    from onionwatch.ui import chances
+    from onionwatch.ui.triggers import chances
     monkeypatch.setattr(chances.appstate, "active", lambda: True)
     bar = chances.LiveLabel()
     bar.resize(120, 20)

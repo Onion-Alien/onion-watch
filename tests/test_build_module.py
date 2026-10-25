@@ -28,13 +28,14 @@ def test_it_holds_the_page_and_engine_but_not_the_app(built):
         names = set(z.namelist())
     top = "onion-watch/onionwatch/"
     for want in ("board.py", "host.py", "engine/screenwatch.py", "engine/windows.py",
-                 "ui/triggerspanel.py",
-                 "ui/windowpicker.py", "ui/snip.py", "ui/alarmbar.py", "theme.py",
-                 "ui/viewer.py", "ui/deleted.py", "ui/watching.py"):  # opened only when asked
+                 "ui/triggers/triggerspanel.py", "ui/triggers/windowpicker.py",
+                 "ui/triggers/snip.py", "ui/triggers/alarmbar.py", "ui/kit/theme.py",
+                 # opened only when asked
+                 "ui/triggers/viewer.py", "ui/triggers/deleted.py", "ui/settings/watching.py"):
         assert top + want in names, want
     for app_only in ("core/app.py", "core/apphost.py", "audio/player.py", "audio/sounds.py",
-                     "core/settings.py", "core/singleinstance.py", "ui/mainwindow.py",
-                     "ui/settingsdialog.py", "ui/langpick.py",
+                     "core/settings.py", "core/singleinstance.py", "ui/window/mainwindow.py",
+                     "ui/settings/settingsdialog.py", "ui/settings/langpick.py",
                      "langnames_data.py"):   # the board has its own picker
         assert top + app_only not in names, app_only
     assert {"onion-watch/module.json", "onion-watch/LICENSE"} <= names

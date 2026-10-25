@@ -22,13 +22,14 @@ from PySide6.QtWidgets import (QButtonGroup, QCheckBox, QColorDialog, QComboBox,
                                QListWidget, QListWidgetItem, QPushButton, QRadioButton,
                                QScrollArea, QSlider, QStackedWidget, QVBoxLayout, QWidget)
 
-from onionwatch import __version__, i18n, theme
+from onionwatch import __version__, i18n
+from onionwatch.ui.kit import theme
 from onionwatch.core import feedback
 from onionwatch.audio.sounds import DEFAULT_SOUND
 from onionwatch.style import owl
-from onionwatch.ui import fit, icons
-from onionwatch.ui.panel import hint_label
-from onionwatch.wheelguard import no_wheel
+from onionwatch.ui.kit import fit, icons
+from onionwatch.ui.kit.panel import hint_label
+from onionwatch.ui.kit.wheelguard import no_wheel
 from onionwatch.i18n import _
 
 
@@ -710,7 +711,7 @@ class SettingsDialog(QDialog):
             restart.setVisible(later)
 
         def open_picker():
-            from onionwatch.ui.langpick import LanguageDialog
+            from onionwatch.ui.settings.langpick import LanguageDialog
             dlg = LanguageDialog(self, self.win.cfg.language)
             self.lang_dialog = dlg   # (tests reach it while it's open)
             dlg.chosen.connect(lambda code: (self._set("language", code), show()))
@@ -760,7 +761,7 @@ class SettingsDialog(QDialog):
         self.usage.setChecked(cfg.usage_count)
         self.usage.toggled.connect(self._on_usage)
         row.addWidget(self.usage)
-        # the eye: what it sends, as a small table (ui/countdialog.py)
+        # the eye: what it sends, as a small table (ui/settings/countdialog.py)
         self.count_eye = QPushButton()
         self.count_eye.setFlat(True)
         icons.set_icon(self.count_eye, "eye")
@@ -786,7 +787,7 @@ class SettingsDialog(QDialog):
         self._set("usage_count", on)
 
     def _show_count(self):
-        from onionwatch.ui import countdialog
+        from onionwatch.ui.settings import countdialog
         self.count_dialog = countdialog.show(self)
 
     def _about(self):

@@ -202,7 +202,7 @@ def test_the_alarm_bar_only_checks_while_something_rings(qapp):
     doesn't run at all. A ring starts it, and it stops again once the ring ends."""
     from PySide6.QtCore import QObject, Signal
 
-    from onionwatch.ui.alarmbar import AlarmBar
+    from onionwatch.ui.triggers.alarmbar import AlarmBar
 
     class Host:
         rings: list = []

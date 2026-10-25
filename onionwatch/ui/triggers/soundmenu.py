@@ -11,10 +11,10 @@ from PySide6.QtCore import QPoint, Qt
 from PySide6.QtWidgets import (QComboBox, QFrame, QHBoxLayout, QLabel, QLineEdit, QListWidget,
                                QListWidgetItem, QPushButton, QVBoxLayout, QWidget)
 
-from onionwatch import theme
+from onionwatch.ui.kit import theme
 from onionwatch.i18n import _
-from onionwatch.ui import icons
-from onionwatch.wheelguard import no_wheel
+from onionwatch.ui.kit import icons
+from onionwatch.ui.kit.wheelguard import no_wheel
 
 WIDTH = 300            # the menu's width, at least
 LIST_ROWS = 10         # sounds shown before it scrolls

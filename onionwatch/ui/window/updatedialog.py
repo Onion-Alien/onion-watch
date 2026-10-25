@@ -15,8 +15,8 @@ from PySide6.QtWidgets import (QDialog, QHBoxLayout, QLabel, QProgressBar, QPush
 
 from onionwatch import __version__
 from onionwatch.core import updates, usage
-from onionwatch.ui.panel import hint_label
-from onionwatch.ui import fit
+from onionwatch.ui.kit.panel import hint_label
+from onionwatch.ui.kit import fit
 from onionwatch.i18n import _
 
 log = logging.getLogger(__name__)

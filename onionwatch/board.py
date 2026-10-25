@@ -16,7 +16,8 @@ from __future__ import annotations
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QApplication, QMenu, QPushButton, QVBoxLayout, QWidget
 
-from onionwatch import __version__, i18n, kit, theme
+from onionwatch import __version__, i18n
+from onionwatch.ui.kit import kit, theme
 from onionwatch.core import usage
 from onionwatch.host import API_VERSION, missing
 from onionwatch.i18n import _
@@ -67,9 +68,9 @@ class BoardPanel(QWidget):
 
     def __init__(self, host, parent=None):
         super().__init__(parent)
-        from onionwatch.ui.alarmbar import AlarmBar
-        from onionwatch.ui.pages import TriggerPages
-        from onionwatch.ui.triggerspanel import TriggersTab
+        from onionwatch.ui.triggers.alarmbar import AlarmBar
+        from onionwatch.ui.triggers.pages import TriggerPages
+        from onionwatch.ui.triggers.triggerspanel import TriggersTab
         self.host = host
         theme.follow_host(host)
         # the board owns the app's direction; on a board that hasn't mirrored the app (an

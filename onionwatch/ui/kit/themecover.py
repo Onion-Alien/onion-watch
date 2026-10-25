@@ -11,7 +11,7 @@ from PySide6.QtCore import QRectF, Qt
 from PySide6.QtGui import QColor, QPainter, QPixmap
 from PySide6.QtWidgets import QApplication, QDialog, QMainWindow, QWidget
 
-from onionwatch import theme
+from onionwatch.ui.kit import theme
 from onionwatch.style import bunnyfit
 from onionwatch.style import cover as kit
 from onionwatch.style.owl import H as OWL_H

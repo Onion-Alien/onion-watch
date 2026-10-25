@@ -4,9 +4,9 @@ watches, and nothing moving in the background. Offscreen, no sound."""
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QWidget
 
-from onionwatch import theme
-from onionwatch.ui import watchlogo
-from onionwatch.ui.watchlogo import BURST_S, IDLE, PAINTERS, STYLES, WatchLogo, style_for
+from onionwatch.ui.kit import theme
+from onionwatch.ui.kit import watchlogo
+from onionwatch.ui.kit.watchlogo import BURST_S, IDLE, PAINTERS, STYLES, WatchLogo, style_for
 
 
 def make(qapp, monkeypatch, front=True):
@@ -118,7 +118,7 @@ def test_starting_and_stopping_eases_instead_of_snapping(qapp, monkeypatch):
 
 
 def test_the_comic_bounce_starts_and_ends_still():
-    from onionwatch.ui.watchlogo import comic_bounce
+    from onionwatch.ui.kit.watchlogo import comic_bounce
     k = [comic_bounce(i / 60) for i in range(60 * 8)]
     assert max(k) > 0.9 and min(k) < -0.3                 # a squash, a stretch past it
     assert max(abs(b - a) for a, b in zip(k, k[1:])) < 0.2

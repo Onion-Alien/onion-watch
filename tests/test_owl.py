@@ -88,7 +88,7 @@ def test_his_look_follows_the_theme_but_artwork_stays_teal(qapp):
     from PySide6.QtCore import QRectF
     from PySide6.QtGui import QPainter
 
-    from onionwatch import theme
+    from onionwatch.ui.kit import theme
 
     def hoot(**kw):
         img = QImage(100, 120, QImage.Format_ARGB32)

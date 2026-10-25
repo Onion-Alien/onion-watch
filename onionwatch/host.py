@@ -58,7 +58,7 @@ class Host(Protocol):
         """The tags of the looping sounds playing now."""
 
     def palette(self) -> dict[str, str]:
-        """The host's theme colours now (onionwatch.theme.THEMES' keys)."""
+        """The host's theme colours now (onionwatch.ui.kit.theme.THEMES' keys)."""
 
     def notify(self, title: str, body: str) -> None:
         """A desktop notification, if the host has a way to show one (else nothing)."""
@@ -90,7 +90,7 @@ class Host(Protocol):
 #     def kit(self):
 #         """The host's style kit package (Onion Board's soundboard.style). When its
 #         KIT_VERSION is at least ours, Hoot is drawn with it instead of
-#         onionwatch.style, so he matches the host exactly (onionwatch/kit.py)."""
+#         onionwatch.style, so he matches the host exactly (onionwatch/ui/kit/kit.py)."""
 
 
 def missing(host) -> list[str]:

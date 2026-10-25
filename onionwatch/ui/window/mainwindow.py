@@ -11,16 +11,17 @@ from PySide6.QtGui import QAction, QCloseEvent, QPainter
 from PySide6.QtWidgets import (QApplication, QHBoxLayout, QLabel, QMainWindow, QMenu,
                                QPushButton, QSystemTrayIcon, QVBoxLayout, QWidget)
 
-from onionwatch import __version__, theme
+from onionwatch import __version__
+from onionwatch.ui.kit import theme
 from onionwatch.core.apphost import AppHost
 from onionwatch.audio.player import Player
 from onionwatch.core.settings import Config
 from onionwatch.audio.sounds import Library
-from onionwatch.ui import icons
-from onionwatch.ui.alarmbar import AlarmBar
-from onionwatch.ui.pages import TriggerPages
-from onionwatch.ui.triggerspanel import TriggersTab
-from onionwatch.ui.watchlogo import WatchLogo
+from onionwatch.ui.kit import icons
+from onionwatch.ui.triggers.alarmbar import AlarmBar
+from onionwatch.ui.triggers.pages import TriggerPages
+from onionwatch.ui.triggers.triggerspanel import TriggersTab
+from onionwatch.ui.kit.watchlogo import WatchLogo
 from onionwatch.i18n import _
 
 log = logging.getLogger(__name__)
@@ -208,7 +209,7 @@ class MainWindow(QMainWindow):
 
     # ------------------------------------------------------------------ settings
     def open_settings(self):
-        from onionwatch.ui.settingsdialog import SettingsDialog
+        from onionwatch.ui.settings.settingsdialog import SettingsDialog
         dlg = SettingsDialog(self)
         dlg.exec()
 
@@ -222,7 +223,7 @@ class MainWindow(QMainWindow):
     def set_theme(self, name: str):
         # a still of each window with Hoot over it while every widget restyles: no
         # frame of a half-styled window, and it fades to the new theme (ui/themecover)
-        from onionwatch.ui import themecover
+        from onionwatch.ui.kit import themecover
         with themecover.covered(name):
             self.cfg.theme = theme.apply(QApplication.instance(), name)
             icons.retheme()
@@ -239,7 +240,7 @@ class MainWindow(QMainWindow):
     def set_live_color(self, colour: str) -> bool:
         """Your own highlight colour ("" = each theme's): only what's drawn in it is
         restyled. True when it changed."""
-        from onionwatch.ui import themecover
+        from onionwatch.ui.kit import themecover
         with themecover.blended():   # (a fade from the old colour, not a swap)
             kept = theme.apply_live(QApplication.instance(), colour)
         changed = kept != self.cfg.live_color
@@ -252,7 +253,7 @@ class MainWindow(QMainWindow):
         Plain: the whole app is restyled."""
         if on == theme.textures_on:
             return
-        from onionwatch.ui import themecover
+        from onionwatch.ui.kit import themecover
         with themecover.covered(theme.current_name):
             theme.textures_on = self.cfg.theme_texture = on
             theme.apply(QApplication.instance(), theme.current_name)
@@ -290,7 +291,7 @@ class MainWindow(QMainWindow):
         self._checking = False
         self.save_later()   # update_checked moved on
         if rel is not None:
-            from onionwatch.ui.updatedialog import UpdateDialog
+            from onionwatch.ui.window.updatedialog import UpdateDialog
             UpdateDialog(self, rel).exec()
 
     def send_usage(self):

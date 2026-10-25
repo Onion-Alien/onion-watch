@@ -2,7 +2,7 @@
 from fakehost import FakeHost
 
 from onionwatch.engine import screenwatch as sw
-from onionwatch.ui.triggerspanel import TriggersTab
+from onionwatch.ui.triggers.triggerspanel import TriggersTab
 
 
 def test_bar_buttons_keep_the_icon_gap_until_a_host_makes_them_icon_only(

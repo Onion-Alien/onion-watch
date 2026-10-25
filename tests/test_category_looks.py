@@ -3,8 +3,8 @@ import pytest
 from PySide6.QtGui import QColor, QImage
 
 from onionwatch.engine import profiles
-from onionwatch.ui import categories
-from onionwatch.ui.categories import CategoriesDialog
+from onionwatch.ui.triggers import categories
+from onionwatch.ui.triggers.categories import CategoriesDialog
 
 from test_categories import make, raw  # noqa: F401  (the fixture, and its triggers)
 

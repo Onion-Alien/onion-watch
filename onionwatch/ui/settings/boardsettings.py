@@ -18,12 +18,13 @@ from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (QFrame, QHBoxLayout, QLabel, QMenu, QPushButton, QScrollArea,
                                QVBoxLayout, QWidget)
 
-from onionwatch import REPO, __version__, theme
+from onionwatch import REPO, __version__
+from onionwatch.ui.kit import theme
 from onionwatch.core import feedback
 from onionwatch.i18n import _
-from onionwatch.ui import icons
-from onionwatch.ui.panel import Flow, card, hint_label
-from onionwatch.ui.watching import WatchingBody
+from onionwatch.ui.kit import icons
+from onionwatch.ui.kit.panel import Flow, card, hint_label
+from onionwatch.ui.settings.watching import WatchingBody
 
 OWL_PX = 48
 ONE_COLUMN_BELOW = 640   # px of page: narrower, the Watching cards go in one column

@@ -14,9 +14,9 @@ from onionwatch.audio.player import Player
 from onionwatch.engine.screenwatch import Monitor, WindowRef
 from onionwatch.core.settings import Config
 from onionwatch.audio.sounds import Library
-from onionwatch.ui import triggerspanel, whatpick
-from onionwatch.ui.triggerspanel import TriggersTab
-from onionwatch.ui.whatpick import CUT, FILE, PASTE, WhatPicker
+from onionwatch.ui.triggers import triggerspanel, whatpick
+from onionwatch.ui.triggers.triggerspanel import TriggersTab
+from onionwatch.ui.triggers.whatpick import CUT, FILE, PASTE, WhatPicker
 
 GAME = WindowRef("game.exe", "Realm Online", 0)
 
@@ -249,7 +249,7 @@ def test_the_card_is_styled_in_the_themes_colours_not_qts_stock_palette(tab, flo
     """theme.py never sets Qt's palette, so palette(base) is light under a dark theme:
     the sentence's boxes came out white with white words. The card's sheet carries the
     theme's own colours, and takes the new ones when the theme changes."""
-    from onionwatch import theme
+    from onionwatch.ui.kit import theme
     was = theme.current_name
     try:
         theme.set_current("Dark")

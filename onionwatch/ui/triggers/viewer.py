@@ -19,9 +19,9 @@ from PySide6.QtGui import QColor, QIcon, QImage, QImageReader, QKeySequence, QPa
 from PySide6.QtWidgets import (QDialog, QHBoxLayout, QLabel, QPushButton, QScrollArea,
                                QSizePolicy, QVBoxLayout, QWidget)
 
-from onionwatch import theme
-from onionwatch.ui import fit, icons
-from onionwatch.ui.windowpicker import thumbnail
+from onionwatch.ui.kit import theme
+from onionwatch.ui.kit import fit, icons
+from onionwatch.ui.triggers.windowpicker import thumbnail
 from onionwatch.i18n import _
 
 TILE = QSize(96, 54)    # a thumbnail along the bottom

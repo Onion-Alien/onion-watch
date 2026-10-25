@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 
 from onionwatch.core import settings
-from onionwatch import theme
+from onionwatch.ui.kit import theme
 from onionwatch.host import API_VERSION
 from onionwatch.audio.player import Player
 from onionwatch.core.settings import Config

@@ -7,7 +7,7 @@ from PySide6.QtGui import QColor
 import test_categories
 from test_categories import raw, watched
 
-from onionwatch.ui import triggerspanel
+from onionwatch.ui.triggers import triggerspanel
 
 make = test_categories.make
 
@@ -15,7 +15,7 @@ make = test_categories.make
 def test_new_trigger_glow_tracks_library_and_theme(make, qapp):
     from PySide6.QtWidgets import QWidget
 
-    from onionwatch import theme
+    from onionwatch.ui.kit import theme
 
     tab = make({})
     # no QGraphicsEffect anywhere on an empty library's page: one on New trigger left
@@ -147,8 +147,8 @@ def test_the_search_box_stays_usable_beside_categories_and_a_profile(make, qapp,
     from PySide6.QtWidgets import QWidget
 
     from onionwatch.engine import profiles
-    from onionwatch import theme
-    from onionwatch.ui.triggerspanel import SEARCH_MIN
+    from onionwatch.ui.kit import theme
+    from onionwatch.ui.triggers.triggerspanel import SEARCH_MIN
     old = qapp.styleSheet()
     theme.apply(qapp, theme_name)
     try:

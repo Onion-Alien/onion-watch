@@ -9,7 +9,7 @@ from PySide6.QtWidgets import QDialogButtonBox, QStyle, QStyleOptionViewItem
 
 from onionwatch.engine import screenwatch as sw
 from onionwatch.engine import windows
-from onionwatch.ui.windowpicker import WindowPicker
+from onionwatch.ui.triggers.windowpicker import WindowPicker
 
 
 @pytest.fixture

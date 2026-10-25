@@ -17,9 +17,9 @@ from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QFrame, QHBoxLayou
                                QPushButton, QScrollArea, QVBoxLayout, QWidget)
 
 from onionwatch.engine import screenwatch
-from onionwatch import theme
+from onionwatch.ui.kit import theme
 from onionwatch.style import appstate
-from onionwatch.ui import fit, icons
+from onionwatch.ui.kit import fit, icons
 from onionwatch.i18n import _
 
 POLL_MS = 150           # as often as the cards' scores refresh
@@ -319,7 +319,7 @@ class _Bar(QWidget):
 
 
 def _thumb(t) -> QPixmap:
-    from onionwatch.ui.triggerspanel import thumb_pixmap
+    from onionwatch.ui.triggers.triggerspanel import thumb_pixmap
     pm = thumb_pixmap(t.images[0], THUMB) if t.images else QPixmap()
     if not pm.isNull():
         return pm

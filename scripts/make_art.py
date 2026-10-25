@@ -25,7 +25,7 @@ from PySide6.QtCore import QPointF, QRect, QRectF, Qt  # noqa: E402
 from PySide6.QtGui import (QColor, QFont, QGuiApplication, QImage, QLinearGradient,  # noqa: E402
                            QPainter, QPainterPath, QPen, QRadialGradient)
 
-from onionwatch import theme  # noqa: E402
+from onionwatch.ui.kit import theme  # noqa: E402
 from onionwatch.style import owl  # noqa: E402
 
 TEAL, BLUE, YELLOW, PINK = (QColor("#1fb6a6"), QColor("#2a6fdb"), QColor("#ffd23f"),

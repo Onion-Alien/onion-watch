@@ -9,8 +9,8 @@ from PySide6.QtWidgets import (QAbstractItemView, QDialog, QDialogButtonBox, QHB
                                QListWidget, QListWidgetItem, QMessageBox, QPushButton,
                                QVBoxLayout)
 
-from onionwatch.ui import fit, icons
-from onionwatch.ui.panel import hint_label
+from onionwatch.ui.kit import fit, icons
+from onionwatch.ui.kit.panel import hint_label
 from onionwatch.i18n import _, ngettext
 
 

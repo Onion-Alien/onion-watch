@@ -4,14 +4,14 @@ Plain apply at once, are saved, and are back on the next start."""
 import pytest
 from PySide6.QtWidgets import QApplication
 
-from onionwatch import theme
+from onionwatch.ui.kit import theme
 from onionwatch.core.settings import Config
 from test_ui import fake_screen  # noqa: F401 (a fixture)
 
 
 @pytest.fixture
 def win(qapp, app_dir, fake_screen, monkeypatch):  # noqa: F811
-    from onionwatch.ui.mainwindow import MainWindow
+    from onionwatch.ui.window.mainwindow import MainWindow
     w = MainWindow(Config())
     yield w
     w.quit()
@@ -22,7 +22,7 @@ def win(qapp, app_dir, fake_screen, monkeypatch):  # noqa: F811
 
 @pytest.fixture
 def dlg(win):
-    from onionwatch.ui.settingsdialog import SettingsDialog
+    from onionwatch.ui.settings.settingsdialog import SettingsDialog
     d = SettingsDialog(win, "appearance")
     yield d
     d.close()
@@ -66,7 +66,7 @@ def test_own_highlight_colour_in_every_theme(win, dlg):
 
 
 def test_saved_look_is_back_on_the_next_start(qapp, app_dir, fake_screen):  # noqa: F811
-    from onionwatch.ui.mainwindow import MainWindow
+    from onionwatch.ui.window.mainwindow import MainWindow
     w = MainWindow(Config(theme="Carbon", live_color="#00AA55", theme_texture=True))
     try:
         assert theme.textures_on and theme.live_override == "#00aa55"
@@ -79,7 +79,7 @@ def test_saved_look_is_back_on_the_next_start(qapp, app_dir, fake_screen):  # no
 
 
 def test_a_damaged_colour_setting_is_dropped(qapp, app_dir, fake_screen):  # noqa: F811
-    from onionwatch.ui.mainwindow import MainWindow
+    from onionwatch.ui.window.mainwindow import MainWindow
     w = MainWindow(Config(live_color="red; }"))
     try:
         assert theme.live_override == "" and w.cfg.live_color == ""
@@ -110,7 +110,7 @@ def test_a_theme_switch_covers_every_window_and_fades(win, dlg):
     flash) and out once the new theme is in. A colour change is a plain blend."""
     from PySide6.QtCore import QEvent
     from onionwatch.style import cover as kit
-    from onionwatch.ui import themecover
+    from onionwatch.ui.kit import themecover
     import time
     win.show()
     dlg.show()
@@ -148,7 +148,7 @@ def test_every_theme_card_shows_hoot_dressed_for_it(qapp):
     """Each card's Hoot wears that theme's look and outfit; Onion Watch's own Hoot theme
     and Dark show plain teal Hoot. Drawing a card leaves the current theme alone."""
     from onionwatch.style import bunnyfit, owl
-    from onionwatch.ui import settingsdialog as sd
+    from onionwatch.ui.settings import settingsdialog as sd
     plain = sd._hoot("Hoot", 1.0).toImage()
     assert sd._hoot("Dark", 1.0).toImage() == plain
     for name in theme.THEMES:
@@ -164,7 +164,7 @@ def test_hoot_waves_hello_when_the_mouse_comes_onto_a_card(qapp, monkeypatch):
     from PySide6.QtCore import QPointF
     from PySide6.QtGui import QEnterEvent
 
-    from onionwatch.ui import settingsdialog as sd
+    from onionwatch.ui.settings import settingsdialog as sd
 
     def enter():
         return QEnterEvent(QPointF(5, 5), QPointF(5, 5), QPointF(5, 5))

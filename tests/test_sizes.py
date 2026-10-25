@@ -452,7 +452,7 @@ def test_a_quick_check_keeps_the_interval():
 def test_a_picture_keeps_the_size_it_was_cut_from(qapp, tmp_path):
     from PySide6.QtGui import QImage
 
-    from onionwatch.ui import triggerspanel as tp
+    from onionwatch.ui.triggers import triggerspanel as tp
     img = QImage(40, 30, QImage.Format_ARGB32)
     img.fill(0xFF336699)
     assert tp.cut_size(img) is None

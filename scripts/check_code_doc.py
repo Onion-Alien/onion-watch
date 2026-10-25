@@ -4,9 +4,9 @@ module that's gone.
 
     python scripts/check_code_doc.py      exit 1 and list them if not (CI's lint job)
 
-A row covers a module by its path (`onionwatch/ui/viewer.py`), by its folder
+A row covers a module by its path (`onionwatch/ui/triggers/viewer.py`), by its folder
 (`onionwatch/ui/`), or by its bare name after another path of the same folder in
-the row (`onionwatch/theme.py`, `ui/icons.py`). `__init__.py` files aren't listed.
+the row (`onionwatch/ui/kit/theme.py`, `ui/kit/icons.py`). `__init__.py` files aren't listed.
 """
 from __future__ import annotations
 
@@ -37,7 +37,7 @@ def covered(rows: list[list[str]]) -> tuple[set[str], set[str], list[str]]:
         folder = None
         for name in names:
             if not name.startswith("onionwatch/") and folder is not None:
-                # a bare name after a path of the same row: `ui/icons.py` is from the
+                # a bare name after a path of the same row: `ui/kit/icons.py` is from the
                 # package, `wheelguard.py` from the folder of the path before it
                 name = ("onionwatch/" if "/" in name else folder) + name
             if not name.startswith("onionwatch/") or "*" in name:

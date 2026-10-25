@@ -10,9 +10,9 @@ import webbrowser
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QDialog, QGridLayout, QHBoxLayout, QLabel, QPushButton, QVBoxLayout
 
-from onionwatch import theme
+from onionwatch.ui.kit import theme
 from onionwatch.i18n import _
-from onionwatch.ui import fit
+from onionwatch.ui.kit import fit
 
 PRIVACY_URL = "https://github.com/Onion-Alien/onion-watch/blob/main/SECURITY.md#what-the-app-touches"
 GOATCOUNTER_PRIVACY = "https://www.goatcounter.com/help/privacy"
@@ -33,7 +33,7 @@ def rows() -> list[tuple[str, str, str]]:
 class CountDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        fit.watch(self)   # grows to fit its text (ui/fit.py)
+        fit.watch(self)   # grows to fit its text (ui/kit/fit.py)
         self.setWindowTitle(_("What Count me in sends"))
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
         v = QVBoxLayout(self)

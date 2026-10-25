@@ -6,7 +6,7 @@ from __future__ import annotations
 from PySide6.QtCore import QTimer, Signal
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QPushButton
 
-from onionwatch.ui import icons
+from onionwatch.ui.kit import icons
 from onionwatch.i18n import _
 
 CHECK_MS = 500      # a ring can also end by itself (its trigger deleted, Stop all):

@@ -13,7 +13,7 @@ import weakref
 from PySide6.QtCore import QEvent, QObject, QPointF, QRectF, QSize, Qt, QTimer
 from PySide6.QtGui import QColor, QIcon, QPainter, QPainterPath, QPen, QPixmap, QTransform
 
-from onionwatch import theme
+from onionwatch.ui.kit import theme
 
 SIZES = (16, 20, 24, 32, 48)
 

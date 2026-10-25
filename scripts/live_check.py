@@ -179,7 +179,7 @@ def main() -> int:
         time.sleep(0.4)
         px = windows.snapshot(info2.hwnd)
         assert px is not None, "copy 2 could be copied"
-        from onionwatch.ui.windowpicker import bgra_image
+        from onionwatch.ui.triggers.windowpicker import bgra_image
         bx, by, bw, bh = BANNER
         import numpy as np
         piece = bgra_image(px).copy(bx - 6, by - 6, bw + 12, bh + 12)

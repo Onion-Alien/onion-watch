@@ -43,22 +43,21 @@ from PySide6.QtWidgets import (QAbstractSpinBox, QApplication, QBoxLayout, QChec
                                QVBoxLayout, QWidget)
 
 from onionwatch.engine import cutout, packs, profiles, screenwatch, windows
-from onionwatch import kit, theme
+from onionwatch.ui.kit import kit, theme
 from onionwatch.core import usage
 from onionwatch.engine.screenwatch import (INTERVALS_MS, MAX_PICTURES, MAX_SOUNDS, Monitor, Picture,
                                            Trigger, Watched, WindowRef)
 from onionwatch.audio.shuffle import ShuffleBag
-from onionwatch.ui import icons
-from onionwatch.ui.categories import (MAX_PER_ROW, PAD, CategoriesDialog, CategorySection,
-                                      ProfilesDialog,
-                                      counts_text)
-from onionwatch.ui.chances import LiveLabel, goes_below
-from onionwatch.ui.history import THUMB as LOG_THUMB, HistoryDialog
-from onionwatch.ui.panel import Flow, UndoBar, card, dialog_layout, hint_label
-from onionwatch.ui.soundmenu import Groups, SoundBox
-from onionwatch.ui.watching import share_label
-from onionwatch.ui.windowpicker import places_label
-from onionwatch.wheelguard import no_wheel
+from onionwatch.ui.kit import icons
+from onionwatch.ui.triggers.categories import (MAX_PER_ROW, PAD, CategoriesDialog, CategorySection,
+                                               ProfilesDialog, counts_text)
+from onionwatch.ui.triggers.chances import LiveLabel, goes_below
+from onionwatch.ui.triggers.history import THUMB as LOG_THUMB, HistoryDialog
+from onionwatch.ui.kit.panel import Flow, UndoBar, card, dialog_layout, hint_label
+from onionwatch.ui.triggers.soundmenu import Groups, SoundBox
+from onionwatch.ui.settings.watching import share_label
+from onionwatch.ui.triggers.windowpicker import places_label
+from onionwatch.ui.kit.wheelguard import no_wheel
 from onionwatch.i18n import _, ngettext
 
 log = logging.getLogger(__name__)
@@ -586,7 +585,7 @@ def thumb_pixmap(path: str, size: QSize) -> QPixmap:
     if pm is not None:
         _thumbs.move_to_end(key)
         return pm
-    from onionwatch.ui.viewer import read_image
+    from onionwatch.ui.triggers.viewer import read_image
     pm = QPixmap.fromImage(read_image(path, THUMB))
     if pm.isNull():
         return pm               # not kept: it may be readable in a moment
@@ -3850,14 +3849,14 @@ class TriggersTab(QWidget):
 
     def pick_window(self, current: WindowRef | None = None, heading: str = ""
                     ) -> WindowRef | None:
-        from onionwatch.ui.windowpicker import WindowPicker
+        from onionwatch.ui.triggers.windowpicker import WindowPicker
         dlg = WindowPicker(self, current, heading=heading)
         return dlg.chosen if dlg.exec() else None
 
     def pick_places(self, current: list) -> list | None:
         """The windows and screens a trigger looks in, picked in a list (None:
         cancelled)."""
-        from onionwatch.ui.windowpicker import WindowPicker
+        from onionwatch.ui.triggers.windowpicker import WindowPicker
         dlg = WindowPicker(self, current, multi=True)
         return dlg.places if dlg.exec() else None
 
@@ -4046,7 +4045,7 @@ class TriggersTab(QWidget):
         self.ringing_changed.emit()
 
     def retheme(self):
-        """The theme changed (onionwatch.theme.T has the new colours): redraw what
+        """The theme changed (onionwatch.ui.kit.theme.T has the new colours): redraw what
         was coloured by hand."""
         icons.retheme()
         self._update_new_trigger_glow()
@@ -4583,7 +4582,7 @@ class TriggersTab(QWidget):
         if self.pages is not None and self.pages.settings is not None:
             self.pages.show_settings()      # inside Onion Board: on its Settings tab
             return
-        from onionwatch.ui.watching import WatchingDialog
+        from onionwatch.ui.settings.watching import WatchingDialog
         WatchingDialog(self, self).exec()
 
     def set_cpu_share(self, share: float):
@@ -5420,7 +5419,7 @@ class TriggersTab(QWidget):
     def capture(self, src) -> tuple[QImage | None, str]:
         """A full-size picture of a window or screen to cut from: (image, its name),
         or (None, why not)."""
-        from onionwatch.ui.windowpicker import bgra_image
+        from onionwatch.ui.triggers.windowpicker import bgra_image
         px, where, _again = self._grab(src)
         return (None if px is None else bgra_image(px)), where
 
@@ -5466,7 +5465,7 @@ class TriggersTab(QWidget):
         window's cut dialog is open the window keeps being grabbed (a screen, for a
         moment after it): scenery moving behind the thing is learned and left out
         (cutout.py), and a piece that may be missed or go off by mistake is said."""
-        from onionwatch.ui.windowpicker import bgra_image
+        from onionwatch.ui.triggers.windowpicker import bgra_image
         px, where, again = self._grab(src)
         if px is None:
             info = windows.find(src) if isinstance(src, WindowRef) else None
@@ -5482,7 +5481,7 @@ class TriggersTab(QWidget):
                                     + "\n\n" + fullscreen_hint())
             return None, [], ""
         img = bgra_image(px)
-        from onionwatch.ui.snip import SnipDialog
+        from onionwatch.ui.triggers.snip import SnipDialog
         rec = cutout.Recorder(px, again if callable(again) else None)
         if callable(again):
             rec.start()
@@ -5618,7 +5617,7 @@ class TriggersTab(QWidget):
     @needs_part()
     def _view_picture(self, row: TriggerRow, index: int = 0):
         """A thumbnail was clicked: its picture big, with the trigger's others."""
-        from onionwatch.ui.viewer import PictureViewer
+        from onionwatch.ui.triggers.viewer import PictureViewer
         t = row.t
         viewers = getattr(self, "_picture_viewers", None)
         if viewers is None:
@@ -5859,7 +5858,7 @@ class TriggersTab(QWidget):
 
     @needs_part()
     def show_deleted(self):
-        from onionwatch.ui.deleted import DeletedDialog
+        from onionwatch.ui.triggers.deleted import DeletedDialog
         self.undo_bar.finish()
         DeletedDialog(self, KEEP_DAYS, self).exec()
         self._label_bin()
@@ -5870,7 +5869,7 @@ class TriggersTab(QWidget):
                   ) -> tuple | None:
         """Drag the part of `img` (the window, or a picture of it) to look in, and for a
         colour trigger check its colour: (region, colour), or None if cancelled."""
-        from onionwatch.ui.snip import AreaDialog
+        from onionwatch.ui.triggers.snip import AreaDialog
         dlg = AreaDialog(img, where, t.region, t.colour if t.mode == "colour" else None, self,
                          heading=heading)
         if not dlg.exec():
@@ -5939,7 +5938,7 @@ class TriggersTab(QWidget):
         (WhatPicker); then which window to watch; then the picture cut, or the box
         dragged round the bar or the area on the picture of the game. The new card
         opens."""
-        from onionwatch.ui.whatpick import CUT, FILE, PASTE, PICTURE_KINDS, WhatPicker
+        from onionwatch.ui.triggers.whatpick import CUT, FILE, PASTE, PICTURE_KINDS, WhatPicker
         dlg = WhatPicker(self, can_paste=not copied_picture().isNull())
         if not dlg.exec() or dlg.picked is None:
             return
@@ -6127,7 +6126,7 @@ class TriggersTab(QWidget):
                                               _("Trigger packs") + " (*.zip)")
         if not path:
             return
-        from onionwatch.ui.categories import pictures_dir as category_pictures_dir
+        from onionwatch.ui.triggers.categories import pictures_dir as category_pictures_dir
         names = {t.category for t in triggers}
         cats = [c for c in self.groups.categories if c.name in names]
         try:
@@ -6178,7 +6177,8 @@ class TriggersTab(QWidget):
         """Give the categories a pack brought their looks (packs.read_categories),
         each picture kept like a picked one. A category that already has a look
         or banner of its own keeps it."""
-        from onionwatch.ui.categories import save_banner, save_picture as save_category_picture
+        from onionwatch.ui.triggers.categories import (save_banner,
+                                                       save_picture as save_category_picture)
         changed = {}
         for name, (look, pic, wide) in looks.items():
             c = self.groups.find(name)

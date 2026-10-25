@@ -16,9 +16,9 @@ from PySide6.QtWidgets import (QDialog, QDialogButtonBox, QFileDialog, QHBoxLayo
                                QListWidget, QListWidgetItem, QMessageBox, QPushButton,
                                QVBoxLayout, QWidget)
 
-from onionwatch.ui.panel import hint_label
-from onionwatch.ui.windowpicker import thumbnail
-from onionwatch.ui import fit
+from onionwatch.ui.kit.panel import hint_label
+from onionwatch.ui.triggers.windowpicker import thumbnail
+from onionwatch.ui.kit import fit
 from onionwatch.i18n import _
 
 THUMB = QSize(160, 90)     # the window as it was, beside each line

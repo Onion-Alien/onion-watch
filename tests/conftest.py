@@ -112,7 +112,7 @@ def pytest_xdist_auto_num_workers(config):
 def _limited_themes_on_offer(monkeypatch):
     """Today is pinned inside every limited-edition theme's offer, so the tests that
     go through every theme still find them once the real offer has ended."""
-    from onionwatch import theme
+    from onionwatch.ui.kit import theme
     if theme.LIMITED:
         day = min(theme.LIMITED.values())
         monkeypatch.setattr(theme, "_today", lambda: day)

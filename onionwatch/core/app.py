@@ -93,7 +93,8 @@ def selftest() -> int:
     for mod in ("numpy", "scipy.fft", "sounddevice", "soundfile", "soxr", "ssl"):
         __import__(mod)
     _app = QApplication(sys.argv)   # noqa: F841 - kept alive while the imports run
-    from onionwatch import i18n, theme
+    from onionwatch import i18n
+    from onionwatch.ui.kit import theme
     from onionwatch.audio import sounds
     langs = [code for code, _name in i18n.available()]
     if len(langs) < 2:      # the catalogs didn't ship (onionwatch/lang)
@@ -104,7 +105,9 @@ def selftest() -> int:
             print(f"FAIL: the {code} language file can't be read", file=sys.stderr)
             return 1
     i18n.set_language(i18n.ENGLISH)
-    from onionwatch.ui import mainwindow, settingsdialog, snip, windowpicker  # noqa: F401
+    from onionwatch.ui.window import mainwindow  # noqa: F401
+    from onionwatch.ui.settings import settingsdialog  # noqa: F401
+    from onionwatch.ui.triggers import snip, windowpicker  # noqa: F401
     theme.app_icon()
     sounds.Library([]).load(sounds.DEFAULT_SOUND)
     print(f"OK: Onion Watch {__version__} self-test passed")
@@ -178,7 +181,7 @@ def main():
     if i18n.is_rtl():                        # Arabic: every window mirrored
         from PySide6.QtCore import Qt
         app.setLayoutDirection(Qt.RightToLeft)
-    from onionwatch import theme
+    from onionwatch.ui.kit import theme
     i18n.use_fonts(theme.font_families())
     i18n.translate_qt_buttons(app)
     if not claim_single_instance(RESTART_WAIT_S if RESTART_ARG in sys.argv else 0.0):
@@ -188,13 +191,13 @@ def main():
     usage.note(usage.mark_running(settings.APP_DIR))   # the last run didn't close itself?
     holder = {}
     app.instance_server = listen_for_second_launch(app, lambda: holder.get("w"))
-    from onionwatch.ui import splash
+    from onionwatch.ui.window import splash
     if TRAY_ARG not in sys.argv:   # Hoot hops about while the window is built
         splash.show()
     app.setStyle("Fusion")
-    from onionwatch import theme
+    from onionwatch.ui.kit import theme
     app.setWindowIcon(theme.app_icon())
-    from onionwatch.ui.mainwindow import MainWindow
+    from onionwatch.ui.window.mainwindow import MainWindow
     try:
         w = holder["w"] = MainWindow()
     except BaseException:

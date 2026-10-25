@@ -108,7 +108,7 @@ both apps at once. Details: [docs/TRANSLATING.md](docs/TRANSLATING.md).
   `tests/test_style_kit.py` fails on a hand-edited copy. Onion Watch's own Hoot theme
   is in `theme.py`. Inside Onion Board, Hoot is drawn with the board's kit
   (`kit.py`) and follows its theme (`theme.follow_host`).
-- `theme.py`, `ui/icons.py`, `ui/panel.py`, `wheelguard.py`, `shuffle.py` and
+- `theme.py`, `ui/kit/icons.py`, `ui/kit/panel.py`, `wheelguard.py`, `shuffle.py` and
   the capture / matching half of `screenwatch.py` came from Onion Board. Keep
   them close to it.
 - **Look and feel: follow Onion Board's design system**,
@@ -120,7 +120,7 @@ both apps at once. Details: [docs/TRANSLATING.md](docs/TRANSLATING.md).
   restyling here.
 - Onion Watch is also Onion Board's Triggers tab, as an add-on module
   (`onionwatch/board.py`, zipped by `scripts/build_module.py`). So:
-  - The triggers page (`ui/triggerspanel.py`) and what it imports never touch the
+  - The triggers page (`ui/triggers/triggerspanel.py`) and what it imports never touch the
     app's settings, sounds, player or tray: everything goes through the host
     (`onionwatch/host.py`). The engine (`screenwatch.py`, `windows.py`) doesn't know
     about hosts at all.

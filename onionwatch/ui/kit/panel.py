@@ -5,7 +5,7 @@ from __future__ import annotations
 from PySide6.QtCore import QPoint, QRect, QSize, Qt
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QLayout, QVBoxLayout
 
-from onionwatch.ui import icons
+from onionwatch.ui.kit import icons
 from onionwatch.i18n import _
 
 
@@ -250,7 +250,7 @@ class UndoBar(QFrame):
     def restyle(self):
         """Colour it from the current theme (call again when the theme changes). It
         has its own sheet, so a host's rules for other buttons can't wash Undo out."""
-        from onionwatch import theme
+        from onionwatch.ui.kit import theme
         base = theme.THEMES[theme.DEFAULT]
         t = {k: theme.T.get(k, base[k]) for k in (
             "card_hi", "border_hi", "text_hi", "text", "muted", "accent", "accent_hi",

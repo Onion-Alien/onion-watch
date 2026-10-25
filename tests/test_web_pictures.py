@@ -10,7 +10,7 @@ from test_ui import as_qimage, banner, fake_screen, tab  # noqa: F401 (fixtures)
 
 from onionwatch.engine import screenwatch as sw
 from onionwatch.engine.screenwatch import Monitor
-from onionwatch.ui import triggerspanel as tp
+from onionwatch.ui.triggers import triggerspanel as tp
 
 
 def web_watcher(level: np.ndarray, pic: np.ndarray, wide: bool, any_size: bool = True):

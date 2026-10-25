@@ -16,11 +16,11 @@ from PySide6.QtGui import (QColor, QImage, QKeySequence, QLinearGradient, QPaint
 from PySide6.QtWidgets import (QApplication, QDialog, QFileDialog, QGridLayout, QHBoxLayout,
                                QLabel, QPushButton, QVBoxLayout, QWidget)
 
-from onionwatch import theme
+from onionwatch.ui.kit import theme
 from onionwatch.i18n import _
-from onionwatch.ui import icons
-from onionwatch.ui.panel import (DIALOG_MARGIN, DIALOG_SPACING, TITLE_GAP, add_title,
-                                 hint_label, title_label)
+from onionwatch.ui.kit import icons
+from onionwatch.ui.kit.panel import (DIALOG_MARGIN, DIALOG_SPACING, TITLE_GAP, add_title,
+                                     hint_label, title_label)
 
 PASTE, FILE, CUT = "paste", "file", "cut"   # where a picture comes from
 PICTURE_KINDS = ("appear", "vanish")

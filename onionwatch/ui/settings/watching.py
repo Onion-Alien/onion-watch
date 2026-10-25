@@ -15,8 +15,8 @@ from PySide6.QtWidgets import (QApplication, QBoxLayout, QButtonGroup, QCheckBox
                                QRadioButton, QScrollArea, QVBoxLayout, QWidget)
 
 from onionwatch.engine import screenwatch
-from onionwatch.ui.panel import card, hint_label
-from onionwatch.ui import fit
+from onionwatch.ui.kit.panel import card, hint_label
+from onionwatch.ui.kit import fit
 from onionwatch.i18n import _
 
 # (share, name, what it means); the first is the default, screenwatch.CPU_SHARE
@@ -71,7 +71,7 @@ class WatchingBody(QWidget):
             c.setSpacing(10)
             cols.addLayout(c, 1)
         v = left
-        from onionwatch.ui.triggerspanel import interval_label
+        from onionwatch.ui.triggers.triggerspanel import interval_label
         box, bv = card(_("CHECK SPEED"), _("How often each trigger left on “Default” looks. "
                                    "A trigger can have its own speed: “Check every”, on its "
                                    "card."))
@@ -137,7 +137,7 @@ class WatchingBody(QWidget):
         v.addWidget(box)
         box, bv = card(_("LIVE CHANCES"), _("A Chances button on the bottom bar opens a "
                                     "window with every trigger's chance of going off, live."))
-        from onionwatch.ui import chances
+        from onionwatch.ui.triggers import chances
         self.show_chances = QCheckBox(_("Show the Chances button"))
         self.show_chances.setChecked(chances.show_button(panel.host))
         self.show_chances.toggled.connect(panel.set_show_chances)

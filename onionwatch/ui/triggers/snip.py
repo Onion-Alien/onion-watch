@@ -14,9 +14,9 @@ from PySide6.QtGui import QColor, QImage, QPainter, QPen
 from PySide6.QtWidgets import (QDialog, QDialogButtonBox, QHBoxLayout, QLabel, QPushButton,
                                QSizePolicy, QWidget)
 
-from onionwatch import theme
-from onionwatch.ui.panel import DIALOG_MARGIN, dialog_layout
-from onionwatch.ui import fit
+from onionwatch.ui.kit import theme
+from onionwatch.ui.kit.panel import DIALOG_MARGIN, dialog_layout
+from onionwatch.ui.kit import fit
 from onionwatch.i18n import _
 
 MIN_CUT = 6     # pixels each way (the smallest picture a trigger takes)

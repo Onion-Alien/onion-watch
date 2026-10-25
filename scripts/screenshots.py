@@ -166,10 +166,10 @@ def main(out: Path):
     app.setStyle("Fusion")
     from onionwatch.engine import screenwatch, windows
     from onionwatch.core import settings
-    from onionwatch import theme
+    from onionwatch.ui.kit import theme
     from onionwatch.engine.screenwatch import Monitor, Trigger, WindowRef
     from onionwatch.core.settings import Config
-    from onionwatch.ui.mainwindow import MainWindow
+    from onionwatch.ui.window.mainwindow import MainWindow
 
     screenwatch.monitors = lambda: [Monitor(0, 0, 2560, 1440, True)]
     acct1 = WindowRef("realmonline.exe", "Realm Online", 0)
@@ -263,7 +263,7 @@ def main(out: Path):
             .reshape(img.height(), img.width(), 4).copy()
     windows.list_windows = lambda: list(wins)
     windows.snapshot = fake_snapshot
-    from onionwatch.ui.windowpicker import WindowPicker
+    from onionwatch.ui.triggers.windowpicker import WindowPicker
     from onionwatch.engine import screenwatch
     screenwatch.monitors = lambda: [Monitor(0, 0, 1920, 1080, True)]   # not this PC's
     dlg = WindowPicker(win, [every], multi=True)
@@ -277,7 +277,7 @@ def main(out: Path):
     dlg.close()
 
     # cutting a picture out of the game window
-    from onionwatch.ui.snip import SnipDialog
+    from onionwatch.ui.triggers.snip import SnipDialog
     snip = SnipDialog(rare, "Realm Online (copy 2)", win)
     snip.view.selection = scene_rect(w, h)
     snip._update()
@@ -288,7 +288,7 @@ def main(out: Path):
     snip.close()
 
     # the health bar a colour trigger measures
-    from onionwatch.ui.snip import AreaDialog
+    from onionwatch.ui.triggers.snip import AreaDialog
     hurt = game_scene(w, h, 3, hp=0.55)
     area = AreaDialog(hurt, "Realm Online", bar, "#c62828", win)
     area.show()
@@ -305,7 +305,7 @@ def main(out: Path):
     for name in ("Raid bosses", "Dungeons and queues", "Rare spawns", "Fishing"):
         tab.new_category(name)
     # each category's own colour and picture (the pictures drawn here: an emoji each)
-    from onionwatch.ui import categories as catui
+    from onionwatch.ui.triggers import categories as catui
 
     def emoji_picture(ch: str) -> str:
         img = QImage(128, 128, QImage.Format_ARGB32)

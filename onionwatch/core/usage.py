@@ -18,7 +18,7 @@ counted before these existed.
 Soon after a start, how many problems there were, as counts, never the report
 itself: an error the app didn't expect (`error/<version>/<type>@<file:line>`: the
 error's type and the file and line of this app's own code it happened in, e.g.
-`error/1.0.0/KeyError@onionwatch/ui/triggerspanel.py:1090`, never its message), or
+`error/1.0.0/KeyError@onionwatch/ui/triggers/triggerspanel.py:1090`, never its message), or
 the last run ending without the app closing itself (`unclean-exit/<version>`: a hard
 crash, ended in Task Manager, a power cut). And `uninstall/<version>` when the
 uninstaller removes it.

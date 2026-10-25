@@ -104,44 +104,45 @@ then installs that file instead of downloading.
 | `onionwatch/core/settings.py` | `%APPDATA%\OnionWatch` and `config.json` |
 | `onionwatch/core/updates.py` | the daily update check and *Update now* (standalone app only) |
 | `onionwatch/core/usage.py` | the anonymous daily usage count, GoatCounter (standalone app only) |
-| `onionwatch/ui/countdialog.py` | *What Count me in sends*: the table behind Settings' eye button (in step with `usage.py` and SECURITY.md) |
+| `onionwatch/ui/settings/countdialog.py` | *What Count me in sends*: the table behind Settings' eye button (in step with `usage.py` and SECURITY.md) |
 | `onionwatch/core/feedback.py` | Send feedback / Report a problem links |
 | `onionwatch/core/app.py` | start-up: logging, one copy at a time, the window, `--selftest` |
-| `onionwatch/ui/themecover.py` | a still of each window with Hoot over it while a theme switch restyles every widget, faded in and out (the kit's `style/cover.py`): never a half-styled frame or a flash |
-| `onionwatch/ui/splash.py` | the start-up splash: Hoot hopping on the desktop until the window is up, drawn on a thread of its own |
+| `onionwatch/ui/kit/themecover.py` | a still of each window with Hoot over it while a theme switch restyles every widget, faded in and out (the kit's `style/cover.py`): never a half-styled frame or a flash |
+| `onionwatch/ui/window/splash.py` | the start-up splash: Hoot hopping on the desktop until the window is up, drawn on a thread of its own |
 | `onionwatch/__main__.py` | `python -m onionwatch` |
 | `onionwatch/host.py` | what the triggers page needs from the program it runs in (settings, sounds, playing, theme): the Onion Watch app or Onion Board |
 | `onionwatch/core/apphost.py` | the Onion Watch app as that host |
 | `onionwatch/board.py` | the Onion Board add-on's entry point: `create(host, parent=None)` gives the board its Triggers tab, made on `parent` when given (alarm bar + triggers page) |
-| `onionwatch/ui/triggerspanel.py` | the triggers page: one card per trigger, "Look in", Watching, Cut picture. Talks only to its host |
-| `onionwatch/ui/pages.py` | the triggers page as both hosts show it: the Triggers / Log tabs and the Playing now bar under them |
-| `onionwatch/ui/watchlogo.py` | the logo that shows it's watching: a start-up animation and an idle animation that suit the theme, the eye looking around while it watches |
-| `onionwatch/ui/boardsettings.py` | inside Onion Board only, the Settings tab: what Onion Watch is with its links, the Watching cards, and the board's Remove Onion Watch |
-| `onionwatch/ui/alarmbar.py` | the red bar shown while a trigger rings, with Stop |
+| `onionwatch/ui/triggers/triggerspanel.py` | the triggers page: one card per trigger, "Look in", Watching, Cut picture. Talks only to its host |
+| `onionwatch/ui/triggers/pages.py` | the triggers page as both hosts show it: the Triggers / Log tabs and the Playing now bar under them |
+| `onionwatch/ui/kit/watchlogo.py` | the logo that shows it's watching: a start-up animation and an idle animation that suit the theme, the eye looking around while it watches |
+| `onionwatch/ui/settings/boardsettings.py` | inside Onion Board only, the Settings tab: what Onion Watch is with its links, the Watching cards, and the board's Remove Onion Watch |
+| `onionwatch/ui/triggers/alarmbar.py` | the red bar shown while a trigger rings, with Stop |
 | `onionwatch/engine/profiles.py` | trigger categories and profiles: which triggers are on now (Manual switches, a profile, or Automatic by the programs open), saved beside the triggers in `Config.screen` (a category's look in `category_looks`, apart, so older versions keep it) |
-| `onionwatch/ui/categories.py` | a category's section in the list (fold, switch, counts, menu, its colours and picture; its cards made only once opened), the Categories window (each one's look) and the Profiles window |
-| `onionwatch/ui/windowpicker.py` | the window list with live thumbnails; ticking several windows and screens, or every copy of a game |
-| `onionwatch/ui/soundmenu.py` | A trigger card's Play + menu: search box, the host's sound categories, the sounds, Choose a sound file |
-| `onionwatch/ui/whatpick.py` | + New trigger's first steps: what it watches for (five kinds, picked then Continue), then for every kind where its picture comes from (paste it, drop or choose a file, take it from the game): the picture to look for, or a picture of the game to drag the bar's or area's box on |
-| `onionwatch/ui/snip.py` | cutting a picture out of a capture; picking a trigger's area and a bar's colour |
-| `onionwatch/ui/viewer.py` | a trigger's pictures shown big (whole pixels, full screen), to swap or remove them; read on threads so a big one never freezes the window |
-| `onionwatch/ui/chances.py` | Live chances: the card's score bar (with the trigger's line) and the window, from the Playing now bar's Chances button, with every trigger's chance right now ("show_chances" hides the button) |
-| `onionwatch/ui/history.py` | "What went off": the latest alerts with a picture of each moment (in memory only) |
-| `onionwatch/ui/deleted.py` | Recently deleted triggers (kept 30 days with their pictures, in the saved settings) |
+| `onionwatch/ui/triggers/categories.py` | a category's section in the list (fold, switch, counts, menu, its colours and picture; its cards made only once opened), the Categories window (each one's look) and the Profiles window |
+| `onionwatch/ui/triggers/windowpicker.py` | the window list with live thumbnails; ticking several windows and screens, or every copy of a game |
+| `onionwatch/ui/triggers/soundmenu.py` | A trigger card's Play + menu: search box, the host's sound categories, the sounds, Choose a sound file |
+| `onionwatch/ui/triggers/whatpick.py` | + New trigger's first steps: what it watches for (five kinds, picked then Continue), then for every kind where its picture comes from (paste it, drop or choose a file, take it from the game): the picture to look for, or a picture of the game to drag the bar's or area's box on |
+| `onionwatch/ui/triggers/snip.py` | cutting a picture out of a capture; picking a trigger's area and a bar's colour |
+| `onionwatch/ui/triggers/viewer.py` | a trigger's pictures shown big (whole pixels, full screen), to swap or remove them; read on threads so a big one never freezes the window |
+| `onionwatch/ui/triggers/chances.py` | Live chances: the card's score bar (with the trigger's line) and the window, from the Playing now bar's Chances button, with every trigger's chance right now ("show_chances" hides the button) |
+| `onionwatch/ui/triggers/history.py` | "What went off": the latest alerts with a picture of each moment (in memory only) |
+| `onionwatch/ui/triggers/deleted.py` | Recently deleted triggers (kept 30 days with their pictures, in the saved settings) |
 | `onionwatch/engine/packs.py` | saving triggers to a .zip with their pictures and loading them back |
-| `onionwatch/ui/mainwindow.py` | the window, the tray icon, notifications |
-| `onionwatch/ui/settingsdialog.py` | Settings, laid out like Onion Board's (categories on the left): output device, volume, notifications, tray, language and theme, updates and privacy, about |
-| `onionwatch/ui/langpick.py`, `onionwatch/langnames_data.py` | the Language picker: a tile per language with a search; language names from Unicode CLDR (`scripts/make_langnames.py` writes them) |
-| `onionwatch/ui/updatedialog.py` | "a new version is out": Update now / Later / Skip |
-| `onionwatch/ui/watching.py` | the Triggers bar's ⚙: how much of the processor watching may use, "Max detection", and how often each trigger is checked now |
+| `onionwatch/ui/window/mainwindow.py` | the window, the tray icon, notifications |
+| `onionwatch/ui/settings/settingsdialog.py` | Settings, laid out like Onion Board's (categories on the left): output device, volume, notifications, tray, language and theme, updates and privacy, about |
+| `onionwatch/ui/settings/langpick.py`, `onionwatch/langnames_data.py` | the Language picker: a tile per language with a search; language names from Unicode CLDR (`scripts/make_langnames.py` writes them) |
+| `onionwatch/ui/window/updatedialog.py` | "a new version is out": Update now / Later / Skip |
+| `onionwatch/ui/settings/watching.py` | the Triggers bar's ⚙: how much of the processor watching may use, "Max detection", and how often each trigger is checked now |
 | `onionwatch/style/` | the style kit: an exact copy of Onion Board's `soundboard/style` (never edited here: `scripts/sync_style.py` copies it and stamps `SOURCE.json`, `tests/test_style_kit.py` checks it). The themes' colours (`palettes.py`) and textures, Bun's outfits (`bunnyfit.py`), and Hoot (`owl.py`: drawn in code, wearing the theme's outfit; `OwlWidget`, Hoot animated, waiting for a trigger) |
-| `onionwatch/kit.py` | which style kit draws Hoot: ours, or inside Onion Board the board's (`host.kit()`) when it's at least as new |
-| `onionwatch/theme.py`, `ui/icons.py`, `ui/panel.py` | the current theme (Onion Board's themes from the style kit, plus Onion Watch's own Hoot), the stylesheet, the logo, painted icons and layout helpers, shared with Onion Board |
+| `onionwatch/ui/kit/kit.py` | which style kit draws Hoot: ours, or inside Onion Board the board's (`host.kit()`) when it's at least as new |
+| `onionwatch/ui/kit/theme.py`, `ui/kit/icons.py`, `ui/kit/panel.py` | the current theme (Onion Board's themes from the style kit, plus Onion Watch's own Hoot), the stylesheet, the logo, painted icons and layout helpers, shared with Onion Board |
 | `onionwatch/core/singleinstance.py` | one copy at a time: a second launch brings the running one to the front (a restart waits for the old copy to close) |
 | `onionwatch/i18n.py`, `onionwatch/lang/*.json` | other languages: `_()` / `ngettext()`, the catalogs (inside the package, so they ride in the add-on zip), which language (Settings → Appearance → Language; inside Onion Board, the board's own), Qt's OK / Cancel words, the `xx` pseudo-language. See [TRANSLATING.md](TRANSLATING.md) |
-| `onionwatch/ui/fit.py` | dialogs grow to fit their wrapped text (a translation is often longer), shared with Onion Board |
+| `onionwatch/ui/kit/fit.py` | dialogs grow to fit their wrapped text (a translation is often longer), shared with Onion Board |
 | `scripts/i18n_extract.py` | the wrapped texts against the catalogs: what's missing or unused per language, `--update`, `--check` |
-| `onionwatch/audio/shuffle.py`, `wheelguard.py` | picking sounds "at random" without repeats; the mouse wheel scrolls the page instead of changing a box |
+| `onionwatch/audio/shuffle.py` | picking sounds "at random" without repeats |
+| `onionwatch/ui/kit/wheelguard.py` | the mouse wheel scrolls the page instead of changing a box |
 | `scripts/docs.py`, `scripts/screenshots.py`, `scripts/make_art.py` | `sync_style.py` copies Onion Board's style kit into `onionwatch/style`; the others: the README and website in one go: the screenshots and `docs/art` (rendered offscreen from made-up data), the version and VirusTotal line from `docs/release.json`, picture links that skip cached copies |
 | `build.ps1`, `installer/OnionWatch.iss` | the Windows build (PyInstaller) and its installer (Inno Setup) |
 | `scripts/prune_build.py`, `make_notices.py`, `make_installer_art.py`, `make_version_info.py` | the build's helpers: drop the Qt parts the app never loads, the third-party licence notices, the icon and the setup wizard's pictures, the exe's version details |

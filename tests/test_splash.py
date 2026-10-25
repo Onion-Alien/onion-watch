@@ -1,10 +1,10 @@
-"""The start-up splash (ui/splash.py): Hoot's frames draw at any screen scale, and
+"""The start-up splash (ui/window/splash.py): Hoot's frames draw at any screen scale, and
 off Windows (the tests' offscreen platform) show() puts nothing up."""
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QImage, QPainter
 
-from onionwatch import theme
-from onionwatch.ui import splash
+from onionwatch.ui.kit import theme
+from onionwatch.ui.window import splash
 
 
 def test_frames_draw_at_any_scale(qapp):

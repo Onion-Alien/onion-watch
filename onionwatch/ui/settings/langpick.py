@@ -16,7 +16,8 @@ from PySide6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPainterPath
 from PySide6.QtWidgets import (QDialog, QGridLayout, QLabel, QLineEdit, QPushButton,
                                QScrollArea, QVBoxLayout, QWidget)
 
-from onionwatch import i18n, theme
+from onionwatch import i18n
+from onionwatch.ui.kit import theme
 from onionwatch.i18n import _
 
 COLUMNS = 3            # narrow on purpose: three tiles across is enough to scan

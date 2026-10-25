@@ -6,7 +6,7 @@ import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QImage, QPainter
 
-from onionwatch import theme
+from onionwatch.ui.kit import theme
 import test_ui
 from test_card_layout import new_card
 
