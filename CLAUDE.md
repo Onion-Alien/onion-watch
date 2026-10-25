@@ -16,7 +16,7 @@ Like Onion Board, everything here is published, history included:
   screenshots.** Alert sounds and tests synthesize audio with numpy; icons, the
   logo and the screenshots' made-up game are drawn in code.
 - The app goes online for two things only, both switchable in Settings: the daily
-  update check (`updates.py`) and the anonymous usage count (`usage.py`, the same
+  update check (`core/updates.py`) and the anonymous usage count (`core/usage.py`, the same
   GoatCounter as Onion Board, paths under `onion-watch/`). Adding anything else
   needs a line in `SECURITY.md` and the author's say-so. Neither runs inside Onion
   Board, and the count never carries triggers, pictures, windows or games.
@@ -100,17 +100,21 @@ both apps at once. Details: [docs/TRANSLATING.md](docs/TRANSLATING.md).
   made-up data.
 - Edit files with UTF-8-safe tools. Windows PowerShell 5.1's
   `Get-Content`/`Set-Content` mangles UTF-8.
-- The audio callback (`player.Player._callback`) never blocks or takes a lock.
+- The audio callback (`audio/player.py`'s `Player._callback`) never blocks or takes a lock.
 - **`onionwatch/style/` is Onion Board's style kit, copied exactly: never edit it
   here.** The themes' colours and textures, Bun's outfits and Hoot live in Onion
   Board's `soundboard/style`; change them there, then
   `python scripts/sync_style.py --board <Onion Board checkout>` (its `origin/main`).
   `tests/test_style_kit.py` fails on a hand-edited copy. Onion Watch's own Hoot theme
-  is in `theme.py`. Inside Onion Board, Hoot is drawn with the board's kit
-  (`kit.py`) and follows its theme (`theme.follow_host`).
-- `theme.py`, `ui/kit/icons.py`, `ui/kit/panel.py`, `wheelguard.py`, `shuffle.py` and
-  the capture / matching half of `screenwatch.py` came from Onion Board. Keep
-  them close to it.
+  is in `ui/kit/theme.py`. Inside Onion Board, Hoot is drawn with the board's kit
+  (`ui/kit/kit.py`) and follows its theme (`theme.follow_host`).
+- `ui/kit/theme.py`, `ui/kit/icons.py`, `ui/kit/panel.py`, `ui/kit/wheelguard.py`,
+  `audio/shuffle.py` and the capture / matching half of `engine/screenwatch.py` came
+  from Onion Board. Keep them close to it.
+- **Where things go:** the package is sorted into feature folders (`engine/`, `core/`,
+  `audio/`, `ui/kit/`, `ui/window/`, `ui/settings/`, `ui/triggers/`; docs/CODE.md says
+  what each holds). Never nest deeper than two folders below `onionwatch/`: an error's
+  count only names our files that deep (`core/usage.py` `_OUR_FRAME`).
 - **Look and feel: follow Onion Board's design system**,
   [docs/DESIGN.md](https://github.com/Onion-Alien/onion-board/blob/main/docs/DESIGN.md)
   (flat controls with no resting outlines, theme tokens never hex colours, one accent
@@ -122,11 +126,11 @@ both apps at once. Details: [docs/TRANSLATING.md](docs/TRANSLATING.md).
   (`onionwatch/board.py`, zipped by `scripts/buildtools/build_module.py`). So:
   - The triggers page (`ui/triggers/triggerspanel.py`) and what it imports never touch the
     app's settings, sounds, player or tray: everything goes through the host
-    (`onionwatch/host.py`). The engine (`screenwatch.py`, `windows.py`) doesn't know
-    about hosts at all.
+    (`onionwatch/host.py`). The engine (`onionwatch/engine/`) doesn't know about
+    hosts at all.
   - The module may only import what Onion Board ships: the standard library,
     numpy, PySide6's QtCore / QtGui / QtWidgets. Of scipy, Onion Board ships only
-    scipy.fft, and the module only tries it (`imgops.py`, numpy's FFTs if it's
+    scipy.fft, and the module only tries it (`engine/imgops.py`, numpy's FFTs if it's
     missing); the matcher's filters are numpy. `build_module.py` and its
     test refuse anything else.
   - Changing `Host` in a way the other side can't follow means bumping

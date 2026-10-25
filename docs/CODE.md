@@ -93,6 +93,26 @@ then installs that file instead of downloading.
 
 ## Code layout
 
+The package is sorted by what each part does. Only the entry points stay at the top of
+`onionwatch/`: `board.py` (what Onion Board loads), `host.py` (what the triggers page
+needs from the program it runs in), `i18n.py` with `langnames_data.py`, and
+`__main__.py`.
+
+| Folder | What's in it |
+|---|---|
+| `onionwatch/engine/` | watching: capture, the matcher and the watcher thread, the windows to watch, triggers' categories and profiles, packs. Knows nothing about hosts or the UI |
+| `onionwatch/core/` | the app's plumbing: start-up, settings, one copy at a time, updates, the usage count, feedback links |
+| `onionwatch/audio/` | the alert sounds and the player that rings them (the app only: inside Onion Board the board plays them) |
+| `onionwatch/style/` | Onion Board's style kit, copied exactly (`scripts/sync_style.py`): never edited here |
+| `onionwatch/ui/kit/` | shared UI pieces: the theme, the style kit in use, icons, bars and cards, the logo |
+| `onionwatch/ui/window/` | the Onion Watch app's own window: the main window, the splash, the update dialog |
+| `onionwatch/ui/settings/` | Settings: the app's dialog, the board's Settings tab, Watching settings and what they open |
+| `onionwatch/ui/triggers/` | the triggers page both hosts show, its cards and everything it opens |
+| `scripts/checks/`, `scripts/buildtools/` | the checks precommit and CI run; the build's steps. What people run by hand stays in `scripts/` |
+
+Nothing goes deeper than two folders below `onionwatch/` (an error's count only names
+our files that deep: `core/usage.py` `_OUR_FRAME`).
+
 | Path | What |
 |---|---|
 | `onionwatch/engine/screenwatch.py` | the engine: screen capture (DXGI Desktop Duplication, GDI fallback, grey and when needed colour), the matcher, the kinds of trigger (appears, goes away, area changes / stops changing, colour level) and their areas, the fire-once `Gate`, the watcher thread (one capture per screen or window in use, every copy of a game expanded), `Trigger`, `WindowRef` and `Hit` |
