@@ -20,7 +20,7 @@ covers the second copy. Then:
 The windows appear for a few seconds at the top left of the main screen and never
 take the keyboard focus. Nothing is saved outside a temp folder.
 
-Usage: .venv\\Scripts\\python scripts\\live_check.py      (exits 0 and prints PASS)
+Usage: .venv\\Scripts\\python scripts\\checks\\live_check.py      (exits 0 and prints PASS)
 """
 from __future__ import annotations
 
@@ -31,7 +31,7 @@ import tempfile
 import time
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[2]
 TITLE = "Onion Watch Live Check Game"
 W, H = 640, 360
 BANNER = (200, 150, 240, 56)        # x, y, w, h of the "rare spawn" plate in the game

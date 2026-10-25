@@ -2,7 +2,7 @@
 "Keep the code layout table ... current when adding modules"), and the table names no
 module that's gone.
 
-    python scripts/check_code_doc.py      exit 1 and list them if not (CI's lint job)
+    python scripts/checks/check_code_doc.py      exit 1 and list them if not (CI's lint job)
 
 A row covers a module by its path (`onionwatch/ui/triggers/viewer.py`), by its folder
 (`onionwatch/ui/`), or by its bare name after another path of the same folder in
@@ -14,7 +14,7 @@ import re
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[2]
 DOC = ROOT / "docs" / "CODE.md"
 SRC = ROOT / "onionwatch"
 

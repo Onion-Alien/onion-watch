@@ -1,9 +1,9 @@
 """Scan a file on VirusTotal and print the result: how many engines flagged it,
 which ones and what they called it, and the link for the release notes.
 
-    python scripts/vt_scan.py dist\\OnionWatch-Installer.exe            # scan, wait, report
-    python scripts/vt_scan.py FILE --cached                        # an earlier result if VT has one
-    python scripts/vt_scan.py FILE --markdown                      # also the release-notes line
+    python scripts/buildtools/vt_scan.py dist\\OnionWatch-Installer.exe  # scan, wait, report
+    python scripts/buildtools/vt_scan.py FILE --cached     # an earlier result if VT has one
+    python scripts/buildtools/vt_scan.py FILE --markdown   # also the release-notes line
 
 Needs a (free) VirusTotal API key: the VT_API_KEY environment variable, or a line
 `VT_API_KEY=<key>` in ~/.secrets/virustotal.env (outside any repo). It's never printed

@@ -6,7 +6,7 @@
                                        brand gradient
 - installer/wizard-small-{1,2}x.bmp    the small logo at the top right of its pages
 
-    python scripts/make_installer_art.py
+    python scripts/buildtools/make_installer_art.py
 """
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ import sys
 from pathlib import Path
 
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
 from PySide6.QtCore import QBuffer, QByteArray, QIODevice, QPointF, QRectF, Qt  # noqa: E402

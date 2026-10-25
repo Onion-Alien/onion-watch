@@ -50,9 +50,9 @@ To release a new version:
 2. `powershell -ExecutionPolicy Bypass -File build.ps1 -Clean -Scan` builds the app
    (`dist\OnionWatch\OnionWatch.exe`, self-tested), the installer
    (`dist\OnionWatch-Installer.exe`, needs [Inno Setup 6](https://jrsoftware.org/isinfo.php))
-   and the add-on (`dist\OnionWatch-module.zip`, via `scripts\build_module.py`, which
+   and the add-on (`dist\OnionWatch-module.zip`, via `scripts\buildtools\build_module.py`, which
    fails if the page imports anything Onion Board doesn't ship: it has no pip).
-   `-Scan` then checks the installer on VirusTotal (`scripts\vt_scan.py`, needs a free
+   `-Scan` then checks the installer on VirusTotal (`scripts\buildtools\vt_scan.py`, needs a free
    API key in `VT_API_KEY` or `~/.secrets/virustotal.env`).
 
    **Microsoft's `Trojan:Win32/Wacatac.B!ml`** (a machine-learning false positive on
@@ -65,7 +65,7 @@ To release a new version:
      or the bootloader, and 0.3.1's clean scan was luck. The same files zipped scanned
      clean every time. It costs about 30 MB;
    - every build uses a PyInstaller bootloader compiled on your PC
-     (`scripts\build_bootloader.ps1`, needs gcc: `winget install
+     (`scripts\buildtools\build_bootloader.ps1`, needs gcc: `winget install
      BrechtSanders.WinLibs.POSIX.UCRT`), because PyPI's stock one is the same file in
      thousands of programs; `build.ps1` compiles one itself if the stock one is
      installed.
@@ -143,16 +143,16 @@ then installs that file instead of downloading.
 | `scripts/i18n_extract.py` | the wrapped texts against the catalogs: what's missing or unused per language, `--update`, `--check` |
 | `onionwatch/audio/shuffle.py` | picking sounds "at random" without repeats |
 | `onionwatch/ui/kit/wheelguard.py` | the mouse wheel scrolls the page instead of changing a box |
-| `scripts/docs.py`, `scripts/screenshots.py`, `scripts/make_art.py` | `sync_style.py` copies Onion Board's style kit into `onionwatch/style`; the others: the README and website in one go: the screenshots and `docs/art` (rendered offscreen from made-up data), the version and VirusTotal line from `docs/release.json`, picture links that skip cached copies |
+| `scripts/docs.py`, `scripts/screenshots.py`, `scripts/buildtools/make_art.py` | `sync_style.py` copies Onion Board's style kit into `onionwatch/style`; the others: the README and website in one go: the screenshots and `docs/art` (rendered offscreen from made-up data), the version and VirusTotal line from `docs/release.json`, picture links that skip cached copies |
 | `build.ps1`, `installer/OnionWatch.iss` | the Windows build (PyInstaller) and its installer (Inno Setup) |
-| `scripts/prune_build.py`, `make_notices.py`, `make_installer_art.py`, `make_version_info.py` | the build's helpers: drop the Qt parts the app never loads, the third-party licence notices, the icon and the setup wizard's pictures, the exe's version details |
-| `scripts/build_bootloader.ps1`, `scripts/vt_scan.py` | PyInstaller with a bootloader compiled on your PC (virus scanners distrust the stock one); the VirusTotal check for a release |
+| `scripts/buildtools/prune_build.py`, `make_notices.py`, `make_installer_art.py`, `make_version_info.py` | the build's helpers: drop the Qt parts the app never loads, the third-party licence notices, the icon and the setup wizard's pictures, the exe's version details |
+| `scripts/buildtools/build_bootloader.ps1`, `scripts/buildtools/vt_scan.py` | PyInstaller with a bootloader compiled on your PC (virus scanners distrust the stock one); the VirusTotal check for a release |
 | `docs/index.html` | forwards the old address, onion-alien.github.io/onion-watch, to the website at [onionalien.com/onionwatch](https://onionalien.com/onionwatch/) (GitHub Pages, from `docs/`) |
 | `scripts/check_sensitive.py` | scans files, commits and history for secrets and personal data; the pre-commit hook |
 | `scripts/precommit.ps1` | every check a commit needs in one go (see CLAUDE.md); `-Tests` adds the suite |
-| `scripts/check_types.py`, `scripts/pyright_baseline.json` | pyright, failing only on errors that aren't in the baseline |
-| `scripts/check_code_doc.py` | every module is in this Code layout table, and the table names none that's gone |
+| `scripts/checks/check_types.py`, `scripts/checks/pyright_baseline.json` | pyright, failing only on errors that aren't in the baseline |
+| `scripts/checks/check_code_doc.py` | every module is in this Code layout table, and the table names none that's gone |
 | `scripts/check_utc.sh`, `utc_fix.sh`, `merge_pr.sh` | commit times in UTC: the check (hooks and CI), re-stamping a branch, merging a PR with a UTC merge commit |
-| `scripts/live_check.py` | the real thing on this PC: two copies of a stand-in game (real windows, one covered), real `PrintWindow` capture, the triggers page as Onion Board loads it, one trigger for every copy in an area, one for a picture going away; prints PASS. Opens windows for a few seconds (never takes the focus) |
-| `scripts/build_module.py` | builds `OnionWatch-module.zip` for Onion Board: `module.json` and only the modules the board's tab needs, checked against what Onion Board ships |
+| `scripts/checks/live_check.py` | the real thing on this PC: two copies of a stand-in game (real windows, one covered), real `PrintWindow` capture, the triggers page as Onion Board loads it, one trigger for every copy in an area, one for a picture going away; prints PASS. Opens windows for a few seconds (never takes the focus) |
+| `scripts/buildtools/build_module.py` | builds `OnionWatch-module.zip` for Onion Board: `module.json` and only the modules the board's tab needs, checked against what Onion Board ships |
 | `tests/` | pytest: the matcher, the watcher on stand-in screens and windows (several copies of a game, every copy, not open yet, closed and reopened, minimized, resized), each kind of trigger and its area, the sounds and player, the UI offscreen |

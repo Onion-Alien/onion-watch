@@ -3,14 +3,14 @@ OnionWatch.exe (Properties -> Details: product, description, version, copyright)
 An exe without them looks like throwaway malware to machine-learning virus scanners,
 so build.ps1 always passes this with --version-file.
 
-    python scripts/make_version_info.py
+    python scripts/buildtools/make_version_info.py
 """
 from __future__ import annotations
 
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
 from onionwatch import __version__  # noqa: E402

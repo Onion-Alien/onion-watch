@@ -68,7 +68,7 @@ def needs_part(fallback=None):
     files, imported inside it: when that file is missing or out of step (an update that
     only half went in once crashed "Recently deleted"), say so plainly and return
     `fallback` instead. The import stays a plain one in the method, outside any `try`,
-    so scripts/build_module.py still sees the file is needed and packs it."""
+    so scripts/buildtools/build_module.py still sees the file is needed and packs it."""
     def wrap(method):
         @functools.wraps(method)
         def run(self, *args, **kwargs):

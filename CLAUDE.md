@@ -88,8 +88,8 @@ both apps at once. Details: [docs/TRANSLATING.md](docs/TRANSLATING.md).
   Tests use Qt's offscreen platform, stand-in captures and a silent audio stream
   (`tests/conftest.py`): no window, no screen read, no sound.
 - Type checking: pyright, basic mode (`[tool.pyright]`). The errors from before it was
-  turned on are in `scripts/pyright_baseline.json` and only new ones fail
-  (`scripts/check_types.py`). Fixed old ones? `check_types.py --update` so the
+  turned on are in `scripts/checks/pyright_baseline.json` and only new ones fail
+  (`scripts/checks/check_types.py`). Fixed old ones? `check_types.py --update` so the
   baseline shrinks and they can't come back. pyright wrong? `# pyright: ignore[rule]`
   with a reason.
 - A fix comes with the test that would have caught it; the PR's `Regression test:`
@@ -119,7 +119,7 @@ both apps at once. Details: [docs/TRANSLATING.md](docs/TRANSLATING.md).
   `origin/main` (not a working tree, which may be on an old branch) rather than
   restyling here.
 - Onion Watch is also Onion Board's Triggers tab, as an add-on module
-  (`onionwatch/board.py`, zipped by `scripts/build_module.py`). So:
+  (`onionwatch/board.py`, zipped by `scripts/buildtools/build_module.py`). So:
   - The triggers page (`ui/triggers/triggerspanel.py`) and what it imports never touch the
     app's settings, sounds, player or tray: everything goes through the host
     (`onionwatch/host.py`). The engine (`screenwatch.py`, `windows.py`) doesn't know

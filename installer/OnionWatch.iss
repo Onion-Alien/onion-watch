@@ -18,7 +18,7 @@
 ; a silent install keeps the last install's boxes and never switches the count on.
 ;
 ; Built by build.ps1 (needs Inno Setup 6: winget install JRSoftware.InnoSetup), which
-; also draws the icon and the wizard pictures (scripts\make_installer_art.py).
+; also draws the icon and the wizard pictures (scripts\buildtools\make_installer_art.py).
 
 #define AppName "Onion Watch"
 #define AppExeName "OnionWatch"
@@ -55,7 +55,7 @@ DisableWelcomePage=no
 WizardStyle=modern
 WizardSizePercent=110
 SetupIconFile=..\build\onionwatch.ico
-; Hoot, drawn by scripts\make_installer_art.py
+; Hoot, drawn by scripts\buildtools\make_installer_art.py
 WizardImageFile=wizard-1x.bmp,wizard-2x.bmp
 WizardSmallImageFile=wizard-small-1x.bmp,wizard-small-2x.bmp
 UninstallDisplayIcon={app}\{#AppExeName}.exe

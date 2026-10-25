@@ -7,9 +7,9 @@
 # build.ps1 refuses to build with the stock one.
 #
 # Needs a C compiler once: winget install BrechtSanders.WinLibs.POSIX.UCRT  (gcc)
-# Run:  powershell -ExecutionPolicy Bypass -File scripts\build_bootloader.ps1
+# Run:  powershell -ExecutionPolicy Bypass -File scripts\buildtools\build_bootloader.ps1
 $ErrorActionPreference = "Stop"
-Set-Location (Split-Path $PSScriptRoot)
+Set-Location (Split-Path (Split-Path $PSScriptRoot))
 $py = ".venv\Scripts\python.exe"
 $version = (Select-String -Path requirements-dev.txt -Pattern "^pyinstaller==(.+)$").Matches[0].Groups[1].Value
 

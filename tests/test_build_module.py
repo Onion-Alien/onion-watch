@@ -1,4 +1,4 @@
-"""The Onion Board add-on zip (scripts/build_module.py): it holds only what the
+"""The Onion Board add-on zip (scripts/buildtools/build_module.py): it holds only what the
 board's Triggers tab needs, imports nothing Onion Board doesn't ship, is the same
 bytes every build, and the package unzipped from it runs on its own the way the
 board loads it (in a separate Python, so this one's onionwatch isn't disturbed)."""
@@ -11,7 +11,7 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT / "scripts"))
+sys.path.insert(0, str(ROOT / "scripts" / "buildtools"))
 import build_module  # noqa: E402
 
 from onionwatch import __version__  # noqa: E402

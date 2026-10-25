@@ -39,9 +39,9 @@ Step "ruff" { & $py -m ruff check . }
 Step "sensitive data" { & $py scripts\check_sensitive.py }
 # as CI's lint job: every text in every catalog, and every module in docs/CODE.md
 Step "translations" { & $py scripts\i18n_extract.py --check }
-Step "CODE.md modules" { & $py scripts\check_code_doc.py }
-# pyright on the changed files; only errors not in scripts/pyright_baseline.json fail
-Step "types (new errors only)" { & $py scripts\check_types.py --base $Base }
+Step "CODE.md modules" { & $py scripts\checks\check_code_doc.py }
+# pyright on the changed files; only errors not in scripts/checks/pyright_baseline.json fail
+Step "types (new errors only)" { & $py scripts\checks\check_types.py --base $Base }
 
 # A fix comes with the test that would have caught it. Only a warning: some fixes
 # can't be tested, and the PR's "Regression test:" line says why.

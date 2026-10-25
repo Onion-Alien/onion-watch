@@ -2,7 +2,7 @@
 
 Two programs host the panel: the Onion Watch app (onionwatch.core.apphost) and Onion
 Board, which loads it as an add-on module (onionwatch.board, packed by
-scripts/build_module.py). The panel talks to its host only through `Host`; the
+scripts/buildtools/build_module.py). The panel talks to its host only through `Host`; the
 engine (screenwatch, windows) knows nothing about hosts at all.
 
 API_VERSION goes up whenever this interface changes in a way the other side can't

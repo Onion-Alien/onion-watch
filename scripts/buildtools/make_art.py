@@ -1,6 +1,6 @@
 """Render Onion Watch's artwork from code, offscreen:
 
-    python scripts/make_art.py        -> docs/art/
+    python scripts/buildtools/make_art.py        -> docs/art/
 
 - hoot.png            Hoot on a transparent background (the README's header)
 - avatar.png          800 x 800, Hoot on the brand gradient (a profile picture)
@@ -18,7 +18,7 @@ from pathlib import Path
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
 os.environ.setdefault("QT_QPA_FONTDIR", str(Path(os.environ.get("WINDIR", r"C:\Windows"))
                                             / "Fonts"))   # offscreen has no fonts otherwise
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
 from PySide6.QtCore import QPointF, QRect, QRectF, Qt  # noqa: E402

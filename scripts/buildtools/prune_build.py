@@ -17,7 +17,7 @@ with this app's Qt modules):
   second OpenSSL they bring: Qt's network is only the local socket a second launch
   uses, and HTTPS (update check, usage count) goes through Python's own ssl.
 
-Usage: python scripts/prune_build.py dist/OnionWatch [--dry-run]
+Usage: python scripts/buildtools/prune_build.py dist/OnionWatch [--dry-run]
 Exit 1 if a kept file imports a DLL that would be missing afterwards, so a change in
 Qt's layout fails the build instead of shipping an app that can't start.
 """

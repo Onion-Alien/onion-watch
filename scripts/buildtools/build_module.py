@@ -21,7 +21,7 @@ module.
 The zip is the same byte for byte for the same source (fixed file times, sorted
 entries), so its SHA-256 only changes when the code does.
 
-Usage: python scripts/build_module.py [--out DIR]   (prints the zip's path and SHA-256)
+Usage: python scripts/buildtools/build_module.py [--out DIR]   (prints the zip's path and SHA-256)
 The zip is attached to the GitHub release as is (see README → Onion Board add-on).
 """
 from __future__ import annotations
@@ -36,7 +36,7 @@ import sys
 import zipfile
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[2]
 PACKAGE = "onionwatch"
 ENTRY = "onionwatch.board"
 MODULE_ID = "onion-watch"

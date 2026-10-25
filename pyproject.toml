@@ -49,7 +49,7 @@ ignore = [
 
 # ---------------------------------------------------------------- pyright
 # Type checking, basic mode, as Onion Board. Old errors are in
-# scripts/pyright_baseline.json and only new ones fail: scripts/check_types.py
+# scripts/checks/pyright_baseline.json and only new ones fail: scripts/checks/check_types.py
 # (precommit: changed files; CI: the whole repo).
 [tool.pyright]
 include = ["onionwatch", "main.py"]
