@@ -1,24 +1,24 @@
 [
 {
-"file": "onionwatch/app.py",
+"file": "onionwatch/core/app.py",
 "rule": "reportAttributeAccessIssue",
 "message": "Cannot access attribute \"RightToLeft\" for class \"type[Qt]\"",
 "count": 1
 },
 {
-"file": "onionwatch/app.py",
+"file": "onionwatch/core/app.py",
 "rule": "reportAttributeAccessIssue",
 "message": "Cannot access attribute \"instance_server\" for class \"QApplication\"",
 "count": 1
 },
 {
-"file": "onionwatch/app.py",
+"file": "onionwatch/core/app.py",
 "rule": "reportAttributeAccessIssue",
 "message": "Cannot access attribute \"show_requested\" for class \"QLocalServer\"",
 "count": 1
 },
 {
-"file": "onionwatch/app.py",
+"file": "onionwatch/core/app.py",
 "rule": "reportAttributeAccessIssue",
 "message": "Cannot assign to attribute \"instance_server\" for class \"QApplication\"",
 "count": 1
@@ -474,31 +474,31 @@
 "count": 3
 },
 {
-"file": "onionwatch/settings.py",
+"file": "onionwatch/core/settings.py",
 "rule": "reportAttributeAccessIssue",
 "message": "Cannot assign to attribute \"_unknown\" for class \"Config*\"",
 "count": 1
 },
 {
-"file": "onionwatch/singleinstance.py",
+"file": "onionwatch/core/singleinstance.py",
 "rule": "reportAttributeAccessIssue",
 "message": "Cannot access attribute \"WindowActive\" for class \"type[Qt]\"",
 "count": 1
 },
 {
-"file": "onionwatch/singleinstance.py",
+"file": "onionwatch/core/singleinstance.py",
 "rule": "reportAttributeAccessIssue",
 "message": "Cannot access attribute \"WindowMinimized\" for class \"type[Qt]\"",
 "count": 1
 },
 {
-"file": "onionwatch/singleinstance.py",
+"file": "onionwatch/core/singleinstance.py",
 "rule": "reportAttributeAccessIssue",
 "message": "Cannot assign to attribute \"show_requested\" for class \"QLocalServer\"",
 "count": 2
 },
 {
-"file": "onionwatch/sounds.py",
+"file": "onionwatch/audio/sounds.py",
 "rule": "reportCallIssue",
 "message": "Object of type \"object\" is not callable",
 "count": 1
@@ -2394,7 +2394,7 @@
 "count": 1
 },
 {
-"file": "onionwatch/usage.py",
+"file": "onionwatch/core/usage.py",
 "rule": "reportOptionalIterable",
 "message": "Object of type \"None\" cannot be used as iterable value",
 "count": 1

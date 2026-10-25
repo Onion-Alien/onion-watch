@@ -12,10 +12,10 @@ from PySide6.QtWidgets import (QApplication, QHBoxLayout, QLabel, QMainWindow, Q
                                QPushButton, QSystemTrayIcon, QVBoxLayout, QWidget)
 
 from onionwatch import __version__, theme
-from onionwatch.apphost import AppHost
-from onionwatch.player import Player
-from onionwatch.settings import Config
-from onionwatch.sounds import Library
+from onionwatch.core.apphost import AppHost
+from onionwatch.audio.player import Player
+from onionwatch.core.settings import Config
+from onionwatch.audio.sounds import Library
 from onionwatch.ui import icons
 from onionwatch.ui.alarmbar import AlarmBar
 from onionwatch.ui.pages import TriggerPages
@@ -192,7 +192,7 @@ class MainWindow(QMainWindow):
 
     # ------------------------------------------------------------------ alarms
     def _on_fired(self, t):
-        from onionwatch import usage
+        from onionwatch.core import usage
         usage.fired(self.cfg)
         self._step("trigger-fired")
         text = self.triggers.alert_text(t)
@@ -214,7 +214,7 @@ class MainWindow(QMainWindow):
 
     def restart(self):
         """Settings' Restart now (a new language): saved, quit, and started again."""
-        from onionwatch import app
+        from onionwatch.core import app
         self.save_now()
         if app.restart():
             self.quit()
@@ -269,13 +269,13 @@ class MainWindow(QMainWindow):
 
     # ------------------------------------------------------------------ updates, count
     def check_updates(self, force: bool = False):
-        """Ask GitHub for a newer version on a thread (onionwatch.updates): the daily
+        """Ask GitHub for a newer version on a thread (onionwatch.core.updates): the daily
         check, or Settings' Check now (`force`), which also says when there's nothing
         new or it failed."""
         if self._checking:
             return
         self._checking = True
-        from onionwatch import updates
+        from onionwatch.core import updates
 
         def run():
             rel, err = None, ""
@@ -294,13 +294,13 @@ class MainWindow(QMainWindow):
             UpdateDialog(self, rel).exec()
 
     def send_usage(self):
-        """The anonymous daily count, if it's switched on and due (onionwatch.usage)."""
-        from onionwatch import usage
+        """The anonymous daily count, if it's switched on and due (onionwatch.core.usage)."""
+        from onionwatch.core import usage
         usage.maybe_send(self.cfg, self.settings_changed.emit)
 
     def _step(self, name: str):
         """A new install's first time doing `name` (usage.STEPS): counted once."""
-        from onionwatch import usage
+        from onionwatch.core import usage
         usage.step(self.cfg, name, self.settings_changed.emit)
 
     # ------------------------------------------------------------------ closing
@@ -331,7 +331,7 @@ class MainWindow(QMainWindow):
         self.triggers.shutdown()
         self.player.close()
         self.cfg.geometry = bytes(self.saveGeometry().toHex()).decode()
-        from onionwatch import settings, usage
+        from onionwatch.core import settings, usage
         usage.remember(self.cfg)   # features used / problems since the last count
         self.save_now()
         usage.mark_stopped(settings.APP_DIR)

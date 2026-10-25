@@ -22,7 +22,8 @@ import time
 from PySide6.QtCore import QRectF, Qt
 from PySide6.QtGui import QColor, QGuiApplication, QImage, QPainter
 
-from onionwatch import settings, theme
+from onionwatch.core import settings
+from onionwatch import theme
 from onionwatch.style.owl import H as OWL_H
 from onionwatch.style.owl import W as OWL_W
 from onionwatch.style.owl import draw_owl

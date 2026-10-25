@@ -1,6 +1,6 @@
 """What the triggers panel needs from the program it runs in, and nothing more.
 
-Two programs host the panel: the Onion Watch app (onionwatch.apphost) and Onion
+Two programs host the panel: the Onion Watch app (onionwatch.core.apphost) and Onion
 Board, which loads it as an add-on module (onionwatch.board, packed by
 scripts/build_module.py). The panel talks to its host only through `Host`; the
 engine (screenwatch, windows) knows nothing about hosts at all.
@@ -78,7 +78,7 @@ class Host(Protocol):
 #
 #     def count(self, key: str) -> None:
 #         """A feature of the page was used or is set up (`key`: one of
-#         onionwatch.usage.FEATURES), for the host's own anonymous usage count:
+#         onionwatch.core.usage.FEATURES), for the host's own anonymous usage count:
 #         Onion Board sends it as used/triggers-<key> with its daily count, when
 #         that's switched on. Without it nothing is counted."""
 #

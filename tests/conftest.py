@@ -93,7 +93,7 @@ def process_events(app, until, timeout=8.0, step=0.02):
 @pytest.fixture
 def app_dir(tmp_path, monkeypatch):
     """A fresh app folder per test (settings.APP_DIR is read when used)."""
-    from onionwatch import settings
+    from onionwatch.core import settings
     monkeypatch.setattr(settings, "APP_DIR", tmp_path)
     return tmp_path
 

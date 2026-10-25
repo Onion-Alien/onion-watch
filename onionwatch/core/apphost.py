@@ -4,11 +4,12 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from onionwatch import settings, theme
+from onionwatch.core import settings
+from onionwatch import theme
 from onionwatch.host import API_VERSION
-from onionwatch.player import Player
-from onionwatch.settings import Config
-from onionwatch.sounds import AUDIO_EXTS, DEFAULT_SOUND, Library
+from onionwatch.audio.player import Player
+from onionwatch.core.settings import Config
+from onionwatch.audio.sounds import AUDIO_EXTS, DEFAULT_SOUND, Library
 from onionwatch.i18n import _
 
 

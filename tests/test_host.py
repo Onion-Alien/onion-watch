@@ -10,11 +10,11 @@ from test_ui import FakeGrabber, W, H, as_qimage, banner, scene, showing  # noqa
 from onionwatch import host as hostmod
 from onionwatch.engine import screenwatch as sw
 from onionwatch import theme
-from onionwatch.apphost import AppHost
-from onionwatch.player import Player
+from onionwatch.core.apphost import AppHost
+from onionwatch.audio.player import Player
 from onionwatch.engine.screenwatch import Monitor
-from onionwatch.settings import Config
-from onionwatch.sounds import Library
+from onionwatch.core.settings import Config
+from onionwatch.audio.sounds import Library
 from onionwatch.ui import triggerspanel
 from onionwatch.ui.alarmbar import AlarmBar
 from onionwatch.ui.triggerspanel import TriggersTab

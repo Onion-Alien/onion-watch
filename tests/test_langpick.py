@@ -7,7 +7,7 @@ from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QDialog, QLabel
 
 from onionwatch import i18n
-from onionwatch.settings import Config
+from onionwatch.core.settings import Config
 from onionwatch.ui.langpick import LanguageDialog, glyph
 from test_ui import fake_screen  # noqa: F401 (a fixture)
 

@@ -32,9 +32,10 @@ def test_it_holds_the_page_and_engine_but_not_the_app(built):
                  "ui/windowpicker.py", "ui/snip.py", "ui/alarmbar.py", "theme.py",
                  "ui/viewer.py", "ui/deleted.py", "ui/watching.py"):  # opened only when asked
         assert top + want in names, want
-    for app_only in ("app.py", "apphost.py", "player.py", "sounds.py", "settings.py",
-                     "singleinstance.py", "ui/mainwindow.py", "ui/settingsdialog.py",
-                     "ui/langpick.py", "langnames_data.py"):   # the board has its own picker
+    for app_only in ("core/app.py", "core/apphost.py", "audio/player.py", "audio/sounds.py",
+                     "core/settings.py", "core/singleinstance.py", "ui/mainwindow.py",
+                     "ui/settingsdialog.py", "ui/langpick.py",
+                     "langnames_data.py"):   # the board has its own picker
         assert top + app_only not in names, app_only
     assert {"onion-watch/module.json", "onion-watch/LICENSE"} <= names
     # the language catalogs ride along (and nothing else that isn't code)
@@ -113,7 +114,7 @@ i18n = sys.modules["onionwatch.i18n"]
 assert i18n.current() == "de" and i18n.LANG_DIR.is_relative_to(folder), i18n.LANG_DIR
 assert all(m.__file__.startswith(folder) for n, m in sys.modules.items()
            if n.startswith("onionwatch") and getattr(m, "__file__", None))
-assert "onionwatch.player" not in sys.modules and "sounddevice" not in sys.modules
+assert "onionwatch.audio.player" not in sys.modules and "sounddevice" not in sys.modules
 tab.shutdown()
 print("loaded", tab.version)
 """

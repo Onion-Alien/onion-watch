@@ -9,11 +9,11 @@ from PySide6.QtGui import QColor, QDropEvent, QImage
 from PySide6.QtWidgets import QApplication, QDialog, QPushButton
 
 from onionwatch.engine import screenwatch as sw
-from onionwatch.apphost import AppHost
-from onionwatch.player import Player
+from onionwatch.core.apphost import AppHost
+from onionwatch.audio.player import Player
 from onionwatch.engine.screenwatch import Monitor, WindowRef
-from onionwatch.settings import Config
-from onionwatch.sounds import Library
+from onionwatch.core.settings import Config
+from onionwatch.audio.sounds import Library
 from onionwatch.ui import triggerspanel, whatpick
 from onionwatch.ui.triggerspanel import TriggersTab
 from onionwatch.ui.whatpick import CUT, FILE, PASTE, WhatPicker

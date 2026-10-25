@@ -52,12 +52,12 @@ class Config:
     notify: bool = True         # a Windows notification when a trigger goes off
     tray: bool = True           # closing the window keeps watching from the tray
     geometry: str = ""          # the window's size and place (Qt's saveGeometry, hex)
-    # new versions (onionwatch.updates): ask GitHub once a day; when it last did; a
+    # new versions (onionwatch.core.updates): ask GitHub once a day; when it last did; a
     # version the user said to skip
     update_check: bool = True
     update_checked: float = 0.0
     update_skip: str = ""
-    # the anonymous usage count (onionwatch.usage): its switch, this PC's random ID
+    # the anonymous usage count (onionwatch.core.usage): its switch, this PC's random ID
     # (made on the first send), when the last daily one went, and the installer's
     # "Where did you hear about Onion Watch?" (sent once, with the first-start count)
     usage_count: bool = True

@@ -1,10 +1,11 @@
-"""The anonymous usage count (onionwatch.usage): what it sends, when, and that it
+"""The anonymous usage count (onionwatch.core.usage): what it sends, when, and that it
 stays off for settings from before it existed, from source, and when unticked."""
 import json
 
 import pytest
 
-from onionwatch import __version__, app, settings, usage
+from onionwatch import __version__
+from onionwatch.core import app, settings, usage
 
 
 def cfg(**kw):
@@ -170,10 +171,10 @@ def test_used_goes_to_the_board_inside_it():
 
 def test_error_event_has_type_and_our_line_only():
     try:
-        usage.bucket("secret window title")     # a TypeError inside onionwatch/usage.py
+        usage.bucket("secret window title")     # a TypeError inside onionwatch/core/usage.py
     except TypeError as e:
         ev = usage.error_event(type(e), e.__traceback__)
-    assert ev.startswith(f"onion-watch/error/{__version__}/TypeError@onionwatch/usage.py:")
+    assert ev.startswith(f"onion-watch/error/{__version__}/TypeError@onionwatch/core/usage.py:")
     assert "secret" not in ev
 
 

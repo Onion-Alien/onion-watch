@@ -76,7 +76,7 @@ To release a new version:
    one clean scan can be luck.
 3. `gh release create vX.Y.Z dist\OnionWatch-Installer.exe dist\OnionWatch-Update.exe dist\OnionWatch-module.zip --target main --title "Onion Watch X.Y.Z"`.
    Keep the file names: the website links to the installer, Onion Board looks for the zip,
-   and the app's *Update now* (`onionwatch/updates.py`) fetches `OnionWatch-Update.exe`
+   and the app's *Update now* (`onionwatch/core/updates.py`) fetches `OnionWatch-Update.exe`
    (the installer uploaded twice, so GitHub's download counts tell updates apart from
    downloads off the website; without it, the installer).
    GitHub lists a release's files by name, so the installer is named to sort first
@@ -99,19 +99,19 @@ then installs that file instead of downloading.
 | `onionwatch/engine/cutout.py` | learning a cut's background while it's cut: grabs of the window while the cut dialog is open, the scenery that moved left out of the picture when that does better, and how well the kept picture did (for the cut-time warning) |
 | `onionwatch/engine/imgops.py` | the matcher's image operations: FFTs (scipy.fft, numpy's without it), Gaussian softening, smooth enlarging, mask erosion (numpy). Of scipy, Onion Board ships only scipy.fft |
 | `onionwatch/engine/windows.py` | listing windows, finding a remembered one again (and the right copy), `PrintWindow` capture of a covered window (a fullscreen game in front is read off its screen through a shared duplication, `screenwatch.share_dup`), full-size snapshots for cutting |
-| `onionwatch/sounds.py` | the built-in alert sounds (made in code) and the added sound files |
-| `onionwatch/player.py` | the output stream that mixes and rings the alerts |
-| `onionwatch/settings.py` | `%APPDATA%\OnionWatch` and `config.json` |
-| `onionwatch/updates.py` | the daily update check and *Update now* (standalone app only) |
-| `onionwatch/usage.py` | the anonymous daily usage count, GoatCounter (standalone app only) |
+| `onionwatch/audio/sounds.py` | the built-in alert sounds (made in code) and the added sound files |
+| `onionwatch/audio/player.py` | the output stream that mixes and rings the alerts |
+| `onionwatch/core/settings.py` | `%APPDATA%\OnionWatch` and `config.json` |
+| `onionwatch/core/updates.py` | the daily update check and *Update now* (standalone app only) |
+| `onionwatch/core/usage.py` | the anonymous daily usage count, GoatCounter (standalone app only) |
 | `onionwatch/ui/countdialog.py` | *What Count me in sends*: the table behind Settings' eye button (in step with `usage.py` and SECURITY.md) |
-| `onionwatch/feedback.py` | Send feedback / Report a problem links |
-| `onionwatch/app.py` | start-up: logging, one copy at a time, the window, `--selftest` |
+| `onionwatch/core/feedback.py` | Send feedback / Report a problem links |
+| `onionwatch/core/app.py` | start-up: logging, one copy at a time, the window, `--selftest` |
 | `onionwatch/ui/themecover.py` | a still of each window with Hoot over it while a theme switch restyles every widget, faded in and out (the kit's `style/cover.py`): never a half-styled frame or a flash |
 | `onionwatch/ui/splash.py` | the start-up splash: Hoot hopping on the desktop until the window is up, drawn on a thread of its own |
 | `onionwatch/__main__.py` | `python -m onionwatch` |
 | `onionwatch/host.py` | what the triggers page needs from the program it runs in (settings, sounds, playing, theme): the Onion Watch app or Onion Board |
-| `onionwatch/apphost.py` | the Onion Watch app as that host |
+| `onionwatch/core/apphost.py` | the Onion Watch app as that host |
 | `onionwatch/board.py` | the Onion Board add-on's entry point: `create(host, parent=None)` gives the board its Triggers tab, made on `parent` when given (alarm bar + triggers page) |
 | `onionwatch/ui/triggerspanel.py` | the triggers page: one card per trigger, "Look in", Watching, Cut picture. Talks only to its host |
 | `onionwatch/ui/pages.py` | the triggers page as both hosts show it: the Triggers / Log tabs and the Playing now bar under them |
@@ -137,11 +137,11 @@ then installs that file instead of downloading.
 | `onionwatch/style/` | the style kit: an exact copy of Onion Board's `soundboard/style` (never edited here: `scripts/sync_style.py` copies it and stamps `SOURCE.json`, `tests/test_style_kit.py` checks it). The themes' colours (`palettes.py`) and textures, Bun's outfits (`bunnyfit.py`), and Hoot (`owl.py`: drawn in code, wearing the theme's outfit; `OwlWidget`, Hoot animated, waiting for a trigger) |
 | `onionwatch/kit.py` | which style kit draws Hoot: ours, or inside Onion Board the board's (`host.kit()`) when it's at least as new |
 | `onionwatch/theme.py`, `ui/icons.py`, `ui/panel.py` | the current theme (Onion Board's themes from the style kit, plus Onion Watch's own Hoot), the stylesheet, the logo, painted icons and layout helpers, shared with Onion Board |
-| `onionwatch/singleinstance.py` | one copy at a time: a second launch brings the running one to the front (a restart waits for the old copy to close) |
+| `onionwatch/core/singleinstance.py` | one copy at a time: a second launch brings the running one to the front (a restart waits for the old copy to close) |
 | `onionwatch/i18n.py`, `onionwatch/lang/*.json` | other languages: `_()` / `ngettext()`, the catalogs (inside the package, so they ride in the add-on zip), which language (Settings → Appearance → Language; inside Onion Board, the board's own), Qt's OK / Cancel words, the `xx` pseudo-language. See [TRANSLATING.md](TRANSLATING.md) |
 | `onionwatch/ui/fit.py` | dialogs grow to fit their wrapped text (a translation is often longer), shared with Onion Board |
 | `scripts/i18n_extract.py` | the wrapped texts against the catalogs: what's missing or unused per language, `--update`, `--check` |
-| `onionwatch/shuffle.py`, `wheelguard.py` | picking sounds "at random" without repeats; the mouse wheel scrolls the page instead of changing a box |
+| `onionwatch/audio/shuffle.py`, `wheelguard.py` | picking sounds "at random" without repeats; the mouse wheel scrolls the page instead of changing a box |
 | `scripts/docs.py`, `scripts/screenshots.py`, `scripts/make_art.py` | `sync_style.py` copies Onion Board's style kit into `onionwatch/style`; the others: the README and website in one go: the screenshots and `docs/art` (rendered offscreen from made-up data), the version and VirusTotal line from `docs/release.json`, picture links that skip cached copies |
 | `build.ps1`, `installer/OnionWatch.iss` | the Windows build (PyInstaller) and its installer (Inno Setup) |
 | `scripts/prune_build.py`, `make_notices.py`, `make_installer_art.py`, `make_version_info.py` | the build's helpers: drop the Qt parts the app never loads, the third-party licence notices, the icon and the setup wizard's pictures, the exe's version details |

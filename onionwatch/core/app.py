@@ -18,8 +18,9 @@ import threading  # noqa: E402
 
 from PySide6.QtWidgets import QApplication  # noqa: E402
 
-from onionwatch import __version__, settings  # noqa: E402
-from onionwatch.singleinstance import claim_single_instance, listen_for_second_launch  # noqa: E402
+from onionwatch import __version__  # noqa: E402
+from onionwatch.core import settings  # noqa: E402
+from onionwatch.core.singleinstance import (claim_single_instance, listen_for_second_launch)  # noqa: E402
 
 log = logging.getLogger(__name__)
 
@@ -77,9 +78,9 @@ def setup_logging() -> None:
 
 def _count_error(etype, tb) -> None:
     """An error the app didn't expect, for the anonymous usage count (its type and
-    where in our code only: onionwatch.usage.error_event)."""
+    where in our code only: onionwatch.core.usage.error_event)."""
     try:
-        from onionwatch import usage
+        from onionwatch.core import usage
         usage.note(usage.error_event(etype, tb))
     except Exception:  # noqa: BLE001 - never a second error out of the first
         pass
@@ -92,7 +93,8 @@ def selftest() -> int:
     for mod in ("numpy", "scipy.fft", "sounddevice", "soundfile", "soxr", "ssl"):
         __import__(mod)
     _app = QApplication(sys.argv)   # noqa: F841 - kept alive while the imports run
-    from onionwatch import i18n, sounds, theme
+    from onionwatch import i18n, theme
+    from onionwatch.audio import sounds
     langs = [code for code, _name in i18n.available()]
     if len(langs) < 2:      # the catalogs didn't ship (onionwatch/lang)
         print(f"FAIL: no language files in {i18n.LANG_DIR}", file=sys.stderr)
@@ -120,7 +122,7 @@ def set_usage_count(argv: list[str]) -> int:
     cfg = settings.Config.load()
     if not on and cfg.usage_count:   # on until now: one anonymous opt-out first
         try:
-            from onionwatch import usage
+            from onionwatch.core import usage
             log.info("--usage-count off: opt-out %s",
                      "sent" if usage.opt_out("installer") else "not sent")
         except Exception:  # noqa: BLE001 - never in the installer's way
@@ -144,7 +146,7 @@ def uninstall_count() -> int:
     for the anonymous usage count, only if it's switched on and was ever sent. No
     window. Always 0: an uninstall never waits on, or fails for, this."""
     try:
-        from onionwatch import usage
+        from onionwatch.core import usage
         cfg = settings.Config.load()
         if cfg.stats_id:   # never counted: switched off, or from before the count
             log.info("--uninstall-count: %s", "sent" if usage.send_now(
@@ -182,7 +184,7 @@ def main():
     if not claim_single_instance(RESTART_WAIT_S if RESTART_ARG in sys.argv else 0.0):
         log.info("another Onion Watch is running; asked it to come to the front")
         sys.exit(0)
-    from onionwatch import usage
+    from onionwatch.core import usage
     usage.note(usage.mark_running(settings.APP_DIR))   # the last run didn't close itself?
     holder = {}
     app.instance_server = listen_for_second_launch(app, lambda: holder.get("w"))
@@ -202,7 +204,7 @@ def main():
     # new versions (updates.py) and the anonymous count (usage.py): each at most once a
     # day, unless switched off, also for a copy left running for days
     from PySide6.QtCore import QTimer
-    from onionwatch import updates
+    from onionwatch.core import updates
     updates.cleanup()   # installers from an earlier update
     QTimer.singleShot(30_000, w.check_updates)
     QTimer.singleShot(40_000, w.send_usage)

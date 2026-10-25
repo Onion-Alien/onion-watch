@@ -6,7 +6,7 @@ import datetime
 import pytest
 
 from onionwatch import theme
-from onionwatch.settings import Config
+from onionwatch.core.settings import Config
 from test_ui import fake_screen  # noqa: F401 (a fixture)
 
 DAY = datetime.timedelta(days=1)

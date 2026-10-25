@@ -18,7 +18,8 @@ from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (QFrame, QHBoxLayout, QLabel, QMenu, QPushButton, QScrollArea,
                                QVBoxLayout, QWidget)
 
-from onionwatch import REPO, __version__, feedback, theme
+from onionwatch import REPO, __version__, theme
+from onionwatch.core import feedback
 from onionwatch.i18n import _
 from onionwatch.ui import icons
 from onionwatch.ui.panel import Flow, card, hint_label

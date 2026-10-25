@@ -5,7 +5,7 @@
 ;   - a "Your privacy" page (PrivacyPage in [Code]): in plain words, the only two
 ;     things the app does online (the daily update check and the anonymous count)
 ;   - a Start menu shortcut, a Desktop one if ticked, and "Count me in" (the anonymous
-;     daily count, onionwatch/usage.py; ticked). Unticked runs OnionWatch.exe
+;     daily count, onionwatch/core/usage.py; ticked). Unticked runs OnionWatch.exe
 ;     --usage-count off before the first start: the only thing ever sent is one
 ;     anonymous "opt-out/installer" (no ID)
 ;   - uninstalling runs OnionWatch.exe --uninstall-count: one "uninstall/<version>",
@@ -14,7 +14,7 @@
 ;     (HeardPage), sent once with the first-start count
 ;   - then opens Onion Watch
 ;
-; The app's own updater (onionwatch/updates.py) runs it with /SILENT /RELAUNCH=1:
+; The app's own updater (onionwatch/core/updates.py) runs it with /SILENT /RELAUNCH=1:
 ; a silent install keeps the last install's boxes and never switches the count on.
 ;
 ; Built by build.ps1 (needs Inno Setup 6: winget install JRSoftware.InnoSetup), which
@@ -99,7 +99,7 @@ Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}.exe"; AppUserMo
 Name: "{autoprograms}\{#AppName}"; Filename: "{app}\{#AppExeName}.exe"; AppUserModelID: "OnionWatch.App"
 
 [Run]
-; "Count me in" (onionwatch/usage.py): unticked, it's switched off before the first
+; "Count me in" (onionwatch/core/usage.py): unticked, it's switched off before the first
 ; start; the only thing ever sent is one anonymous "opt-out/installer" (no ID). Ticked on a page the user saw, it's switched on (an
 ; old install had it off); a silent update never switches it on.
 Filename: "{app}\{#AppExeName}.exe"; Parameters: "--usage-count off"; \
@@ -110,7 +110,7 @@ Filename: "{app}\{#AppExeName}.exe"; Parameters: "--usage-count on{code:HeardArg
   StatusMsg: "Switching on the usage count..."; \
   Tasks: countme; Check: not WizardSilent; Flags: runhidden waituntilterminated
 Filename: "{app}\{#AppExeName}.exe"; Description: "Open Onion Watch now"; Flags: nowait postinstall skipifsilent
-; The app's own updater (onionwatch/updates.py) runs this silently with /RELAUNCH=1
+; The app's own updater (onionwatch/core/updates.py) runs this silently with /RELAUNCH=1
 ; after closing itself: open it again once the new version is in place. Through
 ; Explorer, so it starts with the user's own environment like a double-click does,
 ; not the old frozen app's (Onion Board 1.3.3 -> 1.4.0 crashed on start from that).
@@ -126,7 +126,7 @@ var
   PrivacyPage: TWizardPage;
   HeardPage: TWizardPage;      // "Where did you hear about Onion Watch?": new installs
   HeardRadios: array of TNewRadioButton;
-  HeardKeys: array of String;  // what each one sends (onionwatch/usage.py's HEARD)
+  HeardKeys: array of String;  // what each one sends (onionwatch/core/usage.py's HEARD)
   HeardOther: TNewEdit;        // Other's own answer
 
 // /RELAUNCH=1: started by the app's Update now (see [Run])
@@ -204,7 +204,7 @@ begin
 end;
 
 // The last page of a new install with Count me in ticked: where they heard about the
-// app, sent once with the first-start count (onionwatch/usage.py heard_tag, which
+// app, sent once with the first-start count (onionwatch/core/usage.py heard_tag, which
 // drops a typed answer that doesn't look like a name). "Rather not say" is picked.
 procedure CreateHeardPage;
 var
@@ -325,7 +325,7 @@ var
 begin
   if CurUninstallStep <> usUninstall then
     exit;
-  // the anonymous usage count's "uninstall/<version>" (onionwatch/usage.py): the app
+  // the anonymous usage count's "uninstall/<version>" (onionwatch/core/usage.py): the app
   // sends it only if the count is switched on, and gives up after 15 s offline
   Exec(ExpandConstant('{app}\{#AppExeName}.exe'), '--uninstall-count', '', SW_HIDE,
        ewWaitUntilTerminated, Code);

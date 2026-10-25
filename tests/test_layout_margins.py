@@ -103,7 +103,7 @@ def test_the_empty_list_fits_without_a_scroll_bar(qapp, app_dir, fake_screen, st
                                                    size, roomy):
     """Hoot and both paragraphs fit the smallest window; only there does the card's
     padding tighten, never at a size where the roomy one fits."""
-    from onionwatch.settings import Config
+    from onionwatch.core.settings import Config
     from onionwatch.ui import triggerspanel
     from onionwatch.ui.mainwindow import MainWindow
     win = MainWindow(Config())

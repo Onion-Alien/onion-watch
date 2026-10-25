@@ -22,8 +22,9 @@ from PySide6.QtWidgets import (QButtonGroup, QCheckBox, QColorDialog, QComboBox,
                                QListWidget, QListWidgetItem, QPushButton, QRadioButton,
                                QScrollArea, QSlider, QStackedWidget, QVBoxLayout, QWidget)
 
-from onionwatch import __version__, feedback, i18n, theme
-from onionwatch.sounds import DEFAULT_SOUND
+from onionwatch import __version__, i18n, theme
+from onionwatch.core import feedback
+from onionwatch.audio.sounds import DEFAULT_SOUND
 from onionwatch.style import owl
 from onionwatch.ui import fit, icons
 from onionwatch.ui.panel import hint_label
@@ -779,7 +780,7 @@ class SettingsDialog(QDialog):
         if not on and self.win.cfg.usage_count:
             # Count me in switched off: one anonymous "opt-out/settings" (usage.opt_out:
             # no ID), then nothing
-            from onionwatch import usage
+            from onionwatch.core import usage
             threading.Thread(target=usage.opt_out, args=("settings",), daemon=True,
                              name="usage-opt-out").start()
         self._set("usage_count", on)

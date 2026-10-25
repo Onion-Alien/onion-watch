@@ -1,10 +1,10 @@
-"""The update check and download (onionwatch.updates), with GitHub faked."""
+"""The update check and download (onionwatch.core.updates), with GitHub faked."""
 import hashlib
 import io
 
 import pytest
 
-from onionwatch import settings, updates
+from onionwatch.core import settings, updates
 
 SHA = "a" * 64
 DL = updates.DOWNLOADS + "v9.9.9/"

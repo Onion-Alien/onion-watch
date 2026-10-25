@@ -14,11 +14,11 @@ from PySide6.QtWidgets import QLabel
 
 from onionwatch.engine import screenwatch as sw
 from onionwatch.engine import windows
-from onionwatch.apphost import AppHost
-from onionwatch.player import Player
+from onionwatch.core.apphost import AppHost
+from onionwatch.audio.player import Player
 from onionwatch.engine.screenwatch import Monitor, WindowRef
-from onionwatch.settings import Config
-from onionwatch.sounds import DEFAULT_SOUND, Library
+from onionwatch.core.settings import Config
+from onionwatch.audio.sounds import DEFAULT_SOUND, Library
 from onionwatch.ui import triggerspanel
 from onionwatch.ui.triggerspanel import PICK_WINDOW, TriggersTab
 
@@ -644,7 +644,7 @@ def test_max_detection_is_picked_behind_the_cog_and_kept(tab, qapp, monkeypatch)
 
 def test_count_me_in_off_sends_one_opt_out_and_the_eye_shows_what_is_sent(
         qapp, app_dir, fake_screen, monkeypatch):
-    from onionwatch import usage
+    from onionwatch.core import usage
     from onionwatch.ui.mainwindow import MainWindow
     from onionwatch.ui.settingsdialog import SettingsDialog
     where = []

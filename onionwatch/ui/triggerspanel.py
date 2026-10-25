@@ -43,10 +43,11 @@ from PySide6.QtWidgets import (QAbstractSpinBox, QApplication, QBoxLayout, QChec
                                QVBoxLayout, QWidget)
 
 from onionwatch.engine import cutout, packs, profiles, screenwatch, windows
-from onionwatch import kit, theme, usage
+from onionwatch import kit, theme
+from onionwatch.core import usage
 from onionwatch.engine.screenwatch import (INTERVALS_MS, MAX_PICTURES, MAX_SOUNDS, Monitor, Picture,
                                            Trigger, Watched, WindowRef)
-from onionwatch.shuffle import ShuffleBag
+from onionwatch.audio.shuffle import ShuffleBag
 from onionwatch.ui import icons
 from onionwatch.ui.categories import (MAX_PER_ROW, PAD, CategoriesDialog, CategorySection,
                                       ProfilesDialog,

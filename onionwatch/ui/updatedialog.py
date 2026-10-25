@@ -1,5 +1,5 @@
 """The "a new version is out" dialog: what's new, and Update now / Later / Skip this
-version. Update now downloads the installer (onionwatch.updates: SHA-256 checked)
+version. Update now downloads the installer (onionwatch.core.updates: SHA-256 checked)
 with a progress bar, then starts it and quits so it can replace the files; the
 installer opens Onion Watch again. A copy running from source (or a release with no
 installer the app can check) gets "Open its page" instead."""
@@ -13,7 +13,8 @@ from PySide6.QtCore import QObject, Qt, Signal
 from PySide6.QtWidgets import (QDialog, QHBoxLayout, QLabel, QProgressBar, QPushButton,
                                QVBoxLayout)
 
-from onionwatch import __version__, updates, usage
+from onionwatch import __version__
+from onionwatch.core import updates, usage
 from onionwatch.ui.panel import hint_label
 from onionwatch.ui import fit
 from onionwatch.i18n import _

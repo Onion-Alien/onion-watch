@@ -24,7 +24,8 @@ import urllib.request
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from onionwatch import REPO as _REPO, __version__, settings
+from onionwatch import REPO as _REPO, __version__
+from onionwatch.core import settings
 from onionwatch.i18n import _
 
 log = logging.getLogger(__name__)

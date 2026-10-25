@@ -16,7 +16,7 @@ import time
 
 import numpy as np
 
-from onionwatch.sounds import RATE
+from onionwatch.audio.sounds import RATE
 
 log = logging.getLogger(__name__)
 

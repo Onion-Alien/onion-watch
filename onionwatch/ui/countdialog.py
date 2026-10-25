@@ -1,7 +1,7 @@
 """*What Count me in sends*: the eye button beside Settings' Count me in opens this
 small table (what, an example, why), so the setting itself stays one line and the
 whole list is one click away. The same as Onion Board's. Keep it in step with
-onionwatch/usage.py and the SECURITY.md row: anything new the count sends gets a
+onionwatch/core/usage.py and the SECURITY.md row: anything new the count sends gets a
 row here too."""
 from __future__ import annotations
 

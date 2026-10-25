@@ -16,7 +16,8 @@ from __future__ import annotations
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QApplication, QMenu, QPushButton, QVBoxLayout, QWidget
 
-from onionwatch import __version__, i18n, kit, theme, usage
+from onionwatch import __version__, i18n, kit, theme
+from onionwatch.core import usage
 from onionwatch.host import API_VERSION, missing
 from onionwatch.i18n import _
 

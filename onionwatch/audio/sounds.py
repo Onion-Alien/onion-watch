@@ -17,7 +17,7 @@ from pathlib import Path
 
 import numpy as np
 
-from onionwatch import settings
+from onionwatch.core import settings
 from onionwatch.i18n import _
 
 log = logging.getLogger(__name__)

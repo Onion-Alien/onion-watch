@@ -165,9 +165,10 @@ def main(out: Path):
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
     from onionwatch.engine import screenwatch, windows
-    from onionwatch import settings, theme
+    from onionwatch.core import settings
+    from onionwatch import theme
     from onionwatch.engine.screenwatch import Monitor, Trigger, WindowRef
-    from onionwatch.settings import Config
+    from onionwatch.core.settings import Config
     from onionwatch.ui.mainwindow import MainWindow
 
     screenwatch.monitors = lambda: [Monitor(0, 0, 2560, 1440, True)]
