@@ -324,9 +324,11 @@ def step(cfg, name: str, saved=None) -> None:
 
 
 # ---------------------------------------------------------------- problems
-# a stack line: `File "...\onionwatch\ui\triggerspanel.py", line 1090, in ...`; only
-# our own files count, named from the package folder down (never the folder above it)
-_OUR_FRAME = re.compile(r'(?:[\\/]|^)(onionwatch(?:[\\/][a-z0-9_]+)?[\\/][a-z0-9_]+\.py)$')
+# a stack line: `File "...\onionwatch\ui\triggers\triggerspanel.py", line 1090, in ...`;
+# only our own files count (up to two folders below the package, as deep as it goes),
+# named from the package folder down (never the folder above it)
+_OUR_FRAME = re.compile(
+    r'(?:[\\/]|^)(onionwatch(?:[\\/][a-z0-9_]+){0,2}[\\/][a-z0-9_]+\.py)$')
 
 
 def error_event(etype, tb) -> str:

@@ -177,6 +177,20 @@ def test_error_event_has_type_and_our_line_only():
     assert "secret" not in ev
 
 
+def test_every_file_of_ours_counts_as_ours():
+    """An error names the deepest of our own lines: every module of the package has to
+    match the rule, however many folders down it sits (up to two)."""
+    from pathlib import Path
+
+    import onionwatch
+    root = Path(onionwatch.__file__).parent.parent
+    files = [p.relative_to(root) for p in (root / "onionwatch").rglob("*.py")]
+    assert files and not [f for f in files if not usage._OUR_FRAME.search(f"C:\\x\\{f}")]
+    assert usage._OUR_FRAME.search(r"C:\x\onionwatch\ui\triggers\x.py").group(1) == \
+        r"onionwatch\ui\triggers\x.py"
+    assert not usage._OUR_FRAME.search(r"C:\onionwatch\a\b\c\x.py")   # deeper: not ours
+
+
 def test_error_event_without_our_code():
     assert usage.error_event(ValueError, None) == f"onion-watch/error/{__version__}/ValueError"
 
