@@ -12,15 +12,16 @@ from PySide6.QtCore import QPoint, QPointF, QRect, Qt
 from PySide6.QtGui import QImage, QMouseEvent
 from PySide6.QtWidgets import QLabel
 
-from onionwatch import screenwatch as sw
-from onionwatch import windows
-from onionwatch.apphost import AppHost
-from onionwatch.player import Player
-from onionwatch.screenwatch import Monitor, WindowRef
-from onionwatch.settings import Config
-from onionwatch.sounds import DEFAULT_SOUND, Library
-from onionwatch.ui import triggerspanel
-from onionwatch.ui.triggerspanel import PICK_WINDOW, TriggersTab
+from onionwatch.engine import screenwatch as sw
+from onionwatch.engine import windows
+from onionwatch.core.apphost import AppHost
+from onionwatch.audio.player import Player
+from onionwatch.engine.screenwatch import Monitor, WindowRef
+from onionwatch.core.settings import Config
+from onionwatch.audio.sounds import DEFAULT_SOUND, Library
+from onionwatch.ui.triggers import pictures, triggerspanel
+from onionwatch.ui.triggers.cardkit import PICK_WINDOW
+from onionwatch.ui.triggers.triggerspanel import TriggersTab
 
 W, H = 320, 180
 
@@ -110,7 +111,7 @@ def test_a_pasted_picture_becomes_a_trigger_that_plays_the_default_alert(tab, qa
 
 
 def test_a_ringing_trigger_raises_the_alarm_bar_until_stopped(qapp, app_dir, fake_screen):
-    from onionwatch.ui.mainwindow import MainWindow
+    from onionwatch.ui.window.mainwindow import MainWindow
     cfg = Config()
     win = MainWindow(cfg)
     try:
@@ -249,7 +250,7 @@ def test_a_picture_is_cut_straight_out_of_a_window(tab, monkeypatch):
     monkeypatch.setattr(windows, "find", lambda r, wins=None: windows.WindowInfo(
         7, "Game", "game.exe", 7, 0, W, H))
     monkeypatch.setattr(windows, "snapshot", lambda hwnd: px)
-    from onionwatch.ui import snip
+    from onionwatch.ui.triggers import snip
 
     def fake_exec(dlg):
         dlg.view.selection = QRect(110, 70, 90, 30)
@@ -287,8 +288,8 @@ def cut_while(tab, monkeypatch, grabs, rect, secs=0.4):
     import itertools
     import time
 
-    from onionwatch import cutout
-    from onionwatch.ui import snip
+    from onionwatch.engine import cutout
+    from onionwatch.ui.triggers import snip
     monkeypatch.setattr(cutout, "GRAB_S", 0.02)
     monkeypatch.setattr(windows, "find", lambda r, wins=None: windows.WindowInfo(
         7, "Game", "game.exe", 7, 0, grabs[0].shape[1], grabs[0].shape[0]))
@@ -329,7 +330,7 @@ def test_scenery_moving_behind_a_cut_is_learned_and_left_out(tab, monkeypatch):
     assert len(tab.triggers) == 1
     got = QImage(tab.triggers[0].images[0])
     assert (got.width(), got.height()) == (110, 50) and got.hasAlphaChannel()
-    pic = triggerspanel.load_picture(tab.triggers[0].images[0])
+    pic = pictures.load_picture(tab.triggers[0].images[0])
     assert pic[1] is not None
     assert pic[1][10:40, 10:100].mean() > 0.95          # the banner is kept...
     assert pic[1][:, :8].mean() < 0.3                   # ...the scenery beside it isn't
@@ -346,7 +347,7 @@ def test_a_cut_with_a_look_alike_elsewhere_is_warned_about(tab, monkeypatch):
 
 
 def test_the_crop_view_maps_a_drag_to_the_capture_pixels(qapp):
-    from onionwatch.ui.snip import CropView
+    from onionwatch.ui.triggers.snip import CropView
     view = CropView(as_qimage(scene(3)))
     view.resize(W * 2, H * 2)                      # shown at twice the size
 
@@ -365,7 +366,7 @@ def test_the_window_picker_lists_windows_and_tells_copies_apart(qapp, monkeypatc
             windows.WindowInfo(3, "Notes", "notepad.exe", 3, 50, W, H, minimized=True)]
     monkeypatch.setattr(windows, "list_windows", lambda: list(wins))
     monkeypatch.setattr(windows, "snapshot", lambda hwnd: np.full((H, W, 4), 90, np.uint8))
-    from onionwatch.ui.windowpicker import WindowPicker
+    from onionwatch.ui.triggers.windowpicker import WindowPicker
     dlg = WindowPicker(None, WindowRef("game.exe", "Game", 1))
     texts = [dlg.list.item(i).text() for i in range(dlg.list.count())]
     assert texts == ["Game\ngame.exe", "Game\ngame.exe · copy 2",
@@ -378,8 +379,8 @@ def test_the_window_picker_lists_windows_and_tells_copies_apart(qapp, monkeypatc
 
 
 def test_settings_change_the_theme_and_volume_live(qapp, app_dir, fake_screen):
-    from onionwatch.ui.mainwindow import MainWindow
-    from onionwatch.ui.settingsdialog import SettingsDialog
+    from onionwatch.ui.window.mainwindow import MainWindow
+    from onionwatch.ui.settings.settingsdialog import SettingsDialog
     win = MainWindow(Config())
     try:
         dlg = SettingsDialog(win)
@@ -400,8 +401,8 @@ def test_the_window_and_tray_icons_follow_the_theme(qapp, app_dir, fake_screen):
     colours, not only the header logo."""
     from PySide6.QtWidgets import QApplication
 
-    from onionwatch import theme
-    from onionwatch.ui.mainwindow import MainWindow
+    from onionwatch.ui.kit import theme
+    from onionwatch.ui.window.mainwindow import MainWindow
 
     def pixels(icon):
         return icon.pixmap(32, 32).toImage()
@@ -438,20 +439,20 @@ def test_a_deleted_trigger_can_be_undone_or_brought_back_later(tab, monkeypatch)
     # after the Undo bar has gone, it's still in Recently deleted
     tab._remove(tab.rows[first.id])
     tab.undo_bar.finish()
-    [(iid, name, _when)] = tab.deleted()
+    [(iid, name, _when)] = tab.binctl.deleted()
     assert name == "First"
-    assert tab.restore_deleted(iid)
-    assert tab.triggers[0].name == "First" and tab.deleted() == []
+    assert tab.binctl.restore_deleted(iid)
+    assert tab.triggers[0].name == "First" and tab.binctl.deleted() == []
     # deleted for good: its picture goes too
     tab._remove(tab.rows[first.id])
-    tab.forget_deleted(tab.deleted()[0][0])
-    assert not pic.exists() and tab.deleted() == []
+    tab.binctl.forget_deleted(tab.binctl.deleted()[0][0])
+    assert not pic.exists() and tab.binctl.deleted() == []
 
 
 @pytest.fixture
 def styled(qapp):
     """The app's real stylesheet (padding decides when the bottom bar wraps)."""
-    from onionwatch import theme
+    from onionwatch.ui.kit import theme
     old = qapp.styleSheet()
     theme.apply(qapp, "Dark")
     yield
@@ -486,7 +487,7 @@ def test_the_undo_notice_floats_without_moving_the_list(tab, qapp, styled):
     assert bar.isHidden() and [t.id for t in tab.triggers] == [first.id, second.id]
     tab._remove(tab.rows[first.id])
     bar.btn_close.click()                     # dismissed: still in Recently deleted
-    assert bar.isHidden() and [name for _i, name, _w in tab.deleted()] == ["First"]
+    assert bar.isHidden() and [name for _i, name, _w in tab.binctl.deleted()] == ["First"]
 
 
 def test_old_deleted_triggers_are_let_go(tab):
@@ -498,8 +499,8 @@ def test_old_deleted_triggers_are_let_go(tab):
     tab._remove(tab.rows[t.id])
     tab.undo_bar.finish()
     tab.host.screen["deleted"][0]["when"] = time.time() - (triggerspanel.KEEP_DAYS + 1) * 86400
-    tab._prune_bin()
-    assert tab.deleted() == [] and not pic.exists()
+    tab.binctl._prune_bin()
+    assert tab.binctl.deleted() == [] and not pic.exists()
 
 
 def test_a_removed_picture_can_be_undone(tab):
@@ -517,10 +518,10 @@ def test_a_removed_picture_can_be_undone(tab):
 
 
 def test_the_recently_deleted_window_brings_triggers_back(tab):
-    from onionwatch.ui.deleted import DeletedDialog
+    from onionwatch.ui.triggers.deleted import DeletedDialog
     tab._new(as_qimage(banner()), "Gone")
     tab._remove(tab.rows[tab.triggers[0].id])
-    dlg = DeletedDialog(tab, triggerspanel.KEEP_DAYS)
+    dlg = DeletedDialog(tab.binctl, triggerspanel.KEEP_DAYS, tab)
     assert dlg.list.count() == 1 and "Gone" in dlg.list.item(0).text()
     dlg.bring_back()
     assert [t.name for t in tab.triggers] == ["Gone"]
@@ -534,7 +535,7 @@ def test_the_recently_deleted_button_shows_while_the_bin_has_triggers(tab):
     assert not tab.btn_bin.isHidden() and tab.btn_bin.text() == "1"
     assert tab.btn_bin.accessibleName() == "Recently deleted (1)"
     assert tab.btn_bin.toolTip().startswith("Recently deleted (1)")
-    tab.restore_deleted(tab.deleted()[0][0])
+    tab.binctl.restore_deleted(tab.binctl.deleted()[0][0])
     assert tab.btn_bin.isHidden()
 
 
@@ -547,7 +548,7 @@ def test_the_delete_button_asks_first(tab, monkeypatch):
     assert [t.name for t in tab.triggers] == ["Keep me"]
     monkeypatch.setattr(box, "exec", lambda self: box.Yes)
     row.btn_del.click()
-    assert tab.triggers == [] and tab.deleted()[0][1] == "Keep me"
+    assert tab.triggers == [] and tab.binctl.deleted()[0][1] == "Keep me"
 
 
 def test_toolbar_is_one_row_when_there_is_room(tab, qapp, styled):
@@ -595,7 +596,7 @@ def test_processor_use_is_picked_behind_the_cog_and_kept(tab, qapp, monkeypatch)
     """The ⚙ on the bar opens Watching: picking Fast lets watching use 5 % at once
     and keeps it in the screen settings, which the next start (Onion Watch's or
     Onion Board's tab) reads back; a value no version knows falls back to 1 %."""
-    from onionwatch.ui.watching import CHOICES, WatchingDialog
+    from onionwatch.ui.settings.watching import CHOICES, WatchingDialog
     assert tab.watcher.cpu_share == sw.CPU_SHARE
     shown = []
     monkeypatch.setattr(WatchingDialog, "exec", lambda self: shown.append(self) or 0)
@@ -621,7 +622,7 @@ def test_max_detection_is_picked_behind_the_cog_and_kept(tab, qapp, monkeypatch)
     """Max detection has a key of its own ("max_detect"): picking it keeps the
     processor share as it was (what an older version, or "Off", goes by), the next
     start reads it back, and a value no version knows is "off"."""
-    from onionwatch.ui.watching import MAX_CHOICES, WatchingDialog
+    from onionwatch.ui.settings.watching import MAX_CHOICES, WatchingDialog
     assert tab.watcher.max_detect == "off"
     shown = []
     monkeypatch.setattr(WatchingDialog, "exec", lambda self: shown.append(self) or 0)
@@ -644,9 +645,9 @@ def test_max_detection_is_picked_behind_the_cog_and_kept(tab, qapp, monkeypatch)
 
 def test_count_me_in_off_sends_one_opt_out_and_the_eye_shows_what_is_sent(
         qapp, app_dir, fake_screen, monkeypatch):
-    from onionwatch import usage
-    from onionwatch.ui.mainwindow import MainWindow
-    from onionwatch.ui.settingsdialog import SettingsDialog
+    from onionwatch.core import usage
+    from onionwatch.ui.window.mainwindow import MainWindow
+    from onionwatch.ui.settings.settingsdialog import SettingsDialog
     where = []
     monkeypatch.setattr(usage, "opt_out", lambda w: where.append(w) or True)
     win = MainWindow(Config())

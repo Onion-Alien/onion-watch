@@ -7,10 +7,10 @@ import time
 import numpy as np
 import pytest
 
-from onionwatch import screenwatch as sw
-from onionwatch import windows
-from onionwatch.screenwatch import Monitor, Trigger, Watched, WindowRef
-from onionwatch.windows import WindowInfo
+from onionwatch.engine import screenwatch as sw
+from onionwatch.engine import windows
+from onionwatch.engine.screenwatch import Monitor, Trigger, Watched, WindowRef
+from onionwatch.engine.windows import WindowInfo
 
 W, H = 320, 180
 

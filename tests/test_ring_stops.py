@@ -8,9 +8,9 @@ from conftest import process_events
 import test_ui
 from test_ui import FakeGrabber, as_qimage, banner, scene, showing
 
-from onionwatch import screenwatch as sw
-from onionwatch import windows
-from onionwatch.screenwatch import Quieter, Trigger, WindowRef
+from onionwatch.engine import screenwatch as sw
+from onionwatch.engine import windows
+from onionwatch.engine.screenwatch import Quieter, Trigger, WindowRef
 
 fake_screen, tab = test_ui.fake_screen, test_ui.tab   # the same stand-ins
 
@@ -202,7 +202,7 @@ def test_the_alarm_bar_only_checks_while_something_rings(qapp):
     doesn't run at all. A ring starts it, and it stops again once the ring ends."""
     from PySide6.QtCore import QObject, Signal
 
-    from onionwatch.ui.alarmbar import AlarmBar
+    from onionwatch.ui.triggers.alarmbar import AlarmBar
 
     class Host:
         rings: list = []

@@ -8,7 +8,7 @@ from test_ui import as_qimage, banner
 
 from PySide6.QtWidgets import QPushButton
 
-from onionwatch.ui.triggerspanel import FlowBox
+from onionwatch.ui.triggers.cardkit import FlowBox
 
 fake_screen, tab = test_ui.fake_screen, test_ui.tab   # the same stand-ins
 
@@ -95,7 +95,7 @@ def test_a_row_that_wraps_takes_the_height_it_needs(qapp):
 
 
 def test_a_thumbnail_opens_its_picture_big(tab, monkeypatch):
-    from onionwatch.ui import viewer
+    from onionwatch.ui.triggers import viewer
     seen = []
     monkeypatch.setattr(viewer.PictureViewer, "open",
                         lambda self: seen.append((self.index, list(self.paths))) or 0)
@@ -106,7 +106,7 @@ def test_a_thumbnail_opens_its_picture_big(tab, monkeypatch):
 
 
 def test_the_viewer_goes_round_and_takes_pictures_off(tab, qapp):
-    from onionwatch.ui.viewer import PictureViewer
+    from onionwatch.ui.triggers.viewer import PictureViewer
     row = new_card(tab)
     tab._add_pictures(row.t, [as_qimage(banner()[:, ::-1]), as_qimage(banner()[::-1])])
     v = PictureViewer("x", lambda: row.t.images, 2,
@@ -125,7 +125,7 @@ def test_the_viewer_goes_round_and_takes_pictures_off(tab, qapp):
 
 
 def test_a_small_picture_is_shown_in_whole_pixels(qapp):
-    from onionwatch.ui.viewer import MAX_ZOOM, PictureView
+    from onionwatch.ui.triggers.viewer import MAX_ZOOM, PictureView
     pv = PictureView()
     pv.resize(800, 600)
     pv.set_image(as_qimage(banner()))       # 90 × 30

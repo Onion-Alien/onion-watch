@@ -1,6 +1,6 @@
-"""Trigger categories and profiles (onionwatch.profiles): no Qt, no windows."""
-from onionwatch import profiles as pf
-from onionwatch.screenwatch import Trigger
+"""Trigger categories and profiles (onionwatch.engine.profiles): no Qt, no windows."""
+from onionwatch.engine import profiles as pf
+from onionwatch.engine.screenwatch import Trigger
 
 
 def test_an_old_config_loads_with_everything_uncategorised_and_on():

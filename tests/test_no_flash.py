@@ -4,11 +4,11 @@ from PySide6.QtCore import QEvent, QObject
 from PySide6.QtGui import QColor, QImage
 from PySide6.QtWidgets import QWidget
 
-from onionwatch import windows
-from onionwatch import screenwatch as sw
-from onionwatch.ui import snip
-from onionwatch.ui.viewer import PictureViewer
-from onionwatch.ui.windowpicker import WindowPicker
+from onionwatch.engine import windows
+from onionwatch.engine import screenwatch as sw
+from onionwatch.ui.triggers import snip
+from onionwatch.ui.triggers.viewer import PictureViewer
+from onionwatch.ui.triggers.windowpicker import WindowPicker
 from test_categories import make, raw  # noqa: F401 - the fixture
 
 W, H = 320, 180

@@ -8,10 +8,10 @@ import time
 import numpy as np
 import pytest
 
-from onionwatch import screenwatch as sw
-from onionwatch import windows
-from onionwatch.screenwatch import Monitor, Watched, WindowRef
-from onionwatch.windows import WindowInfo
+from onionwatch.engine import screenwatch as sw
+from onionwatch.engine import windows
+from onionwatch.engine.screenwatch import Monitor, Watched, WindowRef
+from onionwatch.engine.windows import WindowInfo
 from test_windows import H, W, banner, run_until, scene, showing
 
 HUNG = WindowRef("slow.exe", "Slow game", 0)

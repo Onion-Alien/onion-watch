@@ -7,7 +7,7 @@ import sys
 import types
 from pathlib import Path
 
-from onionwatch import kit, theme
+from onionwatch.ui.kit import kit, theme
 from onionwatch.style import KIT_VERSION, bunnyfit, palettes
 
 STYLE = Path(__file__).resolve().parent.parent / "onionwatch" / "style"

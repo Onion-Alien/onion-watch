@@ -1,7 +1,7 @@
 """Settings: a config.json that can't be read is kept aside, not overwritten."""
 import json
 
-from onionwatch.settings import CONFIG, Config
+from onionwatch.core.settings import CONFIG, Config
 
 
 def test_an_unreadable_config_is_kept_aside_before_defaults(tmp_path):

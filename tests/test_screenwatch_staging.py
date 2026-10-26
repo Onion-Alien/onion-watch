@@ -8,7 +8,7 @@ import logging
 
 import numpy as np
 
-from onionwatch import screenwatch as sw
+from onionwatch.engine import screenwatch as sw
 
 
 class FakeCom:
@@ -92,7 +92,7 @@ def _grabber(monkeypatch, frame_fmt, frame_w, frame_h, pixel_bgra):
 def test_frames_in_another_format_than_announced_are_still_read(monkeypatch, caplog):
     g, created = _grabber(monkeypatch, sw.FMT_BGRA8, 1920, 1080, (200, 100, 50, 255))
     g.announced = sw.FMT_RGBA16F
-    with caplog.at_level(logging.INFO, logger="onionwatch.screenwatch"):
+    with caplog.at_level(logging.INFO, logger="onionwatch.engine.screenwatch"):
         gray = g.grab(100)
     assert created == [(1920, 1080, sw.FMT_BGRA8)]          # staging rebuilt for the frame
     assert g._mode == (1920, 1080, sw.FMT_BGRA8)

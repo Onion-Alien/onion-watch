@@ -5,8 +5,8 @@ import datetime
 
 import pytest
 
-from onionwatch import theme
-from onionwatch.settings import Config
+from onionwatch.ui.kit import theme
+from onionwatch.core.settings import Config
 from test_ui import fake_screen  # noqa: F401 (a fixture)
 
 DAY = datetime.timedelta(days=1)
@@ -48,7 +48,7 @@ def test_a_missed_limited_theme_falls_back(monkeypatch):
 
 @pytest.fixture
 def win(qapp, app_dir, fake_screen, monkeypatch):  # noqa: F811
-    from onionwatch.ui.mainwindow import MainWindow
+    from onionwatch.ui.window.mainwindow import MainWindow
     monkeypatch.setattr(theme, "kept", set())
     w = MainWindow(Config())
     yield w
@@ -64,7 +64,7 @@ def test_using_it_keeps_and_saves_it(win):
 
 
 def test_the_card_has_the_tag_and_says_until_when(qapp, monkeypatch):
-    from onionwatch.ui.settingsdialog import ThemeCard, limited_tip
+    from onionwatch.ui.settings.settingsdialog import ThemeCard, limited_tip
     monkeypatch.setattr(theme, "kept", set())
     card, plain = ThemeCard("Halloween"), ThemeCard("Hoot")
     assert card.toolTip() == limited_tip("Halloween") and "31" in card.toolTip()

@@ -5,7 +5,7 @@ import test_ui
 from PySide6.QtWidgets import QLabel
 from test_ui import as_qimage, banner
 
-from onionwatch.ui.triggerspanel import LIST_WIDTH, SPLIT_MIN
+from onionwatch.ui.triggers.triggerspanel import LIST_WIDTH, SPLIT_MIN
 
 fake_screen, tab = test_ui.fake_screen, test_ui.tab   # the same stand-ins
 
@@ -129,7 +129,7 @@ def test_a_narrow_window_opens_the_card_in_the_list_again(tab, qapp):
 def test_the_view_box_says_cards_when_too_narrow_for_the_list(tab, qapp):
     """List and editor picked in a window too narrow for it shows cards: the View box
     said "List and editor" all the same. It says what's on screen, and goes back."""
-    from onionwatch.ui.triggerspanel import LIST_VIEW
+    from onionwatch.ui.triggers.triggerspanel import LIST_VIEW
     two(tab)
     tab.set_list_view(True)
     cb = tab.cb_per_row
@@ -170,7 +170,7 @@ def test_pads_fill_the_page_until_one_is_picked_then_share_it(tab, qapp):
     """The Pads view: every trigger a pad, the whole width; a click opens it in the
     editor beside the pads (PADS_SHARE of the width at first), its handle dragged
     to share the width out (kept), its ✕ putting the pads back across it all."""
-    from onionwatch.ui.triggerspanel import PADS_SHARE
+    from onionwatch.ui.triggers.triggerspanel import PADS_SHARE
     first, second = two(tab)
     wide(tab, qapp, 1300)
     tab.set_list_view(True, pads=True)

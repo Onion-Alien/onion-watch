@@ -8,9 +8,9 @@ import pytest
 import soundfile as sf
 from conftest import SilentOutputStream
 
-from onionwatch import sounds
-from onionwatch.player import GAP_S, Player, Voice
-from onionwatch.sounds import BUILTINS, RATE, Library
+from onionwatch.audio import sounds
+from onionwatch.audio.player import GAP_S, Player, Voice
+from onionwatch.audio.sounds import BUILTINS, RATE, Library
 
 
 def test_every_built_in_sound_is_stereo_and_audible_but_not_clipping():

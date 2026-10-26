@@ -1,7 +1,7 @@
 """Playing now: what the triggers are playing, each with its own Stop, and Stop
 all; and the Log page beside the triggers."""
-from onionwatch.ui import triggerspanel
-from onionwatch.ui.pages import TriggerPages
+from onionwatch.ui.triggers import triggerspanel
+from onionwatch.ui.triggers.pages import TriggerPages
 
 from test_categories import make, raw  # noqa: F401  (the fixture, and its triggers)
 
@@ -114,7 +114,7 @@ def test_the_log_page_follows_what_went_off(make, tmp_path):  # noqa: F811
 
 def test_log_pictures_are_small_colour_copies_of_the_grab():
     import numpy as np
-    from onionwatch import screenwatch as sw
+    from onionwatch.engine import screenwatch as sw
     px = np.zeros((1080, 1920, 4), np.uint8)
     px[..., 2] = 200                                   # BGRA: red
     out = sw.log_rgb((px, sw.FMT_BGRA8, 2))
@@ -124,7 +124,7 @@ def test_log_pictures_are_small_colour_copies_of_the_grab():
 
 
 def test_colour_log_pictures_can_be_switched_off_and_stay_so(make, qapp):  # noqa: F811
-    from onionwatch.ui.watching import WatchingDialog
+    from onionwatch.ui.settings.watching import WatchingDialog
     tab = make({"triggers": [raw(1)]})
     assert tab.watcher.color_hits                     # on by default
     dlg = WatchingDialog(tab)
@@ -141,7 +141,7 @@ def test_the_log_adds_each_alert_instead_of_making_every_line_again(make):  # no
     that's hidden catches up when it shows."""
     from PySide6.QtGui import QImage
 
-    from onionwatch.ui.history import HistoryView
+    from onionwatch.ui.triggers.history import HistoryView
     tab = make({"triggers": [raw(1)]})
     view = HistoryView(tab)
     view.resize(400, 400)

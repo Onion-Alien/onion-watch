@@ -95,9 +95,9 @@ jobs:
       - name: Translations complete
         run: python scripts/i18n_extract.py --check
       - name: CODE.md lists every module
-        run: python scripts/check_code_doc.py
+        run: python scripts/checks/check_code_doc.py
 
-  # pyright over the whole repo: errors not in scripts/pyright_baseline.json fail.
+  # pyright over the whole repo: errors not in scripts/checks/pyright_baseline.json fail.
   # On Windows: Linux's PySide6 has no Windows-only APIs, so pyright there flags code
   # that's fine. Same venv cache as the test job.
   types:
@@ -118,7 +118,7 @@ jobs:
         run: |
           python -m venv .venv
           .venv\Scripts\python -m pip install -r requirements.txt -r requirements-dev.txt
-      - run: .venv\Scripts\python scripts/check_types.py --all
+      - run: .venv\Scripts\python scripts/checks/check_types.py --all
 
   # The unit tests on Windows (offscreen Qt, stand-in captures, a silent audio stream:
   # tests/conftest.py).
@@ -195,5 +195,5 @@ jobs:
         run: |
           echo "lint: $LINT, types: $TYPES, tests: $TESTS"
           [ "$LINT" = success ] || { echo "ruff, translations or CODE.md failed: see the lint job"; exit 1; }
-          [ "$TYPES" = success ] || { echo "new type errors: see the types job (scripts/check_types.py)"; exit 1; }
+          [ "$TYPES" = success ] || { echo "new type errors: see the types job (scripts/checks/check_types.py)"; exit 1; }
           [ "$TESTS" = success ] || { echo "the tests failed: see the test-windows job"; exit 1; }

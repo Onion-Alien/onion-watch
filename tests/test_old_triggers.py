@@ -11,10 +11,10 @@ import pytest
 from fakehost import FakeHost
 from PySide6.QtGui import QColor, QImage
 
-from onionwatch import screenwatch as sw
-from onionwatch.screenwatch import Trigger, WindowRef
-from onionwatch.ui import triggerspanel
-from onionwatch.ui.triggerspanel import TriggersTab
+from onionwatch.engine import screenwatch as sw
+from onionwatch.engine.screenwatch import Trigger, WindowRef
+from onionwatch.ui.triggers import triggerspanel
+from onionwatch.ui.triggers.triggerspanel import TriggersTab
 
 SAVED = {v: ts for v, ts in json.loads(
     (Path(__file__).parent / "old_triggers.json").read_text(encoding="utf-8")).items()

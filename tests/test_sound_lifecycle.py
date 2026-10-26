@@ -85,7 +85,7 @@ def test_taking_the_ringing_sound_off_stops_the_ring(tab, card):
 
 def test_a_new_until_applies_to_the_ring_going_now(tab, card):
     ring(tab, card)
-    from onionwatch import screenwatch as sw
+    from onionwatch.engine import screenwatch as sw
     tab._hits[card.t.id] = sw.Hit(0, (0, 0, 1, 1), 0.9)
     card.until.setCurrentIndex(card.until.findData("gone"))
     assert tab.host.ringing() == [card.t.id]               # still ringing...

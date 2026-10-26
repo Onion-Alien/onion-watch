@@ -2,9 +2,9 @@
 import pytest
 from PySide6.QtGui import QColor, QImage
 
-from onionwatch import profiles
-from onionwatch.ui import categories
-from onionwatch.ui.categories import CategoriesDialog
+from onionwatch.engine import profiles
+from onionwatch.ui.triggers import categories
+from onionwatch.ui.triggers.categories import CategoriesDialog
 
 from test_categories import make, raw  # noqa: F401  (the fixture, and its triggers)
 
@@ -178,7 +178,7 @@ def test_a_banner_shows_across_the_header_and_drags_into_place(make, qapp):  # n
 
 
 def test_a_pack_carries_its_categories_looks_and_banners(make, tmp_path):  # noqa: F811
-    from onionwatch import packs
+    from onionwatch.engine import packs
     a = make({"triggers": [raw(1, "Raid"), raw(2, "Plain")]})
     dlg = CategoriesDialog(a, a.groups.categories, a.host.data_dir, "Raid")
     dlg.set_color("#8e24aa")
@@ -193,8 +193,8 @@ def test_a_pack_carries_its_categories_looks_and_banners(make, tmp_path):  # noq
     looks = packs.read_categories(path)
     assert set(looks) == {"Raid"} and looks["Raid"][1] and looks["Raid"][2]
     b = make({"triggers": []})
-    assert b.add_pack(packs.read_pack(path)) == 2
-    b.add_pack_looks(looks)
+    assert b.packctl.add_pack(packs.read_pack(path)) == 2
+    b.packctl.add_pack_looks(looks)
     c = b.groups.find("Raid")
     assert c.color == "#8e24aa" and c.image and c.banner and c.banner_x == 0.2
     assert categories.banner_image(c, b.host.data_dir) is not None

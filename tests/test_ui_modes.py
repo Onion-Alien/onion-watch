@@ -11,11 +11,11 @@ from PySide6.QtGui import QColor, QImage
 from test_ui import (H, W, FakeGrabber, as_qimage, banner, fake_screen, scene,  # noqa: F401
                      showing, tab)
 
-from onionwatch import packs, windows
-from onionwatch import screenwatch as sw
-from onionwatch.screenwatch import WindowRef
-from onionwatch.ui import snip
-from onionwatch.ui.history import HistoryDialog, alert_text
+from onionwatch.engine import packs, windows
+from onionwatch.engine import screenwatch as sw
+from onionwatch.engine.screenwatch import WindowRef
+from onionwatch.ui.triggers import snip
+from onionwatch.ui.triggers.history import HistoryDialog, alert_text
 
 GAME = WindowRef("game.exe", "Game", 0)
 GAME2 = WindowRef("game.exe", "Game", 1)
@@ -163,7 +163,7 @@ def test_triggers_are_saved_to_a_file_and_loaded_back(tab, tmp_path):
     found = packs.read_pack(path)
     assert [t.mode for t, _p, _s in found] == ["vanish", "still"]
     before = {t.id for t in tab.triggers}
-    assert tab.add_pack(found) == 2
+    assert tab.packctl.add_pack(found) == 2
     new = [t for t in tab.triggers if t.id not in before]
     assert new[0].mode == "vanish" and new[0].sources == [GAME] and len(new[0].images) == 1
     assert new[0].images[0] != row.t.images[0]
@@ -185,7 +185,7 @@ def test_the_picker_ticks_several_places_and_every_copy(qapp, monkeypatch):
     monkeypatch.setattr(windows, "list_windows", lambda: list(wins))
     monkeypatch.setattr(windows, "snapshot", lambda hwnd: None)
     monkeypatch.setattr(sw, "monitors", lambda: [sw.Monitor(0, 0, W, H, True)])
-    from onionwatch.ui.windowpicker import WindowPicker
+    from onionwatch.ui.triggers.windowpicker import WindowPicker
     dlg = WindowPicker(None, [GAME2], multi=True)
     items = [dlg.list.item(i) for i in range(dlg.list.count())]
     screens = [it for it in items if isinstance(it.data(Qt.UserRole), int)]
@@ -206,7 +206,7 @@ def test_the_picker_ticks_several_places_and_every_copy(qapp, monkeypatch):
 def test_the_picker_keeps_a_ticked_window_that_is_not_open(qapp, monkeypatch):
     monkeypatch.setattr(windows, "list_windows", lambda: [])
     monkeypatch.setattr(sw, "monitors", lambda: [])
-    from onionwatch.ui.windowpicker import WindowPicker
+    from onionwatch.ui.triggers.windowpicker import WindowPicker
     dlg = WindowPicker(None, [GAME2], multi=True)
     assert dlg._ticked() == [GAME2] and "not open now" in dlg.list.item(
         dlg.list.count() - 1).text()

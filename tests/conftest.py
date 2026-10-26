@@ -93,7 +93,7 @@ def process_events(app, until, timeout=8.0, step=0.02):
 @pytest.fixture
 def app_dir(tmp_path, monkeypatch):
     """A fresh app folder per test (settings.APP_DIR is read when used)."""
-    from onionwatch import settings
+    from onionwatch.core import settings
     monkeypatch.setattr(settings, "APP_DIR", tmp_path)
     return tmp_path
 
@@ -112,7 +112,7 @@ def pytest_xdist_auto_num_workers(config):
 def _limited_themes_on_offer(monkeypatch):
     """Today is pinned inside every limited-edition theme's offer, so the tests that
     go through every theme still find them once the real offer has ended."""
-    from onionwatch import theme
+    from onionwatch.ui.kit import theme
     if theme.LIMITED:
         day = min(theme.LIMITED.values())
         monkeypatch.setattr(theme, "_today", lambda: day)

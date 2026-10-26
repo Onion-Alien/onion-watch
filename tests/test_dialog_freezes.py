@@ -9,7 +9,7 @@ from PySide6.QtWidgets import QMessageBox
 
 import test_ui
 from conftest import process_events
-from onionwatch.ui import viewer
+from onionwatch.ui.triggers import viewer
 from test_card_layout import new_card
 
 fake_screen, tab = test_ui.fake_screen, test_ui.tab
@@ -43,9 +43,9 @@ def test_a_quick_picture_is_there_on_the_first_paint(tab, qapp):
 
 
 @pytest.mark.parametrize("module, open_it", [
-    ("onionwatch.ui.deleted", lambda tab, row: tab.show_deleted()),
-    ("onionwatch.ui.watching", lambda tab, row: tab.show_watching()),
-    ("onionwatch.ui.viewer", lambda tab, row: tab._view_picture(row, 0)),
+    ("onionwatch.ui.triggers.deleted", lambda tab, row: tab.binctl.show_deleted()),
+    ("onionwatch.ui.settings.watching", lambda tab, row: tab.show_watching()),
+    ("onionwatch.ui.triggers.viewer", lambda tab, row: tab._view_picture(row, 0)),
 ])
 def test_a_missing_part_says_so_plainly(tab, monkeypatch, module, open_it):
     row = new_card(tab)

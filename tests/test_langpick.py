@@ -7,8 +7,8 @@ from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QDialog, QLabel
 
 from onionwatch import i18n
-from onionwatch.settings import Config
-from onionwatch.ui.langpick import LanguageDialog, glyph
+from onionwatch.core.settings import Config
+from onionwatch.ui.settings.langpick import LanguageDialog, glyph
 from test_ui import fake_screen  # noqa: F401 (a fixture)
 
 
@@ -88,7 +88,7 @@ def test_the_window_stays_narrow(qapp):
 # ------------------------------------------------------------------ Settings
 @pytest.fixture
 def win(qapp, app_dir, fake_screen, monkeypatch):  # noqa: F811
-    from onionwatch.ui.mainwindow import MainWindow
+    from onionwatch.ui.window.mainwindow import MainWindow
     w = MainWindow(Config())
     w.restarts = []
     monkeypatch.setattr(w, "restart", lambda: w.restarts.append(1))
@@ -97,7 +97,7 @@ def win(qapp, app_dir, fake_screen, monkeypatch):  # noqa: F811
 
 
 def test_language_is_first_on_appearance_and_opens_the_picker(win, monkeypatch):
-    from onionwatch.ui.settingsdialog import SettingsDialog
+    from onionwatch.ui.settings.settingsdialog import SettingsDialog
     monkeypatch.setattr(i18n, "windows_language", lambda: "de-DE")
     win.cfg.language = "en"
     d = SettingsDialog(win, "appearance")
@@ -131,7 +131,7 @@ def test_language_is_first_on_appearance_and_opens_the_picker(win, monkeypatch):
 
 
 def test_closing_the_picker_changes_nothing(win):
-    from onionwatch.ui.settingsdialog import SettingsDialog
+    from onionwatch.ui.settings.settingsdialog import SettingsDialog
     win.cfg.language = ""
     d = SettingsDialog(win, "appearance")
     before = d.lang_button.text()
@@ -143,7 +143,7 @@ def test_closing_the_picker_changes_nothing(win):
 
 
 def test_windows_language_back_from_a_picked_one(win):
-    from onionwatch.ui.settingsdialog import SettingsDialog
+    from onionwatch.ui.settings.settingsdialog import SettingsDialog
     win.cfg.language = "de"
     d = SettingsDialog(win, "appearance")
     assert d.btn_restart.isVisibleTo(d)         # German picked, English showing
@@ -155,7 +155,7 @@ def test_windows_language_back_from_a_picked_one(win):
 
 
 def test_arabic_restart_note_reads_right_to_left(win):
-    from onionwatch.ui.settingsdialog import SettingsDialog
+    from onionwatch.ui.settings.settingsdialog import SettingsDialog
     win.cfg.language = "ar"
     d = SettingsDialog(win, "appearance")
     assert d.lang_note.layoutDirection() == Qt.RightToLeft
@@ -164,7 +164,7 @@ def test_arabic_restart_note_reads_right_to_left(win):
 
 
 def test_settings_pages_like_the_boards(win):
-    from onionwatch.ui.settingsdialog import SettingsDialog
+    from onionwatch.ui.settings.settingsdialog import SettingsDialog
     d = SettingsDialog(win)
     assert d.categories.count() == d.pages.count() == 5
     for key in d.page_keys:
@@ -177,7 +177,7 @@ def test_settings_pages_like_the_boards(win):
 def test_settings_list_names_have_no_tip_saying_the_same(win):
     """Hovering a page name that fits shows nothing: the tip only repeated it. A name
     cut short (a long translation) still shows in full on hover."""
-    from onionwatch.ui.settingsdialog import SettingsDialog
+    from onionwatch.ui.settings.settingsdialog import SettingsDialog
     d = SettingsDialog(win)
     items = [d.categories.item(i) for i in range(d.categories.count())]
     assert not next(it for it in items if it.text() == "Audio").toolTip()

@@ -95,7 +95,7 @@ the board's `i18n.py`.
 ## Which language
 
 - The app: Settings → Appearance → **Language**, a button opening a window of tiles,
-  one per language, with a search (`ui/langpick.py`, the same window as Onion
+  one per language, with a search (`ui/settings/langpick.py`, the same window as Onion
   Board's). *Windows' language* (the first tile, and the default: `language` is `""`)
   uses Windows' display language when there's a catalog for it, else English. The
   card's title is in Windows' language too, and what it says about restarting is in
@@ -113,4 +113,4 @@ The pseudo-language `xx` (`ONIONWATCH_LANG=xx`) shows every wrapped text as
 `[Šéttîñĝš~~~]`: about 40 % longer, like German or Russian. In a screenshot, text
 without brackets isn't wrapped yet and a missing `]` means the label cuts it off.
 `i18n.unwrapped_texts(widget)` lists the unwrapped ones for a test. Dialogs grow to
-fit their text (`ui/fit.py`), so check labels and buttons that can't wrap.
+fit their text (`ui/kit/fit.py`), so check labels and buttons that can't wrap.
