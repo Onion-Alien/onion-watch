@@ -4104,19 +4104,22 @@ class Watcher:
             def around(r: float, bx: tuple, p: Pattern) -> tuple[Frame, tuple] | None:
                 """The area about changed patch `bx` (capture coordinates) that any
                 picture a hunt tries there (HUNT_ROOM) fits in overlapping it, on the
-                frame shrunk by `r`: one Frame for every size and picture."""
+                frame shrunk by `r`, kept inside the trigger's area: one Frame for
+                every size and picture (None: the patch is outside the area)."""
                 key = (r, "hunt", bx)
-                got = frames.get(key)
-                if got is None:
-                    level(r)
+                got = frames.get(key, False)
+                if got is False:
+                    _f, (ry0, ry1, rx0, rx1) = level(r)
                     g = gray if r >= 0.999 else frames[("grey", r)]
-                    gh, gw = g.shape
                     by0, by1, bx0, bx1 = bx
                     my = round(((by1 - by0) * HUNT_ROOM + 2 * HUNT_CELL) * r * 0.75)
                     mx = round(((bx1 - bx0) * HUNT_ROOM + 2 * HUNT_CELL) * r * 0.75)
-                    sub = (max(0, round(by0 * r) - my), min(gh, round(by1 * r) + my),
-                           max(0, round(bx0 * r) - mx), min(gw, round(bx1 * r) + mx))
-                    got = frames[key] = (Frame(g[sub[0]:sub[1], sub[2]:sub[3]]), sub)
+                    sub = (max(ry0, round(by0 * r) - my), min(ry1, round(by1 * r) + my),
+                           max(rx0, round(bx0 * r) - mx), min(rx1, round(bx1 * r) + mx))
+                    got = frames[key] = (None if sub[1] <= sub[0] or sub[3] <= sub[2] else
+                                         (Frame(g[sub[0]:sub[1], sub[2]:sub[3]]), sub))
+                if got is None:
+                    return None
                 f, (y0, y1, x0, x1) = got
                 if p.size[0] + 2 > y1 - y0 or p.size[1] + 2 > x1 - x0:
                     return None
