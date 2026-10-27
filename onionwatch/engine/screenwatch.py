@@ -310,6 +310,7 @@ HUE_CHECK = True
 HUE_PER_CHECK = 3       # full-size colour checks of one-colour things a capture gets a check
 CORES = os.cpu_count() or 1
 REARM_MARGIN = 0.08     # a match must fall this far below the threshold to count as gone
+RESIZE_SETTLE_S = 1.0   # after the frames change size, a picture not seen isn't gone yet
 FLAT_STD = 2 / 255      # screen windows flatter than this never match (blank areas)
 BLACK_LEVEL = 3 / 255   # a whole frame darker than this is a capture that can't see the game
 INTERVALS_MS = (16, 33, 50, 100, 250, 500)
@@ -3306,6 +3307,7 @@ class _Capture:
         self.next_dup = 0.0         # on the GDI fallback: when to try duplication again
         self.misses = 0             # grabs in a row that gave nothing to look at
         self.miss_since = 0.0       # ...since when
+        self.settle_until = 0.0     # the frames changed size: not seen isn't gone before this
 
     @property
     def is_window(self) -> bool:
@@ -3877,7 +3879,12 @@ class Watcher:
             cap.misses = 0
         if getattr(cap.grab, "source", cap.fitted) != cap.fitted:
             # the frames changed size (a game switched display mode, a window was
-            # resized): scale the pictures for what the capture really sees
+            # resized): scale the pictures for what the capture really sees. The
+            # first frames after it may be the game still redrawing at the new size:
+            # a picture missing from them hasn't gone (it would go off again, or a
+            # "vanish" trigger would, for something that never went away)
+            if cap.fitted != (0, 0):
+                cap.settle_until = time.monotonic() + RESIZE_SETTLE_S
             cap.fitted, cap.scaled = self._fit(cap.grab, cap.mon, items, cap.scaled,
                                               cap.fitted)
             return True
@@ -4007,6 +4014,9 @@ class Watcher:
             if score is None:
                 continue
             state = verdict(it.mode, score, it.threshold, it.below)
+            if (now < cap.settle_until and it.mode in ("appear", "vanish")
+                    and state is (it.mode == "vanish")):
+                state = None            # just resized: can't tell it's gone yet
             q = self._quiet.get(it.id)
             if q is not None and q.source == cap.source:
                 self._step_quiet(it, q, cap, gray, state, now)
