@@ -322,3 +322,51 @@ def test_max_detection_while_away_from_a_watched_window(fake, in_front, heavy):
         assert w.heavy == heavy
     finally:
         w.stop()
+
+
+@pytest.mark.parametrize("mode", ["appear", "vanish"])
+def test_a_resize_is_not_the_picture_going_away(fake, monkeypatch, mode):
+    """Right after a window is resized the game may draw a frame or two without its
+    picture while it lays itself out again: the picture didn't go, so an "appear"
+    trigger mustn't go off a second time and a "vanish" one not at all. A picture
+    still missing after the settle is gone as usual."""
+    now = [100.0]
+    monkeypatch.setattr(sw.time, "monotonic", lambda: now[0])
+    frames: list = []
+
+    class Grab:
+        source, w, h = (W, H), W, H
+
+        def resize(self, w, h):
+            self.w, self.h = w, h
+
+        def grab(self):
+            return frames.pop(0) if len(frames) > 1 else frames[0]
+
+    fired = []
+    watcher = sw.Watcher(lambda tid, *_a: fired.append(tid))
+    cap = sw._Capture(GAME1)
+    cap.grab = Grab()
+    it = Watched("t", [(banner(), None)], 0.8, 0.0, source=GAME1, mode=mode, any_size=True,
+                 cuts=[(W, H)])
+    cap.fitted, cap.scaled = sw.Watcher._fit(cap.grab, None, [it])
+
+    def checks(n):
+        for _ in range(n):
+            now[0] += 0.3
+            watcher._tick(cap, [it])
+
+    up = showing(scene(1), banner())
+    frames[:] = [scene(1)] if mode == "appear" else [up]
+    checks(3)
+    frames[:] = [up]
+    checks(3)
+    assert fired == (["t"] if mode == "appear" else [])
+    cap.grab.source = (2 * W, 2 * H)        # resized: it lays itself out again for a moment
+    redraw = sw.resize(np.kron(scene(1), np.ones((2, 2), np.float32)), 0.5)
+    frames[:] = [redraw, redraw, sw.resize(np.kron(up, np.ones((2, 2), np.float32)), 0.5)]
+    checks(8)
+    assert fired == (["t"] if mode == "appear" else [])
+    frames[:] = [scene(1)]                  # ...and now it's really gone
+    checks(4)
+    assert fired == (["t"] if mode == "appear" else ["t"])
