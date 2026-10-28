@@ -574,6 +574,43 @@ def test_a_hunt_stays_inside_the_triggers_area(monkeypatch):
     assert run((0.25, 0.3, 0.2, 0.3)) == ["t"]           # its area: found
 
 
+@pytest.mark.parametrize("area_first", [False, True])
+def test_a_hunt_about_one_patch_keeps_to_each_triggers_own_area(monkeypatch, area_first):
+    """Two triggers for the same picture on one window, one with an area and one
+    without: the place hunted about a changed patch was kept for the check whichever
+    trigger asked first, cut to ITS area. The area trigger then went off on the picture
+    turning up outside its area (or a "vanish" one was armed by it), and the other
+    trigger, asking second, couldn't hunt there at all."""
+    monkeypatch.setattr(sw, "SWEEPERS", 0)
+    level = world()
+    pic, _tint = cut(level)
+    h, w = 540, 960
+    empty = world(sprites=())
+    shown = empty.copy()
+    big = scaled(sprite(), 1.4)
+    shown[200:200 + big.shape[0], 300:300 + big.shape[1]] = big
+    grab = Grab(w, h)
+    items = [sw.Watched("all", [(pic, None)], 0.8, 0.0, any_size=True, cuts=[(w, h)]),
+             sw.Watched("area", [(pic, None)], 0.8, 0.0, any_size=True, cuts=[(w, h)],
+                        region=(0.0, 0.0, 0.25, 0.25))]
+    if area_first:
+        items.reverse()
+    cap = sw._Capture(0, Monitor(0, 0, w, h, True))
+    cap.grab = grab
+    cap.fitted, cap.scaled = sw.Watcher._fit(grab, cap.mon, items)
+    fired = []
+    watcher = sw.Watcher(lambda tid, *_a: fired.append(tid))
+
+    def frame(rgb):
+        return gray(scaled(rgb, grab.w / w)[:grab.h, :grab.w])
+
+    for _ in range(3):
+        watcher._check(cap, frame(empty), items)
+    scores = watcher._check(cap, frame(shown), items)
+    assert fired == ["all"]
+    assert scores["area"] < 0.8
+
+
 def test_a_big_changed_patch_is_hunted_over_several_checks_nearest_sizes_first(monkeypatch):
     """A size looked for about a patch costs by the area it's looked in: about a big
     patch (a moving game) that's the whole frame, so a check's budget covers only a few

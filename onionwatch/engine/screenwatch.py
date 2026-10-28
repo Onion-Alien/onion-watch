@@ -4116,10 +4116,13 @@ class Watcher:
                 picture a hunt tries there (HUNT_ROOM) fits in overlapping it, on the
                 frame shrunk by `r`, kept inside the trigger's area: one Frame for
                 every size and picture (None: the patch is outside the area)."""
-                key = (r, "hunt", bx)
+                _f, area_box = level(r)
+                # kept for the check per area too: it's cut to the area, and another
+                # trigger hunting about the same patch may have another area, or none
+                key = (r, "hunt", bx, area_box)
                 got = frames.get(key, False)
                 if got is False:
-                    _f, (ry0, ry1, rx0, rx1) = level(r)
+                    ry0, ry1, rx0, rx1 = area_box
                     g = gray if r >= 0.999 else frames[("grey", r)]
                     by0, by1, bx0, bx1 = bx
                     my = round(((by1 - by0) * HUNT_ROOM + 2 * HUNT_CELL) * r * 0.75)
