@@ -3280,6 +3280,8 @@ class _Capture:
         self.colour_left = 0              # colour_cover's (COLOUR_PER_CHECK)
         self.hue_left = 0                 # _hue_off's (HUE_PER_CHECK)
         self.sharp_left = 0               # _sharp()'s (SHARP_PER_CHECK)
+        self.sharp_owed: set = set()      # ...the triggers left waiting for one: first next time
+        self.sharp_at: dict[str, int] = {}  # ...and the check each last had one on (oldest first)
         self.turns: dict[str, int] = {}   # "any size": which picture each trigger sweeps next
         self.swept: dict[str, int] = {}   # ...and the check it last swept on (SWEEPERS)
         # "any size": changed patches still to look in at every size (HUNT_*):
@@ -3998,7 +4000,11 @@ class Watcher:
             cap.colour_left = COLOUR_PER_CHECK
             cap.hue_left = HUE_PER_CHECK
             cap.sharp_left = SHARP_PER_CHECK
-            for it in sorted(items, key=lambda i: cap.swept.get(i.id, -1)):
+            # (and those a sharp check was owed last time first of all: always the same
+            # few taking the turns would leave the others unconfirmed check after check)
+            for it in sorted(items, key=lambda i: (i.id not in cap.sharp_owed,
+                                                   cap.sharp_at.get(i.id, -1),
+                                                   cap.swept.get(i.id, -1))):
                 looks = cap.scaled.get(it.id)
                 got = memo.get(it.id) if same and it.id not in self._quiet else None
                 prior = None
@@ -4187,7 +4193,10 @@ class Watcher:
                         b = tuple(round(v / r) for v in b)
                     if (SHARP_ON and lk.mask is not None and twin is not None and area is None
                             and SHARP_LOW <= sc < it.threshold):
-                        sc = max(sc, Watcher._sharp(cap, it.id, twin, b, lk, gray.shape))
+                        sh = Watcher._sharp(cap, it.id, twin, b, lk, gray.shape)
+                        # not its turn this check: can't tell, so it's neither seen nor
+                        # gone (gone would let it go off again while it's still up)
+                        sc = max(sc, it.threshold - REARM_MARGIN if sh is None else sh)
                     if (COVER_ON and check and twin is not None and area is None
                             and COVER_LOW <= sc < it.threshold):
                         cs = Watcher._grey_cover(cap, it.id, twin, raw, b, lk, gray.shape,
@@ -4487,11 +4496,12 @@ class Watcher:
 
     @staticmethod
     def _sharp(cap: _Capture, key: str, full: tuple, box: tuple, lk: Look,
-               shape: tuple[int, int]) -> float:
+               shape: tuple[int, int]) -> float | None:
         """`lk`'s cut-out matched on the capture's pixels at full size (`full`:
         _full_size's) about `box` (y0, y1, x0, x1 in a frame of `shape`) under its own
         mask, when the box is its own size there (TWIN_SIZE); else 0.0. Kept in
-        `cap.twins` as _twin() does; SHARP_PER_CHECK new places a check."""
+        `cap.twins` as _twin() does; SHARP_PER_CHECK new places a check, None for one
+        past those (not known this check: `key` goes first the next one)."""
         cut, (fh, fw) = full
         sy, sx = fh / shape[0], fw / shape[1]
         y0, y1, x0, x1 = box
@@ -4510,8 +4520,11 @@ class Watcher:
         if got is not None and got[0] is lk.gray and got[1] == px:
             return got[2]
         if cap.sharp_left <= 0:
-            return 0.0
+            cap.sharp_owed.add(key)
+            return None
         cap.sharp_left -= 1
+        cap.sharp_owed.discard(key)
+        cap.sharp_at[key] = cap.checks
         q = Pattern(lk.gray, lk.mask)
         score = _ncc_at(area, q)[0] if q.ok else 0.0
         cap.twins[ck] = (lk.gray, px, score)
