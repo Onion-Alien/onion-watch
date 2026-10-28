@@ -653,6 +653,12 @@ class WindowGrabber:
             self._off_screen()
         if not self._print():
             return self.last
+        if client_size(self.hwnd) != size:
+            # resized while it was copied: PrintWindow drew it at its new size into the
+            # bitmap for the old one (shrunk into a corner or cut off), so a picture on
+            # it would look gone. Thrown away; the next grab copies it at its new size
+            self.last = None
+            return None
         if self.stale:
             # the first PrintWindow after a restore can give the frame from before
             # it was minimized: thrown away, the next grab gets what it shows now
