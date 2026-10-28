@@ -1204,6 +1204,53 @@ def test_a_cut_out_just_under_the_line_is_matched_again_sharp():
     assert sw.Watcher._sharp(cap, "t", cut, other, look, (100, 150)) == 0.0
 
 
+def test_sharp_checks_go_round_and_a_missed_one_is_not_gone(monkeypatch):
+    """Five thin cut-outs up the whole time over scenery that moves, each just under
+    its line until it's matched sharp, with two sharp checks a check. The same two
+    took them every check, so the other three were never confirmed (never went off);
+    and one left out after it went off scored as gone and went off again while still
+    up. Now the ones that waited go first, and one left out can't tell."""
+    now = [100.0]
+    monkeypatch.setattr(sw.time, "monotonic", lambda: now[0])
+    fw, fh = 1280, 720
+    rng = np.random.default_rng(1)
+    pics = []
+    for i in range(5):
+        g, m = outline(46, 240, stroke=2)
+        g[m] = np.where(g[m] > 0.5, 0.9 - 0.05 * i, 0.3 + 0.05 * i)
+        pics.append((g, m))
+    spots = [(60 + 100 * i, 80 + 150 * (i % 3)) for i in range(5)]
+
+    class Grab:
+        source, w, h, full = (fw, fh), fw, fh, None
+
+        def resize(self, w, h):
+            self.w, self.h = w, h
+
+        def grab(self):
+            f = np.kron(rng.random((fh // 8 + 1, fw // 8 + 1)).astype(np.float32),
+                        np.ones((8, 8), np.float32))[:fh, :fw] * 0.7 + 0.1
+            for (g, m), (y, x) in zip(pics, spots):
+                f[y:y + g.shape[0], x:x + g.shape[1]][m] = g[m]
+            u8 = (f * 255).astype(np.uint8)
+            self.full = np.dstack([u8, u8, u8, np.full_like(u8, 255)])
+            return sw.resize(f, self.w / fw)
+
+    game = sw.WindowRef("game.exe", "Game", 0)
+    fired = []
+    watcher = sw.Watcher(lambda tid, *_a: fired.append(tid))
+    cap = sw._Capture(game)
+    cap.grab = Grab()
+    # the line high enough that every one needs its sharp check
+    its = [sw.Watched(f"t{i}", [p], 0.99, 0.0, source=game, cuts=[(fw, fh)])
+           for i, p in enumerate(pics)]
+    cap.fitted, cap.scaled = sw.Watcher._fit(cap.grab, None, its)
+    for _ in range(12):
+        now[0] += 0.5
+        watcher._tick(cap, its)
+    assert sorted(fired) == [f"t{i}" for i in range(5)]
+
+
 def test_a_word_in_one_colour_is_told_from_the_same_word_in_another():
     """Green letters with a dark outline, cut over an orange patch: every colour cell
     is mostly letters (or none is half letters), and an offset per channel turns them
