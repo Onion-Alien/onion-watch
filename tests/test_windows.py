@@ -370,3 +370,45 @@ def test_a_resize_is_not_the_picture_going_away(fake, monkeypatch, mode):
     frames[:] = [scene(1)]                  # ...and now it's really gone
     checks(4)
     assert fired == (["t"] if mode == "appear" else ["t"])
+
+
+def test_a_picture_is_looked_for_in_the_turn_a_resize_is_seen(monkeypatch):
+    """The turn that finds the window resized fits the pictures to the new size, then
+    copies the window again and checks it there and then. Waiting for the next turn
+    instead loses a whole check gap (seconds with many triggers): a picture that came
+    up just before the resize and went a gap after it was never looked for."""
+    now = [100.0]
+    monkeypatch.setattr(sw.time, "monotonic", lambda: now[0])
+
+    class Grab:
+        source, w, h = (W, H), W, H
+        frame = None
+        new_size = False            # resized: the copy that finds it gives nothing
+
+        def resize(self, w, h):
+            self.w, self.h = w, h
+
+        def grab(self):
+            if self.new_size:
+                self.new_size = False
+                return None
+            return self.frame
+
+    fired = []
+    watcher = sw.Watcher(lambda tid, *_a: fired.append(tid))
+    cap = sw._Capture(GAME1)
+    cap.grab = Grab()
+    it = Watched("t", [(banner(), None)], 0.8, 0.0, source=GAME1, any_size=True, cuts=[(W, H)])
+    cap.fitted, cap.scaled = sw.Watcher._fit(cap.grab, None, [it])
+    cap.grab.frame = scene(1)
+    for _ in range(3):
+        now[0] += 0.3
+        watcher._tick(cap, [it])
+    assert fired == []
+    big = showing(scene(1), banner())
+    cap.grab.source, cap.grab.new_size = (2 * W, 2 * H), True
+    cap.grab.frame = sw.resize(np.kron(big, np.ones((2, 2), np.float32)), 0.5)
+    now[0] += 0.3
+    watcher._tick(cap, [it])
+    assert cap.fitted == (2 * W, 2 * H)
+    assert fired == ["t"]
