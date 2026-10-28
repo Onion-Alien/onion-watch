@@ -3887,7 +3887,16 @@ class Watcher:
                 cap.settle_until = time.monotonic() + RESIZE_SETTLE_S
             cap.fitted, cap.scaled = self._fit(cap.grab, cap.mon, items, cap.scaled,
                                               cap.fitted)
-            return True
+            # ...and copied again at that size to be checked now: left to the next
+            # turn, a picture up across the resize goes unchecked for a whole gap
+            if cap.grab is None:
+                return True
+            try:
+                gray = cap.grab.grab()
+            except OSError:
+                return True                 # the next turn opens it afresh
+            if gray is None or getattr(cap.grab, "source", cap.fitted) != cap.fitted:
+                return True
         if gray is not None:
             cap.black = is_black(gray)
             for it in due:
