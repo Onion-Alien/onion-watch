@@ -1184,6 +1184,25 @@ def test_a_rectangle_whose_background_changed_at_one_end_is_no_look_alike():
     assert sw.one_part_off(np.pad(twin, 3, constant_values=0.05), g, None) < 0.8
 
 
+def test_a_rectangle_cut_with_a_column_of_scenery_is_no_look_alike():
+    """A rectangle cut a hair loose takes in a column of the scenery beside the thing.
+    Shown again over other scenery, only that column is off: its faint end strip
+    dropped to 0.4-0.7, as if a glyph were missing there, and the thing still up
+    counted as gone and went off again."""
+    word = [0b111101101101111, 0b010010010010111, 0b111001111100111,
+            0b111001111001111, 0b101101111001001]
+    g, _m = glyphs(word)
+    for seed in range(20):
+        rng = np.random.default_rng(seed)
+        panel = sw.gaussian_filter(rng.random((g.shape[0], 60)).astype(np.float32), 2.0)
+        pic = np.concatenate([(panel - panel.mean()) * 1.6 + 0.35, g], axis=1)
+        pic = pic.astype(np.float32)
+        pic[:, 0] = 0.08
+        area = np.pad(pic, 3, constant_values=0.3)
+        area[3:-3, 3] = 0.08 + float(rng.random()) * 0.6
+        assert sw.one_part_off(area, pic, None) == 1.0, seed
+
+
 def test_a_cut_out_just_under_the_line_is_matched_again_sharp():
     """Thin cut-out text whose edges shrunk take in the scenery behind it: at its own
     size it's matched again on the full-size pixels under its mask, once per new
