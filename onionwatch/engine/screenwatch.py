@@ -239,7 +239,11 @@ COARSE_NEAR = 0.15
 # screen (TWIN_FLAT: covered) don't count. A glyph missing at a thing's end ("READY"
 # for "READY?") is in one strip only: one strip at TWIN_ONE or less in both strip
 # widths, over the same columns (TWIN_ONE_RUN on average), drops it the same way;
-# a thin glyph's strip counts for this from TWIN_ONE_PLAIN of grey spread.
+# a thin glyph's strip counts for this from TWIN_ONE_PLAIN of grey spread. The
+# picture's outer TWIN_EDGE columns are left out of the strips: a rectangle cut a hair
+# loose takes in a column of scenery, and where that scenery changed the end strip,
+# faint, dropped to 0.69 with the rest exact (one column off): the thing still up
+# counted as gone and went off again. (A cut-out's mask leaves its scenery out.)
 TWIN_ONE = 0.78
 TWIN_ONE_PLAIN = 0.06
 TWIN_ONE_RUN = 0.72
@@ -252,6 +256,7 @@ TWIN_RUN = 0.76
 TWIN_BLUR = 0.7
 TWIN_FLAT = 0.03
 TWIN_PLAIN = 0.12
+TWIN_EDGE = 2
 # a sharp check of a picture with more pixels than this is done with transforms
 DIRECT_MAX = 4000
 MAX_FOUND = 3           # sizes the sweep found kept per picture
@@ -1338,12 +1343,18 @@ def one_part_off(area: np.ndarray, gray: np.ndarray, mask: np.ndarray | None) ->
     t = gaussian_filter(gray.astype(np.float32), TWIN_BLUR)
     a = gaussian_filter(area.astype(np.float32), TWIN_BLUR)
     lone: list[list[tuple[int, int, float]]] = []     # each width's low strips (x0, x1, score)
+    edge = TWIN_EDGE if mask is None else 0     # a cut-out's mask leaves the scenery out
     for share in TWIN_STRIPS:
         n = max(1, round(tw / max(4, round(th * share))))
         parts: list[float | None] = []
         faint: list[float | None] = []      # parts, and the thin strips' (TWIN_ONE_PLAIN)
         for i in range(n):
             x0, x1 = i * tw // n, (i + 1) * tw // n
+            x0, x1 = max(x0, edge), min(x1, tw - edge)
+            if x1 - x0 < 2:
+                parts.append(None)
+                faint.append(None)
+                continue
             tt, mm = t[:, x0:x1], m[:, x0:x1]
             spread = float(tt[mm > 0].std()) if mm.sum() >= 6 else 0.0
             if spread < TWIN_ONE_PLAIN:
