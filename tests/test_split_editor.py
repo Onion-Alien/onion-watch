@@ -64,7 +64,7 @@ def test_cached_editor_is_rebuilt_after_a_trigger_or_sound_library_change(tab, q
     tab._select(second)
     tab.host.sounds = lambda: [("new", "New sound")]
     tab._select(first)
-    assert tab.editor is not original and tab.editor.sound.findData("new") >= 0
+    assert tab.editor is not original and ("new", "New sound") in tab.editor.sound.sounds()
 
 
 def test_editor_cache_is_bounded_and_dropped_when_the_editor_closes(tab, qapp):

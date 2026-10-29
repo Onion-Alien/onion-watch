@@ -53,7 +53,7 @@ def test_a_match_plays_through_the_host_and_rings_until_stopped(board, qapp):
     host, tab = board
     tab._new(as_qimage(banner()), "Died")
     row = next(iter(tab.rows.values()))
-    row.sound.activated.emit(row.sound.findData("s1"))
+    row.sound.picked.emit("s1")
     row.chk_ring.setChecked(True)
     bar = AlarmBar(tab)
     tab.watcher.interval = 0.01

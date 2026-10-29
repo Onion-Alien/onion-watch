@@ -68,7 +68,7 @@ def test_a_ringing_trigger_notifies_and_stop_all_stops_it(tab, qapp):
     tab.active_changed.connect(active.append)
     panel._new(as_qimage(banner()), "Rare")
     row = next(iter(panel.rows.values()))
-    row.sound.activated.emit(row.sound.findData("s2"))
+    row.sound.picked.emit("s2")
     row.chk_ring.setChecked(True)
     panel.watcher.interval = 0.01
     panel.set_watching(True)

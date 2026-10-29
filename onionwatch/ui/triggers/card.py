@@ -395,6 +395,7 @@ class TriggerRow(QFrame):
         self.sound.setToolTip(_("Add a sound to play: a built-in alert, or a sound file of yours"))
         no_wheel(self.sound)
         self.sound.activated.connect(self._on_sound)
+        self.sound.picked.connect(self._add_sound)
         self.pick = WideCombo(self)    # (shown before it's in the row: no flash)
         for key, label in PICKS:
             self.pick.addItem(label, key)
@@ -1226,10 +1227,8 @@ class TriggerRow(QFrame):
         cb.blockSignals(True)
         cb.clear()
         cb.addItem(icons.icon("plus"), "", ADD)     # what the closed box shows
-        for sid, name in sounds:
-            cb.addItem(name, sid)
-        cb.insertSeparator(cb.count())
         cb.addItem(icons.icon("folder"), _("Choose a sound file"), FILE)
+        cb.set_sounds(sounds)                       # its menu's list, not items
         cb.setCurrentIndex(0)
         cb.view().setRowHidden(0, True)                # ...but not a choice in the list
         cb.blockSignals(False)
@@ -1551,8 +1550,11 @@ class TriggerRow(QFrame):
             self.changed.emit(self)
 
     def _on_sound(self, i: int):
-        """An entry of the "+ Add sound" list was picked: add it to the trigger."""
-        sid = self.sound.itemData(i)
+        """An item of the "+ Add sound" box was picked (only FILE is one)."""
+        self._add_sound(self.sound.itemData(i))
+
+    def _add_sound(self, sid):
+        """A sound of the "+ Add sound" menu was picked: add it to the trigger."""
         self.sound.blockSignals(True)
         self.sound.setCurrentIndex(0)
         self.sound.blockSignals(False)
