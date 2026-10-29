@@ -90,3 +90,20 @@ def test_a_bar_slides_to_its_new_score(qapp, monkeypatch):
     bar.set_meter((0.1, 0.5, False, False))
     assert bar.shown == 0.1
     bar.close()
+
+
+def test_a_bar_deleted_while_sliding_is_dropped(qapp, monkeypatch):
+    """A card closed mid-slide left its bar in the timer's set: the next tick painted a
+    deleted widget (RuntimeError: Internal C++ object (LiveLabel) already deleted)."""
+    from shiboken6 import delete
+    from onionwatch.ui.triggers import chances
+    monkeypatch.setattr(chances.appstate, "active", lambda: True)
+    bar = chances.LiveLabel()
+    bar.resize(120, 20)
+    bar.show()
+    bar.set_meter((0.2, 0.5, False, False))
+    bar.set_meter((0.9, 0.5, False, False))
+    assert bar in chances._glide.moving
+    delete(bar)                       # the C++ side gone, the Python one still held
+    chances._glide._tick()
+    assert bar not in chances._glide.moving

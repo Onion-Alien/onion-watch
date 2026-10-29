@@ -54,7 +54,11 @@ class _Glide(QObject):
         now = time.monotonic()
         dt, self._last = min(0.1, now - self._last), now
         for w in list(self.moving):
-            if not w.glide(dt):
+            try:
+                moving = w.glide(dt)
+            except RuntimeError:   # deleted while sliding (its card closed, the list
+                moving = False     # rebuilt) but still in the set: drop it
+            if not moving:
                 self.moving.discard(w)
         if not self.moving:
             self._timer.stop()
