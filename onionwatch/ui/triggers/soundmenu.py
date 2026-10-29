@@ -1,13 +1,13 @@
 """The "+" after Play on a trigger card: the sounds to add, with a search box and (when
 the host sorts its sounds into categories, as Onion Board does) a category list over
-them, and "Choose a sound file" under them. It's a QComboBox to everything else (its
-items are the sounds, `activated` says which was picked); only its open list is this
-menu."""
+them, and "Choose a sound file" under them. A QComboBox whose only items are the + and
+"Choose a sound file"; the sounds are a plain list (`set_sounds`, `picked(sid)` says
+which was picked), and only its open list is this menu."""
 from __future__ import annotations
 
 from collections.abc import Callable
 
-from PySide6.QtCore import QPoint, Qt
+from PySide6.QtCore import QPoint, Qt, Signal
 from PySide6.QtWidgets import (QComboBox, QFrame, QHBoxLayout, QLabel, QLineEdit, QListWidget,
                                QListWidgetItem, QPushButton, QVBoxLayout, QWidget)
 
@@ -176,9 +176,16 @@ class SoundMenu(QFrame):
 
 
 class SoundBox(QComboBox):
-    """The "+": a combo box whose items are [the + itself, the sounds..., FILE]; opening
-    it shows a SoundMenu. `groups()` gives the host's categories (empty: no category
-    list); `taken()` the sounds already on the trigger."""
+    """The "+": a combo box whose items are [the + itself, FILE]; opening it shows a
+    SoundMenu of `set_sounds`' list, and `picked(sid)` says which one was picked (the
+    FILE id for "Choose a sound file"). `groups()` gives the host's categories (empty:
+    no category list); `taken()` the sounds already on the trigger.
+
+    The sounds aren't items: a board can have thousands, every trigger card has a box,
+    and each change of the board's sounds refilled every box item by item (seconds of
+    a frozen window with a big library)."""
+
+    picked = Signal(str)
 
     def __init__(self, file_id: str, parent: QWidget | None = None):
         super().__init__(parent)
@@ -186,14 +193,14 @@ class SoundBox(QComboBox):
         self.groups: Callable[[], Groups] = list
         self.taken: Callable[[], set[str]] = set
         self.menu: SoundMenu | None = None
+        self._sounds: list[tuple[str, str]] = []
+
+    def set_sounds(self, sounds: list[tuple[str, str]]):
+        """The sounds the menu offers, (id, name) in the host's order."""
+        self._sounds = [(sid, name) for sid, name in sounds if sid and name]
 
     def sounds(self) -> list[tuple[str, str]]:
-        out = []
-        for i in range(self.count()):
-            sid = self.itemData(i)
-            if isinstance(sid, str) and sid and sid != self.file_id and self.itemText(i):
-                out.append((sid, self.itemText(i)))
-        return out
+        return list(self._sounds)
 
     def showPopup(self):
         groups = self.groups()       # (the panel's sound_groups: never raises)
@@ -217,6 +224,4 @@ class SoundBox(QComboBox):
 
     def _picked(self, sid: str):
         self.menu = None
-        i = self.findData(sid)
-        if i >= 0:
-            self.activated.emit(i)
+        self.picked.emit(sid)
