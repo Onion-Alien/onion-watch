@@ -15,7 +15,6 @@ from PySide6.QtCore import QObject, QRectF, QSize, Qt, QTimer
 from PySide6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPainterPath, QPixmap
 from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QFrame, QHBoxLayout, QLabel,
                                QPushButton, QScrollArea, QVBoxLayout, QWidget)
-from shiboken6 import isValid as qt_valid
 
 from onionwatch.engine import screenwatch
 from onionwatch.ui.kit import theme
@@ -55,9 +54,11 @@ class _Glide(QObject):
         now = time.monotonic()
         dt, self._last = min(0.1, now - self._last), now
         for w in list(self.moving):
-            # a bar deleted while sliding (its card closed, the list rebuilt) can still
-            # be in the set until Python lets go of it: drop it, don't paint it
-            if not qt_valid(w) or not w.glide(dt):
+            try:
+                moving = w.glide(dt)
+            except RuntimeError:   # deleted while sliding (its card closed, the list
+                moving = False     # rebuilt) but still in the set: drop it
+            if not moving:
                 self.moving.discard(w)
         if not self.moving:
             self._timer.stop()
