@@ -2,6 +2,25 @@
 
 What changed between releases, for the release notes. Newest first.
 
+## 0.13.2 (2026-10-30)
+
+- **No more freezes with a big sound library:** every trigger card's "+ Add sound" box
+  used to hold every sound in the board, refilled one by one whenever the sounds
+  changed. With thousands of sounds that froze the window, inside Onion Board for
+  10 seconds to over 2 minutes. The box now just hands the sounds to its menu.
+- **No double sounds when a window is resized:** a game redrawing itself at a new size,
+  or a copy of the window taken mid-resize, made a picture look gone for a moment, so
+  its trigger went off again (or a "goes away" trigger went off for nothing). And a
+  picture that was up across a resize and went soon after is now still caught.
+- **A trigger with an area only looks in its area:** one watching for a picture at any
+  size could go off on that picture turning up somewhere else in the window.
+- **Many cut-outs up at once all get their turn:** with more than two showing, the same
+  ones took the close checks every time, so the rest never went off (or went off twice).
+- **A cut a hair too wide no longer goes off twice:** a rectangle that took in a sliver
+  of the scenery beside the picture could count as gone for one check when the scenery
+  changed.
+- **Fixed an error when closing a trigger card** while its Chances bar was still moving.
+
 ## 0.13.1 (2026-10-22)
 
 - **Several copies of one game:** when you close one copy and start it again, its
