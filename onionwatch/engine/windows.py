@@ -398,14 +398,18 @@ def find(ref: WindowRef, wins: list[WindowInfo] | None = None) -> WindowInfo | N
 
 
 def follow(ref: WindowRef, wins: list[WindowInfo], taken=(), was: int | None = None,
-           before=None) -> WindowInfo | None:
+           before=None, peers=None) -> WindowInfo | None:
     """The window a capture of `ref` opens now, or None (it waits). Copies are told
     apart by when they started, but a copy that closes and starts again is the
     newest then: copy `nth` would be another copy's window. So a window another
     capture has (`taken`, its handles) is never taken twice; after a loss the same
     window comes back if it's still there (`was`), else only a window that wasn't
     open when it was lost (`before`, the copies' handles then): the copy that was
-    started again, not the one somebody else is playing. Otherwise copy `nth`."""
+    started again, not the one somebody else is playing. A game that makes its
+    window again at once (a restart, full screen) has the new one open before the
+    loss is seen: then the one window that isn't a copy open when the capture
+    opened (`peers`) is it; two or more such can't be told apart, so it waits.
+    Otherwise copy `nth`."""
     pool = copies(ref, wins)
     free = [w for w in pool if w.hwnd not in taken]
     if was is not None:
@@ -413,7 +417,11 @@ def follow(ref: WindowRef, wins: list[WindowInfo], taken=(), was: int | None = N
         if back is not None:
             return back
     if before is not None:
-        return next((w for w in free if w.hwnd not in before), None)
+        fresh = next((w for w in free if w.hwnd not in before), None)
+        if fresh is not None or peers is None:
+            return fresh
+        new = [w for w in free if w.hwnd not in peers and w.hwnd != was]
+        return new[0] if len(new) == 1 else None
     if ref.nth < len(pool) and pool[ref.nth].hwnd not in taken:
         return pool[ref.nth]
     return None
