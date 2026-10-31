@@ -123,3 +123,36 @@ def test_a_closed_copy_s_trigger_waits_for_it_not_the_next_copy(cs):
         assert fired.count("copy2") == 1 and "copy3" not in fired
     finally:
         w.stop()
+
+
+def test_a_window_made_again_at_once_is_followed():
+    """The new window already open when the loss is seen (it's in `before`): the one
+    window that wasn't a copy when the capture opened (`peers`) is it; another
+    copy is never taken, and two new ones can't be told apart."""
+    wins = [info(12, 2), info(13, 3), info(14, 4)]
+    assert windows.follow(COPY[0], wins[2:], was=11, before={11, 14}, peers=set()).hwnd == 14
+    assert windows.follow(COPY[0], wins, was=11, before={11, 12, 13, 14},
+                          peers={12, 13}).hwnd == 14
+    assert windows.follow(COPY[0], wins[:2], was=11, before={11, 12, 13}, peers={12, 13}) is None
+    assert windows.follow(COPY[0], wins, was=11, before={11, 12, 13, 14}, peers={12}) is None
+    assert windows.follow(COPY[0], wins, taken={14}, was=11, before={11, 12, 13, 14},
+                          peers={12, 13}) is None
+
+
+def test_a_game_that_makes_its_window_again_keeps_its_trigger(cs):
+    """A game closes its window and opens a new one between two checks (a restart, a
+    switch to full screen): the trigger looks in the new window, not nowhere."""
+    fired = []
+    cs.open[11] = [1, scene(11)]
+    w = sw.Watcher(lambda tid, hit: fired.append(tid), hits=True,
+                   grabber=lambda *a, **k: pytest.fail("the screen was captured"),
+                   window_grabber=cs.Grab, lister=cs.listing)
+    w.interval = 0.01
+    w.set_items([Watched("game", [(banner(), None)], 0.8, 0.0, source=COPY[0])])
+    w.start()
+    try:
+        assert run_until(lambda: len(w.scores) == 1)
+        cs.open = {15: [5, showing(scene(15), banner())]}   # gone and back in one step
+        assert run_until(lambda: "game" in fired)
+    finally:
+        w.stop()

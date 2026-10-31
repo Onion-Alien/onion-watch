@@ -3311,6 +3311,7 @@ class _Capture:
         self.gone = False           # a window that wasn't open on a try since it was lost
         self.was_hwnd = None        # ...or the window it had before then (a new one = reopened)
         self.before: set | None = None    # ...and its copies open then (windows.follow)
+        self.peers: set | None = None     # the other copies open when it last opened
         self.failing = False        # grabs keep failing (said once in the log)
         self.error = ""             # why the last open failed
         self.black = False
@@ -3738,7 +3739,7 @@ class Watcher:
         from onionwatch.engine.windows import WindowGone, follow
         taken = {getattr(c.grab, "hwnd", None) for c in (caps or {}).values()
                  if c is not cap and c.is_window and c.grab is not None}
-        info = follow(src, self._windows(), taken, cap.was_hwnd, cap.before)
+        info = follow(src, self._windows(), taken, cap.was_hwnd, cap.before, cap.peers)
         if info is None:
             raise WindowGone(i18n._("{name} isn't open", name=src.label))
         return info
@@ -3795,6 +3796,9 @@ class Watcher:
         cap.reopen_since, cap.error = 0.0, ""
         was, cap.was_hwnd, cap.before = cap.was_hwnd, None, None
         hwnd = getattr(cap.grab, "hwnd", None)
+        if hwnd is not None and isinstance(cap.source, WindowRef) and self._follows():
+            from onionwatch.engine.windows import copies
+            cap.peers = {w.hwnd for w in copies(cap.source, self._windows())} - {hwnd}
         if cap.gone or (was is not None and hwnd is not None and hwnd != was):
             # the window was closed and is open again (a game restarted: it wasn't
             # there for a while, or it's a new window however fast it came back).
