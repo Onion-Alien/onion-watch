@@ -34,6 +34,10 @@ def menu_css() -> str:
             " border-radius: 10px; }"
             f"QFrame#soundmenu QListWidget {{ background: {t['inset']}; border: none;"
             " border-radius: 8px; padding: 2px; }"
+            # a gap between the rows and the scroll bar, so a highlighted row doesn't touch it,
+            # in the list's own colour (see-through, the window's darker one shows behind it)
+            f"QFrame#soundmenu QListWidget QScrollBar:vertical {{ background: {t['inset']};"
+            " width: 16px; padding-left: 6px; }"
             "QFrame#soundmenu QListWidget::item { padding: 2px 6px; border-radius: 6px; }"
             f"QFrame#soundmenu QListWidget::item:selected {{ background: {t['accent']};"
             f" color: {t['on_accent']}; }}"
