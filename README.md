@@ -77,7 +77,12 @@ Onion Watch is also its Triggers tab: click **Get Onion Watch** there.
 inside Onion Board, and the code layout. `scripts\docs.py` rebuilds this page's
 pictures and version line.
 
-## Licence
+## License
 
-MIT with the Commons Clause, like Onion Board: free to use, change and share, but
-not to sell. See [LICENSE](LICENSE).
+Open source under the [GNU GPL v3 or later](LICENSE), like Onion Board: use it anywhere,
+change it and share your version. Anyone who shares a version, free or paid, has to
+publish its full source under the same license, so nobody can make a closed copy. Onion
+Watch itself is always free: if someone charged you for it, get it from the
+[releases page](https://github.com/Onion-Alien/onion-watch/releases/latest). The name
+"Onion Watch" and the Hoot logo aren't covered by the license, so your own version
+needs its own name and logo.

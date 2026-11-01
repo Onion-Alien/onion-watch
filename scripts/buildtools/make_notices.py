@@ -86,8 +86,8 @@ def section(dist: md.Distribution) -> str:
 def main() -> None:
     dest = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "dist" / "THIRD-PARTY-NOTICES.txt"
     parts = ["Onion Watch includes the following third-party software.\n",
-             "Onion Watch itself is MIT licensed with the Commons Clause (free to use\n"
-             "and share, not to sell); see LICENSE.txt.\n", EXTRA]
+             "Onion Watch itself is open source under the GNU GPL version 3 or later;\n"
+             "see LICENSE.txt.\n", EXTRA]
     parts += [section(d) for d in closure(ROOTS)]
     for name in ("LGPL-3.0.txt", "GPL-3.0.txt"):
         parts += [f"{RULE}\n{name}\n{RULE}\n", (ROOT / "licenses" / name).read_text("utf-8")]
