@@ -16,6 +16,8 @@ with this app's Qt modules):
   picture plugin (Qt Pdf), and Qt's TLS and network-information plugins with the
   second OpenSSL they bring: Qt's network is only the local socket a second launch
   uses, and HTTPS (update check, usage count) goes through Python's own ssl.
+- PortAudio's builds for other systems, and its ASIO builds: only the plain x64 one
+  stays
 
 Usage: python scripts/buildtools/prune_build.py dist/OnionWatch [--dry-run]
 Exit 1 if a kept file imports a DLL that would be missing afterwards, so a change in
@@ -42,6 +44,15 @@ QT_OPENSSL = ("libssl-3-x64.dll", "libcrypto-3-x64.dll")
 DROP_FILES = ("opengl32sw.dll",)
 # the FFmpeg libraries are kept only if the multimedia plugin still imports them
 DLL_CANDIDATES = ("qt6", "av", "sw")
+# sounddevice ships PortAudio for every system; on Windows it loads the one for the
+# Python it runs in (sysconfig's platform: win-amd64 here, x64 only), -asio when
+# SD_ENABLE_ASIO is set. The 32-bit, ARM64 and macOS builds never load, and the app
+# never sets SD_ENABLE_ASIO, so the -asio ones don't either (they are built with
+# Steinberg's ASIO SDK, which isn't open source).
+PORTAUDIO = "_internal/_sounddevice_data/portaudio-binaries"
+DROP_PORTAUDIO = ("libportaudio.dylib", "libportaudio32bit.dll", "libportaudio32bit-asio.dll",
+                  "libportaudioarm64.dll", "libportaudioarm64-asio.dll",
+                  "libportaudio64bit-asio.dll")
 
 
 def _imports_pefile(path: Path) -> list[str]:
@@ -103,6 +114,7 @@ def plan(app_dir: Path, imports_of: Callable[[Path], list[str]] = _imports_pefil
         if ".debug." in p.name or "devtools" in p.name:
             drop.append(p)
     drop += list((qt / "translations").glob("*.qm"))
+    drop += [app_dir / PORTAUDIO / n for n in DROP_PORTAUDIO if (app_dir / PORTAUDIO / n).exists()]
     for p in (qt / "translations" / "qtwebengine_locales").glob("*.pak"):
         if p.name not in KEEP_LOCALES:
             drop.append(p)
