@@ -86,3 +86,7 @@ Watch itself is always free: if someone charged you for it, get it from the
 [releases page](https://github.com/Onion-Alien/onion-watch/releases/latest). The name
 "Onion Watch" and the Hoot logo aren't covered by the license, so your own version
 needs its own name and logo.
+
+Releases are built from this source by GitHub Actions
+([release.yml](.github/workflows/release.yml)). See the
+[code signing policy](https://onionalien.com/onionboard/code-signing/).
