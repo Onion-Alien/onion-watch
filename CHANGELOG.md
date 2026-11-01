@@ -4,6 +4,9 @@ What changed between releases, for the release notes. Newest first.
 
 ## Unreleased
 
+- The app no longer carries PortAudio's unused ASIO and other-system builds (the ASIO
+  ones are made with an SDK that isn't open source), and its third-party notices now
+  credit the MinGW-w64 runtime and Unicode's language names.
 - Onion Watch is now fully open source, under the GNU GPL v3 or later (it was MIT with
   an extra rule against selling it). Releases made before this keep their old license.
 

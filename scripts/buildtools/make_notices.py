@@ -43,6 +43,25 @@ PyInstaller bootloader  --  GPL-2.0-or-later with the PyInstaller exception
 {RULE}
 The exception allows distributing the bundled program under any licence.
 https://github.com/pyinstaller/pyinstaller/blob/develop/COPYING.txt
+
+{RULE}
+MinGW-w64 runtime  --  GCC Runtime Library Exception, ZPL-2.1, MIT and BSD
+{RULE}
+OnionWatch.exe's bootloader is built with MinGW-w64's GCC (the WinLibs build,
+https://winlibs.com) and statically links its runtime:
+- libgcc: GPL-3.0 with the GCC Runtime Library Exception 3.1, which allows
+  distributing the compiled program under any licence. https://gcc.gnu.org
+- winpthreads: MIT, with parts under BSD-3-Clause (Lockless Inc.)
+- the MinGW-w64 C runtime: ZPL-2.1, with parts under BSD, MIT and other notices.
+  https://www.mingw-w64.org
+Their licences are reproduced at the end of this file.
+
+{RULE}
+Unicode CLDR  --  Unicode License v3
+{RULE}
+The language picker names each language in every other language with data from the
+Unicode Common Locale Data Repository (onionwatch/langnames_data.py).
+https://cldr.unicode.org  Its licence is reproduced at the end of this file.
 """
 
 
@@ -89,7 +108,8 @@ def main() -> None:
              "Onion Watch itself is open source under the GNU GPL version 3 or later;\n"
              "see LICENSE.txt.\n", EXTRA]
     parts += [section(d) for d in closure(ROOTS)]
-    for name in ("LGPL-3.0.txt", "GPL-3.0.txt"):
+    for name in ("GCC-runtime-exception-3.1.txt", "winpthreads.txt", "MinGW-w64-runtime.txt",
+                 "Unicode-3.0.txt", "LGPL-3.0.txt", "GPL-3.0.txt"):
         parts += [f"{RULE}\n{name}\n{RULE}\n", (ROOT / "licenses" / name).read_text("utf-8")]
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text("\n".join(parts), encoding="utf-8")
