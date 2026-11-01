@@ -8,9 +8,14 @@ private reporting instead: go to the repository's **Security** tab and choose
 
 ## What the app touches
 
+The short version, with what the installer adds and the uninstaller removes, is
+[docs/PRIVACY.md](docs/PRIVACY.md).
+
 | What | Where | Why |
 |---|---|---|
-| Screen and window pixels | kept in memory only, never saved or sent | finding the pictures you picked |
+| Screen and window pixels | kept in memory only, never saved or sent | finding the pictures you picked (a window through Windows' `PrintWindow`, a screen through Desktop Duplication) |
+| The open windows' titles and program names | kept in memory; a picked window's are saved with its trigger | picking a window, and finding it again when the game restarts |
+| How long since the mouse or keyboard was touched | Windows' idle timer (`GetLastInputInfo`), no hook, never which keys | triggers that ring until you're back |
 | Pictures you cut or add | `%APPDATA%\OnionWatch\triggers` | what the triggers look for |
 | Sound files you add | copied to `%APPDATA%\OnionWatch\sounds` | what the triggers play |
 | Settings and log | `%APPDATA%\OnionWatch` | |
@@ -21,6 +26,8 @@ private reporting instead: go to the repository's **Security** tab and choose
 | A local socket (`OnionWatch.App`) | this PC only | a second launch asks the running copy to come to the front |
 
 Settings → *Updates and privacy* switches the update check and the count off.
+Uninstalling asks whether to delete `%APPDATA%\OnionWatch` too (No by default; Yes
+puts it in the Recycle Bin).
 Copies installed before the count existed start with it off, and a copy running
 from source never sends it.
 

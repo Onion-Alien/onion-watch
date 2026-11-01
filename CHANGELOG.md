@@ -4,6 +4,10 @@ What changed between releases, for the release notes. Newest first.
 
 ## Unreleased
 
+- **Uninstalling can remove everything:** it now asks whether to delete your triggers,
+  pictures, sounds and settings too (No keeps them; Yes puts them in the Recycle Bin).
+  [docs/PRIVACY.md](docs/PRIVACY.md) says in plain words what the app reads, sends and
+  adds to your PC.
 - The app no longer carries PortAudio's unused ASIO and other-system builds (the ASIO
   ones are made with an SDK that isn't open source), and its third-party notices now
   credit the MinGW-w64 runtime and Unicode's language names.

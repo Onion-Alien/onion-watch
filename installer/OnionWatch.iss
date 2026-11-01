@@ -9,7 +9,8 @@
 ;     --usage-count off before the first start: the only thing ever sent is one
 ;     anonymous "opt-out/installer" (no ID)
 ;   - uninstalling runs OnionWatch.exe --uninstall-count: one "uninstall/<version>",
-;     only if the count is on
+;     only if the count is on; then asks whether to delete %APPDATA%\OnionWatch too
+;     (OfferToDeleteData: No by default, Yes = the Recycle Bin)
 ;   - a new install with Count me in ticked: "Where did you hear about Onion Watch?"
 ;     (HeardPage), sent once with the first-start count
 ;   - then opens Onion Watch
@@ -116,7 +117,8 @@ Filename: "{app}\{#AppExeName}.exe"; Description: "Open Onion Watch now"; Flags:
 ; not the old frozen app's (Onion Board 1.3.3 -> 1.4.0 crashed on start from that).
 Filename: "{win}\explorer.exe"; Parameters: """{app}\{#AppExeName}.exe"""; Flags: nowait; Check: Relaunch
 
-; Uninstalling leaves %APPDATA%\OnionWatch (settings, pictures, sounds) in place.
+; Uninstalling asks whether to delete %APPDATA%\OnionWatch (settings, pictures, sounds)
+; too: see OfferToDeleteData. docs/PRIVACY.md lists everything the app adds.
 
 [Code]
 const
@@ -319,10 +321,42 @@ begin
   UpdateInstallCaption;
 end;
 
+// After the app's files are gone: offer to delete what it made in %APPDATA%\OnionWatch
+// (settings, log, the pictures triggers look for, copied sounds). No is the default
+// and a silent uninstall never asks, so nobody loses their triggers by surprise; Yes
+// puts the folder in the Recycle Bin (through PowerShell, hidden), and anything left
+// gets a message saying where it is. The drawn images in %TEMP%\onionwatch-ui
+// (onionwatch/ui/kit/theme.py) always go.
+procedure OfferToDeleteData;
+var
+  Dir, Arg: String;
+  Code: Integer;
+begin
+  DelTree(AddBackslash(GetEnv('TEMP')) + 'onionwatch-ui', True, True, True);
+  Dir := ExpandConstant('{userappdata}\OnionWatch');
+  if UninstallSilent or not DirExists(Dir) then
+    exit;
+  if MsgBox('Also delete your triggers, pictures, sounds and settings?' + #13#10#13#10 +
+            'Yes puts them in the Recycle Bin. No keeps them for the next time you ' +
+            'install Onion Watch.', mbConfirmation, MB_YESNO or MB_DEFBUTTON2) <> IDYES then
+    exit;
+  Arg := Dir;
+  StringChangeEx(Arg, '''', '''''', True);
+  Exec(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'),
+       '-NoProfile -NonInteractive -Command "Add-Type -AssemblyName Microsoft.VisualBasic; ' +
+       '[Microsoft.VisualBasic.FileIO.FileSystem]::DeleteDirectory(''' + Arg + ''', ' +
+       '''OnlyErrorDialogs'', ''SendToRecycleBin'')"', '', SW_HIDE, ewWaitUntilTerminated, Code);
+  if DirExists(Dir) then
+    MsgBox('Some of your Onion Watch files couldn''t be removed. They are in:' + #13#10 + Dir,
+           mbInformation, MB_OK);
+end;
+
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 var
   Code: Integer;
 begin
+  if CurUninstallStep = usPostUninstall then
+    OfferToDeleteData;
   if CurUninstallStep <> usUninstall then
     exit;
   // the anonymous usage count's "uninstall/<version>" (onionwatch/core/usage.py): the app

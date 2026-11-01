@@ -37,7 +37,7 @@ your game's rules. Nothing it captures is saved or sent anywhere. It goes online
 only to check for a new version once a day and, if you leave *Count me in* ticked,
 to send anonymous usage stats (the version, which features are used, crash counts
 and a random ID; never your name, IP address or device info, see
-[SECURITY.md](SECURITY.md#what-the-app-touches)). Both switch off in Settings →
+[docs/PRIVACY.md](docs/PRIVACY.md)). Both switch off in Settings →
 Updates and privacy.
 
 ## What it does
