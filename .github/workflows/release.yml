@@ -1,0 +1,238 @@
+name: release
+
+# Builds a release on GitHub's Windows machine from the public source: push the tag
+# (git tag vX.Y.Z <main's sha> && git push origin vX.Y.Z) after the version bump is
+# merged, and this builds the installer and the Onion Board add-on from that tag
+# (build.ps1 -Clean, with a bootloader compiled here), scans the installer on
+# VirusTotal when the VT_API_KEY secret is set, and makes a DRAFT release with
+# OnionWatch-Installer.exe, OnionWatch-Update.exe (the same file) and
+# OnionWatch-module.zip (docs/CODE.md "To release a new version"), the SHA-256 and the
+# scan line. Nobody gets it until the draft is published by hand, after the headline
+# is written and the installer is checked.
+# A tag whose release already exists (made by hand) is left alone. On a PR that
+# changes this file, or run by hand with no tag (a dry run of any branch), it builds
+# and checks only: no release, no scan.
+# It never sends a usage count: ONIONBOARD_NO_STATS is set for the build, and the
+# built app only ever runs with --selftest (build.ps1).
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to build (vX.Y.Z, must exist); empty = dry run of the branch, no release"
+        required: false
+        default: ""
+  pull_request:
+    paths: [".github/workflows/release.yml"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.event.inputs.tag || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # Three jobs, so no token that can write sits next to code from outside: `build`
+  # installs PyPI / Chocolatey packages and runs them with a read-only token (and none
+  # left in .git/config); only `release`, which runs nothing but curl, gh and the files
+  # built, can write, and it takes the installer's SHA-256 from `build`.
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      skip: ${{ steps.gate.outputs.skip }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ github.event.inputs.tag || (github.event_name == 'push' && github.ref_name) || '' }}
+    steps:
+      - name: Already released?
+        id: gate
+        shell: bash
+        run: |
+          if [ -n "$TAG" ] && gh release view "$TAG" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "A release for $TAG already exists: nothing to do."
+            echo "skip=1" >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    needs: gate
+    if: needs.gate.outputs.skip != '1'
+    runs-on: windows-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    outputs:
+      sha: ${{ steps.build.outputs.sha }}
+    env:
+      TAG: ${{ github.event.inputs.tag || (github.event_name == 'push' && github.ref_name) || '' }}
+      ONIONBOARD_NO_STATS: "1"
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.TAG || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - name: Version matches the tag
+        if: env.TAG != ''
+        shell: bash
+        run: |
+          v=$(sed -nE 's/^__version__ = "([^"]+)".*/\1/p' onionwatch/__init__.py)
+          if [ "v$v" != "$TAG" ]; then
+            echo "::error::onionwatch/__init__.py says $v but the tag is $TAG"; exit 1
+          fi
+      - name: Tools (venv, Inno Setup, MinGW-w64 gcc for the bootloader)
+        shell: pwsh
+        run: |
+          python -m venv .venv
+          .venv\Scripts\python -m pip install --disable-pip-version-check -q -r requirements-dev.txt
+          if ($LASTEXITCODE -ne 0) { throw "pip install failed" }
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) {
+            choco install innosetup -y --no-progress
+          }
+          if (-not (Get-Command gcc -ErrorAction SilentlyContinue)) {
+            choco install mingw -y --no-progress
+            "C:\ProgramData\mingw64\mingw64\bin" | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
+          }
+      - name: Build (build.ps1 -Clean)
+        id: build
+        shell: pwsh
+        run: |
+          ./build.ps1 -Clean
+          foreach ($f in "OnionWatch-Installer.exe", "OnionWatch-Update.exe", "OnionWatch-module.zip") {
+            if (-not (Test-Path "dist\$f")) { throw "no dist\$f" }
+          }
+          $sha = (Get-FileHash dist\OnionWatch-Installer.exe -Algorithm SHA256).Hash.ToLower()
+          "sha=$sha" | Out-File -Append -Encoding utf8 $env:GITHUB_OUTPUT
+          $mb = [math]::Round((Get-Item dist\OnionWatch-Installer.exe).Length / 1MB)
+          "Built OnionWatch-Installer.exe: $mb MB, SHA-256 $sha" | Out-File -Append -Encoding utf8 $env:GITHUB_STEP_SUMMARY
+          New-Item -ItemType Directory -Force out | Out-Null
+          Copy-Item dist\OnionWatch-Installer.exe, dist\OnionWatch-Update.exe, dist\OnionWatch-module.zip out\
+      # Windows (and a code-signing service) names a file by its version info: both the
+      # app and the installer must say "Onion Watch" and this version.
+      - name: Version info on the app and the installer
+        shell: pwsh
+        run: |
+          $v = .venv\Scripts\python -c "import onionwatch; print(onionwatch.__version__)"
+          foreach ($f in "dist\OnionWatch\OnionWatch.exe", "dist\OnionWatch-Installer.exe") {
+            $i = (Get-Item $f).VersionInfo
+            # (Inno Setup pads its strings with spaces)
+            $name = "$($i.ProductName)".Trim(); $ver = "$($i.ProductVersion)".Trim()
+            "$f`: $name $ver" | Out-File -Append -Encoding utf8 $env:GITHUB_STEP_SUMMARY
+            if ($name -ne "Onion Watch" -or $ver -ne $v) {
+              throw "$f says '$name $ver', not 'Onion Watch $v'"
+            }
+          }
+      # Code signing goes here, once the project is accepted by SignPath Foundation
+      # (free signing for open-source projects): it signs only files built by this
+      # workflow from the public repo, and each release waits for a manual approval
+      # on signpath.io. The signed files then replace the ones in out\ (the SHA-256
+      # above must be taken after signing). Needs SIGNPATH_API_TOKEN and the
+      # organization/project IDs SignPath gives out; none exist yet.
+      - name: Code signing (SignPath, not set up yet)
+        if: ${{ false }}
+        shell: pwsh
+        run: |
+          throw "SignPath signing isn't set up yet"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-files
+          path: out/
+          retention-days: 3
+
+  release:
+    needs: build
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write   # the draft release
+    env:
+      TAG: ${{ github.event.inputs.tag || (github.event_name == 'push' && github.ref_name) || '' }}
+      HAS_VT: ${{ secrets.VT_API_KEY != '' }}
+      SHA: ${{ needs.build.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v7   # (for CHANGELOG.md only: nothing from it runs)
+        with:
+          ref: ${{ env.TAG || github.sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@v7
+        with:
+          name: release-files
+          path: out
+      - name: The files are the ones built
+        shell: bash
+        run: |
+          got=$(sha256sum out/OnionWatch-Installer.exe | cut -d' ' -f1)
+          [ "$got" = "$SHA" ] || { echo "::error::OnionWatch-Installer.exe isn't the file built"; exit 1; }
+          cmp out/OnionWatch-Installer.exe out/OnionWatch-Update.exe
+      # Upload, then wait for the full report: a fresh upload often has engines that
+      # haven't answered yet, so poll until the analysis says completed (max 20 min).
+      - name: VirusTotal scan
+        id: vt
+        if: env.TAG != '' && env.HAS_VT == 'true'
+        env:
+          VT_API_KEY: ${{ secrets.VT_API_KEY }}
+        shell: bash
+        run: |
+          up=$(curl -sf -H "x-apikey: $VT_API_KEY" https://www.virustotal.com/api/v3/files/upload_url \
+               | python3 -c "import json,sys; print(json.load(sys.stdin)['data'])") || up=
+          id=
+          [ -n "$up" ] && id=$(curl -sf -H "x-apikey: $VT_API_KEY" -F "file=@out/OnionWatch-Installer.exe" "$up" \
+               | python3 -c "import json,sys; print(json.load(sys.stdin)['data']['id'])")
+          for i in $(seq 1 40); do
+            [ -n "$id" ] || break
+            sleep 30
+            r=$(curl -sf -H "x-apikey: $VT_API_KEY" "https://www.virustotal.com/api/v3/analyses/$id") || continue
+            line=$(python3 -c "
+          import json,sys
+          a=json.loads(sys.argv[1])['data']['attributes']
+          if a['status']!='completed': sys.exit(1)
+          s=a['stats']; bad=s['malicious']+s['suspicious']; tot=bad+s['undetected']+s.get('harmless',0)
+          print(f'{tot-bad} {tot}')" "$r") || continue
+            set -- $line
+            echo "clean=$1" >> "$GITHUB_OUTPUT"; echo "total=$2" >> "$GITHUB_OUTPUT"
+            echo "VirusTotal: $1 of $2 clean" >> "$GITHUB_STEP_SUMMARY"
+            # a flagged installer is never published (CLAUDE.md "Releasing")
+            [ "$1" = "$2" ] || echo "::warning::VirusTotal flags the installer: only $1 of $2 clean. Don't publish it."
+            exit 0
+          done
+          echo "::warning::VirusTotal scan didn't finish; scan it by hand"
+      - name: Draft release
+        if: env.TAG != ''
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}   # (only here: the one step that writes)
+          CLEAN: ${{ steps.vt.outputs.clean }}
+          TOTAL: ${{ steps.vt.outputs.total }}
+        run: |
+          v="${TAG#v}"
+          # this version's CHANGELOG section, without its heading
+          section=$(awk -v v="$v" '$0 ~ "^## "v" " {on=1; next} /^## / {if (on) exit} on' CHANGELOG.md)
+          if [ -n "$CLEAN" ]; then
+            vt="Virus scan: [VirusTotal scan](https://www.virustotal.com/gui/file/$SHA) ($CLEAN of $TOTAL engines clean)"
+          else
+            vt="Virus scan: [VirusTotal scan](https://www.virustotal.com/gui/file/$SHA) (TODO: scan and add the count)"
+          fi
+          # the headline stays first: Onion Board's Triggers tab shows the start of the
+          # notes when it offers the update (docs/CODE.md)
+          cat > notes.md <<EOF
+          **TODO headline: one plain line on what this release brings.**
+
+          **[⬇ Download OnionWatch-Installer.exe](https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/OnionWatch-Installer.exe)**: the one file you need. Run it to install Onion Watch. (The *Source code* files are for developers.)
+
+          $section
+
+          The whole list is in the [changelog](https://github.com/$GITHUB_REPOSITORY/blob/main/CHANGELOG.md).
+
+          SHA-256 (OnionWatch-Installer.exe): \`$SHA\`
+          $vt
+          Built from this tag by GitHub Actions ([release.yml](https://github.com/$GITHUB_REPOSITORY/blob/$TAG/.github/workflows/release.yml)). [Code signing policy](https://onionalien.com/onionboard/code-signing/)
+          EOF
+          gh release create "$TAG" out/OnionWatch-Installer.exe out/OnionWatch-Update.exe \
+            out/OnionWatch-module.zip \
+            --draft --verify-tag --title "Onion Watch $v" --notes-file notes.md -R "$GITHUB_REPOSITORY"
+          echo "Draft release made: write the headline, check the installer, then publish." >> "$GITHUB_STEP_SUMMARY"

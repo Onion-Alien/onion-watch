@@ -47,7 +47,17 @@ To release a new version:
    in a way an older Onion Board can't follow, also bump `API_VERSION` in
    `onionwatch/host.py` (Onion Board refuses a module whose version it doesn't
    know, with a message, instead of crashing).
-2. `powershell -ExecutionPolicy Bypass -File build.ps1 -Clean -Scan` builds the app
+2. Merge the bump, then tag it: `git tag vX.Y.Z <main's sha>` and
+   `git push origin vX.Y.Z`. `.github/workflows/release.yml` builds everything below
+   from that tag on GitHub's Windows machine (with a bootloader compiled there), checks
+   the exe's and installer's version details, scans the installer on VirusTotal (with
+   the `VT_API_KEY` secret) and makes a **draft** release with the three files, the
+   SHA-256, the scan line and the changelog section. Write the headline, install it
+   over a real copy, then publish the draft by hand; a flagged installer is never
+   published. Its code-signing step is switched off until SignPath Foundation accepts
+   the project. Run by hand with no tag (or on a PR that changes it), it only builds.
+   Steps 3 and 4 are the same release made on your own PC instead.
+3. `powershell -ExecutionPolicy Bypass -File build.ps1 -Clean -Scan` builds the app
    (`dist\OnionWatch\OnionWatch.exe`, self-tested), the installer
    (`dist\OnionWatch-Installer.exe`, needs [Inno Setup 6](https://jrsoftware.org/isinfo.php))
    and the add-on (`dist\OnionWatch-module.zip`, via `scripts\buildtools\build_module.py`, which
@@ -74,7 +84,7 @@ To release a new version:
    with one change at a time (an installer takes a minute to build with Inno Setup, a
    new file scans in a few), and scan several samples of a fix before trusting it:
    one clean scan can be luck.
-3. `gh release create vX.Y.Z dist\OnionWatch-Installer.exe dist\OnionWatch-Update.exe dist\OnionWatch-module.zip --target main --title "Onion Watch X.Y.Z"`.
+4. `gh release create vX.Y.Z dist\OnionWatch-Installer.exe dist\OnionWatch-Update.exe dist\OnionWatch-module.zip --target main --title "Onion Watch X.Y.Z"`.
    Keep the file names: the website links to the installer, Onion Board looks for the zip,
    and the app's *Update now* (`onionwatch/core/updates.py`) fetches `OnionWatch-Update.exe`
    (the installer uploaded twice, so GitHub's download counts tell updates apart from
