@@ -2,6 +2,11 @@
 
 What changed between releases, for the release notes. Newest first.
 
+## Unreleased
+
+- Onion Watch is now fully open source, under the GNU GPL v3 or later (it was MIT with
+  an extra rule against selling it). Releases made before this keep their old license.
+
 ## 0.13.2 (2026-10-30)
 
 - **No more freezes with a big sound library:** every trigger card's "+ Add sound" box

@@ -8,7 +8,7 @@ dynamic = ["version"]
 description = "Plays a sound when something shows up in a game window, even while you're alt-tabbed away"
 readme = "README.md"
 requires-python = ">=3.12"
-license = "LicenseRef-MIT-Commons-Clause"
+license = "GPL-3.0-or-later"
 license-files = ["LICENSE"]
 dependencies = [
     "PySide6==6.11.2",
