@@ -41,7 +41,7 @@ STYLES: dict[str, tuple[str, ...]] = {
     "laser": ("Blood Moon", "Vampire", "Deep Fried", "Carbon", "Midnight"),
     "code": ("Hacker", "Toxic", "Amber Terminal"),
     "neon": ("Synthwave", "Vaporwave"),
-    "petals": ("Cherry Blossom", "Barbie", "Lilac", "Mint"),
+    "petals": ("Cherry Blossom", "Bubblegum", "Lilac", "Mint"),
     "sonar": ("Ocean", "Arctic", "Slate"),
     "embers": ("Lava", "Sunset", "Mocha", "Halloween"),
     "fireflies": ("Forest", "Swamp", "Onion"),
@@ -511,7 +511,7 @@ def _shape(kind: str, s: float) -> QPainterPath:
 
 def _petals(p: QPainter, x: _Ctx):
     """Petals, hearts or stars burst from the logo and drift down."""
-    kind = {"Cherry Blossom": "petal", "Barbie": "heart"}.get(x.name, "star")
+    kind = {"Cherry Blossom": "petal", "Bubblegum": "heart"}.get(x.name, "star")
     fade = x.fade(0.55)
     p.setPen(Qt.PenStyle.NoPen)
     for part in x.parts[:18]:
@@ -860,7 +860,7 @@ def _idle_neon(p: QPainter, x: _Idle):
 
 def _idle_petals(p: QPainter, x: _Idle):
     _rim(p, x, x.a2, 0.5)
-    kind = {"Cherry Blossom": "petal", "Barbie": "heart"}.get(x.name, "star")
+    kind = {"Cherry Blossom": "petal", "Bubblegum": "heart"}.get(x.name, "star")
     p.setPen(Qt.PenStyle.NoPen)
     for n in range(2):
         ph = _cycle(x.t, 3.2, n * 1.6, 2.6)
