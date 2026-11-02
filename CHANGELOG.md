@@ -4,6 +4,7 @@ What changed between releases, for the release notes. Newest first.
 
 ## Unreleased
 
+- Hoot's wings now go in front of what he wears round his neck when he begs, and his firework burst and sparkler fit inside his picture.
 - The pink theme is now called Bubblegum.
 - **Uninstalling can remove everything:** it now asks whether to delete your triggers,
   pictures, sounds and settings too (No keeps them; Yes puts them in the Recycle Bin).
