@@ -1,17 +1,20 @@
 {
   "from": "Onion Board",
   "path": "soundboard/style",
-  "commit": "b01b3b532db7b37fca77b47db6f5923ae6afedaa",
+  "commit": "bade6d47efe74953638d4d2ec0eb8d46c360c150",
   "files": {
-    "__init__.py": "43da56d290dc4ecf853b333b20adc992993f890e09728b06bc919667cfff0f71",
+    "__init__.py": "c88d69f2cb2b4b73ea483290a1b16608e5b792b7c7a135afe2bdd0f52ad6f2b1",
     "appstate.py": "8e0c163bd47615a9f18a62f24bdeb5c6d95605a1cc5bc4c78a1221325df39ee2",
-    "bunnyfit.py": "4ed3066fdaf511d54906250c67aa28b83668d25092cba88ea89a114007528aa2",
-    "cover.py": "9e31d1f9bf1e6c8b11c3668eca2d9190c73867069cc9646b8d01859f94f8bae0",
-    "hooks.py": "ee0708a4130764c92451bb25824bae462a55b31c3f82dcd13f2793f5103f62fb",
-    "mascotlines.py": "a0eacbfecb07a9d721bae5c99a3257242b1d33aac74c5f6ec436af6d0f40e417",
-    "owl.py": "d4823b95ef7068e4c1b68f517793e7d67ccd935ea27cf12552fbeb8c75d380a3",
-    "palettes.py": "99921f7fa5ed78e9d198c23e5fc8ce98c6a287b69da82e18a14c9ddf159f947d",
-    "textures.py": "95908c17f5f800332103ba08b019518aa63722cdd600470c3ee95c30e1bb7e60",
+    "bunnyfit.py": "80c0cd9c6489802f733afdcbea342f0afde4eec67d7965cd4058cc92bee42eb1",
+    "cover.py": "4162b73aaec8e8ea0002e097f45a0ca9316a770b7185985d1033c6bed2630522",
+    "fireworks_art.py": "e7b965ac78e105796a2f48985d7dd61cd89efe28582eb272cd98af467c7c3522",
+    "hooks.py": "2bf808c563704c7477a4aa58d16035c0339037fef16347c7529a4c09b4225261",
+    "mascotlines.py": "83e2fedf6c050adb76ab35c5f4b31b45af85c50465f6c233f051ce140398594a",
+    "owl.py": "f50981a4a7a81f314c4315374baa72589533c944ea09edaec1d1b6e1e1392c8d",
+    "owldraw.py": "d35f1d76b6bbefd6fea866651a08e7c374c0693c3071e27dd195f780ff7e6235",
+    "owllooks.py": "0097dab0aa436563d644f4e96e4cdd248f4602022039c284ea85c7e60dcf28db",
+    "palettes.py": "0ba7e046aadfa74b1789b7ba438a8c4a7f3920c1f40f6585f0e85a9d6411c0e4",
+    "textures.py": "c961c6666956c67ba612f8403590f1a0493356f8bb287b65f3d253eb332e6681",
     "webs_art.py": "aaa0263f8739ac319debdda9798b2a45e6f08c16c95221368c55d3515d46f34f"
   }
 }

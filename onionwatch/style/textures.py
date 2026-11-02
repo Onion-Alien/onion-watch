@@ -51,8 +51,16 @@ TEXTURES = {
     "crosshatch": (8, "lift"), "diamond": (20, "accent"), "scales": (24, "accent"),
     "embers": (96, "accent2"), "petals": (64, "accent2"), "dither": (2, "shade"),
     "halftone": (10, "shade"), "frost": (64, "lift"), "webs": (320, "lift"),
+    "fireworks": (600, "accent"),
 }
 TEXTURE_TILE = {k: v[0] for k, v in TEXTURES.items()}
+
+# Where each card starts a big tile (a fraction of it across and down), so two cards
+# side by side or one above the other don't show the same bursts or webs lined up:
+# the app gives each card one in turn (its "texshift" property). Small tiles can't
+# line up visibly and keep one.
+SHIFTS = ((0, 0), (0.37, 0.61), (0.71, 0.23), (0.19, 0.83), (0.53, 0.41), (0.88, 0.67))
+SHIFT_MIN_TILE = 160
 
 
 def _webs_image(size: int, ink: str, alpha: float) -> QImage:
@@ -67,6 +75,35 @@ def _webs_image(size: int, ink: str, alpha: float) -> QImage:
                              Qt.TransformationMode.SmoothTransformation)
     img = QImage(size, size, QImage.Format.Format_ARGB32)
     img.fill(_ink(ink, 1.0))
+    img.setAlphaChannel(shape.convertToFormat(QImage.Format.Format_Grayscale8))
+    out = QImage(size, size, QImage.Format.Format_ARGB32)
+    out.fill(Qt.GlobalColor.transparent)
+    p = QPainter(out)
+    p.setOpacity(alpha)
+    p.drawImage(0, 0, img)
+    p.end()
+    return out
+
+
+def _fireworks_image(size: int, tk: dict[str, str], alpha: float) -> QImage:
+    """Fireworks' bursts (fireworks_art.py, white sparks on black) as a `size` tile,
+    swept from the theme's accent to its accent2 and back across the diagonal (once per
+    tile, so it still meets itself), its brightest sparks at `alpha`."""
+    import base64
+
+    from .fireworks_art import FIREWORKS_PNG
+    shape = QImage.fromData(base64.b64decode("".join(FIREWORKS_PNG)))
+    if shape.width() != size:
+        shape = shape.scaled(size, size, Qt.AspectRatioMode.IgnoreAspectRatio,
+                             Qt.TransformationMode.SmoothTransformation)
+    sweep = QLinearGradient(QPointF(0, 0), QPointF(size / 4, size / 4))
+    sweep.setSpread(QLinearGradient.Spread.ReflectSpread)
+    sweep.setColorAt(0, QColor(tk["accent"]))
+    sweep.setColorAt(1, QColor(tk["accent2"]))
+    img = QImage(size, size, QImage.Format.Format_ARGB32)
+    p = QPainter(img)
+    p.fillRect(img.rect(), sweep)
+    p.end()
     img.setAlphaChannel(shape.convertToFormat(QImage.Format.Format_Grayscale8))
     out = QImage(size, size, QImage.Format.Format_ARGB32)
     out.fill(Qt.GlobalColor.transparent)
@@ -168,6 +205,8 @@ def texture_image(kind: str, tk: dict[str, str] | None = None, size: int | None 
             p.drawEllipse(QPointF(x, y), r * 1.3, r)
     elif kind == "webs":        # cobwebs over the whole tile (webs_art.py), tinted
         p.drawImage(0, 0, _webs_image(size, ink, 0.11 * k))
+    elif kind == "fireworks":   # bursts in both accents (fireworks_art.py)
+        p.drawImage(0, 0, _fireworks_image(size, tk, 0.2 * k))
     elif kind == "dither":      # a 1-pixel checkerboard, like 256-colour dithering
         img.setPixelColor(0, 0, a(0.10))
         img.setPixelColor(1, 1, a(0.10))
@@ -180,32 +219,63 @@ _texture_urls: dict[tuple, str] = {}
 
 def texture_style(selector: str, tk: dict[str, str] | None = None) -> str:
     """A stylesheet rule tiling theme `tk`'s texture (default: the current theme's) on
-    `selector`; "" when it has none. Whether Textured is on is the app's to check."""
-    if url := texture_url(hooks.palette() if tk is None else tk):
-        return f'{selector} {{ background-image:url("{url}"); background-repeat:repeat-xy; }}\n'
-    return ""
+    `selector`; "" when it has none. A big tile gets a rule per SHIFTS too, for the
+    widgets whose "texshift" property picks one. Whether Textured is on is the app's to
+    check."""
+    tk = hooks.palette() if tk is None else tk
+    if not (url := texture_url(tk)):
+        return ""
+    css = f'{selector} {{ background-image:url("{url}"); background-repeat:repeat-xy; }}\n'
+    if TEXTURES[tk["texture"]][0] >= SHIFT_MIN_TILE:
+        parts = [s.strip() for s in selector.split(",")]
+        for i in range(1, len(SHIFTS)):
+            if shifted := texture_url(tk, i):
+                sel = ", ".join(f'{s}[texshift="{i}"]' for s in parts)
+                css += f'{sel} {{ background-image:url("{shifted}"); }}\n'
+    return css
 
 
-def texture_url(tk: dict[str, str]) -> str:
-    """Theme `tk`'s texture tile as a file for a stylesheet ("" when it has none): made
-    once, then remembered."""
+def texture_url(tk: dict[str, str], shift: int = 0) -> str:
+    """Theme `tk`'s texture tile as a file for a stylesheet ("" when it has none),
+    started SHIFTS[`shift`] of the way in: made once, then remembered."""
     kind = tk.get("texture", "")
     if kind not in TEXTURES:
         return ""
     key = (kind, tk["panel"], tk["text_hi"], tk["accent"], tk["accent2"],
-           tk.get("texture_ink", ""), tk.get("texture_strength", ""))
+           tk.get("texture_ink", ""), tk.get("texture_strength", ""), shift)
     if url := _texture_urls.get(key):
         return url
+    # named after the tile's own pixels, not its colours: a tile redrawn in a new version
+    # gets a new file instead of the old drawing left in Temp by an older copy
+    img = _shifted(texture_image(kind, tk), *SHIFTS[shift])
+    pixels = bytes(img.constBits())[:img.sizeInBytes()]
     folder = Path(tempfile.gettempdir()) / "onion-style"
-    path = folder / f"tex-{kind}-{hashlib.md5(repr(key).encode()).hexdigest()[:10]}.png"
+    path = folder / f"tex-{kind}-{hashlib.md5(pixels).hexdigest()[:10]}.png"
     try:
         folder.mkdir(exist_ok=True)
         if not path.exists():
-            texture_image(kind, tk).save(str(path))
+            img.save(str(path))
     except OSError:
         return ""
     _texture_urls[key] = url = path.as_posix()
     return url
+
+
+def _shifted(img: QImage, fx: float, fy: float) -> QImage:
+    """Seamless tile `img` started `fx`, `fy` of the way in (it wraps round)."""
+    if not (fx or fy):
+        return img
+    w, h = img.width(), img.height()
+    dx, dy = round(fx * w), round(fy * h)
+    out = QImage(w, h, img.format())
+    out.fill(Qt.GlobalColor.transparent)
+    p = QPainter(out)
+    p.setCompositionMode(QPainter.CompositionMode.CompositionMode_Source)
+    for ox in (-dx, w - dx):
+        for oy in (-dy, h - dy):
+            p.drawImage(ox, oy, img)
+    p.end()
+    return out
 
 
 # The Textured glow: soft blobs of the theme's two accent colours behind the cards,

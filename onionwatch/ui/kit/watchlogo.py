@@ -48,7 +48,7 @@ STYLES: dict[str, tuple[str, ...]] = {
     "pixels": ("Retro 98", "High Contrast"),
     "comic": ("Comic Sans", "Paper"),
     "flash": ("Flashbang",),
-    "confetti": ("Brainrot",),
+    "confetti": ("Brainrot", "Fireworks"),
     "shine": ("Hoot", "Dark", "Light", "Royal"),
 }
 _STYLE_OF = {name: style for style, names in STYLES.items() for name in names}
