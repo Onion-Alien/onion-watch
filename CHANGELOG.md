@@ -4,6 +4,7 @@ What changed between releases, for the release notes. Newest first.
 
 ## Unreleased
 
+- The pink theme is now called Bubblegum.
 - **Uninstalling can remove everything:** it now asks whether to delete your triggers,
   pictures, sounds and settings too (No keeps them; Yes puts them in the Recycle Bin).
   [docs/PRIVACY.md](docs/PRIVACY.md) says in plain words what the app reads, sends and
