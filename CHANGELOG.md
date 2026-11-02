@@ -4,6 +4,7 @@ What changed between releases, for the release notes. Newest first.
 
 ## Unreleased
 
+- *Count me in* no longer says it never sends your IP address: any web request carries one, so it now says it never sends your name or device info.
 - Hoot's wings now go in front of what he wears round his neck when he begs, and his firework burst and sparkler fit inside his picture.
 - The pink theme is now called Bubblegum.
 - **Uninstalling can remove everything:** it now asks whether to delete your triggers,

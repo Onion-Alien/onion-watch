@@ -772,7 +772,7 @@ class SettingsDialog(QDialog):
         row.addStretch(1)
         cv.addLayout(row)
         cv.addWidget(hint_label(_("Anonymous usage stats once a day, to see what to improve. "
-                                  "Never your name, IP address or device info.")))
+                                  "Never your name or device info.")))
         v.addWidget(card)
         v.addStretch(1)
         return w

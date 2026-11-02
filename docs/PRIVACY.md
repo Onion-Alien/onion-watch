@@ -16,7 +16,7 @@ Settings → *Updates and privacy*:
   version, a random ID made on your PC, rough numbers (how many triggers, how often
   they went off), the app's language, which features are used, and crash counts (the
   error's type and where in Onion Watch's own code, never its message). Never your
-  name, IP address, device details, triggers, pictures, window names, games or
+  name, device details, triggers, pictures, window names, games or
   anything you type. The installer shows this on its *Your privacy* page and has a
   *Count me in* box (ticked) on its options page: untick it there or switch it off
   later, and one last anonymous "opted out" is sent, then nothing.
