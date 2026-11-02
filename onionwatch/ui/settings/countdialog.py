@@ -38,7 +38,7 @@ class CountDialog(QDialog):
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
         v = QVBoxLayout(self)
         v.setContentsMargins(18, 16, 18, 14)
-        hint = QLabel(_("Once a day, anonymous. Never your name, IP address or device "
+        hint = QLabel(_("Once a day, anonymous. Never your name or device "
                         "info, and never your triggers, pictures or windows. Where you "
                         "heard of it only if you say. Switching it off sends one last "
                         "count with no ID, then nothing."))
