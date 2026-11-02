@@ -266,6 +266,16 @@ THEMES: dict[str, dict[str, str]] = {
         off="#4f3a56", badge="#312336", badge_text="#f3dcc8",
         **_DARK_STATUS | dict(ok_text="#8cff5a", ok_border="#3f7a2a", error_text="#ff7a7c"),
     ),
+    "Fireworks": dict(   # a night sky lit gold and pink, bursts on the panels
+        bg="#0a0c1a", panel="#10132a", card="#161a35", card_hi="#1d2241",
+        btn="#1a1e3b", btn_hover="#242948", btn_press="#2e3456",
+        border="#2a305c", border_hi="#4d5596", groove="#262c52", inset="#070815",
+        text="#eef0ff", text_hi="#ffffff", muted="#a3a8d0", faint="#6c7199", section="#ffc94d",
+        accent="#ffb627", accent_hi="#ffc855", accent2="#ff4fa3", on_accent="#1a1000",
+        texture="fireworks",
+        off="#3a3f6a", badge="#242948", badge_text="#e6e8ff",
+        **_DARK_STATUS | dict(error_text="#ff7a7c"),
+    ),
     "Lava": dict(   # molten orange and yellow
         bg="#150805", panel="#1f0c07", card="#2a1109", card_hi="#35160b",
         btn="#2e130a", btn_hover="#3b180c", btn_press="#4a1e0f",
@@ -308,7 +318,7 @@ THEMES: dict[str, dict[str, str]] = {
         # Radio Favorites / Recent strip and the map's + / - get a grey of their own
         tile="#eeeeee", segbox="#eeeeee", map_btn="#eeeeee",
     ),
-    "Barbie": dict(   # everything is pink. Everything.
+    "Bubblegum": dict(   # everything is pink. Everything.
         bg="#ffb3d9", panel="#ffc9e4", card="#ffdcee", card_hi="#ffd0e8",
         btn="#ff9ccf", btn_hover="#ff85c4", btn_press="#ff6eb8",
         border="#ff5fb0", border_hi="#e0218a", groove="#ff8cc6", inset="#ffc0e0",
@@ -484,7 +494,7 @@ def _add_item_hover_token(t: dict[str, str]) -> None:
 
 def _add_accent_text_token(t: dict[str, str]) -> None:
     """The accent where it's drawn straight on a surface, not as a fill, in two
-    strengths. accent_text: icons and edges (3:1), on the buttons too (Barbie's and
+    strengths. accent_text: icons and edges (3:1), on the buttons too (Bubblegum's and
     Flashbang's Live icon was 2.7:1 on theirs); Flashbang's yellow was 1.4:1 on white.
     accent_link: words (links, an effect's value, a checked menu row, a small action
     label), which need 4.5:1 on every surface they sit on (TEXT_ON and a hovered menu
@@ -494,6 +504,14 @@ def _add_accent_text_token(t: dict[str, str]) -> None:
         t["accent_text"] = _readable_text(t["accent"], t, 3.0, ("bg", "panel", "card", "btn"))
     if "accent_link" not in t:
         t["accent_link"] = _readable_text(t["accent"], t, 4.5, TEXT_ON + ("item_hover",))
+
+
+def _add_off_text_token(t: dict[str, str]) -> None:
+    """off_text: the On Air card's red for a voice switched off there (its words and
+    icon), on its panel (btn) and hovered (panel): error_text was 4.1:1 on Arctic's
+    buttons. Moved towards the text colour only as far as 4.5:1 needs."""
+    if "off_text" not in t:
+        t["off_text"] = _readable_text(t["error_text"], t, 4.5, ("btn", "panel"))
 
 
 SECONDARY_ON = ("bg", "panel", "card", "card_hi", "btn", "btn_hover", "inset")
@@ -575,6 +593,7 @@ def finish(t: dict[str, str]) -> dict[str, str]:
     _add_hover_token(t)
     _add_item_hover_token(t)
     _add_accent_text_token(t)
+    _add_off_text_token(t)
     return t
 
 
@@ -584,18 +603,19 @@ for _t in THEMES.values():
 DEFAULT = "Dark"
 # How the Settings window groups the theme cards. Every theme is in exactly one group.
 GROUPS: list[tuple[str, list[str]]] = [
-    ("Classic", ["Halloween", "Dark", "Light", "Midnight", "Carbon", "Slate", "Arctic", "Paper",
-                 "High Contrast"]),
+    ("Classic", ["Fireworks", "Halloween", "Dark", "Light", "Midnight", "Carbon", "Slate",
+                 "Arctic", "Paper", "High Contrast"]),
     ("Colourful", ["Ocean", "Toxic", "Vampire", "Forest", "Mocha", "Sunset", "Royal", "Onion",
                    "Lilac", "Mint", "Cherry Blossom"]),
     ("Wild", ["Synthwave", "Vaporwave", "Blood Moon", "Lava", "Amber Terminal", "Hacker"]),
-    ("Meme", ["Flashbang", "Barbie", "Swamp", "Deep Fried", "Retro 98", "Comic Sans",
+    ("Meme", ["Flashbang", "Bubblegum", "Swamp", "Deep Fried", "Retro 98", "Comic Sans",
               "Brainrot"]),
 ]
 
 # Limited-edition themes: each one's last day on offer (the PC's own date). Pick it by
 # then and it's yours for good (the app's `kept` list); after it, nobody else sees it.
-LIMITED: dict[str, datetime.date] = {"Halloween": datetime.date(2026, 10, 31)}
+LIMITED: dict[str, datetime.date] = {"Halloween": datetime.date(2026, 10, 31),
+                                     "Fireworks": datetime.date(2026, 11, 30)}
 
 
 FONT = "Bahnschrift"   # ships with Windows 10+; a theme can swap it with a `font` token

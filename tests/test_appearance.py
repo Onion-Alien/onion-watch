@@ -104,6 +104,21 @@ def test_inside_the_board_its_colour_and_textured_are_followed():
         theme.set_current(theme.DEFAULT)
 
 
+def test_the_pink_themes_old_name_still_works():
+    class Host:
+        def palette(self):
+            return dict(theme.THEMES["Bubblegum"])
+
+        def style(self):
+            return {"theme": "Barbie"}   # an older board
+    try:
+        assert theme.set_current("Barbie") == "Bubblegum"   # older settings
+        theme.follow_host(Host())
+        assert theme.current_name == "Bubblegum"
+    finally:
+        theme.set_current(theme.DEFAULT)
+
+
 def test_a_theme_switch_covers_every_window_and_fades(win, dlg):
     """The main window and Settings each get a still of themselves with Hoot in the
     new theme while every widget restyles: it fades in over a few frames (never a

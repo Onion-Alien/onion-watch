@@ -62,7 +62,7 @@ def _bun() -> dict[str, tuple[str, ...]]:
         "Hacker": (_("I'm in."), _("access granted"), _("hacking your sounds…"),
                    _("nobody saw that")),
         "Flashbang": (_("my eyes!"), _("too bright!"), _("where am I?"), _("everything is white…")),
-        "Barbie": (_("so fabulous!"), _("pink is a lifestyle"), _("hi, gorgeous!"),
+        "Bubblegum": (_("so fabulous!"), _("pink is a lifestyle"), _("hi, gorgeous!"),
                    _("let's go party!")),
         "Swamp": (_("ribbit!"), _("get out of my swamp!"), _("mud bath time"),
                   _("smells like home")),
@@ -74,6 +74,8 @@ def _bun() -> dict[str, tuple[str, ...]]:
                        _("very serious bunny")),
         "Halloween": (_("trick or treat!"), _("boo! scared you?"), _("got any candy?"),
                       _("my broom's parked outside")),
+        "Fireworks": (_("ooh, pretty!"), _("light it up!"), _("cover your ears!"),
+                      _("my sparkler's still going")),
         "Brainrot": (_("no cap!"), _("this is so real"), _("bro is clicking me"),
                      _("rent free!")),
     }
@@ -111,12 +113,13 @@ def _hoot() -> dict[str, tuple[str, ...]]:
         "Amber Terminal": (_("noted in the log"), _("watching the numbers"), _("all on file")),
         "Hacker": (_("tracking you…"), _("signal found"), _("I see your packets")),
         "Flashbang": (_("I can't see!"), _("everything is white!"), _("blinded!")),
-        "Barbie": (_("I see fabulous!"), _("pink alert!"), _("love that!")),
+        "Bubblegum": (_("I see fabulous!"), _("pink alert!"), _("love that!")),
         "Swamp": (_("I see a frog!"), _("swamp watch!"), _("bog life")),
         "Deep Fried": (_("HOOOO"), _("eyes are frying"), _("so crispy")),
         "Retro 98": (_("buffering…"), _("now loading"), _("please be kind, rewind")),
         "Comic Sans": (_("hoo's there?"), _("owl be watching!"), _("whooo's laughing?")),
         "Halloween": (_("hoo goes there?!"), _("I saw a ghost!"), _("spooky season, hoo!")),
+        "Fireworks": (_("ooh! aah!"), _("best seat in the sky"), _("boom goes the night!")),
         "Brainrot": (_("watching brainrot"), _("ok that's crazy"), _("no thoughts, just eyes")),
     }
 

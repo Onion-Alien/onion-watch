@@ -51,11 +51,12 @@ OUTFITS: dict[str, tuple[str, ...]] = {
     "Vaporwave": ("glasses_3d",),
     "Blood Moon": ("moon", "horns"),
     "Halloween": ("witch_hat", "fangs"),
+    "Fireworks": ("burst", "sparkler", "glow_necklace"),
     "Lava": ("bandana",),
     "Amber Terminal": ("eyeshade", "pencil"),
     "Hacker": ("hood", "strings", "shades"),
     "Flashbang": ("spirals", "dizzy"),
-    "Barbie": ("bow", "heart_glasses"),
+    "Bubblegum": ("bow", "heart_glasses"),
     "Swamp": ("frog",),
     "Deep Fried": ("laser",),
     "Retro 98": ("pixel_shades",),
@@ -65,7 +66,7 @@ OUTFITS: dict[str, tuple[str, ...]] = {
 
 HATS = {"pom_beanie", "wizard", "captain", "beret", "crown", "onion", "horns", "bandana",
         "eyeshade", "pencil", "frog", "snapback", "party", "propeller", "blossom", "leaves",
-        "flower_crown", "mint_sprig", "bow", "dizzy", "santa", "witch_hat"}
+        "flower_crown", "mint_sprig", "bow", "dizzy", "santa", "witch_hat", "sparkler"}
 
 # glasses and visors: off while he sleeps under the nightcap
 EYEWEAR = {"shades", "round_glasses", "heart_glasses", "glasses_3d",
@@ -74,8 +75,8 @@ EYEWEAR = {"shades", "round_glasses", "heart_glasses", "glasses_3d",
 # hide and lifts his brows clear of them
 HIDE_EYES = {"shades", "pixel_shades", "visor", "spirals"}
 
-NECK = {"bowtie", "scarf", "lei", "strings", "turtleneck", "badge"}   # face-layer pieces
-                                                                     # round his neck
+# face-layer pieces round his neck
+NECK = {"bowtie", "scarf", "lei", "strings", "turtleneck", "badge", "glow_necklace"}
 
 GOLD, GOLD_DARK =QColor("#ffcf40"), QColor("#d99a1e")
 WHITE = QColor("#ffffff")
@@ -100,14 +101,14 @@ def _col(key: str) -> QColor:
 # isn't listed is plain Bun: VANILLA.
 TAILS = ("round", "fluffy", "long", "tuft", "heart")
 PATTERNS = ("patch", "spots", "mask")
-VANILLA = {"fur": "#fdf8f1", "ears": "right", "extras": (), "tail": "round",
+VANILLA = {"fur": "#fdf8f1", "ears": "up", "extras": (), "tail": "round",
            "iris": "#8a5cc7", "inner": "#ffb3c7", "nose": "#ff8fae", "pattern": (),
            "marks": "#a57a52", "belly": None, "pads": None}
 LOOKS: dict[str, dict] = {
     "Light": {"ears": "up", "tail": "fluffy", "iris": "#3d8fe0", "pads": "#ffb3c7"},
     "Lilac": {"fur": "#e9e0f7", "ears": "left", "tail": "fluffy", "iris": "#a46be8",
               "inner": "#d6b4f2", "nose": "#c58ad9", "belly": "#f8f3fe", "pads": "#d6b4f2"},
-    "Toxic": {"fur": "#e2f2d3", "extras": ("chomp", "shiner"), "tail": "tuft",
+    "Toxic": {"ears": "right", "fur": "#e2f2d3", "extras": ("chomp", "shiner"), "tail": "tuft",
               "iris": "#6cc622", "inner": "#c2ea86", "nose": "#86c84a", "pattern": ("spots",),
               "marks": "#9fd46a", "pads": "#c2ea86"},
     "Ocean": {"ears": "up", "extras": ("earring",), "iris": "#1aa0c8", "inner": "#ffc0ae",
@@ -115,19 +116,21 @@ LOOKS: dict[str, dict] = {
     "Cherry Blossom": {"fur": "#fde3ec", "ears": "both", "tail": "heart", "iris": "#e0608f",
                        "inner": "#ff9fbf", "nose": "#ff7aa5", "belly": "#fff4f8",
                        "pads": "#ff9fbf"},
-    "Carbon": {"fur": "#5c5964", "extras": ("earring", "bandaid"), "tail": "long",
+    "Carbon": {"ears": "up", "fur": "#5c5964", "extras": ("earring", "bandaid"), "tail": "long",
                "iris": "#ff9a3c", "inner": "#c9a3ad", "nose": "#2b2730", "pattern": ("patch",),
                "marks": "#e6e2ea", "pads": "#c9a3ad"},
     "Midnight": {"fur": "#3e4366", "ears": "up", "tail": "fluffy", "iris": "#ffd66b",
                  "inner": "#9ea6e2", "nose": "#b9a4f0", "pattern": ("spots",),
                  "marks": "#6c74aa", "belly": "#5b6290", "pads": "#9ea6e2"},
-    "Slate": {"fur": "#e0e1e6", "iris": "#5f7da3", "inner": "#e3b7bf", "nose": "#c98a96",
+    "Slate": {"ears": "up",
+              "fur": "#e0e1e6", "iris": "#5f7da3", "inner": "#e3b7bf", "nose": "#c98a96",
               "pattern": ("mask",), "marks": "#8d919e", "pads": "#e3b7bf"},
     "Arctic": {"ears": "up", "extras": ("freckles",), "tail": "fluffy", "iris": "#4cc2ee",
                "inner": "#ffd0dc", "pads": "#ffd0dc"},
-    "Paper": {"fur": "#f6edda", "extras": ("freckles",), "iris": "#7a5a34", "inner": "#f2c6b2",
+    "Paper": {"ears": "up",
+              "fur": "#f6edda", "extras": ("freckles",), "iris": "#7a5a34", "inner": "#f2c6b2",
               "nose": "#d98f7a", "pattern": ("spots",), "marks": "#3a3550", "pads": "#f2c6b2"},
-    "Vampire": {"fur": "#ece7f1", "ears": "left", "extras": ("chomp",), "tail": "tuft",
+    "Vampire": {"fur": "#ece7f1", "ears": "up", "extras": ("chomp",), "tail": "tuft",
                 "iris": "#d4213d", "inner": "#c25a7a", "nose": "#8f2a4a", "pattern": ("mask",),
                 "marks": "#3a2d47", "belly": "#d9cfe3", "pads": "#c25a7a"},
     "Forest": {"fur": "#a57a52", "ears": "up", "tail": "long", "iris": "#5fae3c",
@@ -141,14 +144,16 @@ LOOKS: dict[str, dict] = {
                "pads": "#ffb38a"},
     "Royal": {"ears": "up", "extras": ("earring",), "iris": "#d9a521", "inner": "#c9a3f0",
               "nose": "#b583e8", "pads": "#c9a3f0"},
-    "Onion": {"iris": "#9b5de5", "inner": "#e2b6f0", "nose": "#c47ad9", "pads": "#e2b6f0"},
+    "Onion": {"ears": "up",
+              "iris": "#9b5de5", "inner": "#e2b6f0", "nose": "#c47ad9", "pads": "#e2b6f0"},
     "Mint": {"fur": "#dbf3e7", "ears": "left", "tail": "fluffy", "iris": "#22b585",
              "inner": "#a8e6c8", "nose": "#ff9fb3", "pattern": ("spots",), "marks": "#5a3a28",
              "pads": "#a8e6c8"},
     "Synthwave": {"fur": "#f6d9ef", "ears": "up", "extras": ("earring",), "tail": "tuft",
                   "iris": "#ff3fb4", "inner": "#ff7ad9", "nose": "#ff4fa0", "pattern": ("mask",),
                   "marks": "#9b5de5", "pads": "#6ee7ff"},
-    "Vaporwave": {"fur": "#f2dcf5", "tail": "heart", "iris": "#3fcbdc", "inner": "#b8a4ff",
+    "Vaporwave": {"ears": "up",
+                  "fur": "#f2dcf5", "tail": "heart", "iris": "#3fcbdc", "inner": "#b8a4ff",
                   "nose": "#ff9fe0", "belly": "#c9f2f7", "pads": "#b8a4ff"},
     "Blood Moon": {"fur": "#433b4c", "ears": "left", "extras": ("chomp", "shiner"),
                    "tail": "tuft", "iris": "#ff3b2f", "inner": "#c4505a", "nose": "#241d29",
@@ -156,26 +161,31 @@ LOOKS: dict[str, dict] = {
     "Halloween": {"fur": "#3a3140", "ears": "both", "extras": ("chomp",), "tail": "tuft",
                   "iris": "#ff8a1f", "inner": "#a259ff", "nose": "#ff7518",
                   "pattern": ("spots",), "marks": "#5c4a66", "pads": "#a259ff"},
-    "Lava": {"fur": "#f3cdae", "extras": ("bandaid", "chomp"), "tail": "tuft", "iris": "#ff5a1f",
+    "Fireworks": {"fur": "#3a4494", "ears": "up", "tail": "fluffy", "iris": "#ffc94d",
+                  "inner": "#ff7fbe", "nose": "#ff4fa3", "belly": "#5560b4", "pads": "#ff7fbe"},
+    "Lava": {"ears": "right",
+             "fur": "#f3cdae", "extras": ("bandaid", "chomp"), "tail": "tuft", "iris": "#ff5a1f",
              "inner": "#ff9a6b", "nose": "#e0482a", "pattern": ("patch",), "marks": "#3d2c2c",
              "pads": "#ff9a6b"},
-    "Amber Terminal": {"fur": "#f3e7c8", "iris": "#f0a000", "inner": "#f0c890",
+    "Amber Terminal": {"ears": "up", "fur": "#f3e7c8", "iris": "#f0a000", "inner": "#f0c890",
                        "nose": "#d98a3a", "pattern": ("mask",), "marks": "#c99a52",
                        "pads": "#f0c890"},
     "Hacker": {"fur": "#45424d", "ears": "up", "extras": ("earring", "chomp"), "tail": "long",
                "iris": "#39ff7a", "inner": "#7fbf8f", "nose": "#1e1c22", "pads": "#7fbf8f"},
     "Flashbang": {"ears": "both", "extras": ("shiner", "bandaid"), "tail": "fluffy",
                   "iris": "#f5c400", "pads": "#ffb3c7"},
-    "Barbie": {"fur": "#fcd8e8", "ears": "up", "extras": ("earring",), "tail": "heart",
+    "Bubblegum": {"fur": "#fcd8e8", "ears": "up", "extras": ("earring",), "tail": "heart",
                "iris": "#ff4fa3", "inner": "#ff8cc6", "nose": "#ff4fa3", "belly": "#fff0f7",
                "pads": "#ff8cc6"},
     "Swamp": {"fur": "#68703f", "ears": "both", "tail": "long", "iris": "#e8d84a",
               "inner": "#c8b878", "nose": "#3e4424", "pattern": ("spots",), "marks": "#97a35a",
               "belly": "#c9cf8f", "pads": "#c8b878"},
-    "Deep Fried": {"fur": "#f1d394", "extras": ("shiner", "bandaid", "chomp"), "tail": "tuft",
+    "Deep Fried": {"ears": "right",
+                   "fur": "#f1d394", "extras": ("shiner", "bandaid", "chomp"), "tail": "tuft",
                    "iris": "#ff2a00", "inner": "#ff9a3a", "nose": "#c83a14",
                    "pattern": ("spots",), "marks": "#c8862a", "pads": "#ff9a3a"},
-    "Retro 98": {"fur": "#d8d4cc", "iris": "#1a2ab0", "inner": "#e0b0c0", "nose": "#c08090",
+    "Retro 98": {"ears": "up",
+                 "fur": "#d8d4cc", "iris": "#1a2ab0", "inner": "#e0b0c0", "nose": "#c08090",
                  "pattern": ("patch",), "marks": "#8a8a8a", "pads": "#e0b0c0"},
     "Comic Sans": {"ears": "both", "extras": ("freckles",), "tail": "fluffy",
                    "iris": "#2f80ff", "pattern": ("spots",), "marks": "#86b8ff",
@@ -288,6 +298,21 @@ def _moon(p, ink):
     _fill(p, _circle(50, 48, 37), grad, QPen(QColor("#6e170e"), 2))
     for x, y, r in ((27, 34, 5), (73, 28, 4), (80, 52, 5.5), (22, 58, 3.5), (58, 14, 3)):
         _fill(p, _circle(x, y, r), QColor(140, 30, 16, 120), None)
+
+
+def _burst(p, ink):
+    """A firework bursting in the sky over his floppy ear: gold and pink rays with a spark
+    on the end of each."""
+    x, y = 17, 17
+    _fill(p, _circle(x, y, 13), QColor(255, 182, 39, 45), None)       # its glow
+    for i in range(12):
+        a = i * math.pi / 6 + 0.2
+        col = QColor("#ffc94d") if i % 2 else QColor("#ff5fae")
+        r0, r1 = (4, 11) if i % 2 else (5, 13)
+        c, s_ = math.cos(a), math.sin(a)
+        p.setPen(QPen(col, 2.2, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
+        p.drawLine(QPointF(x + c * r0, y + s_ * r0), QPointF(x + c * r1, y + s_ * r1))
+        _fill(p, _circle(x + c * (r1 + 3), y + s_ * (r1 + 3), 1.7), col, None)
 
 
 def _collar(p, ink):
@@ -557,6 +582,25 @@ def _pencil(p, ink):
           QPen(INK_COL, 1.3))
     _fill(p, _poly((-15, -0.9), (-17.3, 0), (-15, 0.9)), DARK, None)
     p.restore()
+
+
+def _sparkler(p, ink):
+    """A lit sparkler tucked behind his left ear, fizzing at the tip."""
+    tip = QPointF(90, 14)
+    p.setPen(QPen(QColor("#8d93a8"), 1.6, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
+    p.drawLine(QPointF(75, 44), QPointF(82, 30))                        # the bare wire
+    p.setPen(QPen(QColor("#4a4458"), 3.4, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
+    p.drawLine(QPointF(82, 30), QPointF(89, 16))                        # the coating
+    glow = QRadialGradient(tip, 11)
+    glow.setColorAt(0, QColor(255, 236, 160, 230))
+    glow.setColorAt(1, QColor(255, 182, 39, 0))
+    _fill(p, _circle(tip.x(), tip.y(), 11), glow, None)
+    p.setPen(QPen(QColor("#ffe27a"), 1.3, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
+    for i in range(8):
+        a = i * math.pi / 4 + 0.3
+        p.drawLine(tip + QPointF(4 * math.cos(a), 4 * math.sin(a)),
+                   tip + QPointF(9 * math.cos(a), 9 * math.sin(a)))
+    _star(p, tip.x(), tip.y(), 4.5, QColor("#fff6d0"), QPen(QColor("#ffb627"), 1))
 
 
 def _dizzy(p, ink):
@@ -900,6 +944,21 @@ def _scarf(p, ink):
         p.drawLine(QPointF(60.5, y), QPointF(69, y))
 
 
+def _glow_necklace(p, ink):
+    """A glow stick bent round his neck, glowing pink."""
+    path = QPainterPath(QPointF(29, 89))
+    path.cubicTo(QPointF(37, 99), QPointF(63, 99), QPointF(71, 89))
+    p.setBrush(Qt.BrushStyle.NoBrush)
+    for width, alpha in ((10, 50), (6.5, 110)):                         # its glow
+        p.setPen(QPen(QColor(255, 79, 163, alpha), width, Qt.PenStyle.SolidLine,
+                      Qt.PenCapStyle.RoundCap))
+        p.drawPath(path)
+    p.setPen(QPen(QColor("#ff7fbe"), 3.6, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
+    p.drawPath(path)
+    p.setPen(QPen(QColor("#ffe0f0"), 1.3, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
+    p.drawPath(path)                                                    # its bright core
+
+
 def _lei(p, ink):
     for i in range(9):
         t = i / 8
@@ -913,6 +972,7 @@ INK_COL = QColor("#2b2340")
 
 PIECES = {
     "moon": ("behind", _moon),
+    "burst": ("behind", _burst),
     "hood": ("back", lambda p, ink: _hood(p, ink, QColor("#2c323e"), _col("accent"))),
     "hazmat": ("back", lambda p, ink: _hood(p, ink, QColor("#f2c230"))),
     "collar": ("back", _collar),
@@ -931,6 +991,7 @@ PIECES = {
     "flower_crown": ("over", _flower_crown),
     "mint_sprig": ("over", _mint_sprig),
     "pencil": ("over", _pencil),
+    "sparkler": ("over", _sparkler),
     "onion": ("over", _onion),
     "party": ("over", _party),
     "propeller": ("over", _propeller),
@@ -951,6 +1012,7 @@ PIECES = {
     "spirals": ("face", _spirals),
     "readers": ("face", _readers),
     "laser": ("face", _laser),
+    "glow_necklace": ("face", _glow_necklace),
     "strings": ("face", _strings),
     "fangs": ("face", _fangs),
     "clown_nose": ("face", _clown_nose),

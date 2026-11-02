@@ -16,8 +16,8 @@ def _last():
     return theme.LIMITED["Halloween"]
 
 
-def test_halloween_is_the_first_card_then_hoot():
-    assert theme.GROUPS[0][1][:3] == ["Halloween", "Hoot", "Dark"]
+def test_the_limited_ones_are_the_first_cards_then_hoot():
+    assert theme.GROUPS[0][1][:4] == ["Fireworks", "Halloween", "Hoot", "Dark"]
     names = [n for __, ns in theme.GROUPS for n in ns]
     assert sorted(names) == sorted(theme.THEMES)   # every theme once
 

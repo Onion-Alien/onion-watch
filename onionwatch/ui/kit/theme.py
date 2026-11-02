@@ -128,8 +128,13 @@ def set_tone(label, kind: str = "") -> None:
         label.style().polish(label)
 
 
+# themes that changed their name: an older board or older settings still give the old one
+RENAMED = {"Barbie": "Bubblegum"}
+
+
 def set_current(name: str) -> str:
     global current_name
+    name = RENAMED.get(name, name)
     name = name if offered(name) else DEFAULT
     T.clear()
     T.update(tokens(name))
@@ -174,7 +179,7 @@ def follow_host(host) -> None:
         style = {}
     style = style if isinstance(style, dict) else {}
     name = style.get("theme")
-    current_name = name if isinstance(name, str) and name else DEFAULT
+    current_name = RENAMED.get(name, name) if isinstance(name, str) and name else DEFAULT
     live_override = valid_colour(style.get("live_color", ""))
     textures_on = style.get("textures") is True
 
