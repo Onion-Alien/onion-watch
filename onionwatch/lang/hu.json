@@ -1045,5 +1045,7 @@
   "light it up!": "Gyújtsd meg!",
   "my sparkler's still going": "A csillagszórom még ég",
   "ooh! aah!": "Ó! Á!",
-  "ooh, pretty!": "Ó, de szép!"
+  "ooh, pretty!": "Ó, de szép!",
+  "After playing, wait this long. If it's still there then, it plays again.": "Lejátszás után várj ennyit. Ha még mindig ott van, újra lejátssza.",
+  "It plays again after this if it's still there": "Ezután újra lejátssza, ha még mindig ott van"
 }

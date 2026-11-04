@@ -1045,5 +1045,7 @@
   "light it up!": "Accendilo!",
   "my sparkler's still going": "La mia stellina brilla ancora",
   "ooh! aah!": "Ooh! Aah!",
-  "ooh, pretty!": "Oh, che bello!"
+  "ooh, pretty!": "Oh, che bello!",
+  "After playing, wait this long. If it's still there then, it plays again.": "Dopo la riproduzione, aspetta questo tempo. Se è ancora lì, riparte.",
+  "It plays again after this if it's still there": "Riparte dopo questo tempo se è ancora lì"
 }

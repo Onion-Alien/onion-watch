@@ -41,9 +41,10 @@ A 1080p screen with one picture costs a few milliseconds per check.
 
 `Gate` decides when a score is a new appearance: it fires once when a picture shows
 up, then waits for it to go away before it can fire again (and never sooner than
-the trigger's cooldown), so a death screen that stays up for five seconds plays
-its sound once. Starting to watch again, or changing what the trigger looks for,
-lets a picture that never left go off again (`Gate.rearm`).
+the trigger's cooldown), unless the trigger replays (`Watched.replays`): then a
+picture that stays up fires again each time the cooldown ends. Starting to watch
+again, or changing what the trigger looks for, lets a picture that never left go off
+again (`Gate.rearm`).
 
 Each trigger can name what it's looked for in: a screen (an index into
 monitors()) or a window (`WindowRef`); the rest use the default. `Watcher` keeps
@@ -1876,8 +1877,9 @@ class Gate:
     yes for `hold` seconds), then waits for a clear no before it can fire again,
     and never sooner than the cooldown. A yes during the cooldown is used up
     without firing, so something that stays up isn't played the moment the
-    cooldown ends, unless you asked for it (rearm()). `mode` is the Trigger.mode it
-    was made for."""
+    cooldown ends, unless you asked for it (rearm()). With `again`, what stays up
+    fires again each time the cooldown ends. `mode` is the Trigger.mode it was made
+    for."""
     armed: bool = True
     last: float = -math.inf
     since: float | None = None      # when the current yes began
@@ -1889,7 +1891,8 @@ class Gate:
         looks for, so what's showing now counts as new. The cooldown still holds."""
         self.armed, self.since, self.asked = self.mode != "vanish", None, True
 
-    def step(self, state: bool | None, now: float, cooldown: float, hold: float = 0.0) -> bool:
+    def step(self, state: bool | None, now: float, cooldown: float, hold: float = 0.0,
+             again: bool = False) -> bool:
         if state:
             if not self.armed:
                 return False
@@ -1897,9 +1900,9 @@ class Gate:
                 self.since = now
             if now - self.since < hold:
                 return False
-            if self.asked and now - self.last < cooldown:
+            if (self.asked or again) and now - self.last < cooldown:
                 return False
-            self.armed, self.since, self.asked = False, None, False
+            self.armed, self.since, self.asked = again, None, False
             if now - self.last < cooldown:
                 return False
             self.last = now
@@ -3135,10 +3138,17 @@ class Watched:
     colours: list = field(default_factory=list)
     interval_ms: int = 0
     gates: dict = field(default_factory=dict)       # place -> its Gate
+    replay: bool = False            # a picture that stays up plays again after the cooldown
 
     def __post_init__(self):
         if not self.sources and self.source is not None:
             self.sources = [self.source]
+
+    @property
+    def replays(self) -> bool:
+        """It fires again while its picture stays up. Never with no cooldown: that
+        would be every check."""
+        return self.replay and self.mode == "appear" and self.cooldown > 0
 
     def looks_for_same(self, other: Watched) -> bool:
         """Whether `other` is after the same thing in the same places, so a picture
@@ -4076,7 +4086,7 @@ class Watcher:
             q = self._quiet.get(it.id)
             if q is not None and q.source == cap.source:
                 self._step_quiet(it, q, cap, gray, state, now)
-            if not gate.step(state, now, it.cooldown, it.hold):
+            if not gate.step(state, now, it.cooldown, it.hold, it.replays):
                 continue
             if it.unfocused and self._in(cap):
                 log.debug("trigger %s went off in the window in front: kept quiet", it.id)

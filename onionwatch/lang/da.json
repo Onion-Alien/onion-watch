@@ -1045,5 +1045,7 @@
   "light it up!": "Tænd den!",
   "my sparkler's still going": "Mit stjernekaster brænder stadig",
   "ooh! aah!": "Uuh! Aah!",
-  "ooh, pretty!": "Uh, hvor flot!"
+  "ooh, pretty!": "Uh, hvor flot!",
+  "After playing, wait this long. If it's still there then, it plays again.": "Vent så længe efter afspilning. Hvis den stadig er der, spiller den igen.",
+  "It plays again after this if it's still there": "Den spiller igen efter dette, hvis den stadig er der"
 }

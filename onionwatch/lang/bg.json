@@ -1045,5 +1045,7 @@
   "light it up!": "Палете го!",
   "my sparkler's still going": "Бенгалският ми още гори",
   "ooh! aah!": "Ооо! Ааа!",
-  "ooh, pretty!": "Ох, колко красиво!"
+  "ooh, pretty!": "Ох, колко красиво!",
+  "After playing, wait this long. If it's still there then, it plays again.": "След пускане изчакай толкова време. Ако още е там, се пуска отново.",
+  "It plays again after this if it's still there": "Пуска се отново след това, ако още е там"
 }

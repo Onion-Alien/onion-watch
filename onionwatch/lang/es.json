@@ -1045,5 +1045,7 @@
   "light it up!": "¡Enciéndelo!",
   "my sparkler's still going": "Mi bengala sigue encendida",
   "ooh! aah!": "¡Ooh! ¡Aah!",
-  "ooh, pretty!": "¡Uy, qué bonito!"
+  "ooh, pretty!": "¡Uy, qué bonito!",
+  "After playing, wait this long. If it's still there then, it plays again.": "Después de sonar, espera este tiempo. Si sigue ahí, vuelve a sonar.",
+  "It plays again after this if it's still there": "Vuelve a sonar después de esto si sigue ahí"
 }

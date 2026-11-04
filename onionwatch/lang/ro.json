@@ -1057,5 +1057,7 @@
   "light it up!": "Aprinde-o!",
   "my sparkler's still going": "Artificiul meu încă arde",
   "ooh! aah!": "Ooo! Aaa!",
-  "ooh, pretty!": "Ooo, ce frumos!"
+  "ooh, pretty!": "Ooo, ce frumos!",
+  "After playing, wait this long. If it's still there then, it plays again.": "După redare, așteaptă atât. Dacă e încă acolo, se redă din nou.",
+  "It plays again after this if it's still there": "Se redă din nou după asta dacă e încă acolo"
 }

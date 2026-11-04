@@ -173,3 +173,12 @@ def test_closed_cards_are_tiles_side_by_side_an_open_one_the_whole_width(tab, qa
     assert rows[2].names.y() < rows[2].body.y()          # its header on one line
     assert rows[0].names.y() > rows[0].chk_on.y()        # a tile's name under its switch
     tab.hide()
+
+
+def test_the_rest_says_what_it_does(tab, qapp):
+    row = new_card(tab)
+    assert "plays again" in row.hint_rest.text()         # a picture that stays up
+    row.chk_ring.setChecked(True)
+    assert "plays again" not in row.hint_rest.text()     # an alarm rings until stopped
+    row.chk_ring.setChecked(False)
+    assert "plays again" in row.hint_rest.text()

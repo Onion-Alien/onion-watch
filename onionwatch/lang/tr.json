@@ -1045,5 +1045,7 @@
   "light it up!": "Yak gitsin!",
   "my sparkler's still going": "Maytabım hâlâ yanıyor",
   "ooh! aah!": "Ooo! Aaa!",
-  "ooh, pretty!": "Ooo, çok güzel!"
+  "ooh, pretty!": "Ooo, çok güzel!",
+  "After playing, wait this long. If it's still there then, it plays again.": "Çaldıktan sonra bu kadar bekle. Hâlâ oradaysa yeniden çalar.",
+  "It plays again after this if it's still there": "Hâlâ oradaysa bundan sonra yeniden çalar"
 }

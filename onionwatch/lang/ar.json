@@ -1093,5 +1093,7 @@
   "light it up!": "أشعلها!",
   "my sparkler's still going": "شرارتي ما زالت تلمع",
   "ooh! aah!": "أوه! آه!",
-  "ooh, pretty!": "أوه، جميل!"
+  "ooh, pretty!": "أوه، جميل!",
+  "After playing, wait this long. If it's still there then, it plays again.": "بعد التشغيل، انتظر هذه المدة. إذا كان لا يزال موجودًا حينها، فسيعمل مرة أخرى.",
+  "It plays again after this if it's still there": "يعمل مرة أخرى بعد ذلك إذا كان لا يزال موجودًا"
 }

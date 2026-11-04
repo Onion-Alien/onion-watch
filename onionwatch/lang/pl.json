@@ -1057,5 +1057,7 @@
   "light it up!": "Odpalaj!",
   "my sparkler's still going": "Moje zimne ognie wciąż płoną",
   "ooh! aah!": "Oooo! Aaaa!",
-  "ooh, pretty!": "Och, jak pięknie!"
+  "ooh, pretty!": "Och, jak pięknie!",
+  "After playing, wait this long. If it's still there then, it plays again.": "Po odtworzeniu poczekaj tyle czasu. Jeśli wciąż tam jest, zagra ponownie.",
+  "It plays again after this if it's still there": "Potem zagra ponownie, jeśli wciąż tam jest"
 }

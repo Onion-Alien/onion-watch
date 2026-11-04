@@ -1033,5 +1033,7 @@
   "light it up!": "불 붙여!",
   "my sparkler's still going": "내 불꽃 막대 아직 타는 중",
   "ooh! aah!": "오오! 아아!",
-  "ooh, pretty!": "우와, 예쁘다!"
+  "ooh, pretty!": "우와, 예쁘다!",
+  "After playing, wait this long. If it's still there then, it plays again.": "재생 후 이만큼 기다려요. 그때도 아직 있으면 다시 재생돼요.",
+  "It plays again after this if it's still there": "아직 있으면 이후 다시 재생돼요"
 }

@@ -1057,5 +1057,7 @@
   "light it up!": "Поджигай!",
   "my sparkler's still going": "Мой бенгальский ещё горит",
   "ooh! aah!": "Ооо! Ааа!",
-  "ooh, pretty!": "Ох, красота!"
+  "ooh, pretty!": "Ох, красота!",
+  "After playing, wait this long. If it's still there then, it plays again.": "После воспроизведения подождать столько. Если всё ещё на месте, сыграет снова.",
+  "It plays again after this if it's still there": "После этого сыграет снова, если всё ещё на месте"
 }

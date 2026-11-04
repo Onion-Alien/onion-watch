@@ -47,7 +47,7 @@ Updates and privacy.
 - **Every account at once**: one trigger can watch several windows, or every copy
   of a game, and says which one went off.
 - **Shows up, goes away, changes, stops moving**, or a **health bar runs low**.
-- **Rings until you're back**, or plays once each time. *What went off* shows each
+- **Rings until you're back**, or plays each time, and again after a rest while it stays up. *What went off* shows each
   alert with a picture of the moment.
 - **Built-in alert sounds** or your own files. Categories, profiles that switch on
   with a game, search, and Recently deleted.
