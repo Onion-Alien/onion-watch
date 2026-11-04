@@ -32,7 +32,8 @@ The full list. The [README](../README.md) has the short version.
   or keyboard, or only until you click Stop. Stop, the tray icon and the Windows
   notification always stop it. Otherwise a sound plays each time the thing appears,
   and if a picture stays up, again each time *Rest after playing* ends (a sound still
-  playing is left to finish). With no rest it plays once.
+  playing is left to finish; a picture that goes and comes back starts it again). With
+  no rest it plays once.
 - **What went off** (More → What went off…) lists the latest alerts, each with the
   window as it was checked and a box round what set it off: for "what woke me up?"
   and for setting the numbers. Kept only until the app closes.

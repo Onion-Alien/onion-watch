@@ -62,6 +62,10 @@ class PlayingBar(QFrame):
         panel.ringing_changed.connect(self.update_bar)
         self.update_bar()
 
+    def retheme(self):
+        self._shown = None      # its icon is coloured by hand
+        self.update_bar()
+
     def update_bar(self):
         now = self.panel.playing_now()
         key = [(t.id + t.name, ring) for t, ring in now]
@@ -188,7 +192,8 @@ class TriggerPages(QWidget):
         self._count()
 
     def retheme(self):
-        """The theme changed: the logos take its colours."""
+        """The theme changed: the logos and the playing bar take its colours."""
+        self.playing.retheme()
         if self.logo is not None:
             self.logo.retheme()
         if self.settings is not None:

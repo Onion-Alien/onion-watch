@@ -573,7 +573,7 @@ class TriggerRow(QFrame):
         foot.addWidget(self.btn_test)
         foot.addStretch(1)
         folder = QLabel()
-        folder.setPixmap(icons.icon("folder", "muted").pixmap(15, 15))
+        icons.set_label_icon(folder, "folder", "muted", 15)
         folder.setToolTip(_("Category"))
         foot.addWidget(folder)
         self.cb_category = WideCombo(min_width=120)

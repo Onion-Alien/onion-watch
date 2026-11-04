@@ -1885,11 +1885,20 @@ class Gate:
     since: float | None = None      # when the current yes began
     mode: str = "appear"
     asked: bool = False             # rearm(): a yes waits out the cooldown, not used up
+    stayed: bool = False            # fired with `again` and it hasn't gone since: replays
+    heard: float = -math.inf        # `last`, without a replay that wasn't played (skipped())
+    heard_before: float = -math.inf
 
     def rearm(self):
         """Forget that it has gone off: you started watching again or changed what it
         looks for, so what's showing now counts as new. The cooldown still holds."""
         self.armed, self.since, self.asked = self.mode != "vanish", None, True
+        self.stayed = False
+
+    def skipped(self):
+        """The replay it just fired wasn't played (the sound hadn't ended): the next one
+        still waits its cooldown, but something new only waits from the last real play."""
+        self.heard = self.heard_before
 
     def step(self, state: bool | None, now: float, cooldown: float, hold: float = 0.0,
              again: bool = False) -> bool:
@@ -1900,16 +1909,18 @@ class Gate:
                 self.since = now
             if now - self.since < hold:
                 return False
-            if (self.asked or again) and now - self.last < cooldown:
+            rest_from = self.last if self.stayed else self.heard
+            if (self.asked or again) and now - rest_from < cooldown:
                 return False
             self.armed, self.since, self.asked = again, None, False
-            if now - self.last < cooldown:
+            if now - rest_from < cooldown:
                 return False
-            self.last = now
+            self.heard_before, self.heard = self.heard, now
+            self.last, self.stayed = now, again
             return True
         self.since = None
         if state is False:
-            self.armed, self.asked = True, False
+            self.armed, self.asked, self.stayed = True, False, False
         return False
 
     def update(self, score: float, now: float, threshold: float, cooldown: float) -> bool:
@@ -2031,6 +2042,7 @@ class Hit:
     # the check's own small copy of the window then: (h, w) grey or (h, w, 3) RGB
     # uint8, for the history (kept in memory only, never saved)
     frame: np.ndarray | None = field(default=None, compare=False, repr=False)
+    replay: bool = False    # what stayed up going off again, not something new (Gate.stayed)
 
 
 # --------------------------------------------------------------------------- capture
@@ -3451,6 +3463,13 @@ class Watcher:
             # the thread replaces `scores` whole rather than changing it, so a copy is safe
             self.scores = {k: v for k, v in self.scores.items() if k in self._items}
 
+    def replay_skipped(self, tid: str, source):
+        """Trigger `tid`'s replay in `source` wasn't played (Gate.skipped)."""
+        with self._lock:
+            it = self._items.get(tid)
+            if it is not None and source in it.gates:
+                it.gates[source].skipped()
+
     def quiet_on(self, tid: str, source, how: str):
         """Trigger `tid` started ringing after going off in `source`: watch there for
         what stops it ("moves", "gone", "focus"; anything else: nothing)."""
@@ -4086,6 +4105,7 @@ class Watcher:
             q = self._quiet.get(it.id)
             if q is not None and q.source == cap.source:
                 self._step_quiet(it, q, cap, gray, state, now)
+            replay = gate.stayed
             if not gate.step(state, now, it.cooldown, it.hold, it.replays):
                 continue
             if it.unfocused and self._in(cap):
@@ -4098,7 +4118,7 @@ class Watcher:
                 pic = rgb if rgb is not None and rgb.shape[:2] == gray.shape else gray
                 pic = (np.clip(pic, 0, 1) * 255).astype(np.uint8)
             hit = Hit(cap.source, (x0 / fw, y0 / fh, (x1 - x0) / fw, (y1 - y0) / fh), score,
-                      pic)
+                      pic, replay)
             try:
                 if self._hits:
                     self._on_fire(it.id, hit)

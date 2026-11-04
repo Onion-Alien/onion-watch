@@ -1,5 +1,6 @@
 """Playing now: what the triggers are playing, each with its own Stop, and Stop
 all; and the Log page beside the triggers."""
+from onionwatch.engine.screenwatch import Hit
 from onionwatch.ui.triggers import triggerspanel
 from onionwatch.ui.triggers.pages import TriggerPages
 
@@ -188,3 +189,21 @@ def test_test_with_no_sound_opens_its_sound_list(make):  # noqa: F811
         row.sound.showPopup = lambda opened=opened: opened.append(1)
         row.btn_test.click()
         assert opened == [1] and played == [] and tab.playing_now() == []
+
+
+def test_only_a_replay_waits_for_the_sound_to_end(make):  # noqa: F811
+    tab = make({"triggers": [raw(1)]})
+    played = []
+    tab.host.playing = lambda: ["t1/s1"]                 # the last sound hasn't ended
+    tab.is_active = lambda: True
+    tab.fired.connect(played.append)
+    skipped = []
+    tab.watcher.replay_skipped = lambda tid, source: skipped.append((tid, source))
+    tab._on_fired("t1", Hit(0, (0, 0, 1, 1), 1.0, replay=True))
+    assert played == []                                  # it never left: let it finish
+    assert skipped == [("t1", 0)]
+    tab._on_fired("t1", Hit(0, (0, 0, 1, 1), 1.0))
+    assert len(played) == 1                              # it's new: plays, from the start
+    tab.host.playing = lambda: []
+    tab._on_fired("t1", Hit(0, (0, 0, 1, 1), 1.0, replay=True))
+    assert len(played) == 2                              # the sound ended: plays again

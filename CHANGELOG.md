@@ -4,7 +4,8 @@ What changed between releases, for the release notes. Newest first.
 
 ## Unreleased
 
-- **A picture that stays on screen now plays again** each time *Rest after playing* ends, until it goes away. Set no rest to have it play once.
+- **A picture that stays on screen now plays again** each time *Rest after playing* ends, until it goes away. Set no rest to have it play once. A sound still playing is left to finish while the picture stays up; a picture that goes and comes back starts the sound again.
+- Switching theme now recolours the trigger cards straight away. Their Play chip, When and In boxes and picture well kept the old theme's colours until a restart, and the sound's name could be unreadable.
 - The Triggers page no longer jumps for a moment when the screen capture drops out briefly (something going fullscreen, a Windows prompt). *Waiting for the screen to come back* now shows only if the screen stays gone for 5 seconds.
 - A trigger whose picture stayed on screen could never play again, even after stopping and starting watching or lowering its match. Starting to watch again, or changing its match, pictures or place, now lets it play again (after its rest).
 - *Count me in* no longer says it never sends your IP address: any web request carries one, so it now says it never sends your name or device info.
