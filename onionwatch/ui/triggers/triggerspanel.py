@@ -16,6 +16,7 @@ in (host.data_dir / "triggers").
 """
 from __future__ import annotations
 
+from collections.abc import Callable
 import dataclasses
 import logging
 import math
@@ -1322,7 +1323,7 @@ class TriggersTab(QWidget):
 
     def _sound_going(self, tid: str) -> bool:
         """A sound of this trigger is still playing, if the host can say."""
-        playing = getattr(self.host, "playing", None)
+        playing: Callable[[], list[str]] | None = getattr(self.host, "playing", None)
         if not callable(playing):
             return False
         try:
