@@ -4,7 +4,7 @@ import time
 
 from test_modes import GAME1, banner, run_until, scene, showing, watcher, ws  # noqa: F401
 
-from onionwatch.engine.screenwatch import Watched
+from onionwatch.engine.screenwatch import Gate, Watched
 
 
 PICTURE = (banner(), None)
@@ -124,3 +124,45 @@ def test_no_rest_or_no_replay_plays_once(ws):  # noqa: F811
         assert len(fired) == 1
     finally:
         w.stop()
+
+
+def test_a_hit_says_whether_the_picture_ever_left(ws):  # noqa: F811
+    fired = []
+    w = _fired_once(ws, fired, cooldown=0.1, replay=True)
+    try:
+        assert run_until(lambda: len(fired) >= 2)
+        assert not fired[0][1].replay               # new
+        assert fired[1][1].replay                   # it never left
+        ws.open[GAME1] = scene(1)
+        assert run_until(lambda: w.scores.get("t", 1) < 0.5)
+        n = len(fired)
+        ws.open[GAME1] = showing(scene(1))
+        assert run_until(lambda: len(fired) > n)
+        assert not fired[n][1].replay               # gone and back: new again
+        w.stop()
+        n = len(fired)
+        w.start()
+        assert run_until(lambda: len(fired) > n)
+        assert not fired[n][1].replay               # started watching again: new too
+    finally:
+        w.stop()
+
+
+def test_a_replay_that_was_not_played_does_not_hold_up_something_new():
+    g = Gate()
+    assert g.step(True, 0.0, 3.0, again=True)            # plays
+    assert not g.step(True, 2.9, 3.0, again=True)        # resting
+    assert g.step(True, 3.0, 3.0, again=True)            # a replay...
+    g.skipped()                                          # ...the sound hadn't ended
+    assert not g.step(True, 3.1, 3.0, again=True)        # the next replay still waits
+    g.step(False, 3.5, 3.0, again=True)                  # gone
+    assert g.step(True, 4.0, 3.0, again=True)            # back: 4 s since it was last heard
+
+
+def test_a_replay_that_played_still_rests():
+    g = Gate()
+    assert g.step(True, 0.0, 3.0, again=True)
+    assert g.step(True, 3.0, 3.0, again=True)            # a replay, and it played
+    g.step(False, 3.5, 3.0, again=True)                  # gone
+    assert not g.step(True, 4.0, 3.0, again=True)        # back, but only 1 s after it played
+    assert g.step(True, 6.0, 3.0, again=True)

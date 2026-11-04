@@ -201,3 +201,26 @@ def test_hoot_waves_hello_when_the_mouse_comes_onto_a_card(qapp, monkeypatch):
     card._step()
     assert card._hello is None and not card._tick.isActive()
     assert card.grab().toImage() == still                    # back to standing
+
+
+def test_a_switch_recolours_the_cards_as_a_fresh_start_would(win, qapp):
+    from test_ui import as_qimage, banner
+
+    from onionwatch.ui.triggers.cardkit import card_css
+
+    theme.apply(qapp, "Hoot")
+    qapp.clipboard().setImage(as_qimage(banner()))
+    win.triggers.add_from_clipboard()
+    win.resize(900, 700)
+    win.show()
+    qapp.processEvents()
+    chip = win.triggers.editor.chips[0]
+
+    def chip_colour():
+        return chip.grab().toImage().pixelColor(chip.width() // 2, 3)
+
+    dark = chip_colour()
+    win.set_theme("Bubblegum")
+    qapp.processEvents()
+    assert all(row.styleSheet() == card_css() for row in win.triggers._cards())
+    assert chip_colour().lightnessF() > 0.6 > dark.lightnessF()   # was dark on pink, unreadable

@@ -226,7 +226,8 @@ class MainWindow(QMainWindow):
         from onionwatch.ui.kit import themecover
         with themecover.covered(name):
             self.cfg.theme = theme.apply(QApplication.instance(), name)
-            icons.retheme()
+            self.triggers.retheme()     # the icons, and the colours written into the cards
+            self.pages.retheme()
             self.paint_logo()
         self.keep_limited()
         self.save_later()

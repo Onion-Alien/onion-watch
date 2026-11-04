@@ -1233,6 +1233,9 @@ class TriggersTab(QWidget):
         icons.retheme()
         self._update_new_trigger_glow()
         self._search_icon.setIcon(icons.icon("search", "muted"))
+        self.act_categories.setIcon(icons.icon("palette"))
+        self.act_bin.setIcon(icons.icon("trash"))
+        self._fill_sources()            # the screens' icons in the lists
         self.undo_bar.restyle()
         for sec in self.sections.values():
             sec.retheme()             # category tabs fade into the new panel colour
@@ -1299,8 +1302,9 @@ class TriggersTab(QWidget):
         t = next((t for t in self.triggers if t.id == tid), None)
         if t is None or not self.is_active() or not self._playable(t):
             return
-        if t.mode == "appear" and not t.ring and self._sound_going(tid):
-            return                  # still showing, still playing: let it finish
+        if hit is not None and hit.replay and self._sound_going(tid):
+            self.watcher.replay_skipped(tid, hit.source)
+            return                  # it never left and it's still playing: let it finish
         self.cooldowns[tid] = time.monotonic() + t.cooldown
         for row in self._views(tid):
             row.cooldown_until = time.monotonic() + t.cooldown
