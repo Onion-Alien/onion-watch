@@ -195,6 +195,35 @@ def test_too_many_pictures_on_is_said(make):
     assert "checked only" not in tab.warn.text()
 
 
+def test_short_capture_dropout_says_nothing(make, monkeypatch):
+    """A dropout of under a second must not show a line that pushes the page down."""
+    tab = make({"triggers": [raw(1)]})
+    tab.btn_watch.blockSignals(True)
+    tab.btn_watch.setChecked(True)
+    tab.btn_watch.blockSignals(False)
+    tab.show()
+    w = tab.watcher
+    w.scores = {"t1": 0.0}
+    monkeypatch.setattr(type(w), "running", True)
+    tops = []
+    for lost in (False, True, True, False):
+        w.lost = lost
+        tab._poll()
+        tops.append((tab.warn.isHidden(), tab.warn.text()))
+    assert tops == [(True, "")] * 4
+    assert tab._lost_since is None
+
+    w.lost = True
+    tab._poll()
+    tab._lost_since -= triggerspanel.LOST_SAY_AFTER + 1
+    tab._poll()
+    assert not tab.warn.isHidden() and "come back" in tab.warn.text()
+    w.lost = False
+    tab._poll()
+    assert tab.warn.isHidden()
+    tab.hide()
+
+
 def test_packs_carry_categories(make, tmp_path, monkeypatch):
     tab = make({"triggers": [raw(1, "Raids"), raw(2)]})
     path = tmp_path / "pack.zip"
