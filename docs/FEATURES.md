@@ -128,7 +128,8 @@ of 0.9 s) and, with all 50 harder cases shown at once, found one more of them, f
 5 % of the processor instead of 0.6 %.
 
 A trigger fires once each time its picture appears, then waits for it to go away
-before it can fire again. A window that isn't open yet is looked for every two
+before it can fire again. Starting to watch again, or changing what the trigger
+looks for (its match, pictures or place), lets a picture that never left fire again. A window that isn't open yet is looked for every two
 seconds, and one that closes is picked up again when it reopens.
 
 A fullscreen game you're playing (it's in front and fills its screen, exclusive or
