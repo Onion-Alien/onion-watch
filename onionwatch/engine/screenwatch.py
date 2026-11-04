@@ -42,7 +42,8 @@ A 1080p screen with one picture costs a few milliseconds per check.
 `Gate` decides when a score is a new appearance: it fires once when a picture shows
 up, then waits for it to go away before it can fire again (and never sooner than
 the trigger's cooldown), so a death screen that stays up for five seconds plays
-its sound once.
+its sound once. Starting to watch again, or changing what the trigger looks for,
+lets a picture that never left go off again (`Gate.rearm`).
 
 Each trigger can name what it's looked for in: a screen (an index into
 monitors()) or a window (`WindowRef`); the rest use the default. `Watcher` keeps
@@ -1875,11 +1876,18 @@ class Gate:
     yes for `hold` seconds), then waits for a clear no before it can fire again,
     and never sooner than the cooldown. A yes during the cooldown is used up
     without firing, so something that stays up isn't played the moment the
-    cooldown ends. `mode` is the Trigger.mode it was made for."""
+    cooldown ends, unless you asked for it (rearm()). `mode` is the Trigger.mode it
+    was made for."""
     armed: bool = True
     last: float = -math.inf
     since: float | None = None      # when the current yes began
     mode: str = "appear"
+    asked: bool = False             # rearm(): a yes waits out the cooldown, not used up
+
+    def rearm(self):
+        """Forget that it has gone off: you started watching again or changed what it
+        looks for, so what's showing now counts as new. The cooldown still holds."""
+        self.armed, self.since, self.asked = self.mode != "vanish", None, True
 
     def step(self, state: bool | None, now: float, cooldown: float, hold: float = 0.0) -> bool:
         if state:
@@ -1889,14 +1897,16 @@ class Gate:
                 self.since = now
             if now - self.since < hold:
                 return False
-            self.armed, self.since = False, None
+            if self.asked and now - self.last < cooldown:
+                return False
+            self.armed, self.since, self.asked = False, None, False
             if now - self.last < cooldown:
                 return False
             self.last = now
             return True
         self.since = None
         if state is False:
-            self.armed = True
+            self.armed, self.asked = True, False
         return False
 
     def update(self, score: float, now: float, threshold: float, cooldown: float) -> bool:
@@ -3130,6 +3140,15 @@ class Watched:
         if not self.sources and self.source is not None:
             self.sources = [self.source]
 
+    def looks_for_same(self, other: Watched) -> bool:
+        """Whether `other` is after the same thing in the same places, so a picture
+        that has gone off for one has gone off for the other."""
+        return (self.threshold == other.threshold and self.sources == other.sources
+                and self.region == other.region and self.colour == other.colour
+                and self.below == other.below and self.any_size == other.any_size
+                and len(self.pictures) == len(other.pictures)
+                and all(a is b for a, b in zip(self.pictures, other.pictures)))
+
     def gate_for(self, place) -> Gate:
         g = self.gates.get(place)
         if g is None or g.mode != self.mode:
@@ -3414,6 +3433,9 @@ class Watcher:
             for it in items:              # keep a trigger's gates across edits
                 if it.id in old:
                     it.gates = old[it.id].gates
+                    if not it.looks_for_same(old[it.id]):
+                        for g in it.gates.values():
+                            g.rearm()
             self._items = {it.id: it for it in items}
             self._changed = True
             # the thread replaces `scores` whole rather than changing it, so a copy is safe
@@ -3504,6 +3526,10 @@ class Watcher:
     def start(self):
         if self.running:
             return
+        with self._lock:
+            for it in self._items.values():
+                for g in it.gates.values():
+                    g.rearm()
         # each run has its own stop switch: a thread that stop() couldn't wait out (a
         # slow check) still sees its own and ends, instead of carrying on beside the new one
         self._stop = stop = threading.Event()
