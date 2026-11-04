@@ -92,6 +92,9 @@ BUILD_STEP_MS = 40      # ...screen); the rest this long at a time, so the windo
 SCREEN_LEARN_MS = 1300  # a screen cut's frames for the cut-out: grabbed this long after
 HEAVY_GAP = 0.5         # s: checks spaced out further than this (to keep to the share of
 HEAVY_FOR = 5.0         # ...the processor picked) for this long: say too many pictures are on
+LOST_SAY_AFTER = 5.0    # s a screen capture is gone before the page says so: most dropouts
+                        # ...last under a second (anything going fullscreen, the UAC prompt),
+                        # ...and a line that shows for that long only makes the page jump
 
 
 @dataclass
@@ -171,6 +174,7 @@ class TriggersTab(QWidget):
         self._lister = windows.list_windows     # the open windows, and the one in front
         self._front = windows.foreground        # (tests stand in for them)
         self._last_category = ""    # where a new trigger goes: the category last opened
+        self._lost_since: float | None = None   # the screen capture has been gone since
         self._heavy_since: float | None = None  # checks spaced out past HEAVY_GAP since
         self._gap_shown = ""        # the check gap as the counts line last said it
         self._mons: list[Monitor] = []      # the screens as last listed
@@ -1430,6 +1434,10 @@ class TriggersTab(QWidget):
             # a trigger's own screen went away (or came back) while watching
             self._fell_back = w.fell_back
             self._fill_sources()
+        if not w.lost:
+            self._lost_since = None
+        elif self._lost_since is None:
+            self._lost_since = time.monotonic()
         heavy = w.gap > HEAVY_GAP and w.gap > w.interval * 1.05
         if not heavy:
             self._heavy_since = None
@@ -1500,8 +1508,10 @@ class TriggersTab(QWidget):
         elif w.error:
             why = _("Watching stopped: {error}", error=w.error)
         elif self.is_active() and w.lost:
-            why = _("Waiting for the screen to come back. A game switching to or from "
-                    "fullscreen does this for a moment.")
+            if (self._lost_since is not None
+                    and time.monotonic() - self._lost_since >= LOST_SAY_AFTER):
+                why = _("Waiting for the screen to come back. A game switching to or from "
+                        "fullscreen does this for a moment.")
         elif self.is_active() and not w.scores and not w.failed and not any(
                 self.is_on(t) and self.ready(t) and t.sounds for t in self.triggers):
             if any(t.enabled and self.ready(t) and t.sounds for t in self.triggers):
