@@ -507,10 +507,9 @@ class TriggerRow(QFrame):
         self.cooldown.setSingleStep(1.0)
         self.cooldown.setSuffix(" s")
         self.cooldown.setValue(t.cooldown)
-        self.cooldown.setToolTip(_("After playing, ignore this trigger for this long. It also "
-                                   "has to stop before it can play again."))
         self.chk_cooldown = QCheckBox(_("Rest after playing"))
-        self.chk_cooldown.setToolTip(self.cooldown.toolTip())
+        self.hint_rest = rule_hint("", self.cooldown)
+        self._label_rest()
         self.hold = FitDoubleSpin()
         self.hold.setRange(0.0, screenwatch.MAX_HOLD)
         self.hold.setDecimals(1)
@@ -533,7 +532,7 @@ class TriggerRow(QFrame):
             (None, rule_hint(_("Ignores things that only flash past"), hold), None),
             (self.chk_delay, self.delay, None),
             (self.chk_cooldown, self.cooldown, None),
-            (None, rule_hint(_("So it doesn't go off again and again"), self.cooldown), None),
+            (None, self.hint_rest, None),
             (None, self.chk_quiet, None),
             (None, rule_hint(_("You can already see it"), self.chk_quiet), None)],
             _("When it plays"))
@@ -1129,9 +1128,24 @@ class TriggerRow(QFrame):
         if self._built:
             self._show_mode_body()
 
+    def _label_rest(self):
+        """What the rest does: a picture that stays up plays again after it, unless
+        it's an alarm, which rings until it's stopped."""
+        if self.t.mode == "appear" and not self.t.ring:
+            hint = _("It plays again after this if it's still there")
+            tip = _("After playing, wait this long. If it's still there then, it plays again.")
+        else:
+            hint = _("So it doesn't go off again and again")
+            tip = _("After playing, ignore this trigger for this long. It also has to stop "
+                    "before it can play again.")
+        self.hint_rest.setText(hint)
+        self.cooldown.setToolTip(tip)
+        self.chk_cooldown.setToolTip(tip)
+
     def _show_mode_body(self):
         """The editor's part of _show_mode."""
         t = self.t
+        self._label_rest()
         pics = t.uses_pictures
         self._place(self.match_box, not pics)          # a bar's level, how much changes
         self._place(self.hold_box, t.mode == "still")  # how long nothing may move
@@ -1502,6 +1516,7 @@ class TriggerRow(QFrame):
 
     def _on_ring(self, on: bool):
         self.t.ring = on
+        self._label_rest()
         self.until.setVisible(on)
         self._update_state()
         self.changed.emit(self)

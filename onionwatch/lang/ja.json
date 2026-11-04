@@ -1033,5 +1033,7 @@
   "light it up!": "点火！",
   "my sparkler's still going": "線香花火、まだ燃えてる",
   "ooh! aah!": "おお！わあ！",
-  "ooh, pretty!": "わあ、きれい！"
+  "ooh, pretty!": "わあ、きれい！",
+  "After playing, wait this long. If it's still there then, it plays again.": "再生後、この時間だけ待ちます。まだ表示されていれば、もう一度再生します。",
+  "It plays again after this if it's still there": "まだ表示されていれば、この後もう一度再生します"
 }

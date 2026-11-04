@@ -1057,5 +1057,7 @@
   "light it up!": "Zapal to!",
   "my sparkler's still going": "Prskavka mi pořád hoří",
   "ooh! aah!": "Óóó! Ááá!",
-  "ooh, pretty!": "Páni, to je krása!"
+  "ooh, pretty!": "Páni, to je krása!",
+  "After playing, wait this long. If it's still there then, it plays again.": "Po přehrání počkej takhle dlouho. Pokud tam pak pořád je, přehraje se znovu.",
+  "It plays again after this if it's still there": "Pak se přehraje znovu, pokud tam pořád je"
 }

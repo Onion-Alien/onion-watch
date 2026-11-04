@@ -16,6 +16,7 @@ in (host.data_dir / "triggers").
 """
 from __future__ import annotations
 
+from collections.abc import Callable
 import dataclasses
 import logging
 import math
@@ -1262,7 +1263,7 @@ class TriggersTab(QWidget):
                                      sources=list(t.sources), mode=t.mode, below=t.below,
                                      colour=t.rgb, region=t.region, hold=t.hold,
                                      unfocused=t.unfocused, any_size=t.any_size,
-                                     interval_ms=t.interval_ms,
+                                     interval_ms=t.interval_ms, replay=not t.ring,
                                      cuts=[self._cuts.get(path) for _p, path in got],
                                      wide=[self._wide.get(path, False) for _p, path in got],
                                      tints=[self._tints.get(path) for _p, path in got],
@@ -1298,6 +1299,8 @@ class TriggersTab(QWidget):
         t = next((t for t in self.triggers if t.id == tid), None)
         if t is None or not self.is_active() or not self._playable(t):
             return
+        if t.mode == "appear" and not t.ring and self._sound_going(tid):
+            return                  # still showing, still playing: let it finish
         self.cooldowns[tid] = time.monotonic() + t.cooldown
         for row in self._views(tid):
             row.cooldown_until = time.monotonic() + t.cooldown
@@ -1317,6 +1320,17 @@ class TriggersTab(QWidget):
             QTimer.singleShot(int(t.delay * 1000), self, lambda: self._fire(tid, gen))
         else:
             self._fire(tid, gen)
+
+    def _sound_going(self, tid: str) -> bool:
+        """A sound of this trigger is still playing, if the host can say."""
+        playing: Callable[[], list[str]] | None = getattr(self.host, "playing", None)
+        if not callable(playing):
+            return False
+        try:
+            return any(tag.startswith(tid + "/") for tag in playing())
+        except Exception:  # noqa: BLE001 - a host's bug mustn't stop an alert
+            log.warning("the host couldn't say what's playing", exc_info=True)
+            return False
 
     def _fire(self, tid: str, gen: int):
         t = next((t for t in self.triggers if t.id == tid), None)

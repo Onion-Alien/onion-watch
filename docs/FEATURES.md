@@ -30,8 +30,9 @@ The full list. The [README](../README.md) has the short version.
   game moves (it waits for the screen to settle first, so a fade-in doesn't count),
   until you switch to the game, until the thing is gone, until you touch the mouse
   or keyboard, or only until you click Stop. Stop, the tray icon and the Windows
-  notification always stop it. Otherwise a sound plays once each time the thing
-  appears.
+  notification always stop it. Otherwise a sound plays each time the thing appears,
+  and if a picture stays up, again each time *Rest after playing* ends (a sound still
+  playing is left to finish). With no rest it plays once.
 - **What went off** (More → What went off…) lists the latest alerts, each with the
   window as it was checked and a box round what set it off: for "what woke me up?"
   and for setting the numbers. Kept only until the app closes.
@@ -127,8 +128,9 @@ test on an 8-thread processor it noticed things about three times sooner (0.3 s 
 of 0.9 s) and, with all 50 harder cases shown at once, found one more of them, for about
 5 % of the processor instead of 0.6 %.
 
-A trigger fires once each time its picture appears, then waits for it to go away
-before it can fire again. Starting to watch again, or changing what the trigger
+A trigger fires when its picture appears, then again each time its rest ends while
+the picture stays up (with no rest, or set to keep playing, it waits for the picture to
+go away instead). Starting to watch again, or changing what the trigger
 looks for (its match, pictures or place), lets a picture that never left fire again. A window that isn't open yet is looked for every two
 seconds, and one that closes is picked up again when it reopens.
 

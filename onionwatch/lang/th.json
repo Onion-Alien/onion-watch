@@ -1033,5 +1033,7 @@
   "light it up!": "จุดเลย!",
   "my sparkler's still going": "ไฟเย็นของฉันยังไม่ดับ",
   "ooh! aah!": "โอ้! อ้า!",
-  "ooh, pretty!": "ว้าว สวยจัง!"
+  "ooh, pretty!": "ว้าว สวยจัง!",
+  "After playing, wait this long. If it's still there then, it plays again.": "หลังเล่นแล้ว รอเท่านี้ ถ้ายังอยู่จะเล่นอีกครั้ง",
+  "It plays again after this if it's still there": "จะเล่นอีกครั้งหลังจากนี้ถ้ายังอยู่"
 }

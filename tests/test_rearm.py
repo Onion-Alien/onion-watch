@@ -23,8 +23,9 @@ def _fired_once(ws, fired, **item):  # noqa: F811
     w.set_items([_item(**item)])
     w.start()
     assert run_until(lambda: len(fired) == 1)
-    time.sleep(0.1)
-    assert len(fired) == 1                  # it stays up: once, as before
+    if not item.get("replay"):
+        time.sleep(0.1)
+        assert len(fired) == 1              # it stays up: once, as before
     return w
 
 
@@ -91,5 +92,35 @@ def test_goes_away_trigger_restarted_waits_to_see_it_first(ws):  # noqa: F811
         assert run_until(lambda: w.scores.get("t", 0) > 0.9)
         ws.open[GAME1] = scene(1)
         assert run_until(lambda: len(fired) == 1)
+    finally:
+        w.stop()
+
+def test_a_picture_that_stays_up_replays_after_each_rest(ws):  # noqa: F811
+    fired = []
+    w = _fired_once(ws, fired, cooldown=0.4, replay=True)
+    try:
+        assert run_until(lambda: len(fired) == 3)
+        ws.open[GAME1] = scene(1)           # gone: quiet
+        time.sleep(0.1)
+        n = len(fired)
+        time.sleep(0.6)
+        assert len(fired) == n
+    finally:
+        w.stop()
+
+
+def test_no_rest_or_no_replay_plays_once(ws):  # noqa: F811
+    fired = []
+    w = _fired_once(ws, fired, cooldown=0.0, replay=True)
+    try:
+        time.sleep(0.3)
+        assert len(fired) == 1
+    finally:
+        w.stop()
+    fired.clear()
+    w = _fired_once(ws, fired, cooldown=0.1, replay=False)
+    try:
+        time.sleep(0.4)
+        assert len(fired) == 1
     finally:
         w.stop()

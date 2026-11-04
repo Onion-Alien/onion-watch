@@ -1045,5 +1045,7 @@
   "light it up!": "Άναψέ το!",
   "my sparkler's still going": "Το βεγγαλικό μου καίει ακόμα",
   "ooh! aah!": "Ωωω! Αααα!",
-  "ooh, pretty!": "Ωχ, τι ωραίο!"
+  "ooh, pretty!": "Ωχ, τι ωραίο!",
+  "After playing, wait this long. If it's still there then, it plays again.": "Μετά την αναπαραγωγή, περίμενε τόσο. Αν είναι ακόμα εκεί, παίζει ξανά.",
+  "It plays again after this if it's still there": "Παίζει ξανά μετά από αυτό, αν είναι ακόμα εκεί"
 }
