@@ -4,6 +4,7 @@ What changed between releases, for the release notes. Newest first.
 
 ## Unreleased
 
+- Hoot moves again when an app's Lite mode is turned off, without a restart.
 - **A picture that stays on screen now plays again** each time *Rest after playing* ends, until it goes away. Set no rest to have it play once. A sound still playing is left to finish while the picture stays up; a picture that goes and comes back starts the sound again.
 - Switching theme now recolours the trigger cards straight away. Their Play chip, When and In boxes and picture well kept the old theme's colours until a restart, and the sound's name could be unreadable.
 - The Triggers page no longer jumps for a moment when the screen capture drops out briefly (something going fullscreen, a Windows prompt). *Waiting for the screen to come back* now shows only if the screen stays gone for 5 seconds.
