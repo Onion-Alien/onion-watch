@@ -14,6 +14,7 @@ import os
 import re
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
@@ -349,9 +350,11 @@ def main(out: Path):
     for row in tab.rows.values():
         row.set_open(False)
     win.resize(1040, 640)
-    app.processEvents()
-    for _ in range(3):
+    # long enough for the open card's picture, which is drawn a moment after the layout
+    end = time.monotonic() + 0.8
+    while time.monotonic() < end:
         app.processEvents()
+        time.sleep(0.01)
     win.grab().save(str(out / "categories.png"))
     tab.show_search()
     tab.search_text.setText("Ready check 3")
