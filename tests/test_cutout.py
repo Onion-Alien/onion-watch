@@ -5,6 +5,7 @@ the thing moved inside a still border. Made-up RGB frames only."""
 import time
 
 import numpy as np
+import pytest
 
 from onionwatch.engine import cutout
 
@@ -114,6 +115,21 @@ def test_choose_keeps_the_cut_out_when_it_does_better():
     assert cut_fit is not None
     assert mask is not None and cut_fit.gap > plain.gap
     assert cut_fit.here > 0.9                    # still found where it is
+
+
+@pytest.mark.parametrize("plain, cut, kept", [
+    (cutout.Fit(0.91, 0.23), cutout.Fit(1.00, 0.33), True),     # holds better, gap as wide
+    (cutout.Fit(0.97, 0.26), cutout.Fit(1.00, 0.35), False),    # hardly better: rectangle
+    (cutout.Fit(0.80, 0.20), cutout.Fit(1.00, 0.60), False),    # gap much narrower: a scrap
+    (cutout.Fit(0.60, 0.50), cutout.Fit(0.70, 0.62), False),    # no gap to speak of
+])
+def test_choose_keeps_a_cut_out_that_holds_better(monkeypatch, plain, cut, kept):
+    """A rectangle can look fine on the few frames of a cut while its scenery happens
+    to hold, and then miss as the scene moves on: a cut-out matching its place better
+    with about the same gap is kept, a thin scrap that does worse elsewhere isn't."""
+    monkeypatch.setattr(cutout, "fit", lambda _f, _r, m: plain if m is None else cut)
+    mask, _plain, _cut = cutout.choose(panning(8), RECT)
+    assert (mask is not None) is kept
 
 
 def test_a_still_scene_teaches_nothing():

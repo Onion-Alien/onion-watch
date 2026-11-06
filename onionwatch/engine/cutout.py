@@ -42,6 +42,8 @@ EDGE_MOVED = 0.5    # ...at least this share of which must be what moved: otherw
 EDGE_TEXTURED = 0.1     # ...and at least this share of the border must count
 PAD = 3             # px (at the working size) a place may be off by, frame to frame
 BETTER = 0.03       # the cut-out is kept only if its gap is wider by this much
+HOLDS_BETTER = 0.05 # ...or it matches its own place better by this much, its gap about as
+                    # wide: a few frames can flatter the rectangle while its scenery holds
 CUT_GAP = 0.1       # ...and at least this wide: one matching elsewhere about as well as
                     # where it was is a scrap of scenery, not the thing
 NARROW = 0.15       # a gap narrower than this is worth a warning
@@ -228,7 +230,9 @@ def choose(frames: list[np.ndarray], rect: tuple[int, int, int, int]
             keep, cut = k, f
     if keep is None:
         return None, plain, None
-    return (keep if cut.gap > max(plain.gap + BETTER, CUT_GAP) else None), plain, cut
+    better = (cut.gap > plain.gap + BETTER
+              or (cut.here >= plain.here + HOLDS_BETTER and cut.gap >= plain.gap - BETTER))
+    return (keep if better and cut.gap > CUT_GAP else None), plain, cut
 
 
 # ------------------------------------------------------------------ the grabs
