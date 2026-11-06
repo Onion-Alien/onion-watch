@@ -442,6 +442,38 @@ def test_waiting_for_a_grab_is_not_counted_but_its_cost_elsewhere_is(monkeypatch
     assert 0.004 <= w.gap < 0.03
 
 
+def test_making_new_pictures_ready_doesnt_space_out_the_next_check(monkeypatch):
+    """The first check with new pictures does work once. Counted, 0.2 s of it on a
+    1 % budget would mean nothing is looked at for 20 s after Start; a check slow every
+    time is still paced (test_checks_are_spaced_out_to_keep_to_the_processor_share)."""
+    monkeypatch.setattr(sw, "monitors", lambda: [Monitor(0, 0, 320, 180, True)])
+    monkeypatch.setattr(sw, "CORES", 1)
+    real = sw.Watcher._check
+    checks = []
+
+    def first_is_slow(self, cap, gray, items):
+        checks.append(time.monotonic())
+        if len(checks) == 1:
+            end = time.thread_time() + 0.2
+            while time.thread_time() < end:
+                pass
+        return real(self, cap, gray, items)
+
+    monkeypatch.setattr(sw.Watcher, "_check", first_is_slow)
+    w = sw.Watcher(lambda _t: None, grabber=WaitingGrabber)
+    w.interval = 0.05
+    w.cpu_share = 0.01
+    w.set_items([sw.Watched("t", [(np.eye(20, dtype=np.float32), None)], 0.8, 0.0)])
+    w.start()
+    try:
+        end = time.monotonic() + 3.0
+        while len(checks) < 2 and time.monotonic() < end:
+            time.sleep(0.01)
+    finally:
+        w.stop()
+    assert len(checks) >= 2 and checks[1] - checks[0] < 2.0
+
+
 def test_a_quick_check_keeps_the_interval():
     w = sw.Watcher(lambda _t: None)
     assert w.gap == w.interval
