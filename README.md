@@ -1,6 +1,6 @@
 <p align="right"><img src="https://hits.sh/github.com/Onion-Alien/onion-watch.svg?view=total&label=total%20visits&color=6b8e23" alt="total visits"> <img src="https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FOnion-Alien%2Fonion-watch%2Fbadges%2Fdownloads.json" alt="downloads"></p>
 
-<p align="center"><img src="docs/art/hoot.png?v=b2c97ddb" width="150" alt="Hoot, the Onion Watch owl"></p>
+<p align="center"><img src="docs/art/hoot.png?v=093af920" width="150" alt="Hoot, the Onion Watch owl"></p>
 
 # Onion Watch
 
@@ -19,13 +19,13 @@ Version **0.13.0** · Windows 10 / 11 · free, no account, no internet needed ·
 [VirusTotal: 69 of 69 clean](https://www.virustotal.com/gui/file/22b743c44dcb1314bd0cb66b861d784970b22c0bea63318bb061b9565e8dbc8d) · [what's new](https://github.com/Onion-Alien/onion-watch/releases/latest)
 <!-- /release -->
 
-![Onion Watch watching a game, one trigger open](docs/screenshots/main.png?v=45db04c9)
+![Onion Watch watching a game, one trigger open](docs/screenshots/main.png?v=ab1bf824)
 
 | | |
 |---|---|
-| ![The window picker](docs/screenshots/window-picker.png?v=e2c6c3fb) | ![Cutting a picture from a window](docs/screenshots/cut-picture.png?v=564416b4) |
+| ![The window picker](docs/screenshots/window-picker.png?v=11bc8ea6) | ![Cutting a picture from a window](docs/screenshots/cut-picture.png?v=3f96fee0) |
 | Pick the windows, or every copy of a game | Cut the thing to watch for straight out of the game |
-| ![Picking a health bar and its colour](docs/screenshots/health-bar.png?v=1d8ffe6a) | ![Categories and profiles](docs/screenshots/categories.png?v=3c697ad8) |
+| ![Picking a health bar and its colour](docs/screenshots/health-bar.png?v=396ea8e8) | ![Categories and profiles](docs/screenshots/categories.png?v=41cbf3ba) |
 | Or point it at a health bar | Hundreds of triggers in categories and profiles |
 
 ## It only looks
