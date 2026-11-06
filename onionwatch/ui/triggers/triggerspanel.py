@@ -91,7 +91,7 @@ BUILD_NOW = 8           # an opened category's cards made at once (the first one
 BUILD_STEP_MS = 40      # ...screen); the rest this long at a time, so the window never
                         # ...freezes, however many there are (a card takes ~20-30 ms)
 SCREEN_LEARN_MS = 1300  # a screen cut's frames for the cut-out: grabbed this long after
-HEAVY_GAP = 0.5         # s: checks spaced out further than this (to keep to the share of
+HEAVY_GAP = 2.0         # s: checks spaced out further than this (to keep to the share of
 HEAVY_FOR = 5.0         # ...the processor picked) for this long: say too many pictures are on
 LOST_SAY_AFTER = 5.0    # s a screen capture is gone before the page says so: most dropouts
                         # ...last under a second (anything going fullscreen, the UAC prompt),
