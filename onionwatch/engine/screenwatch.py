@@ -3600,6 +3600,7 @@ class Watcher:
         wins: list | None = None                 # the open windows, when "every copy" is used
         listed = -math.inf
         costs: deque = deque(maxlen=PACE_ROUNDS)    # (when, processor time) of the last checks
+        ready: dict = {}                         # source -> the pictures a check has been made with
         rounds = 0                               # checks made
         elsewhere = 0.0                          # grabs' processor time outside the thread
         mark = (time.thread_time(), time.perf_counter(), 0.0)    # for cpu_used
@@ -3705,10 +3706,17 @@ class Watcher:
                 out = sum(getattr(c.grab, "cpu_elsewhere", 0.0) for c in grabbed
                           if c.grab is not None)
                 elsewhere += out
-                costs.append((now_t, now_cpu - c0 + out))
+                # the first check with new pictures makes them ready, work it won't do
+                # again: counted, it would leave you unwatched for seconds right after
+                # Start or an edit, to pay for something that's over
+                setup = any(ready.get(c.source) is not c.scaled for c in grabbed)
+                ready.update((c.source, c.scaled) for c in grabbed)
+                ready = {k: v for k, v in ready.items() if k in caps}
+                if not setup:
+                    costs.append((now_t, now_cpu - c0 + out))
                 while len(costs) > 1 and now_t - costs[0][0] > PACE_S:
                     costs.popleft()
-                cost = sum(c for _t, c in costs) / len(costs)
+                cost = sum(c for _t, c in costs) / len(costs) if costs else 0.0
                 share = 0.0 if heavy else self.cpu_share
                 interval = min((it.interval_ms / 1000 if it.interval_ms else self.interval
                                 for it in items), default=self.interval)
