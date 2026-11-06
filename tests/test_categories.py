@@ -195,6 +195,32 @@ def test_too_many_pictures_on_is_said(make):
     assert "checked only" not in tab.warn.text()
 
 
+def test_checks_a_second_apart_arent_worth_a_warning(make, monkeypatch):
+    """Under HEAVY_GAP apart still catches nearly everything: no line pushing the page
+    down, however long it lasts. Further apart than that, for HEAVY_FOR, is said."""
+    tab = make({"triggers": [raw(1)]})
+    tab.btn_watch.blockSignals(True)
+    tab.btn_watch.setChecked(True)
+    tab.btn_watch.blockSignals(False)
+    tab.show()
+    w = tab.watcher
+    w.scores = {"t1": 0.0}
+    monkeypatch.setattr(type(w), "running", True)
+    w.gap = 0.9
+    tab._poll()
+    assert tab._heavy_since is None and "checked only" not in tab.warn.text()
+    w.gap = 2.5
+    tab._poll()
+    assert tab._heavy_since is not None and "checked only" not in tab.warn.text()
+    tab._heavy_since -= triggerspanel.HEAVY_FOR + 1
+    tab._poll()
+    assert "checked only every 2.5 s" in tab.warn.text()
+    w.gap = 0.9
+    tab._poll()
+    assert "checked only" not in tab.warn.text()
+    tab.hide()
+
+
 def test_short_capture_dropout_says_nothing(make, monkeypatch):
     """A dropout of under a second must not show a line that pushes the page down."""
     tab = make({"triggers": [raw(1)]})

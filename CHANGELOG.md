@@ -4,6 +4,7 @@ What changed between releases, for the release notes. Newest first.
 
 ## Unreleased
 
+- The warning that triggers are checked only every few seconds now shows only when checks are more than 2 seconds apart (it was half a second), so it no longer pushes the page down for a single picture on a slower PC.
 - Watching now starts looking straight away. Setting up the pictures counted against the processor limit, so right after you started watching or edited a trigger, Watch could stop looking for several seconds and wrongly warn that triggers are checked only every few seconds.
 - Cutting a picture from a moving game now keeps the learned cut-out more often. Watch could throw it away when the rectangle happened to match during the cut, then miss the picture once the scene moved on.
 - Hoot moves again when an app's Lite mode is turned off, without a restart.
