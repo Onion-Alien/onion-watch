@@ -4,26 +4,23 @@ What changed between releases, for the release notes. Newest first.
 
 ## Unreleased
 
+## 0.13.3 (2026-11-07)
+
+- **Triggers no longer stop for good when a game remakes its window:** a game that closed its window and opened a new one straight away (a quick restart, or switching to full screen) left its triggers waiting forever. They now follow the new window.
+- **A picture that stays on screen now plays again** each time *Rest after playing* ends, until it goes away. Set no rest to have it play once. A sound still playing is left to finish while the picture stays up; a picture that goes and comes back starts the sound again, so quick appearances are no longer dropped while the last sound plays.
+- **A trigger whose picture stayed on screen could never play again,** even after stopping and starting watching or lowering its match. Starting to watch again, or changing its match, pictures or place, now lets it play again (after its rest).
+- **Watching now starts looking straight away.** Setting up the pictures counted against the processor limit, so right after you started watching or edited a trigger, Watch could stop looking for several seconds and wrongly warn that triggers are checked only every few seconds.
+- **Cutting a picture from a moving game now keeps the learned cut-out more often.** Watch could throw it away when the rectangle happened to match during the cut, then miss the picture once the scene moved on.
 - The warning that triggers are checked only every few seconds now shows only when checks are more than 2 seconds apart (it was half a second), so it no longer pushes the page down for a single picture on a slower PC.
-- Watching now starts looking straight away. Setting up the pictures counted against the processor limit, so right after you started watching or edited a trigger, Watch could stop looking for several seconds and wrongly warn that triggers are checked only every few seconds.
-- Cutting a picture from a moving game now keeps the learned cut-out more often. Watch could throw it away when the rectangle happened to match during the cut, then miss the picture once the scene moved on.
-- Hoot moves again when an app's Lite mode is turned off, without a restart.
-- **A picture that stays on screen now plays again** each time *Rest after playing* ends, until it goes away. Set no rest to have it play once. A sound still playing is left to finish while the picture stays up; a picture that goes and comes back starts the sound again.
-- Switching theme now recolours the trigger cards straight away. Their Play chip, When and In boxes and picture well kept the old theme's colours until a restart, and the sound's name could be unreadable.
 - The Triggers page no longer jumps for a moment when the screen capture drops out briefly (something going fullscreen, a Windows prompt). *Waiting for the screen to come back* now shows only if the screen stays gone for 5 seconds.
-- A trigger whose picture stayed on screen could never play again, even after stopping and starting watching or lowering its match. Starting to watch again, or changing its match, pictures or place, now lets it play again (after its rest).
-- *Count me in* no longer says it never sends your IP address: any web request carries one, so it now says it never sends your name or device info.
-- Hoot's wings now go in front of what he wears round his neck when he begs, and his firework burst and sparkler fit inside his picture.
+- Switching theme now recolours the trigger cards straight away. Their Play chip, When and In boxes and picture well kept the old theme's colours until a restart, and the sound's name could be unreadable.
+- The sound menu on a trigger card has a gap between its rows and the scroll bar, and the bar's strip matches the rows.
+- Hoot moves again when an app's Lite mode is turned off, without a restart. His wings now go in front of what he wears round his neck when he begs, and his firework burst and sparkler fit inside his picture.
 - The pink theme is now called Bubblegum.
-- **Uninstalling can remove everything:** it now asks whether to delete your triggers,
-  pictures, sounds and settings too (No keeps them; Yes puts them in the Recycle Bin).
-  [docs/PRIVACY.md](docs/PRIVACY.md) says in plain words what the app reads, sends and
-  adds to your PC.
-- The app no longer carries PortAudio's unused ASIO and other-system builds (the ASIO
-  ones are made with an SDK that isn't open source), and its third-party notices now
-  credit the MinGW-w64 runtime and Unicode's language names.
-- Onion Watch is now fully open source, under the GNU GPL v3 or later (it was MIT with
-  an extra rule against selling it). Releases made before this keep their old license.
+- **Uninstalling can remove everything:** it now asks whether to delete your triggers, pictures, sounds and settings too (No keeps them; Yes puts them in the Recycle Bin). [docs/PRIVACY.md](docs/PRIVACY.md) says in plain words what the app reads, sends and adds to your PC.
+- *Count me in* no longer says it never sends your IP address: any web request carries one, so it now says it never sends your name or device info.
+- The app no longer carries PortAudio's unused ASIO and other-system builds (the ASIO ones are made with an SDK that isn't open source), and its third-party notices now credit the MinGW-w64 runtime and Unicode's language names.
+- Onion Watch is now fully open source, under the GNU GPL v3 or later (it was MIT with an extra rule against selling it). Releases made before this keep their old license.
 
 ## 0.13.2 (2026-10-30)
 
