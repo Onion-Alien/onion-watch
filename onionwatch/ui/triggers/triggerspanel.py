@@ -2892,6 +2892,9 @@ class TriggersTab(QWidget):
         src = t.source if t.source is not None else self.watcher.default
         img, where = self.capture(src)
         if img is None:
+            if isinstance(src, WindowRef):     # (a screen always shows: pick that)
+                where = _("{why}\n\nPick the screen it's on under Look in, then drag the "
+                          "box on that.", why=where)
             QMessageBox.information(self, _("Can't show the window"), where)
             return
         area = self._ask_area(img, where, t, heading)

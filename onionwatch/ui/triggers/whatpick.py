@@ -31,11 +31,11 @@ TICK = 24                         # the picked tile's ✓
 
 def kinds() -> list[tuple[str, str, str]]:
     """(mode, title, an example) for each tile, in the order they're shown."""
-    return [("appear", _("Something shows up"), _("A rare spawn, a queue pop, YOU DIED")),
-            ("vanish", _("Something goes away"), _("A buff runs out, a loading screen ends")),
+    return [("appear", _("A picture shows up"), _("A rare spawn, a queue pop, YOU DIED")),
+            ("vanish", _("A picture goes away"), _("A buff runs out, a loading screen ends")),
             ("colour", _("A bar runs low"), _("Health, mana, a timer bar")),
-            ("change", _("A chat line changes"), _("A whisper, a new message, anything moving")),
-            ("still", _("Everything stops moving"), _("You're stuck, idle or disconnected"))]
+            ("change", _("Something moves"), _("A whisper, a new message, anything moving")),
+            ("still", _("Nothing moves"), _("You're stuck, idle or disconnected"))]
 
 
 def draw_art(p: QPainter, r: QRectF, mode: str):

@@ -40,9 +40,9 @@ BIG_CARD = 700
 CHIP_CHARS = 24         # a sound chip's name is cut to this many characters
 PICKS = (("random", _("Play one at random")), ("order", _("Play them in turn")),
          ("all", _("Play all at once")))
-MODES = (("appear", _("The picture shows up")), ("vanish", _("The picture goes away")),
-         ("change", _("Something changes in an area")),
-         ("still", _("An area stops changing")), ("colour", _("A bar runs low")))
+MODES = (("appear", _("A picture shows up")), ("vanish", _("A picture goes away")),
+         ("change", _("Something moves")), ("still", _("Nothing moves")),
+         ("colour", _("A bar runs low")))
 LEVELS = {"change": 0.05, "still": 0.01, "colour": 0.30}   # a new mode's starting level
 # what stops a ringing trigger by itself (Trigger.stop): its words on the card, on
 # its state line and in the alert, and a tooltip
@@ -354,11 +354,12 @@ class TriggerRow(QFrame):
             self.mode.addItem(mid_sentence(label), key)
         self.mode.setCurrentIndex(max(self.mode.findData(t.mode), 0))
         self.mode.setToolTip(
-            _("What sets it off:\n• it shows up: one of its pictures appears\n• it goes away: "
-              "its picture disappears (a buff running out, a bobber)\n• the area changes: "
-              "anything moves in its area (a chat line, the minimap)\n• the area stops changing: "
-              "nothing moves for a while (stuck, idle, disconnected)\n• a bar runs low: less of "
-              "its area is one colour (a health bar)"))
+            _("What sets it off:\n• a picture shows up: one of its pictures appears\n• a picture "
+              "goes away: its picture disappears (a buff running out, a bobber)\n• something "
+              "moves: anything moves in its area (a chat line, the minimap)\n• nothing moves: "
+              "nothing moves in its area for a while (stuck, idle, disconnected)\n• a bar runs "
+              "low: less of its area is one colour (a health bar)\nIts area is the Area button "
+              "next to it: the whole window, or a box you drag."))
         no_wheel(self.mode)
         self.mode.activated.connect(self._on_mode)
         self.mode.setProperty("token", "accent")    # (CARD_CSS)
@@ -1147,19 +1148,20 @@ class TriggerRow(QFrame):
         t = self.t
         self._label_rest()
         pics = t.uses_pictures
+        self._place(self.btn_area, not pics)           # the bar, the area: next to the window
         self._place(self.match_box, not pics)          # a bar's level, how much changes
         self._place(self.hold_box, t.mode == "still")  # how long nothing may move
-        self._place(self.btn_area, not pics)           # the bar, the area that changes
         self.chk_size.setVisible(pics)
         self.below.setVisible(t.mode == "colour")
         # the box is kept as a share of the window, so it follows the window when it's
         # moved or resized; a whole screen, a HUD pinned to a corner, or a game that stops
         # drawing while you're away can still fool it
-        note = {"change": _("Works best on the game's own window, not a whole screen. If you "
-                            "resize the game, check the box still covers the right part."),
-                "still": _("Works best on the game's own window, not a whole screen. Some "
-                           "games stop drawing while you're alt-tabbed, which looks like "
-                           "nothing moving and can set it off.")}.get(t.mode, "")
+        note = {"change": _("It keeps watching while the game is behind other windows, just "
+                            "not while it's minimized. If you resize the game, check the box "
+                            "still covers the right part."),
+                "still": _("It keeps watching while the game is behind other windows, just "
+                           "not while it's minimized. Some games stop drawing while you're "
+                           "alt-tabbed, which looks like nothing moving.")}.get(t.mode, "")
         self.area_note.setText(note)
         self.area_note.setVisible(bool(note))
         self.threshold.blockSignals(True)
@@ -1215,11 +1217,12 @@ class TriggerRow(QFrame):
             self.btn_area.setToolTip(_("Look in only part of each window: drag a box around it. "
                                        "Fewer false alarms, quicker checks."))
         else:                     # in the sentence: the area that changes
-            self.btn_area.setText(_("Whole window") if t.region is None
-                                  else _("Part of the window"))
+            self.btn_area.setText(_("Area: whole window") if t.region is None
+                                  else _("Area: your box"))
             self.btn_area.setIcon(QIcon())
-            self.btn_area.setToolTip(_("Look in only part of each window: drag a box around it. "
-                                       "Fewer false alarms, quicker checks."))
+            self.btn_area.setToolTip(_("The part of the window it watches. Click to drag a box "
+                                       "around it, like the chat or the minimap. Until you do, "
+                                       "it watches the whole window."))
         self.chk_region.blockSignals(True)
         self.chk_region.setChecked(t.region is not None)
         self.chk_region.blockSignals(False)
@@ -1386,7 +1389,7 @@ class TriggerRow(QFrame):
             "appear": _("{s:g} s after it shows up", s=t.delay) if t.delay
             else _("as soon as it shows up"),
             "vanish": _("when its picture goes away"),
-            "change": _("when something changes in its area"),
+            "change": _("when something moves in its area"),
             "still": _("when nothing has moved for {s:g} s", s=t.hold),
             "colour": _("when the colour is below {n}% of the bar", n=n) if t.below
             else _("when the colour is above {n}% of the bar", n=n),

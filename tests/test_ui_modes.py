@@ -47,6 +47,33 @@ def test_switching_the_kind_of_trigger_shows_its_controls(tab):
     assert "nothing has moved for 10 s" in row.state.text()
 
 
+def test_an_area_trigger_says_its_area_next_to_the_window(tab, monkeypatch):
+    """The sentence reads "When [something moves] in [window] [Area: …]": the area
+    button comes straight after the window and says what it watches, so the area the
+    options talk about can be seen and picked. A window that can't be copied says to
+    pick its screen instead."""
+    row = picture_row(tab)
+    row.mode.setCurrentIndex(row.mode.findData("change"))
+    row.mode.activated.emit(row.mode.currentIndex())
+    assert row.mode.currentText() == "something moves"
+    flow = row._watch_row
+    order = [flow.itemAt(i).widget() for i in range(flow.count())]
+    assert order.index(row.btn_area) == order.index(row.where) + 1
+    assert row.btn_area.text() == "Area: whole window"
+    row.t.region = (0.0, 0.5, 0.5, 0.5)
+    row._label_area()
+    assert row.btn_area.text() == "Area: your box"
+    said = []
+    monkeypatch.setattr(windows, "find", lambda r, wins=None: windows.WindowInfo(
+        7, "Game", "game.exe", 7, 0, W, H))
+    monkeypatch.setattr(windows, "snapshot", lambda hwnd: None)
+    monkeypatch.setattr("onionwatch.ui.triggers.triggerspanel.QMessageBox.information",
+                        lambda parent, title, text: said.append(text))
+    row.t.sources = [GAME]
+    tab._pick_area(row)
+    assert len(said) == 1 and "couldn't be copied" in said[0] and "Look in" in said[0]
+
+
 def test_a_bar_trigger_asks_for_its_bar(tab, monkeypatch):
     row = picture_row(tab)
     asked = []

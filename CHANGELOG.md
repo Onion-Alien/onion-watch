@@ -4,6 +4,8 @@ What changed between releases, for the release notes. Newest first.
 
 ## Unreleased
 
+- **The trigger sentence now says plainly what it watches.** Its choices are *a picture shows up*, *a picture goes away*, *something moves*, *nothing moves* and *a bar runs low*, the same names as on the new-trigger tiles. The area button sits right after the window and says *Area: whole window* or *Area: your box*, and the hint under it says triggers keep watching while the game is behind other windows (just not while it's minimized). A window that can't be copied now says to pick its screen under Look in instead.
+
 ## 0.13.3 (2026-11-07)
 
 - **Triggers no longer stop for good when a game remakes its window:** a game that closed its window and opened a new one straight away (a quick restart, or switching to full screen) left its triggers waiting forever. They now follow the new window.

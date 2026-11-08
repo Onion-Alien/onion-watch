@@ -290,16 +290,18 @@ def test_a_click_picks_a_kind_and_continue_goes_on(qapp):
 
 
 def test_area_triggers_say_plainly_what_can_fool_them(tab, flow, monkeypatch):
-    """"Changes in an area" and "stops changing" say under their sentence that they want
-    the game's own window and what can fool them (a resize, a game that stops drawing
-    while alt-tabbed); a picture trigger, which finds its picture anywhere, says nothing."""
+    """"Something moves" and "nothing moves" say under their sentence that they keep
+    watching behind other windows (not minimized: the game needn't be in front) and what
+    can fool them (a resize, a game that stops drawing while alt-tabbed); a picture
+    trigger, which finds its picture anywhere, says nothing."""
     for mode, words in (("change", "resize"), ("still", "alt-tabbed")):
         FakePicker.answer = {"mode": mode}
         tab.new_trigger()
         process_events()
         card = tab._card_of(tab.triggers[-1])
         assert not card.area_note.isHidden() and words in card.area_note.text()
-        assert "not a whole screen" in card.area_note.text()
+        assert "behind other windows" in card.area_note.text()
+        assert "minimized" in card.area_note.text()
     monkeypatch.setattr(triggerspanel, "copied_picture", picture)
     FakePicker.answer = {"mode": "appear", "source": PASTE}
     tab.new_trigger()
