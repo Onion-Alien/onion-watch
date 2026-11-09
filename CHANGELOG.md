@@ -4,6 +4,7 @@ What changed between releases, for the release notes. Newest first.
 
 ## Unreleased
 
+- German now says *du* everywhere, like Onion Board, and the new-trigger steps read naturally: *a bar runs low* is *Ein Balken wird knapp*, a game's bar is always *Balken*, and *YOU DIED* is *DU BIST gestorben*.
 - **The trigger sentence now says plainly what it watches.** Its choices are *a picture shows up*, *a picture goes away*, *something moves*, *nothing moves* and *a bar runs low*, the same names as on the new-trigger tiles. The area button sits right after the window and says *Area: whole window* or *Area: your box*, and the hint under it says triggers keep watching while the game is behind other windows (just not while it's minimized). A window that can't be copied now says to pick its screen under Look in instead.
 
 ## 0.13.3 (2026-11-07)
