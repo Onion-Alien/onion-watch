@@ -16,7 +16,7 @@ until you're back.
 
 <!-- release -->
 Version **0.13.3** · Windows 10 / 11 · free, no account, no internet needed ·
-[VirusTotal: 67 of 67 clean](https://www.virustotal.com/gui/file/6ffba43fad96a5f8b89aa1a404ddc316124dc910c69951412f00a859307a3967) · [what's new](https://github.com/Onion-Alien/onion-watch/releases/latest)
+[VirusTotal: 68 of 68 clean](https://www.virustotal.com/gui/file/b380121425bec06e5918a64d9ef3d2185239cc43be441c6c867fdda8a0300962) · [what's new](https://github.com/Onion-Alien/onion-watch/releases/latest)
 <!-- /release -->
 
 ![Onion Watch watching a game, one trigger open](docs/screenshots/main.png?v=ab1bf824)
