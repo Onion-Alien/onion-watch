@@ -15,7 +15,6 @@ from onionwatch.i18n import _
 from onionwatch.ui.kit import fit
 
 PRIVACY_URL = "https://github.com/Onion-Alien/onion-watch/blob/main/SECURITY.md#what-the-app-touches"
-GOATCOUNTER_PRIVACY = "https://www.goatcounter.com/help/privacy"
 
 
 def rows() -> list[tuple[str, str, str]]:
@@ -68,9 +67,7 @@ class CountDialog(QDialog):
         v.addSpacing(4)
         v.addLayout(grid)
         style = f'style="color: {theme.T["accent"]};"'
-        links = QLabel(f'<a href="{PRIVACY_URL}" {style}>{_("The full list")}</a> · '
-                       f'<a href="{GOATCOUNTER_PRIVACY}" {style}>'
-                       f'{_("GoatCounter privacy policy")}</a>')
+        links = QLabel(f'<a href="{PRIVACY_URL}" {style}>{_("The full list")}</a>')
         links.linkActivated.connect(webbrowser.open)
         v.addSpacing(6)
         v.addWidget(links)

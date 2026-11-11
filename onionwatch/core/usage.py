@@ -1,8 +1,9 @@
 """The anonymous usage count: how many people use Onion Watch, and how.
 
-Once a day the installed app sends one "still here" to the project's GoatCounter
-(a privacy-friendly counter, the same one Onion Board uses): the version number and
-a random ID made on this PC, so the same person isn't counted twice and we can follow
+Once a day the installed app sends one "still here" to the project's own count server
+(the same one Onion Board uses): the version number, which Windows (10 or 11) and a
+short tag made from a random ID made on this PC, so the same person isn't counted twice
+and we can follow
 how people use the app over time (which features, which versions, whether they come
 back) to see what to improve. Also a one-off "first start" (with where they heard
 about the app, if they picked it on the installer's last page), and "updated" when
@@ -23,8 +24,13 @@ the last run ending without the app closing itself (`unclean-exit/<version>`: a 
 crash, ended in Task Manager, a power cut). And `uninstall/<version>` when the
 uninstaller removes it.
 Nothing else: no name, triggers, pictures, windows, games or IP address in the
-message (GoatCounter sees the connection's address like any site does, and isn't
-sent it to keep or look up).
+message (the server sees the connection's address like any site does, uses it only to
+limit how fast one address can send, and never keeps it).
+
+What goes over the wire is one message of named events (message()): the names and
+fields Onion Board's count uses, with `app: "watch"`. Inside this module a count is
+still a short path (`onion-watch/used/mode-colour`); _event_of() turns each into its
+event as it is sent.
 
 On unless switched off: the installer's "Count me in" box, or Settings > Updates and
 privacy. Switching it off sends one last `opt-out/<where>` with no ID, tag or
@@ -54,11 +60,14 @@ from onionwatch import __version__
 
 log = logging.getLogger(__name__)
 
-ENDPOINT = "https://onionalien.goatcounter.com/api/v0/count"
-# a key that can only add counts (GoatCounter's "Record pageviews" permission), not
-# read or change anything; "" sends nothing
-TOKEN = "1mdp7aoiksvjn2e3oitmjdaqd1u33msk6p74g7samuec2tufwr"  # gitleaks:allow (count-only)
-PREFIX = "onion-watch"   # every path starts with it: the counter is shared with Onion Board
+# the project's own count server (shared with Onion Board); "" sends nothing. It only
+# takes counts: nothing can be read back with what the app has
+ENDPOINT = "https://onion-board-count.onion-alien.workers.dev/v2/events"
+SCHEMA = 2
+APP = "watch"            # which app a message is from: the server is shared with Onion Board
+TIME_STEP_S = 600        # an event's time is rounded to this, never the exact moment
+RUN = "r-" + uuid.uuid4().hex[:12]   # this start of the app; never saved
+PREFIX = "onion-watch"   # every count's path starts with it (see _event_of)
 EVERY_S = 24 * 3600
 DAY_S = 24 * 3600
 # the installer's "Where did you hear about Onion Watch?" picks; Other's typed answer
@@ -94,8 +103,8 @@ OPT_OUT_TIMEOUT_S = 5       # the installer waits on it: never long
 
 
 def enabled() -> bool:
-    """Could anything be sent at all: the installed app, with a key, not on a dev PC."""
-    return (bool(TOKEN) and bool(getattr(sys, "frozen", False))
+    """Could anything be sent at all: the installed app, with a server, not on a dev PC."""
+    return (bool(ENDPOINT) and bool(getattr(sys, "frozen", False))
             and not os.environ.get("ONIONBOARD_NO_STATS"))
 
 
@@ -107,9 +116,8 @@ def install_id(cfg) -> str:
 
 
 def user_tag(sid: str) -> str:
-    """A short tag made from the random ID, sent as each count's "ref". GoatCounter
-    swaps "session" for its own number that starts over after 8 hours, so one person's
-    daily counts only link up across days through this. A hash, not the ID itself."""
+    """A short tag made from the random ID, sent as a message's `install`: one person's
+    daily counts link up across days through it. A hash, not the ID itself."""
     return "u-" + hashlib.sha256(sid.encode()).hexdigest()[:12]
 
 
@@ -385,13 +393,93 @@ def update_event(to: str) -> str:
 
 
 # ---------------------------------------------------------------- sending
-def send(payload: list[dict], timeout: float = TIMEOUT_S, no_sessions: bool = False) -> bool:
-    """POST them to the counter. True if it took them. Call off the UI thread."""
-    body = json.dumps({"hits": payload, "no_sessions": True} if no_sessions
-                      else {"hits": payload}).encode("utf-8")
+ERRORS = ("error", "unclean_exit")   # an event's level is "error" for these, else "info"
+_DAILY_ATTRS = ("age", "triggers", "fired", "lang")   # about()'s buckets: fields of `daily`
+
+
+def os_tag() -> str:
+    """Which system, nothing finer: win11, win10, win-older or other."""
+    if sys.platform != "win32":
+        return "other"
+    try:
+        v = sys.getwindowsversion()
+    except AttributeError:
+        return "other"
+    if v.major >= 10:
+        return "win11" if v.build >= 22000 else "win10"
+    return "win-older"
+
+
+def _event_of(path: str) -> tuple[str, dict]:
+    """One count's path (without PREFIX) as its event's name and fields. ("", {}) for
+    one this version doesn't know: left out, never guessed."""
+    kind, _, rest = path.partition("/")
+    if kind == "app":
+        return "daily", {}
+    if kind == "first-start":
+        return "first_start", {"heard": rest[6:]} if rest.startswith("heard-") else {}
+    if kind == "used" and rest in FEATURES:
+        return ("feature.on" if rest in SET_UP else "feature.used"), {"feature": rest}
+    if kind == "step" and rest in STEPS:
+        return "step", {"step": rest}
+    if kind == "error":
+        _version, _, tag = rest.partition("/")
+        etype, _, where = tag.partition("@")
+        file, _, line = where.rpartition(":")
+        attrs: dict = {"type": etype, "file": file}
+        if line.isdigit():
+            attrs["line"] = int(line)
+        return "error", {k: v for k, v in attrs.items() if v}
+    if kind == "unclean-exit":
+        return "unclean_exit", {"last_version": rest} if rest else {}
+    if kind == "uninstall":
+        return "uninstall", {}
+    if kind == "update-now":
+        return "update_now", {"to": rest.partition("-to-")[2]}
+    if kind == "opt-out" and rest in OPT_OUT_WHERE:
+        return "opt_out", {"where": rest}
+    return "", {}
+
+
+def message(payload: list[dict], now: float | None = None) -> dict:
+    """One request's body for hits()' list: who at the top (`install`, the short tag,
+    and `run`; neither for an opt-out, which can't be tied to anything), then the
+    events. about()'s buckets become fields of the `daily` event they came with."""
+    t = int((time.time() if now is None else now) // TIME_STEP_S * TIME_STEP_S)
+    out: dict = {"schema": SCHEMA, "app": APP, "version": __version__, "os": os_tag()}
+    install = next((h["ref"] for h in payload if h.get("ref")), "")
+    if install:
+        out["install"], out["run"] = install, RUN
+    events: list[dict] = []
+    daily: dict | None = None
+    for h in payload:
+        path = str(h.get("path", "")).lstrip("/")
+        path = path[len(PREFIX) + 1:] if path.startswith(PREFIX + "/") else path
+        kind, _, rest = path.partition("/")
+        if kind in _DAILY_ATTRS:
+            if daily is not None and rest:
+                daily.setdefault("attrs", {})[kind] = rest
+            continue
+        name, attrs = _event_of(path)
+        if not name:
+            continue
+        e: dict = {"name": name, "level": "error" if name in ERRORS else "info", "t": t}
+        if attrs:
+            e["attrs"] = attrs
+        if name == "daily":
+            daily = e
+        events.append(e)
+    out["events"] = events
+    return out
+
+
+def send(payload: list[dict], timeout: float = TIMEOUT_S) -> bool:
+    """POST them to the count server. True if it took them. Call off the UI thread."""
+    body = json.dumps(message(payload)).encode("utf-8")
+    # (the server only takes this app family's messages: it looks for "OnionBoard" first)
     req = urllib.request.Request(ENDPOINT, data=body, method="POST", headers={
-        "Authorization": f"Bearer {TOKEN}", "Content-Type": "application/json",
-        "User-Agent": "OnionWatch"})
+        "Content-Type": "application/json",
+        "User-Agent": f"OnionBoard (Onion Watch {__version__})"})
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
             return 200 <= r.status < 300
@@ -409,8 +497,7 @@ def opt_out(where: str) -> bool:
     if where not in OPT_OUT_WHERE or not enabled():
         return False
     name = f"{PREFIX}/opt-out/{where}"
-    return send([{"path": name, "title": name, "event": True}],
-                timeout=OPT_OUT_TIMEOUT_S, no_sessions=True)
+    return send([{"path": name, "title": name, "event": True}], timeout=OPT_OUT_TIMEOUT_S)
 
 
 def maybe_send(cfg, saved=None, event: str = "") -> threading.Thread | None:

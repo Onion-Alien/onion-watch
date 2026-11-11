@@ -212,8 +212,65 @@ def test_opt_out_has_no_id(monkeypatch):
     (payload, kw), = calls
     assert payload == [{"path": "onion-watch/opt-out/settings",
                         "title": "onion-watch/opt-out/settings", "event": True}]
-    assert kw["no_sessions"] is True
     assert not usage.opt_out("elsewhere")
+    body = usage.message(payload)
+    assert "install" not in body and "run" not in body   # tied to nothing sent before
+    assert [(e["name"], e["attrs"]) for e in body["events"]] == [("opt_out", {"where": "settings"})]
+
+
+def test_a_send_is_one_message_of_named_events():
+    """What goes to the count server: who at the top, then events with fixed names; the
+    daily count's buckets are its fields."""
+    c = cfg(usage_count=True, language="de", stats_used=["pack-import"])
+    c.screen = {"view": "pads"}
+    payload = usage.hits(c, 1_800_000_123.0, extra=[
+        "onion-watch/error/1.0.0/KeyError@onionwatch/ui/triggers/triggerspanel.py:1090",
+        "onion-watch/unclean-exit/0.9.9", "onion-watch/something-newer/x"])
+    body = usage.message(payload, now=1_800_000_123.0)
+    assert body["schema"] == 2 and body["app"] == "watch" and body["version"] == __version__
+    assert body["install"] == usage.user_tag(c.stats_id) and body["run"] == usage.RUN
+    assert c.stats_id not in json.dumps(body)   # the short tag only, never the ID
+    by = {}
+    for e in body["events"]:
+        assert e["t"] == 1_800_000_000 and set(e) <= {"name", "level", "t", "attrs"}
+        by.setdefault(e["name"], []).append(e)
+    assert set(by) == {"error", "unclean_exit", "daily", "first_start", "feature.used",
+                       "feature.on"}
+    assert by["daily"][0]["attrs"] == {"age": "day-1", "triggers": "0", "fired": "0", "lang": "de"}
+    assert by["error"][0]["level"] == "error" and by["error"][0]["attrs"] == {
+        "type": "KeyError", "file": "onionwatch/ui/triggers/triggerspanel.py", "line": 1090}
+    assert by["unclean_exit"][0]["attrs"] == {"last_version": "0.9.9"}
+    assert by["feature.used"][0]["attrs"] == {"feature": "pack-import"}
+    assert {e["attrs"]["feature"] for e in by["feature.on"]} == {"view-pads"}
+
+
+def test_the_other_counts_as_events():
+    one = lambda path: usage.message([{"path": path, "ref": "u-0123456789ab"}])["events"]  # noqa: E731
+    assert one("onion-watch/step/added-trigger")[0]["attrs"] == {"step": "added-trigger"}
+    assert one("onion-watch/first-start/heard-reddit")[0]["attrs"] == {"heard": "reddit"}
+    assert one(usage.update_event("9.9.9"))[0] | {"t": 0} == {
+        "name": "update_now", "level": "info", "t": 0, "attrs": {"to": "9.9.9"}}
+    assert one(usage.uninstall_event())[0]["name"] == "uninstall"
+    assert one("onion-watch/used/not-a-feature") == [] and one("onion-watch/step/x") == []
+
+
+def test_send_posts_to_the_count_server(monkeypatch):
+    seen = {}
+
+    class Reply:
+        status = 200
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+
+    def fake(req, timeout=0):
+        seen.update(url=req.full_url, agent=req.get_header("User-agent"),
+                    auth=req.get_header("Authorization"), body=json.loads(req.data))
+        return Reply()
+    monkeypatch.setattr(usage.urllib.request, "urlopen", fake)
+    assert usage.send([{"path": usage.uninstall_event(), "ref": "u-0123456789ab"}])
+    assert seen["url"] == usage.ENDPOINT and seen["url"].endswith("/v2/events")
+    assert seen["agent"].startswith("OnionBoard") and seen["auth"] is None
+    assert seen["body"]["app"] == "watch" and seen["body"]["events"][0]["name"] == "uninstall"
 
 
 def test_installer_off_sends_opt_out_only_when_it_was_on(monkeypatch, tmp_path):
