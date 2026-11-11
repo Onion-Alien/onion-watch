@@ -133,7 +133,7 @@ our files that deep: `core/usage.py` `_OUR_FRAME`).
 | `onionwatch/audio/player.py` | the output stream that mixes and rings the alerts |
 | `onionwatch/core/settings.py` | `%APPDATA%\OnionWatch` and `config.json` |
 | `onionwatch/core/updates.py` | the daily update check and *Update now* (standalone app only) |
-| `onionwatch/core/usage.py` | the anonymous daily usage count, GoatCounter (standalone app only) |
+| `onionwatch/core/usage.py` | the anonymous daily usage count, to the project's own count server (standalone app only) |
 | `onionwatch/ui/settings/countdialog.py` | *What Count me in sends*: the table behind Settings' eye button (in step with `usage.py` and SECURITY.md) |
 | `onionwatch/core/feedback.py` | Send feedback / Report a problem links |
 | `onionwatch/core/app.py` | start-up: logging, one copy at a time, the window, `--selftest` |

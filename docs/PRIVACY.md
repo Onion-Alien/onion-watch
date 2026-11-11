@@ -12,7 +12,8 @@ Settings → *Updates and privacy*:
 
 - **The update check:** asks GitHub (`api.github.com`) whether there's a newer
   version. Nothing downloads until you click *Update now*.
-- **The anonymous usage count** (*Count me in*), to `onionalien.goatcounter.com`: the
+- **The anonymous usage count** (*Count me in*), to this project's own count server
+  (`onion-board-count.onion-alien.workers.dev`): the
   version, a random ID made on your PC, rough numbers (how many triggers, how often
   they went off), the app's language, which features are used, and crash counts (the
   error's type and where in Onion Watch's own code, never its message). Never your

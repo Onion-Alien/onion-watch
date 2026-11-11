@@ -17,7 +17,7 @@ Like Onion Board, everything here is published, history included:
   logo and the screenshots' made-up game are drawn in code.
 - The app goes online for two things only, both switchable in Settings: the daily
   update check (`core/updates.py`) and the anonymous usage count (`core/usage.py`, the same
-  GoatCounter as Onion Board, paths under `onion-watch/`). Adding anything else
+  count server as Onion Board, as `app: "watch"`). Adding anything else
   needs a line in `SECURITY.md` and the author's say-so. Neither runs inside Onion
   Board, and the count never carries triggers, pictures, windows or games.
 - **It only looks.** Never add anything that sends input to a game (keys, clicks,
