@@ -2,6 +2,10 @@
 
 What changed between releases, for the release notes. Newest first.
 
+## 0.13.5 (2026-11-12)
+
+- *Count me in* now sends its anonymous count to the project's own count server, the same one Onion Board uses, instead of GoatCounter. It counts the same things as before, plus whether it's Windows 10 or 11, and switching it off still sends nothing that tells you apart. The *GoatCounter privacy policy* link is gone from *What Count me in sends*.
+
 ## 0.13.4 (2026-11-10)
 
 - German now says *du* everywhere, like Onion Board, and the new-trigger steps read naturally: *a bar runs low* is *Ein Balken wird knapp*, a game's bar is always *Balken*, and *YOU DIED* is *DU BIST gestorben*.
