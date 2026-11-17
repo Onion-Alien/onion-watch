@@ -175,6 +175,19 @@ SMALL_STEPS = 4             # (a cut-out is scored on its opaque part: cut_struc
 # smallest sizes, 0.5-0.65).
 CUT_LOW_K = 0.7
 CUT_LOW_SHAPE = 0.8
+# Any match at another size than the picture's own (past TWIN_SIZE, where the twin
+# check can't look) has to match RESIZED_SHARP sharp on the screen's own pixels at full
+# size too. Softened and shrunk, one row of an icon and a word looks like another: a
+# "[bot] name" badge cut off a dark web page scored 0.92 soft at 75 % on a file list's
+# "folder icon + name" row, 0.56 at most sharp at full size. The badge drawn afresh at
+# 70-130 % (its text laid out again, not a resized copy) scored 0.63-0.90 there; its
+# shape (structure()) can't tell them apart (0.41 for the badge, up to 0.40 the rows).
+# It's looked for RESIZED_STEPS steps of RESIZED_STEP either side of the size found,
+# anywhere in the box: a small picture's soft match can land a sweep step or more off
+# its size (a badge shown at 60 % first matched at 79 %, the box a size too big).
+RESIZED_SHARP = 0.6
+RESIZED_STEP = 1.03
+RESIZED_STEPS = 10
 SWEEP_DONE = 0.9        # a match scoring less may be at a size a little off: keep sweeping
 BLUR = 1.5
 BLUR_MIN_SIDE = 16
@@ -4308,6 +4321,11 @@ class Watcher:
                                                    cap.twins, it.id))
                     if fine and sc >= it.threshold:
                         sc = min(sc, Watcher._fine_shape(twin, b, lk, gray.shape))
+                    if (twin is not None and sc >= it.threshold and not covered
+                            and Watcher._resized(twin, b, lk, gray.shape)):
+                        st = Watcher._resized_sharp(twin, b, lk, gray.shape, cap.twins, it.id)
+                        if st < RESIZED_SHARP:
+                            sc = min(sc, st)
                     bar = (Watcher._shape_bar(p, lk) if twin is not None
                            and sc >= it.threshold and not covered else None)
                     if bar is not None:
@@ -4410,13 +4428,17 @@ class Watcher:
 
     @staticmethod
     def _fine_shape(full: tuple | None, box: tuple, lk: Look, shape: tuple[int, int],
-                    steps: int = 0, masked: bool = False, where: dict | None = None) -> float:
+                    steps: int = 0, masked: bool = False, where: dict | None = None,
+                    step: float = CONFIRM_STEP, slack: bool = False,
+                    sharp: bool = False) -> float:
         """structure() of `lk`'s picture, made the size of `box` (y0, y1, x0, x1 in a
         frame of `shape`), on the capture's pixels at full size (`full`: _full_size's)
         where it best fits about there (+-CONFIRM_PAD px). With `steps`, also made up
-        to that many CONFIRM_STEPs smaller and bigger: the best of those. `masked`: a
+        to that many `step`s smaller and bigger: the best of those. `masked`: a
         cut-out is scored on its opaque part only (cut_structure()). 0.0 without them.
-        `where` gets the best one's (area, picture, mask, at) for band_shape()."""
+        `where` gets the best one's (area, picture, mask, at) for band_shape(). `slack`:
+        looked for anywhere in the box too, not only about its middle. `sharp`: the
+        plain match score there instead of structure()."""
         if full is None:
             return 0.0
         cut, (fh, fw) = full
@@ -4426,7 +4448,7 @@ class Watcher:
         k0 = ((y1 - y0) * sy / th + (x1 - x0) * sx / tw) / 2
         best = 0.0
         for i in range(-steps, steps + 1):
-            k = k0 * CONFIRM_STEP ** i
+            k = k0 * step ** i
             g, m = resize(lk.gray, k), None if lk.mask is None else shrink_mask(lk.mask, k)
             q = Pattern(g, m)
             if not q.ok:
@@ -4434,12 +4456,18 @@ class Watcher:
             gh, gw = q.shape
             pad = CONFIRM_PAD + 1 + (steps > 0)
             cy, cx = round((y0 + y1) * sy / 2 - gh / 2), round((x0 + x1) * sx / 2 - gw / 2)
-            area = cut(max(0, cy - pad), min(fh, cy + gh + pad),
-                       max(0, cx - pad), min(fw, cx + gw + pad))
+            ay0, ay1, ax0, ax1 = cy, cy + gh, cx, cx + gw
+            if slack:       # ...or anywhere in the box (smaller than it, off its middle)
+                ay0, ay1 = min(ay0, round(y0 * sy)), max(ay1, round(y1 * sy))
+                ax0, ax1 = min(ax0, round(x0 * sx)), max(ax1, round(x1 * sx))
+            area = cut(max(0, ay0 - pad), min(fh, ay1 + pad),
+                       max(0, ax0 - pad), min(fw, ax1 + pad))
             if area is None or area.shape[0] < gh or area.shape[1] < gw:
                 continue
-            _sc, at = _ncc_at(area, q)
-            if masked and not q.box:
+            sc, at = _ncc_at(area, q)
+            if sharp:
+                st = sc
+            elif masked and not q.box:
                 st = cut_structure(area, g, m, at)
             else:
                 st = structure(Frame(area), q, at)
@@ -4447,6 +4475,40 @@ class Watcher:
                 where["at"] = (area, g, m, at)
             best = max(best, st)
         return best
+
+    @staticmethod
+    def _resized(full: tuple, box: tuple, lk: Look, shape: tuple[int, int]) -> bool:
+        """Whether `box` (y0, y1, x0, x1 in a frame of `shape`) is `lk`'s picture at
+        another size than its own on the capture's pixels at full size (past TWIN_SIZE,
+        where _twin() doesn't look)."""
+        _cut, (fh, fw) = full
+        y0, y1, x0, x1 = box
+        th, tw = lk.gray.shape
+        return (abs((y1 - y0) * fh / shape[0] / th - 1) > TWIN_SIZE
+                or abs((x1 - x0) * fw / shape[1] / tw - 1) > TWIN_SIZE)
+
+    @staticmethod
+    def _resized_sharp(full: tuple, box: tuple, lk: Look, shape: tuple[int, int],
+                       seen: dict | Answers, key: str) -> float:
+        """The best sharp match of `lk`'s picture at full size anywhere in `box`, at its
+        size and RESIZED_STEPS of RESIZED_STEP either side (_fine_shape()), for a match
+        at another size (RESIZED_SHARP). Kept in `seen` (a capture's `twins`) under
+        `key`, the picture and the box's size, as _small_shape() does: a thing that
+        stays up is worked out again only once its pixels change."""
+        cut, (fh, fw) = full
+        sy, sx = fh / shape[0], fw / shape[1]
+        y0, y1, x0, x1 = box
+        area = cut(max(0, round(y0 * sy)), min(fh, round(y1 * sy)),
+                   max(0, round(x0 * sx)), min(fw, round(x1 * sx)))
+        px = None if area is None else area.tobytes()
+        k = ("resized", key, y1 - y0, x1 - x0)
+        got = seen.get(k)
+        if got is not None and got[0] is lk.gray and got[1] == px:
+            return got[2]
+        score = Watcher._fine_shape(full, box, lk, shape, RESIZED_STEPS, True,
+                                    step=RESIZED_STEP, slack=True, sharp=True)
+        seen[k] = (lk.gray, px, score)
+        return score
 
     @staticmethod
     def _shape_bar(p: Pattern, lk: Look) -> float | None:
