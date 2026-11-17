@@ -2,6 +2,10 @@
 
 What changed between releases, for the release notes. Newest first.
 
+## Unreleased
+
+- **"Any size" no longer goes off on look-alikes.** A picture found smaller or bigger than you cut it is now checked again in full detail before it counts. A name badge (a round icon and a name) kept playing every few seconds on a web page's file list, which only has folder icons and file names in the same layout.
+
 ## 0.13.5 (2026-11-12)
 
 - *Count me in* now sends its anonymous count to the project's own count server, the same one Onion Board uses, instead of GoatCounter. It counts the same things as before, plus whether it's Windows 10 or 11, and switching it off still sends nothing that tells you apart. The *GoatCounter privacy policy* link is gone from *What Count me in sends*.
